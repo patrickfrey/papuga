@@ -1140,11 +1140,7 @@ public:
 						//[1] Close all namespaces reaching end of scope
 						closeEndOfScopeNamespaces( nslist, ann.tag);
 						//[2] Close all templates reaching end of scope
-						closeEndOfScopeTemplates( warnings, outputfiles, tplist, ann.tag, verbose);
-						if (tplist.empty() || m_templates[ tplist.front().idx].tag != mainTemplateTagName)
-						{
-							throw EXCEPTION( "main template reached end of scope before termination");
-						}
+						closeEndOfScopeTemplates( warnings, outputfiles, tplist, ann.tag, verbose, false/*without toplevel*/);
 						//[3] Open namespaces triggered by the current tag
 						action |= openTriggeredNamespaces( nslist, ann);
 						//[4] Open templates triggered by the current tag
@@ -1171,7 +1167,7 @@ public:
 			}
 			while (tplist.size() > 1)
 			{
-				closeEndOfScopeTemplates( warnings, outputfiles, tplist, m_templates[ tplist.back().idx].tag, verbose);
+				closeEndOfScopeTemplates( warnings, outputfiles, tplist, m_templates[ tplist.back().idx].tag, verbose, true);
 			}
 			if (tplist.empty())
 			{
@@ -1470,7 +1466,7 @@ private:
 		}
 		return false;
 	}
-	void closeEndOfScopeTemplates( std::ostream& warnings, std::map<std::string,std::string>& outputfiles, std::list<TemplateInstance>& tplist, const std::string& tagname, bool verbose) const
+	void closeEndOfScopeTemplates( std::ostream& warnings, std::map<std::string,std::string>& outputfiles, std::list<TemplateInstance>& tplist, const std::string& tagname, bool verbose, bool inclTopLevelTemplate) const
 	{
 		unsigned int taggroupid = 0;
 		GroupMap::const_iterator gi = m_groupmap.find( tagname);
@@ -1483,6 +1479,7 @@ private:
 		while (ti != tplist.begin())
 		{
 			--ti;
+			if (!inclTopLevelTemplate && ti->idx == 0) continue;
 			if (m_templates[ ti->idx].tag == tagname
 			||	(taggroupid && m_templates[ ti->idx].groupid == taggroupid))
 			{
@@ -1608,6 +1605,10 @@ private:
 					const VariableDeclaration& var = m_namespaces[ ni->idx];
 					if (ctp.hasVariable( var.variable))
 					{
+						if (verbose)
+						{
+							warnings << "assign variable " << var.variable << " = '" << ni->value << "'" << std::endl;
+						}
 						ctp.assignVariable( var.variable, ni->value);
 					}
 				}
