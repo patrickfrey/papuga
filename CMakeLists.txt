@@ -48,5 +48,8 @@ install(DIRECTORY include/papuga
 install(FILES  include/papuga.h
           DESTINATION include )
 
+IF (NOT TARGET uninstall)
 include( cmake/standard_targets.cmake )
+ENDIF (NOT TARGET uninstall)
+
 
