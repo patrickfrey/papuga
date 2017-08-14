@@ -20,7 +20,7 @@ include( cmake/boost.cmake)
 include( cmake/intl.cmake )
 IF (NOT TARGET uninstall AND NOT TARGET distclean )
 include( cmake/standard_targets.cmake )
-ENDIF (NOT TARGET uninstall)
+ENDIF (NOT TARGET uninstall AND NOT TARGET distclean )
 
 IF (NOT WITH_PHP STREQUAL "YES")
 MESSAGE( STATUS  "PHP bindings generation is not enabled. Start cmake with -DWITH_PHP=\"YES\" to enable it." )
