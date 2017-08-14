@@ -1,0 +1,32 @@
+3rd party licenses of Papuga
+============================
+
+Table of Contents
+----------------------
+	textwolf
+	boost
+	fmt
+	Lua
+	Zend framework (PHP)
+
+textwolf
+----------
+	MPL v2.0
+	Copyright (c) 2010 Patrick P. Frey
+
+boost
+-------
+	http://www.boost.org/LICENSE_1_0.txt
+
+Lua
+----------------
+	MIT license (https://www.lua.org/license.html)
+
+fmt
+----------------
+       BSD 2-clause "Simplified" License
+       https://github.com/fmtlib/fmt/blob/master/LICENSE.rst
+
+Zend framework (PHP)
+----------------
+       New BSD License

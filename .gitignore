@@ -1,32 +1,53 @@
-# Prerequisites
-*.d
-
 # Compiled Object files
 *.slo
 *.lo
 *.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
 
 # Compiled Dynamic libraries
+*.so.0.*
+*.so.0
 *.so
 *.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
 
 # Compiled Static libraries
 *.lai
 *.la
 *.a
-*.lib
 
-# Executables
-*.exe
-*.out
-*.app
+# Dependency files
+*.d
+
+# Packaging directories
+dist/
+pkg/
+
+# Valgring suppression files
+*.sup
+
+# Generated source files:
+include/papuga/version.h
+src/internationalization.c
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles
+Makefile
+cmake_install.cmake
+cmake_install.cmake.user
+build_rules.cmake.user
+install_manifest.txt
+CTestTestfile.cmake
+CMakeLists.txt.user
+CTestTestfile.cmake.user
+uninstall.cmake
+DartConfiguration.tcl
+Testing/
+CPackConfig.cmake
+CPackSourceConfig.cmake
+cmake/build_rules.cmake.user
+
+# Generated test data
+tests/lua/exec
+tests/php7/exec
+
+

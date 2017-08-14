@@ -1,0 +1,23 @@
+/*
+ * Copyright (c) 2014 Patrick P. Frey
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+#include "private/internationalization.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <libintl.h>
+#include <locale.h>
+
+#define STRUS_GETTEXT_PACKAGE		"@STRUS_GETTEXT_PACKAGE@"
+#define STRUS_GETTEXT_LOCALEDIR		"@STRUS_GETTEXT_LOCALEDIR@"
+
+void papuga_initMessageTextDomain(void)
+{
+#ifdef ENABLE_NLS
+	bindtextdomain( STRUS_GETTEXT_PACKAGE, STRUS_GETTEXT_LOCALEDIR);
+#endif
+}
+

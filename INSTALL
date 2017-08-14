@@ -1,0 +1,10 @@
+git submodule update --init --recursive
+git submodule foreach git checkout master
+git submodule foreach git pull
+
+mkdir build
+cd build
+cmake -DWITH_PHP="YES" -DWITH_PYTHON="YES" ..
+make -j<N>
+make test ARGS=-j<N>
+
