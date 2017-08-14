@@ -1,0 +1,7 @@
+PACKAGING:
+----------
+
+Generate descriptions for packaging with:
+
+$ papugaDoc packaging.tpl packaging.src
+
