@@ -11,11 +11,16 @@ set( PAPUGA_PATCH_VERSION 0 )
 set( PAPUGA_VERSION ${PAPUGA_MAJOR_VERSION}.${PAPUGA_MINOR_VERSION}.${PAPUGA_PATCH_VERSION} )
 
 set( CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" )
+IF (NOT TARGET dist-xz)
 include( cmake/dist.cmake )
+ENDIF (NOT TARGET dist-xz)
 include( cmake/LinuxDistribution.cmake )
 include( cmake/build_rules.cmake )
 include( cmake/boost.cmake)
 include( cmake/intl.cmake )
+IF (NOT TARGET uninstall)
+include( cmake/standard_targets.cmake )
+ENDIF (NOT TARGET uninstall)
 
 set( PAPUGA_GETTEXT_PACKAGE "papuga-dom" )	 #... 1st parameter of bindtextdomain(...)
 set( PAPUGA_GETTEXT_LOCALEDIR "" )			 #... 2nd parameter of bindtextdomain(...)
@@ -48,8 +53,5 @@ install(DIRECTORY include/papuga
 install(FILES  include/papuga.h
           DESTINATION include )
 
-IF (NOT TARGET uninstall)
-include( cmake/standard_targets.cmake )
-ENDIF (NOT TARGET uninstall)
 
 
