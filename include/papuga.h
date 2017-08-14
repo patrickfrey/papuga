@@ -12,6 +12,7 @@
 /// 
 #include "papuga/typedefs.h"
 #include "papuga/version.h"
+#include "papuga/languages.h"
 #include "papuga/errors.h"
 #include "papuga/callResult.h"
 #include "papuga/hostObject.h"

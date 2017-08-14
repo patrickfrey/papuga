@@ -22,16 +22,20 @@ IF (NOT TARGET uninstall)
 include( cmake/standard_targets.cmake )
 ENDIF (NOT TARGET uninstall)
 
-set( PAPUGA_GETTEXT_PACKAGE "papuga-dom" )	 #... 1st parameter of bindtextdomain(...)
-set( PAPUGA_GETTEXT_LOCALEDIR "" )			 #... 2nd parameter of bindtextdomain(...)
-configure_file( "${PROJECT_SOURCE_DIR}/src/internationalization.c.in"       "${PROJECT_SOURCE_DIR}/src/internationalization.c"  @ONLY )
-configure_file( "${PROJECT_SOURCE_DIR}/include/papuga/version.h.in"      "${CMAKE_BINARY_DIR}/include/papuga/version.h"   @ONLY )
-
-enable_testing()
-
 IF (NOT WITH_PHP STREQUAL "YES")
 MESSAGE( STATUS  "PHP bindings generation is not enabled. Start cmake with -DWITH_PHP=\"YES\" to enable it." )
+set( PAPUGA_LANGUAGE_SUPPORT_PHP7  0 )
+ELSE (NOT WITH_PHP STREQUAL "YES")
+set( PAPUGA_LANGUAGE_SUPPORT_PHP7  1 )
 ENDIF (NOT WITH_PHP STREQUAL "YES")
+
+set( PAPUGA_GETTEXT_PACKAGE "papuga-dom" )	 #... 1st parameter of bindtextdomain(...)
+set( PAPUGA_GETTEXT_LOCALEDIR "" )			 #... 2nd parameter of bindtextdomain(...)
+configure_file( "${PROJECT_SOURCE_DIR}/src/internationalization.c.in"           "${PROJECT_SOURCE_DIR}/src/internationalization.c"  @ONLY )
+configure_file( "${PROJECT_SOURCE_DIR}/include/papuga/version.h.in"          "${CMAKE_BINARY_DIR}/include/papuga/version.h"   @ONLY )
+configure_file( "${PROJECT_SOURCE_DIR}/include/papuga/languages.h.in"      "${CMAKE_BINARY_DIR}/include/papuga/languages.h"   @ONLY )
+
+enable_testing()
 
 # Subdirectories:
 add_subdirectory( 3rdParty )
