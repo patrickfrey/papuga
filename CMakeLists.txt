@@ -18,7 +18,7 @@ include( cmake/LinuxDistribution.cmake )
 include( cmake/build_rules.cmake )
 include( cmake/boost.cmake)
 include( cmake/intl.cmake )
-IF (NOT TARGET uninstall)
+IF (NOT TARGET uninstall AND NOT TARGET distclean )
 include( cmake/standard_targets.cmake )
 ENDIF (NOT TARGET uninstall)
 
