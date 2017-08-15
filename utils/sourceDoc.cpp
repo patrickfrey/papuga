@@ -64,7 +64,8 @@ static void printDocumentationTag(
 static void printAnnotations(
 		std::ostream& out,
 		const SourceDocLanguageDescription* lang,
-		const papuga_Annotation* ann)
+		const papuga_Annotation* ann,
+		bool withDescription)
 {
 	papuga_Annotation const* di = ann;
 	for (; di->text; ++di)
@@ -72,7 +73,10 @@ static void printAnnotations(
 		switch (di->type)
 		{
 			case papuga_AnnotationType_Description:
-				printDocumentationTag( out, lang, "brief", di->text);
+				if (withDescription)
+				{
+					printDocumentationTag( out, lang, "brief", di->text);
+				}
 				break;
 			case papuga_AnnotationType_Example:
 			{
@@ -122,7 +126,7 @@ static void printParameterDescription(
 				description?description:"");
 		buf[ sizeof(buf)-1] = '\0';
 		printDocumentationTag( out, lang, "param", buf);
-		printAnnotations( out, lang, pi->doc);
+		printAnnotations( out, lang, pi->doc, false);
 	}
 }
 
@@ -135,7 +139,7 @@ static void printConstructor(
 	if (!cdef) return;
 	printDocumentationTag( out, lang, "constructor", "new");
 
-	printAnnotations( out, lang, cdef->doc);
+	printAnnotations( out, lang, cdef->doc, true);
 
 	printParameterDescription( out, lang, cdef->parameter);
 	out << lang->constructorDeclaration( classname, cdef) << std::endl;
@@ -150,7 +154,7 @@ static void printMethod(
 	if (!mdef) return;
 	printDocumentationTag( out, lang, "method", mdef->name);
 
-	printAnnotations( out, lang, mdef->doc);
+	printAnnotations( out, lang, mdef->doc, true);
 
 	printParameterDescription( out, lang, mdef->parameter);
 	out << lang->methodDeclaration( classname, mdef) << std::endl;
@@ -177,7 +181,7 @@ void papuga::printSourceDoc(
 		const papuga_ClassDescription& cdef = descr.classes[ci];
 		printDocumentationTag( out, lang, "class", cdef.name);
 
-		printAnnotations( out, lang, cdef.doc);
+		printAnnotations( out, lang, cdef.doc, true);
 		out << lang->classStartDeclaration( &cdef);
 
 		printConstructor( out, lang, cdef.name, cdef.constructor);
