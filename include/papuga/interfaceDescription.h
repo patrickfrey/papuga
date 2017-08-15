@@ -78,6 +78,7 @@ typedef struct papuga_AboutDescription
 typedef struct papuga_InterfaceDescription
 {
 	const char* name;				///< name of the project wrapped by the bindings
+	const char* description;			///< description of the module
 	const char** includefiles;			///< null terminated list of files to include
 	const papuga_ClassDescription* classes;		///< {NULL,..} terminated list of classes
 	const papuga_AboutDescription* about;		///< reference to authors,copyright,license,etc...
