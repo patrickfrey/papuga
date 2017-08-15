@@ -135,9 +135,6 @@ static void printConstructor(
 	if (!cdef) return;
 	printDocumentationTag( out, lang, "constructor", "new");
 
-	const char* description = getAnnotationText( cdef->doc, papuga_AnnotationType_Description);
-	printDocumentationTag( out, lang, "brief", description);
-
 	printAnnotations( out, lang, cdef->doc);
 
 	printParameterDescription( out, lang, cdef->parameter);
@@ -152,9 +149,6 @@ static void printMethod(
 {
 	if (!mdef) return;
 	printDocumentationTag( out, lang, "method", mdef->name);
-
-	const char* description = getAnnotationText( mdef->doc, papuga_AnnotationType_Description);
-	printDocumentationTag( out, lang, "brief", description);
 
 	printAnnotations( out, lang, mdef->doc);
 
@@ -183,8 +177,6 @@ void papuga::printSourceDoc(
 		const papuga_ClassDescription& cdef = descr.classes[ci];
 		printDocumentationTag( out, lang, "class", cdef.name);
 
-		const char* description = getAnnotationText( cdef.doc, papuga_AnnotationType_Description);
-		printDocumentationTag( out, lang, "brief", description);
 		printAnnotations( out, lang, cdef.doc);
 		out << lang->classStartDeclaration( &cdef);
 
