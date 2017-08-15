@@ -250,24 +250,13 @@ void papuga::printPython3ModSource(
 	std::transform( MODULENAME.begin(), MODULENAME.end(), MODULENAME.begin(), ::toupper);
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"#define PHP_{MODULENAME}_EXTNAME \"{modulename}\"",
-		"#define PHP_{MODULENAME}_VERSION \"{release}\"",
+		"#define PYTHON_{MODULENAME}_EXTNAME \"{modulename}\"",
+		"#define PYTHON_{MODULENAME}_VERSION \"{release}\"",
 		"#include \"papuga/lib/python3_dev.h\"",
 		"#include \"strus/bindingObjects.h\"",
 		"#include \"papuga.h\"",
 		"",
-		"// PHP & Zend includes:",
-		"typedef void siginfo_t;",
-		"#ifdef _MSC_VER",
-		"#include <zend_config.w32.h>",
-		"#else",
-		"#include <zend_config.nw.h>",
-		"#endif",
-		"#include <php.h>",
-		"#include <zend.h>",
-		"#include <zend_API.h>",
-		"#include <zend_exceptions.h>",
-		"#include <ext/standard/info.h>",
+		"#include <Python.h>",
 		"",
 		0),
 			fmt::arg("MODULENAME", MODULENAME),
@@ -286,8 +275,6 @@ void papuga::printPython3ModSource(
 		out << "#include \"" << *ai << "\"" << std::endl;
 	}
 	out << "///\\remark GENERATED FILE (libpapuga_python3_gen) - DO NOT MODIFY" << std::endl;
-	out << std::endl;
-	out << "#define PHP_FAIL(msg) {TSRMLS_FETCH();zend_error( E_ERROR, \"%s\", msg);RETVAL_FALSE;return;}";
 	out << std::endl << std::endl;
 
 	define_classdefmap( out, descr);

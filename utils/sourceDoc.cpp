@@ -164,10 +164,12 @@ void papuga::printSourceDoc(
 	printDocumentationTag( out, lang, "project", descr.name);
 	if (descr.about)
 	{
-		printDocumentationTag( out, lang, "author ", descr.about->authors);
+		printDocumentationTag( out, lang, "author ", descr.about->author);
+		printDocumentationTag( out, lang, "contributors ", descr.about->contributors);
 		printDocumentationTag( out, lang, "copyright", descr.about->copyright);
 		printDocumentationTag( out, lang, "license", descr.about->license);
 		printDocumentationTag( out, lang, "release", descr.about->version);
+		printDocumentationTag( out, lang, "url", descr.about->url);
 	}
 	std::size_t ci;
 	for (ci=0; descr.classes[ci].name; ++ci)

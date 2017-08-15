@@ -68,10 +68,12 @@ typedef struct papuga_ClassDescription
 
 typedef struct papuga_AboutDescription
 {
-	const char* authors;				///< authors of the project
-	const char* copyright;				///< main author of the project
+	const char* author;				///< author of the project
+	const char* contributors;			///< contributors of the project
+	const char* copyright;				///< copyright of the project
 	const char* license;				///< license name of the project
 	const char* version;				///< version (MAJOR.MINOR.PATCH) of the project
+	const char* url;				///< website of the project
 } papuga_AboutDescription;
 
 /// \brief Structure describing the interface
