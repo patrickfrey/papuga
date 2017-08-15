@@ -5,7 +5,7 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
-/// \brief Module for printing the PHP (v7) module C header and source
+/// \brief Module for printing the PHP (v7) module C source
 /// \file printPhp7Mod.cpp
 #include "printPhp7Mod.hpp"
 #include "private/dll_tags.h"
