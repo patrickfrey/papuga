@@ -20,6 +20,7 @@
 #include "papuga/serialization.h"
 #include "papuga/allocator.h"
 #include "papuga/valueVariant.h"
+#include "papuga/stack.h"
 #include "papuga/interfaceDescription.h"
 
 #endif

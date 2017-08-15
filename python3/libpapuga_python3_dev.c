@@ -5,10 +5,10 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
-/// \brief Library implementation for PHP (v7) bindings built by papuga
-/// \file libpapuga_php7_dev.c
+/// \brief Library implementation for Python (v3) bindings built by papuga
+/// \file libpapuga_python3_dev.c
 
-#include "papuga/lib/php7_dev.h"
+#include "papuga/lib/python3_dev.h"
 #include "papuga/valueVariant.h"
 #include "papuga/callResult.h"
 #include "papuga/errors.h"
@@ -25,29 +25,11 @@
 #include <stdio.h>
 #include <signal.h>
 #include <inttypes.h>
-
-// PHP & Zend includes:
-typedef void siginfo_t;
-#ifdef _MSC_VER
-#include <zend_config.w32.h>
-#else
-#include <zend_config.nw.h>
-#endif
-#include <php.h>
-#include <zend.h>
-#include <zend_API.h>
-#include <zend_interfaces.h>
-
-static zend_class_entry* get_class_entry( const papuga_php_ClassEntryMap* cemap, unsigned int classid)
-{
-	--classid;
-	return (classid > cemap->size) ? NULL : (zend_class_entry*)cemap->ar[ classid];
-}
+#include <Python.h>
 
 typedef struct ClassObject {
 	papuga_HostObject hobj;
 	int checksum;
-	zend_object zobj;
 } ClassObject;
 
 #define KNUTH_HASH 2654435761U
@@ -56,18 +38,16 @@ static int calcObjectCheckSum( const ClassObject* cobj)
 	return ((((cobj->hobj.classid+107) * KNUTH_HASH) ^ (uintptr_t)cobj->hobj.data) ^ (uintptr_t)cobj->hobj.destroy);
 }
 
-static ClassObject* getClassObject( zend_object* object)
-{
-	return (ClassObject*)((char *)object - XtOffsetOf( ClassObject, zobj));
-}
+typedef struct ObjectStateStackElem {
+	PyObject* obj;
+} ObjectStateStackElem;
 
 typedef struct IteratorObject {
 	papuga_Iterator iterator;
-	zval resultval;
+	papuga_Stack statestack;
 	int checksum;
 	bool eof;
 	long idx;
-	zend_object zobj;
 } IteratorObject;
 
 static int calcIteratorCheckSum( const IteratorObject* iobj)

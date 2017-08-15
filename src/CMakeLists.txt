@@ -9,6 +9,7 @@ set( source_files
 	callResult.c
 	errors.c
 	internationalization.c
+	stack.c
 	errors.cpp
 	valueVariant.cpp
 	serialization.cpp

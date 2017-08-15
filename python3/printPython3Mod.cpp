@@ -20,31 +20,6 @@
 
 using namespace papuga;
 
-#define INDENT "\t"
-
-static std::string namespace_classname( const std::string& modulename, const std::string& classname)
-{
-	return modulename + classname;
-}
-
-static void define_classdefmap(
-		std::ostream& out,
-		const papuga_InterfaceDescription& descr)
-{
-	std::string modulename = descr.name;
-
-	// Count number of classes and define zend class object global:
-	papuga_ClassDescription const* ci = descr.classes;
-	unsigned int cidx = 0;
-	for (; ci->name; ++ci,++cidx)
-	{
-		out << "static zend_class_entry* g_" << ci->name << "_ce = NULL;" << std::endl;
-	}
-
-	out << "static papuga_zend_class_entry* g_class_entry_list[ " << cidx << "];" << std::endl;
-	out << "static const papuga_php_ClassEntryMap g_class_entry_map = { " << cidx << ", g_class_entry_list };" << std::endl << std::endl;
-}
-
 static void define_method(
 		std::ostream& out,
 		const papuga_InterfaceDescription& descr,
@@ -102,20 +77,18 @@ static void define_constructor(
 	std::string modulename = descr.name;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"PHP_METHOD({nsclassname}, __construct)",
+		"static PyObject* constructor__{classname}(PyObject* self, PyObject* args)",
 		"{",
 		"papuga_HostObject thisHostObject;",
-		"papuga_php_CallArgs argstruct;",
+		"papuga_python_CallArgs argstruct;",
 		"papuga_ErrorBuffer errbuf;",
-		"void* self;",
 		"char errstr[ 2048];",
 		"const char* msg;",
-		"int argc = ZEND_NUM_ARGS();",
-
-		"if (!papuga_php_init_CallArgs( NULL/*self*/, argc, &argstruct))",
+		"",
+		"if (!papuga_python_init_CallArgs( args, &argstruct))",
 		"{",
-			"PHP_FAIL( papuga_ErrorCode_tostring( argstruct.errcode));",
-			"return;",
+			"papuga_python_error( papuga_ErrorCode_tostring( argstruct.errcode));",
+			"return NULL;",
 		"}",
 		"papuga_init_ErrorBuffer( &errbuf, errstr, sizeof(errstr));",
 		"self = {constructor}( &errbuf, argstruct.argc, argstruct.argv);",
@@ -123,24 +96,40 @@ static void define_constructor(
 		"{",
 			"msg = papuga_ErrorBuffer_lastError( &errbuf);",
 			"papuga_php_destroy_CallArgs( &argstruct);",
-			"PHP_FAIL( msg);",
-			"return;",
+			"papuga_php_error( msg);",
+			"return NULL;",
 		"}",
 		"papuga_php_destroy_CallArgs( &argstruct);",
-		"zval *thiszval = getThis();",
-		"papuga_init_HostObject( &thisHostObject, {classid}, self, &{destructor});",
-		"if (!papuga_php_init_object( thiszval, &thisHostObject))",
+		"PyObject* rt = papuga_php_create_HostObject( &thisHostObject, {classid}, self, &{destructor}, &errbuf);",
+		"if (!rt)",
 		"{",
-			"PHP_FAIL( \"object initialization failed\");",
-			"return;",
+			"papuga_php_error( \"object initialization failed\");",
+			"return NULL;",
 		"}",
+		"Py_RETURN( rt);"
 		"}",
 		0),
-			fmt::arg("nsclassname", namespace_classname( modulename, classdef.name)),
+			fmt::arg("methodname", method.name),
+			fmt::arg("classname", classdef.name),
 			fmt::arg("classid", classid),
 			fmt::arg("constructor", classdef.constructor->funcname),
 			fmt::arg("destructor", classdef.funcname_destructor)
 		) << std::endl;
+}
+
+static const char* getAnnotationText(
+		const papuga_Annotation* ann,
+		const papuga_AnnotationType type)
+{
+	papuga_Annotation const* di = ann;
+	if (di) for (; di->text; ++di)
+	{
+		if (di->type == type)
+		{
+			return di->text;
+		}
+	}
+	return "";
 }
 
 static void define_methodtable(
@@ -159,32 +148,31 @@ static void define_methodtable(
 		) << std::endl;
 	if (classdef.constructor)
 	{
+		const char* description = getAnnotationText( classdef.doc, papuga_AnnotationType_Description);
+		out << fmt::format( papuga::cppCodeSnippet( 1,
+			"{\"_ _init_ _\", &constructor__{classname}, METH_VARARGS, \"{description}\"},",
+			0),
+				fmt::arg("classname", classdef.name),
+				fmt::arg("description", description)
+			) << std::endl;
 	}
 	papuga_MethodDescription const* mi = classdef.methodtable;
 	for (; mi->name; ++mi)
 	{
+		const char* description = getAnnotationText( mi->doc, papuga_AnnotationType_Description);
 		out << fmt::format( papuga::cppCodeSnippet( 1,
-			"{\"{methodname}", &g_{classname}__{methodname}, METH_VARARGS, \"{description}\"},",
-			0)
+			"{\"{methodname}\", &{classname}__{methodname}, METH_VARARGS, \"{description}\"},",
+			0),
 				fmt::arg("classname", classdef.name),
-				fmt::arg("methodname", mi->name)
+				fmt::arg("methodname", mi->name),
+				fmt::arg("description", description)
 				
 			) << std::endl;
-	     {NULL, NULL, 0, NULL}
-	};
-	
-	out << "static const zend_function_entry g_" << classdef.name << "_methods[] = {" << std::endl;
-	if (classdef.constructor)
-	{
-		out << "\t" << "PHP_ME(" << nsclassname << ",  __construct, NULL, ZEND_ACC_PUBLIC | ZEND_ACC_CTOR)" << std::endl;
 	}
-	papuga_MethodDescription const* mi = classdef.methodtable;
-	for (; mi->name; ++mi)
-	{
-		out << "\t" << "PHP_ME(" << nsclassname << ", " << mi->name << ", NULL, ZEND_ACC_PUBLIC)" << std::endl;
-	}
-	out << "\t" << "PHP_FE_END" << std::endl;
-	out << "};" << std::endl;
+	out << fmt::format( papuga::cppCodeSnippet( 1,
+			"{NULL, NULL, 0, NULL}",
+			"};",
+			0)) << std::endl;
 }
 
 static void define_main(
@@ -230,7 +218,7 @@ void papuga::printPython3ModSource(
 		"",
 		"#include <Python.h>",
 		"",
-		"#define Py_RETURN(self)  {PyObject* rt=self; Py_INCREF(rt); return rt;}",
+		"#define Py_RETURN(self)  {PyObject* rt_=self; Py_INCREF(rt_); return rt_;}",
 		"",
 		0),
 			fmt::arg("MODULENAME", MODULENAME),
@@ -250,8 +238,6 @@ void papuga::printPython3ModSource(
 	}
 	out << "///\\remark GENERATED FILE (libpapuga_python3_gen) - DO NOT MODIFY" << std::endl;
 	out << std::endl << std::endl;
-
-	define_classdefmap( out, descr);
 
 	std::size_t ci;
 	for (ci=0; descr.classes[ci].name; ++ci)

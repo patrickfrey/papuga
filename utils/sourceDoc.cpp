@@ -99,14 +99,14 @@ static const char* getAnnotationText(
 		const papuga_AnnotationType type)
 {
 	papuga_Annotation const* di = ann;
-	for (; di->text; ++di)
+	if (di) for (; di->text; ++di)
 	{
 		if (di->type == type)
 		{
 			return di->text;
 		}
 	}
-	return 0;
+	return "";
 }
 
 static void printParameterDescription(

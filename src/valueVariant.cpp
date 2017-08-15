@@ -400,10 +400,10 @@ static bool bufprint_number_variant( char* buf, std::size_t bufsize, std::size_t
 
 extern "C" const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbufsize, const papuga_ValueVariant* val)
 {
-	if (!papuga_ValueVariant_isstring( val)) return false;
+	if (!papuga_ValueVariant_isstring( val)) return NULL;
 	if (val->valuetype == papuga_TypeString)
 	{
-		if (destbufsize <= (size_t)val->length) return 0;
+		if (destbufsize <= (size_t)val->length) return NULL;
 		const char* si = val->value.string;
 		char* di = destbuf;
 		while (*si && *si < 128)
@@ -417,7 +417,7 @@ extern "C" const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbu
 	{
 		return any_langstring_toascii( (papuga_StringEncoding)val->encoding, destbuf, destbufsize, val->value.langstring, val->length);
 	}
-	return 0;
+	return NULL;
 }
 
 extern "C" const char* papuga_ValueVariant_tostring( const papuga_ValueVariant* value, papuga_Allocator* allocator, size_t* len, papuga_ErrorCode* err)
@@ -438,24 +438,24 @@ extern "C" const char* papuga_ValueVariant_tostring( const papuga_ValueVariant* 
 	{
 		const char* rt;
 		char localbuf[256];
-		if (!bufprint_number_variant( localbuf, sizeof(localbuf), *len, value, err)) return 0;
+		if (!bufprint_number_variant( localbuf, sizeof(localbuf), *len, value, err)) return NULL;
 		rt = papuga_Allocator_copy_string( allocator, localbuf, *len);
 		if (!rt)
 		{
 			*err = papuga_NoMemError;
-			return 0;
+			return NULL;
 		}
 		return rt;
 	}
 	else if (papuga_ValueVariant_defined( value))
 	{
 		*err = papuga_TypeError;
-		return 0;
+		return NULL;
 	}
 	else
 	{
 		*err = papuga_ValueUndefined;
-		return 0;
+		return NULL;
 	}
 }
 
@@ -510,7 +510,7 @@ extern "C" const void* papuga_ValueVariant_tolangstring( const papuga_ValueVaria
 		else
 		{
 			*err = papuga_TypeError;
-			return 0;
+			return NULL;
 		}
 	}
 	else if (papuga_ValueVariant_isnumeric( value))
@@ -523,12 +523,12 @@ extern "C" const void* papuga_ValueVariant_tolangstring( const papuga_ValueVaria
 	else if (papuga_ValueVariant_defined( value))
 	{
 		*err = papuga_TypeError;
-		return 0;
+		return NULL;
 	}
 	else
 	{
 		*err = papuga_ValueUndefined;
-		return 0;
+		return NULL;
 	}
 }
 
