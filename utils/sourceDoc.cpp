@@ -61,37 +61,43 @@ static void printDocumentationTag(
 	}
 }
 
-static void printAnnotationTags(
+static void printAnnotations(
 		std::ostream& out,
 		const SourceDocLanguageDescription* lang,
 		const papuga_Annotation* ann)
 {
 	papuga_Annotation const* di = ann;
-	for (; di->tag; ++di)
+	for (; di->text; ++di)
 	{
-		if (0==std::strcmp( papuga_AnnotationTag_example, di->tag))
+		switch (di->type)
 		{
-			if (di->text)
+			case papuga_AnnotationType_Description:
+				printDocumentationTag( out, lang, "brief", di->text);
+				break;
+			case papuga_AnnotationType_Example:
 			{
 				std::string examplecode = lang->mapCodeExample( di->text);
 				printDocumentationTag( out, lang, "usage", examplecode.c_str());
+				break;
 			}
-		}
-		else if (0!=std::strcmp( papuga_AnnotationTag_brief, di->tag))
-		{
-			printDocumentationTag( out, lang, di->tag, di->text);
+			case papuga_AnnotationType_Note:
+				printDocumentationTag( out, lang, "note", di->text);
+				break;
+			case papuga_AnnotationType_Remark:
+				printDocumentationTag( out, lang, "remark", di->text);
+				break;
 		}
 	}
 }
 
 static const char* getAnnotationText(
 		const papuga_Annotation* ann,
-		const char* tag)
+		const papuga_AnnotationType type)
 {
 	papuga_Annotation const* di = ann;
-	for (; di->tag; ++di)
+	for (; di->text; ++di)
 	{
-		if (0==std::strcmp( tag, di->tag))
+		if (di->type == type)
 		{
 			return di->text;
 		}
@@ -108,7 +114,7 @@ static void printParameterDescription(
 	papuga_ParameterDescription const* pi = parameter;
 	for (; pi->name; ++pi)
 	{
-		const char* description = getAnnotationText( pi->doc, papuga_AnnotationTag_brief);
+		const char* description = getAnnotationText( pi->doc, papuga_AnnotationType_Description);
 		char buf[ 4096];
 		std::snprintf( buf, sizeof(buf), "%s %s%s",
 				pi->name,
@@ -116,7 +122,7 @@ static void printParameterDescription(
 				description?description:"");
 		buf[ sizeof(buf)-1] = '\0';
 		printDocumentationTag( out, lang, "param", buf);
-		printAnnotationTags( out, lang, pi->doc);
+		printAnnotations( out, lang, pi->doc);
 	}
 }
 
@@ -129,10 +135,10 @@ static void printConstructor(
 	if (!cdef) return;
 	printDocumentationTag( out, lang, "constructor", "new");
 
-	const char* description = getAnnotationText( cdef->doc, papuga_AnnotationTag_brief);
+	const char* description = getAnnotationText( cdef->doc, papuga_AnnotationType_Description);
 	printDocumentationTag( out, lang, "brief", description);
 
-	printAnnotationTags( out, lang, cdef->doc);
+	printAnnotations( out, lang, cdef->doc);
 
 	printParameterDescription( out, lang, cdef->parameter);
 	out << lang->constructorDeclaration( classname, cdef) << std::endl;
@@ -147,10 +153,10 @@ static void printMethod(
 	if (!mdef) return;
 	printDocumentationTag( out, lang, "method", mdef->name);
 
-	const char* description = getAnnotationText( mdef->doc, papuga_AnnotationTag_brief);
+	const char* description = getAnnotationText( mdef->doc, papuga_AnnotationType_Description);
 	printDocumentationTag( out, lang, "brief", description);
 
-	printAnnotationTags( out, lang, mdef->doc);
+	printAnnotations( out, lang, mdef->doc);
 
 	printParameterDescription( out, lang, mdef->parameter);
 	out << lang->methodDeclaration( classname, mdef) << std::endl;
@@ -177,9 +183,9 @@ void papuga::printSourceDoc(
 		const papuga_ClassDescription& cdef = descr.classes[ci];
 		printDocumentationTag( out, lang, "class", cdef.name);
 
-		const char* description = getAnnotationText( cdef.doc, papuga_AnnotationTag_brief);
+		const char* description = getAnnotationText( cdef.doc, papuga_AnnotationType_Description);
 		printDocumentationTag( out, lang, "brief", description);
-		printAnnotationTags( out, lang, cdef.doc);
+		printAnnotations( out, lang, cdef.doc);
 		out << lang->classStartDeclaration( &cdef);
 
 		printConstructor( out, lang, cdef.name, cdef.constructor);

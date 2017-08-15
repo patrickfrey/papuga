@@ -21,6 +21,11 @@ void printPython3ModSource(
 		const papuga_InterfaceDescription& descr,
 		const std::vector<std::string>& includes);
 
+void printPython3ModSetup(
+		std::ostream& out,
+		const papuga_InterfaceDescription& descr,
+		const std::vector<std::string>& includes);
+
 }//namespace
 #endif
 

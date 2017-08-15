@@ -11,15 +11,18 @@
 #define _PAPUGA_INTERFACE_DESCRIPTION_H_INCLUDED
 #include <stdbool.h>
 
-#define papuga_AnnotationTag_brief	"brief"		///< documentation tag telling the 'what'
-#define papuga_AnnotationTag_example	"example"	///< documentation tag illustrating the 'how'
-#define papuga_AnnotationTag_note	"note"		///< documentation tag explaining the 'why's
-#define papuga_AnnotationTag_remark	"remark"	///< documentation tag explaining the 'dont's
+typedef enum papuga_AnnotationType
+{
+	papuga_AnnotationType_Description,	///< documentation tag telling the 'what'
+	papuga_AnnotationType_Example,		///< documentation tag illustrating the 'how'
+	papuga_AnnotationType_Note,		///< documentation tag explaining the 'why's
+	papuga_AnnotationType_Remark		///< documentation tag explaining the 'dont's
+} papuga_AnnotationType;
 
 /// \brief Descriptive annotation (list of items as {NULL,NULL} terminated list)
 typedef struct papuga_Annotation
 {
-	const char* tag;				///< documentation tag, one of {"brief","example","remark","note"}
+	papuga_AnnotationType type;			///< documentation type
 	const char* text;				///< documentation text, content attached with the tag
 } papuga_Annotation;
 

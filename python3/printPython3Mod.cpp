@@ -52,40 +52,37 @@ static void define_method(
 		const papuga_MethodDescription& method)
 {
 	std::string modulename = descr.name;
-	std::string selfparam = method.nonstatic ? "getThis()":"NULL";
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"PHP_METHOD({nsclassname}, {methodname})",
+		"static PyObject* {classname}__{methodname}(PyObject* self, PyObject* args)",
 		"{",
-		"papuga_php_CallArgs argstruct;",
+		"papuga_python_CallArgs argstruct;",
 		"papuga_CallResult retstruct;",
 		"papuga_ErrorBuffer errbuf;",
 		"char errstr[ 2048];",
 		"const char* msg;",
-		"int argc = ZEND_NUM_ARGS();",
 		"",
-		"zval *obj = {selfparam};",
-		"if (!papuga_php_init_CallArgs( (void*)obj, argc, &argstruct))",
+		"if (!papuga_python_init_CallArgs( args, &argstruct))",
 		"{",
-			"PHP_FAIL( papuga_ErrorCode_tostring( argstruct.errcode));",
-			"return;",
+			"papuga_python_error( papuga_ErrorCode_tostring( argstruct.errcode));",
+			"return NULL;",
 		"}",
 		"papuga_init_CallResult( &retstruct, errstr, sizeof(errstr));",
-		"if (!{funcname}( argstruct.self, &retstruct, argstruct.argc, argstruct.argv))",
+		"if (!{funcname}( self, &retstruct, argstruct.argc, argstruct.argv))",
 		"{",
 			"msg = papuga_CallResult_lastError( &retstruct);",
-			"papuga_php_destroy_CallArgs( &argstruct);",
+			"papuga_python_destroy_CallArgs( &argstruct);",
 			"papuga_destroy_CallResult( &retstruct);",
-			"PHP_FAIL( msg);",
-			"return;",
+			"papuga_python_error( msg);",
+			"return NULL;",
 		"}",
 		"papuga_php_destroy_CallArgs( &argstruct);",
 		"papuga_init_ErrorBuffer( &errbuf, errstr, sizeof(errstr));",
-		"papuga_php_move_CallResult( return_value, &retstruct, &g_class_entry_map, &errbuf);",
+		"papuga_python_move_CallResult( return_value, &retstruct, &g_class_entry_map, &errbuf);",
 		"if (papuga_ErrorBuffer_hasError( &errbuf))",
 		"{",
-			"PHP_FAIL( errbuf.ptr);",
-			"return;",
+			"papuga_python_error( errbuf.ptr);",
+			"return NULL;",
 		"}",
 		"}",
 		0),
@@ -154,6 +151,28 @@ static void define_methodtable(
 	std::string modulename = descr.name;
 	std::string nsclassname = namespace_classname( modulename, classdef.name);
 
+	out << fmt::format( papuga::cppCodeSnippet( 0,
+		"static PyMethodDef g_{classname}_methods[] =",
+		"{",
+		0),
+			fmt::arg("classname", classdef.name)
+		) << std::endl;
+	if (classdef.constructor)
+	{
+	}
+	papuga_MethodDescription const* mi = classdef.methodtable;
+	for (; mi->name; ++mi)
+	{
+		out << fmt::format( papuga::cppCodeSnippet( 1,
+			"{\"{methodname}", &g_{classname}__{methodname}, METH_VARARGS, \"{description}\"},",
+			0)
+				fmt::arg("classname", classdef.name),
+				fmt::arg("methodname", mi->name)
+				
+			) << std::endl;
+	     {NULL, NULL, 0, NULL}
+	};
+	
 	out << "static const zend_function_entry g_" << classdef.name << "_methods[] = {" << std::endl;
 	if (classdef.constructor)
 	{
@@ -172,70 +191,23 @@ static void define_main(
 		std::ostream& out,
 		const papuga_InterfaceDescription& descr)
 {
-	std::string modulename = descr.name;
-	std::transform( modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
-	std::string Modulename = descr.name;
+	std::string ModuleName = descr.name;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static zend_object* create_zend_object_wrapper( zend_class_entry* ce)",
-		"{",
-			"return (zend_object*)papuga_php_create_object( ce);",
-		"}",
-		"PHP_MINIT_FUNCTION({modulename})"
-		"{",
-		"zend_class_entry tmp_ce;",
-		"papuga_php_init();",
-		0),
-			fmt::arg("modulename", modulename)
-		);
-	papuga_ClassDescription const* ci = descr.classes;
-	int cidx = 0;
-	for (; ci->name; ++ci,++cidx)
-	{
-		out << fmt::format( papuga::cppCodeSnippet( 1,
-			"INIT_CLASS_ENTRY(tmp_ce, \"{nsclassname}\", g_{classname}_methods);",
-			"g_{classname}_ce = zend_register_internal_class( &tmp_ce);",
-			"g_{classname}_ce->create_object = &create_zend_object_wrapper;",
-			"g_class_entry_list[ {cidx}] = g_{classname}_ce;",
-			0),
-				fmt::arg("cidx", cidx),
-				fmt::arg("classname", ci->name),
-				fmt::arg("nsclassname", namespace_classname( Modulename, ci->name))
-			);
-	}
-	out << "\t" << "return SUCCESS;" << std::endl;
-	out << "}";
-
-	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"PHP_MSHUTDOWN_FUNCTION({modulename})",
-		"{",
-		"return SUCCESS;",
-		"}",
-		"PHP_MINFO_FUNCTION({modulename})",
-		"{",
-		"php_info_print_table_start();"
-		"php_info_print_table_row(2, \"strus library support\", \"enabled\");",
-		"php_info_print_table_end();",
-		"}",
-		"const zend_function_entry {modulename}_functions[] = {",
-			"PHP_FE_END",
+		"static struct PyModuleDef g_moduledef = {",
+		"PyModuleDef_HEAD_INIT,",
+		"\"{ModuleName}\",
+		"\"{description}\",     /* m_doc */",
+		"-1,                    /* m_size */",
+		"g_module_functions,    /* m_methods */",
+		"NULL,                  /* m_reload */",
+		"NULL,                  /* m_traverse */",
+		"NULL,                  /* m_clear */",
+		"NULL,                  /* m_free */",
 		"};",
-		"zend_module_entry {modulename}_module_entry = {",
-			"STANDARD_MODULE_HEADER,",
-			"\"{modulename}\",",
-			"{modulename}_functions,",
-			"PHP_MINIT({modulename}),",
-			"PHP_MSHUTDOWN({modulename}),",
-			"NULL/*PHP_RINIT({modulename})*/,",
-			"NULL/*PHP_RSHUTDOWN({modulename})*/,",
-			"PHP_MINFO({modulename}),",
-			"\"{release}\", /* Replace with version number for your extension */",
-			"STANDARD_MODULE_PROPERTIES",
-		"};",
-		"ZEND_GET_MODULE({modulename})",
 		0),
-			fmt::arg("modulename", modulename),
-			fmt::arg("release", descr.about->version)
+			fmt::arg("ModuleName", ModuleName),
+			fmt::arg("description", descr.description ? descr.description : "")
 		);
 }
 
@@ -257,6 +229,8 @@ void papuga::printPython3ModSource(
 		"#include \"papuga.h\"",
 		"",
 		"#include <Python.h>",
+		"",
+		"#define Py_RETURN(self)  {PyObject* rt=self; Py_INCREF(rt); return rt;}",
 		"",
 		0),
 			fmt::arg("MODULENAME", MODULENAME),
@@ -297,5 +271,57 @@ void papuga::printPython3ModSource(
 	define_main( out, descr);
 }
 
+void papuga::printPython3ModSetup(
+		std::ostream& out,
+		const papuga_InterfaceDescription& descr,
+		const std::string& c_includedir,
+		const std::string& c_libdir)
+{
+	char const* vi = descr.about->version ? descr.about->version : "";
+	std::string version_major;
+	std::string version_minor;
+	for (; *vi && *vi <= 32; ++vi){}
+	for (; *vi && *vi >= '0' && *vi <= '9'; ++vi) {version_major.push_back(*vi);}
+	if (*vi == '.' || *vi == '-')
+	{
+		++vi;
+		for (; *vi && *vi >= '0' && *vi <= '9'; ++vi) {version_minor.push_back(*vi);}
+	}
+	if (version_major.empty()) version_major = "0";
+	if (version_minor.empty()) version_minor = "0";
+	std::string ModuleName = descr.name;
+	std::string modulename = descr.name;
+	std::transform( modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
+	std::string MODULENAME = descr.name;
+	std::transform( MODULENAME.begin(), MODULENAME.end(), MODULENAME.begin(), ::toupper);
 
+	out << fmt::format( papuga::cppCodeSnippet( 0,
+			"from distutils.core import setup, Extension",
+			"module1 = Extension('demo',"
+			"define_macros = [('MAJOR_VERSION', '{MAJOR_VERSION}'),('MINOR_VERSION', '{MINOR_VERSION}')],",
+			"include_dirs = ['{c_includedir}'],",
+			"libraries = ['tcl83'],",
+			"library_dirs = ['{c_libdir}','{c_libdir}/{modulename}'],",
+			"sources = ['{modulename}.c'])",
+			"",
+			"setup (name = '{ModuleName}',",
+			"version = '{version}',",
+			"description = '{description}',",
+			"author = '{author}',",
+			"url = '{url}',",
+			"ext_modules = [{modulename}])",
+			0),
+				fmt::arg("MODULENAME", MODULENAME),
+				fmt::arg("ModuleName", ModuleName),
+				fmt::arg("modulename", modulename),
+				fmt::arg("MAJOR_VERSION", version_major),
+				fmt::arg("MINOR_VERSION", version_minor),
+				fmt::arg("version", descr.about ? descr.about->version : "0.0"),
+				fmt::arg("c_includedir", c_includedir),
+				fmt::arg("c_libdir", c_libdir),
+				fmt::arg("description", descr.description ? descr.description:""),
+				fmt::arg("author", descr.author ? descr.author:""),
+				fmt::arg("url", descr.url ? descr.url:"")
+			) << std::endl;
+}
 
