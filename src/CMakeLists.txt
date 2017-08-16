@@ -31,7 +31,7 @@ link_directories(
 add_library( papuga_devel STATIC ${source_files} )
 
 add_library( papuga_doc_gen SHARED libpapuga_doc_gen.cpp )
-target_link_libraries( papuga_doc_gen )
+target_link_libraries( papuga_doc_gen papuga_gen_utils )
 
 set_target_properties(
     papuga_doc_gen
@@ -45,7 +45,7 @@ set_target_properties(
 # DOC GENERATOR
 # -------------------------------------------
 add_executable( papugaDoc papugaDoc.cpp )
-target_link_libraries( papugaDoc papuga_doc_gen ${CMAKE_DL_LIBS} ${Intl_LIBRARIES} )
+target_link_libraries( papugaDoc papuga_doc_gen ${CMAKE_DL_LIBS} ${Intl_LIBRARIES} papuga_gen_utils )
 
 # ------------------------------
 # INSTALLATION

@@ -139,4 +139,28 @@ ERROR:
 	throw std::runtime_error( buf);
 }
 
+void papuga::writeFile( const std::string& filename, const std::string& content)
+{
+	unsigned char ch;
+	FILE* fh = ::fopen( filename.c_str(), "wb");
+	if (!fh)
+	{
+		throw std::runtime_error( std::strerror( errno));
+	}
+	std::string::const_iterator fi = content.begin(), fe = content.end();
+	for (; fi != fe; ++fi)
+	{
+		ch = *fi;
+		if (1 > ::fwrite( &ch, 1, 1, fh))
+		{
+			int ec = ::ferror( fh);
+			if (ec)
+			{
+				::fclose( fh);
+				throw std::runtime_error( std::strerror(ec));
+			}
+		}
+	}
+	::fclose( fh);
+}
 

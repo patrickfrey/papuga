@@ -8,6 +8,7 @@
 /// \brief Program for map a doxygen style file with a template
 /// \file papugaDoc.cpp
 #include "papuga/lib/doc_gen.hpp"
+#include "private/gen_utils.hpp"
 #include <string>
 #include <vector>
 #include <fstream>
@@ -33,6 +34,12 @@ static void printUsage()
 	std::cerr << "                    for interface documentation. Tags start with '@'" << std::endl;
 	std::cerr << "                  variable [<name> '=']<tagname> ['[' <rangedef> ']'] [<encoder>]" << std::endl;
 	std::cerr << "                  : Declares a documentation tag as variable" << std::endl;
+	std::cerr << "                  index <name> { '{' <tagname> { ',' <tagname> } '}' }" << std::endl;
+	std::cerr << "                  : Declares a sequence of tags to be indexed." << std::endl;
+	std::cerr << "                    The index created is a sequence of numbers separated by '_'." << std::endl;
+	std::cerr << "                    Each number in the index corresponds to an incremental and" << std::endl;
+	std::cerr << "                    hierarchial counting of the tags specified in between curly" << std::endl;
+	std::cerr << "                    brackets in the scope of the preceeding index number." << std::endl;
 	std::cerr << "                  namespace [<name> '=']<tagname> ['[' <rangedef> ']'] [<encoder>]" << std::endl;
 	std::cerr << "                  : Declares a documentation tag as variable in the following scope" << std::endl;
 	std::cerr << "                  template [<name> '=']<tagname> <em> <ob> <eb>" << std::endl;
@@ -44,6 +51,13 @@ static void printUsage()
 	std::cerr << "                    the same group. Groups influence the end of scope." << std::endl;
 	std::cerr << "                  ignore <tagname> { <tagname> }" << std::endl;
 	std::cerr << "                  : Declares one or more input tags to be ignored." << std::endl;
+	std::cerr << "                  file <name> <ob> <eb> <filename-template>" << std::endl;
+	std::cerr << "                  : Declares a template content named <name> to be written to a file." << std::endl;
+	std::cerr << "                    The name of the destination file is created by substituting" << std::endl;
+	std::cerr << "                    variables between <ob> <eb> brackets in <filename-template>." << std::endl;
+	std::cerr << "                  empty <name> {<text>}" << std::endl;
+	std::cerr << "                  : Declares a text <text> to be used as substitute for a variable," << std::endl;
+	std::cerr << "                    if the variable is not defined or empty." << std::endl;
 	std::cerr << "              Meaning of elements in the grammar of the template language:" << std::endl;
 	std::cerr << "              <eolncomment> sequence of characters starting an eoln comment" << std::endl;
 	std::cerr << "              <name> replacement identifier of the variable template" << std::endl;
@@ -53,6 +67,7 @@ static void printUsage()
 	std::cerr << "              <em> end marker of the content of a template" << std::endl;
 	std::cerr << "              <ob> open bracket to mark variable references in a template" << std::endl;
 	std::cerr << "              <eb> close bracket for variable references in a template" << std::endl;
+	std::cerr << "              <text> uninterpreted sequence of non space characters" << std::endl;
 	std::cerr << "<inputfile> : source file to map" << std::endl;
 	std::cerr << "              Source contains program source with end of line comments" << std::endl;
 	std::cerr << "              End of line comments starting with a '@' followed by" << std::endl;
@@ -61,62 +76,6 @@ static void printUsage()
 	std::cerr << "<filepath>  : (optional) content of file to assign to variable" << std::endl;
 	std::cerr << "              Variable declarations passed with the command line are" << std::endl;
 	std::cerr << "              mapped as variables into the main (first) template specified." << std::endl;
-}
-
-static std::string readFile( const std::string& filename)
-{
-	int err = 0;
-	std::string rt;
-	FILE* fh = ::fopen( filename.c_str(), "rb");
-	if (!fh)
-	{
-		err = errno;
-		goto ERROR;
-	}
-	unsigned int nn;
-	enum {bufsize=(1<<12)};
-	char buf[ bufsize];
-
-	while (!!(nn=::fread( buf, 1/*nmemb*/, bufsize, fh)))
-	{
-		rt.append( buf, nn);
-	}
-	if (!feof( fh))
-	{
-		err = ::ferror( fh);
-		::fclose( fh);
-		goto ERROR;
-	}
-	::fclose( fh);
-	return rt;
-ERROR:
-	std::snprintf( buf, sizeof(buf), "error reading file '%s': %s", filename.c_str(), std::strerror(err));
-	throw std::runtime_error( buf);
-}
-
-static void writeFile( const std::string& filename, const std::string& content)
-{
-	unsigned char ch;
-	FILE* fh = ::fopen( filename.c_str(), "wb");
-	if (!fh)
-	{
-		throw std::runtime_error( std::strerror( errno));
-	}
-	std::string::const_iterator fi = content.begin(), fe = content.end();
-	for (; fi != fe; ++fi)
-	{
-		ch = *fi;
-		if (1 > ::fwrite( &ch, 1, 1, fh))
-		{
-			int ec = ::ferror( fh);
-			if (ec)
-			{
-				::fclose( fh);
-				throw std::runtime_error( std::strerror(ec));
-			}
-		}
-	}
-	::fclose( fh);
 }
 
 int main( int argc, const char** argv)
@@ -181,9 +140,9 @@ int main( int argc, const char** argv)
 			printUsage();
 			throw std::runtime_error( "too few arguments");
 		}
-		std::string source = readFile( argv[argi+0]);
+		std::string source = papuga::readFile( argv[argi+0]);
 		std::map<std::string,std::string> varmap;
-		std::string docsrc = readFile( argv[argi+1]);
+		std::string docsrc = papuga::readFile( argv[argi+1]);
 		argi += 2;
 		for (; argi != argc; ++argi)
 		{
@@ -200,7 +159,7 @@ int main( int argc, const char** argv)
 			{
 				throw std::runtime_error( "expected assignment <var>=<value> as argument");
 			}
-			std::string value = readFile( filename);
+			std::string value = papuga::readFile( filename);
 			if (varmap.find( name) != varmap.end())
 			{
 				char buf[ 1024];
@@ -246,7 +205,7 @@ int main( int argc, const char** argv)
 		for (; oi != oe; ++oi)
 		{
 			std::cerr << "writing output file '" << oi->first << "'" << std::endl;
-			writeFile( oi->first, oi->second);
+			papuga::writeFile( oi->first, oi->second);
 		}
 		std::cerr << "done" << std::endl;
 		return 0;

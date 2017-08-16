@@ -9,6 +9,7 @@
 /// \file libpapuga_doc_gen.cpp
 #include "papuga/lib/doc_gen.hpp"
 #include "private/dll_tags.h"
+#include "private/gen_utils.hpp"
 #include <string>
 #include <vector>
 #include <iostream>
@@ -1125,6 +1126,15 @@ public:
 					{
 						++si;
 						Annotation ann = parseAnnotation( si, se, ++timestmp);
+						if (ann.tag == "include")
+						{
+							char const* ci = ann.value.c_str();
+							const char* ce = ci + ann.value.size();
+							ann.tag = parseIdentifier( ci, ce);
+							skipLineSpaces( ci, ce);
+							std::string filename( trimString( ci, ce));
+							ann.value = readFile( filename);
+						}
 						if (verbose)
 						{
 							warnings << "parse @" << ann.tag << " [" << ann.value << "]" << std::endl;

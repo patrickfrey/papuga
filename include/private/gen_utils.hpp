@@ -28,6 +28,7 @@ std::string getGeneratorArgument(
 	const char* defaultval);
 
 std::string readFile( const std::string& path);
+void writeFile( const std::string& filename, const std::string& content);
 
 }//namespace
 #endif
