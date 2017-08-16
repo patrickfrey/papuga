@@ -5,7 +5,7 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
-/// \brief Library interface for libpapuga_php7_gen for generating PHP (v7) bindings
+/// \brief Library interface for libpapuga_php7_gen for generating PHP (v7) language bindings
 /// \file papuga/lib/php7_gen.hpp
 #ifndef _PAPUGA_PHP7_GEN_LIB_HPP_INCLUDED
 #define _PAPUGA_PHP7_GEN_LIB_HPP_INCLUDED

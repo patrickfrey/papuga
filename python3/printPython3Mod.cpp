@@ -53,17 +53,17 @@ static void define_method(
 		"}",
 		"papuga_php_destroy_CallArgs( &argstruct);",
 		"papuga_init_ErrorBuffer( &errbuf, errstr, sizeof(errstr));",
-		"papuga_python_move_CallResult( return_value, &retstruct, &g_class_entry_map, &errbuf);",
+		"PyObject* rt = papuga_python_move_CallResult( &retstruct, &g_class_entry_map, &errbuf);",
 		"if (papuga_ErrorBuffer_hasError( &errbuf))",
 		"{",
 			"papuga_python_error( errbuf.ptr);",
 			"return NULL;",
 		"}",
+		"py_RETURN( rt);"
 		"}",
 		0),
 			fmt::arg("methodname", method.name),
-			fmt::arg("nsclassname", namespace_classname( modulename, classdef.name)),
-			fmt::arg("selfparam", selfparam),
+			fmt::arg("classname", classdef.name),
 			fmt::arg("funcname", method.funcname)
 		) << std::endl;
 }
@@ -103,13 +103,19 @@ static void define_constructor(
 		"PyObject* rt = papuga_php_create_HostObject( &thisHostObject, {classid}, self, &{destructor}, &errbuf);",
 		"if (!rt)",
 		"{",
-			"papuga_php_error( \"object initialization failed\");",
+			"if (papuga_ErrorBuffer_hasError( &errbuf))",
+			"{",
+				"papuga_python_error( errbuf.ptr);",
+			"}",
+			"else",
+			"{",
+				"papuga_python_error( \"constructor of '%s' failed\", \"{classname}\");",
+			"}",
 			"return NULL;",
 		"}",
 		"Py_RETURN( rt);"
 		"}",
 		0),
-			fmt::arg("methodname", method.name),
 			fmt::arg("classname", classdef.name),
 			fmt::arg("classid", classid),
 			fmt::arg("constructor", classdef.constructor->funcname),
@@ -137,9 +143,6 @@ static void define_methodtable(
 		const papuga_InterfaceDescription& descr,
 		const papuga_ClassDescription& classdef)
 {
-	std::string modulename = descr.name;
-	std::string nsclassname = namespace_classname( modulename, classdef.name);
-
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"static PyMethodDef g_{classname}_methods[] =",
 		"{",
@@ -175,6 +178,57 @@ static void define_methodtable(
 			0)) << std::endl;
 }
 
+static void define_class(
+		std::ostream& out,
+		const papuga_InterfaceDescription& descr,
+		const papuga_ClassDescription& classdef)
+{
+	out << fmt::format( papuga::cppCodeSnippet( 0,
+		"PyTypeObject Py{classname}_Type = {",
+		"PyVarObject_HEAD_INIT(&PyType_Type, 0)",
+		"\"{classname}\",                /* tp_name */",
+		"sizeof({classname}Impl),        /* tp_basicsize */",
+		"0,                              /* tp_itemsize */",
+		"(destructor){classname}_dealloc,/* tp_dealloc */",
+		"0,                              /* tp_print */",
+		"0,                              /* tp_getattr */",
+		"0,                              /* tp_setattr */",
+		"0,                              /* tp_reserved */",
+		"0,                              /* tp_repr */",
+		"0,                              /* tp_as_number */",
+		"0,                              /* tp_as_sequence */",
+		"0,                              /* tp_as_mapping */",
+		"0,                              /* tp_hash */",
+		"0,                              /* tp_call */",
+		"0,                              /* tp_str */",
+		"0,                              /* tp_getattro */",
+		"0,                              /* tp_setattro */",
+		"0,                              /* tp_as_buffer */",
+		"Py_TPFLAGS_DEFAULT,             /* tp_flags */",
+		"0,                              /* tp_doc */",
+		"0,                              /* tp_traverse */",
+		"0,                              /* tp_clear */",
+		"0,                              /* tp_richcompare */",
+		"0,                              /* tp_weaklistoffset */",
+		"0,                              /* tp_iter */",
+		"0,                              /* tp_iternext */",
+		"g_{classname}_methods,          /* tp_methods */",
+		"0,                              /* tp_members */",
+		"0,                              /* tp_getset */",
+		"0,                              /* tp_base */",
+		"0,                              /* tp_dict */",
+		"0,                              /* tp_descr_get */",
+		"0,                              /* tp_descr_set */",
+		"0,                              /* tp_dictoffset */",
+		"0,                              /* tp_init */",
+		"PyType_GenericAlloc,            /* tp_alloc */",
+		"{classname}_new,                /* tp_new */",
+		"};",
+		0),
+			fmt::arg("classname", classdef.name)
+		) << std::endl;
+}
+
 static void define_main(
 		std::ostream& out,
 		const papuga_InterfaceDescription& descr)
@@ -184,7 +238,7 @@ static void define_main(
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"static struct PyModuleDef g_moduledef = {",
 		"PyModuleDef_HEAD_INIT,",
-		"\"{ModuleName}\",
+		"\"{ModuleName}\",",
 		"\"{description}\",     /* m_doc */",
 		"-1,                    /* m_size */",
 		"g_module_functions,    /* m_methods */",
@@ -218,12 +272,12 @@ void papuga::printPython3ModSource(
 		"",
 		"#include <Python.h>",
 		"",
-		"#define Py_RETURN(self)  {PyObject* rt_=self; Py_INCREF(rt_); return rt_;}",
+		"#define Py_RETURN(self)  {PyObject* rt_=self; if (rt_) Py_INCREF(rt_); return rt_;}",
 		"",
 		0),
 			fmt::arg("MODULENAME", MODULENAME),
 			fmt::arg("modulename", modulename),
-			fmt::arg("release", descr.about ? descr.about->version : "")
+			fmt::arg("release", descr.about && descr.about->version ? descr.about->version : "")
 		) << std::endl;
 
 	char const** fi = descr.includefiles;
@@ -253,6 +307,7 @@ void papuga::printPython3ModSource(
 			define_method( out, descr, classdef, classdef.methodtable[mi]);
 		}
 		define_methodtable( out, descr, classdef);
+		define_class( out, descr, classdef);
 	}
 	define_main( out, descr);
 }
@@ -263,7 +318,7 @@ void papuga::printPython3ModSetup(
 		const std::string& c_includedir,
 		const std::string& c_libdir)
 {
-	char const* vi = descr.about->version ? descr.about->version : "";
+	char const* vi = descr.about && descr.about->version ? descr.about->version : "";
 	std::string version_major;
 	std::string version_minor;
 	for (; *vi && *vi <= 32; ++vi){}
@@ -282,32 +337,32 @@ void papuga::printPython3ModSetup(
 	std::transform( MODULENAME.begin(), MODULENAME.end(), MODULENAME.begin(), ::toupper);
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-			"from distutils.core import setup, Extension",
-			"module1 = Extension('demo',"
-			"define_macros = [('MAJOR_VERSION', '{MAJOR_VERSION}'),('MINOR_VERSION', '{MINOR_VERSION}')],",
-			"include_dirs = ['{c_includedir}'],",
-			"libraries = ['tcl83'],",
-			"library_dirs = ['{c_libdir}','{c_libdir}/{modulename}'],",
-			"sources = ['{modulename}.c'])",
-			"",
-			"setup (name = '{ModuleName}',",
-			"version = '{version}',",
-			"description = '{description}',",
-			"author = '{author}',",
-			"url = '{url}',",
-			"ext_modules = [{modulename}])",
-			0),
-				fmt::arg("MODULENAME", MODULENAME),
-				fmt::arg("ModuleName", ModuleName),
-				fmt::arg("modulename", modulename),
-				fmt::arg("MAJOR_VERSION", version_major),
-				fmt::arg("MINOR_VERSION", version_minor),
-				fmt::arg("version", descr.about ? descr.about->version : "0.0"),
-				fmt::arg("c_includedir", c_includedir),
-				fmt::arg("c_libdir", c_libdir),
-				fmt::arg("description", descr.description ? descr.description:""),
-				fmt::arg("author", descr.author ? descr.author:""),
-				fmt::arg("url", descr.url ? descr.url:"")
-			) << std::endl;
+		"from distutils.core import setup, Extension",
+		"module1 = Extension('demo',"
+		"define_macros = [('MAJOR_VERSION', '{MAJOR_VERSION}'),('MINOR_VERSION', '{MINOR_VERSION}')],",
+		"include_dirs = ['{c_includedir}'],",
+		"libraries = ['tcl83'],",
+		"library_dirs = ['{c_libdir}','{c_libdir}/{modulename}'],",
+		"sources = ['{modulename}.c'])",
+		"",
+		"setup (name = '{ModuleName}',",
+		"version = '{version}',",
+		"description = '{description}',",
+		"author = '{author}',",
+		"url = '{url}',",
+		"ext_modules = [{modulename}])",
+		0),
+			fmt::arg("MODULENAME", MODULENAME),
+			fmt::arg("ModuleName", ModuleName),
+			fmt::arg("modulename", modulename),
+			fmt::arg("MAJOR_VERSION", version_major),
+			fmt::arg("MINOR_VERSION", version_minor),
+			fmt::arg("version", descr.about && descr.about->version ? descr.about->version : "0.0"),
+			fmt::arg("c_includedir", c_includedir),
+			fmt::arg("c_libdir", c_libdir),
+			fmt::arg("description", descr.description ? descr.description:""),
+			fmt::arg("author", descr.about && descr.about->author ? descr.about->author:""),
+			fmt::arg("url", descr.about && descr.about->url ? descr.about->url:"")
+		) << std::endl;
 }
 

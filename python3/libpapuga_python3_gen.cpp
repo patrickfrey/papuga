@@ -5,13 +5,13 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
-/// \brief Library interface for libpapuga_php7_gen for generating PHP (v7) bindings
-/// \file libpapuga_php7_gen.cpp
-#include "papuga/lib/php7_gen.hpp"
+/// \brief Library interface for libpapuga_python3_gen for generating PHP (v7) bindings
+/// \file libpapuga_python3_gen.cpp
+#include "papuga/lib/python3_gen.hpp"
 #include "private/dll_tags.h"
 #include "private/gen_utils.hpp"
-#include "printPhp7Doc.hpp"
-#include "printPhp7Mod.hpp"
+#include "printPython3Doc.hpp"
+#include "printPython3Mod.hpp"
 #include "fmt/format.h"
 #include <string>
 #include <cstdio>
@@ -21,13 +21,7 @@
 
 using namespace papuga;
 
-#if defined _WIN32
-#define DEFAULT_MODULE_EXT ".dll"
-#else
-#define DEFAULT_MODULE_EXT ".so"
-#endif
-
-DLL_PUBLIC bool papuga::generatePhp7Source(
+DLL_PUBLIC bool papuga::generatePython3Source(
 	std::ostream& out,
 	std::ostream& err,
 	const std::string& what,
@@ -38,17 +32,17 @@ DLL_PUBLIC bool papuga::generatePhp7Source(
 	{
 		if (what == "module")
 		{
-			printPhp7ModSource( out, descr, getGeneratorArguments( args, "include"));
+			printPython3ModSource( out, descr, getGeneratorArguments( args, "include"));
 		}
-		else if (what == "ini")
+		else if (what == "setup")
 		{
-			std::string iniarg( getGeneratorArgument( args, "phpini", 0));
-			std::string dllext( getGeneratorArgument( args, "dllext", DEFAULT_MODULE_EXT));
-			printPhp7ModIni( out, descr, readFile( iniarg), dllext);
+			std::string c_includedir( getGeneratorArgument( args, "incdir", 0));
+			std::string c_libdir( getGeneratorArgument( args, "libdir", 0));
+			printPython3ModSetup( out, descr, c_includedir, c_libdir);
 		}
 		else if (what == "doc")
 		{
-			printPhp7Doc( out, descr);
+			printPython3Doc( out, descr);
 		}
 		else
 		{
@@ -60,11 +54,11 @@ DLL_PUBLIC bool papuga::generatePhp7Source(
 	}
 	catch (const fmt::FormatError& ex)
 	{
-		err << "format error generating PHP (v7) binding source '" << what << "': " << ex.what() << std::endl;
+		err << "format error generating Python (v3) binding source '" << what << "': " << ex.what() << std::endl;
 	}
 	catch (const std::exception& ex)
 	{
-		err << "error generating PHP (v7) binding source '" << what << "': " << ex.what() << std::endl;
+		err << "error generating Python (v3) binding source '" << what << "': " << ex.what() << std::endl;
 	}
 	return false;
 }

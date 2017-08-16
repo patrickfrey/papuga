@@ -24,7 +24,8 @@ void printPython3ModSource(
 void printPython3ModSetup(
 		std::ostream& out,
 		const papuga_InterfaceDescription& descr,
-		const std::vector<std::string>& includes);
+		const std::string& c_includedir,
+		const std::string& c_libdir);
 
 }//namespace
 #endif
