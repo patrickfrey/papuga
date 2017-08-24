@@ -7,29 +7,33 @@
  */
 #ifndef _PAPUGA_HOST_OBJECT_H_INCLUDED
 #define _PAPUGA_HOST_OBJECT_H_INCLUDED
-/// \brief Representation of an object in the host environment of the papuga language bindings
-/// \file hostObject.h
+/*
+* @brief Representation of an object in the host environment of the papuga language bindings
+* @file hostObject.h
+*/
 #include "papuga/typedefs.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/// \brief Constructor of a host object reference
-/// \param[out] self pointer to structure initialized by constructor
-/// \param[in] classid_ class identifier of the host object
-/// \param[in] object_ pointer to host object
-/// \param[in] destroy_ destructor of the host object in case of ownership
+/*
+* @brief Constructor of a host object reference
+* @param[out] self pointer to structure initialized by constructor
+* @param[in] classid_ class identifier of the host object
+* @param[in] object_ pointer to host object
+* @param[in] destroy_ destructor of the host object in case of ownership
+*/
 #define papuga_init_HostObject( self, classid_, object_, destroy_)	{papuga_HostObject* s = self; s->classid=classid_; s->data=object_; s->destroy=destroy_;}
-
-/// \brief Release of ownership of a host object reference
-/// \param[in,out] self pointer to structure
+/*
+* @brief Release of ownership of a host object reference
+* @param[in,out] self pointer to structure
+*/
 #define papuga_release_HostObject( self)				{(self)->destroy=0;}
-
-/// \brief Destructor of a host object reference
-/// \param[in,out] self pointer to structure
+/*
+* @brief Destructor of a host object reference
+* @param[in,out] self pointer to structure
+*/
 #define papuga_destroy_HostObject( self)				{papuga_HostObject* s = self; if (s->destroy && s->data) {s->destroy( s->data);s->destroy=0;}}
-
 #ifdef __cplusplus
 }
 #endif

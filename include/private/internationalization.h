@@ -14,8 +14,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/// \brief Declare the message domain used by this package for the exception constructors declared in this module for gettext
+/*
+* @brief Declare the message domain used by this package for the exception constructors declared in this module for gettext
+*/
 void papuga_initMessageTextDomain(void);
 
 #ifdef __cplusplus

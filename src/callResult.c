@@ -5,8 +5,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Representation of a result of a call to papuga language bindings
-/// \file callResult.c
+/*
+* @brief Representation of a result of a call to papuga language bindings
+* @file callResult.c
+*/
 #include "papuga/callResult.h"
 #include "papuga/valueVariant.h"
 #include "papuga/serialization.h"

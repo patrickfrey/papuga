@@ -7,9 +7,10 @@
  */
 #ifndef _PAPUGA_H_INCLUDED
 #define _PAPUGA_H_INCLUDED
-/// \brief Main C include file of the papuga library
-/// \file papuga.h
-/// 
+/*
+* @brief Main C include file of the papuga library
+* @file papuga.h
+*/ 
 #include "papuga/typedefs.h"
 #include "papuga/version.h"
 #include "papuga/languages.h"

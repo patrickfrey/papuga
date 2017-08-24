@@ -5,13 +5,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Representation of a result of a call to papuga language bindings
-/// \file callResult.c
+/*
+* @brief Representation of a result of a call to papuga language bindings
+* @file callResult.c
+*/
 #include "papuga/typedefs.h"
 #include <stdarg.h>
 #include <stdio.h>
 
-/// \brief Hook for GETTEXT
+/* @brief Hook for GETTEXT */
 #define _TXT(x) x
 
 const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)

@@ -5,8 +5,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Serialization of structures for papuga language bindings
-/// \file serialization.c
+/*
+* @brief Serialization of structures for papuga language bindings
+* @file serialization.c
+*/
 #include "papuga/serialization.h"
 #include "papuga/valueVariant.h"
 #include <stdlib.h>

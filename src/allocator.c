@@ -5,8 +5,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Allocator for memory blocks with ownership returned by papuga language binding functions
-/// \file allocator.h
+/*
+* @brief Allocator for memory blocks with ownership returned by papuga language binding functions
+* @file allocator.h
+*/
 #include "papuga/allocator.h"
 #include "papuga/serialization.h"
 #include "papuga/hostObject.h"
