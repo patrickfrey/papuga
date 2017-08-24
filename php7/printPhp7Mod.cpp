@@ -111,6 +111,7 @@ static void define_constructor(
 		"papuga_php_CallArgs argstruct;",
 		"papuga_ErrorBuffer errbuf;",
 		"void* self;",
+		"zval *thiszval;",
 		"char errstr[ 2048];",
 		"const char* msg;",
 		"int argc = ZEND_NUM_ARGS();",
@@ -130,7 +131,7 @@ static void define_constructor(
 			"return;",
 		"}",
 		"papuga_php_destroy_CallArgs( &argstruct);",
-		"zval *thiszval = getThis();",
+		"thiszval = getThis();",
 		"papuga_init_HostObject( &thisHostObject, {classid}, self, &{destructor});",
 		"if (!papuga_php_init_object( thiszval, &thisHostObject))",
 		"{",
@@ -256,8 +257,8 @@ void papuga::printPhp7ModSource(
 		"#include \"strus/bindingObjects.h\"",
 		"#include \"papuga.h\"",
 		"",
-		"// PHP & Zend includes:",
-		"typedef void siginfo_t;",
+		"/* PHP & Zend includes: */",
+		"typedef struct siginfo_t;",
 		"#ifdef _MSC_VER",
 		"#include <zend_config.w32.h>",
 		"#else",
@@ -285,7 +286,7 @@ void papuga::printPhp7ModSource(
 	{
 		out << "#include \"" << *ai << "\"" << std::endl;
 	}
-	out << "///\\remark GENERATED FILE (libpapuga_php7_gen) - DO NOT MODIFY" << std::endl;
+	out << "/* @remark GENERATED FILE (libpapuga_php7_gen) - DO NOT MODIFY */" << std::endl;
 	out << std::endl;
 	out << "#define PHP_FAIL(msg) {TSRMLS_FETCH();zend_error( E_ERROR, \"%s\", msg);RETVAL_FALSE;return;}";
 	out << std::endl << std::endl;

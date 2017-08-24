@@ -15,6 +15,9 @@
 #include "textwolf/textscanner.hpp"
 #include <string.h>
 #include <limits>
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
 #include <inttypes.h>
 
 #define PRINT_FORMAT_UINT "%" PRIu64

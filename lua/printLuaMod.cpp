@@ -197,7 +197,7 @@ void papuga::printLuaModHeader(
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"#ifndef _PAPUGA_{modulename}_LUA_INTERFACE__INCLUDED",
 		"#define _PAPUGA_{modulename}_LUA_INTERFACE__INCLUDED",
-		"///\\remark GENERATED FILE (libpapuga_lua_gen) - DO NOT MODIFY",
+		"/* @remark GENERATED FILE (libpapuga_lua_gen) - DO NOT MODIFY */",
 		"",
 		"#include \"lua.h\"",
 		"#ifdef __cplusplus",
@@ -234,7 +234,7 @@ void papuga::printLuaModSource(
 	{
 		out << "#include \"" << *ai << "\"" << std::endl;
 	}
-	out << "///\\remark GENERATED FILE (libpapuga_lua_gen) - DO NOT MODIFY" << std::endl;
+	out << "/* @remark GENERATED FILE (libpapuga_lua_gen) - DO NOT MODIFY */" << std::endl;
 	out << std::endl;
 
 	define_classnamemap( out, descr);

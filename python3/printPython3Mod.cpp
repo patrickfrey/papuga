@@ -290,7 +290,7 @@ void papuga::printPython3ModSource(
 	{
 		out << "#include \"" << *ai << "\"" << std::endl;
 	}
-	out << "///\\remark GENERATED FILE (libpapuga_python3_gen) - DO NOT MODIFY" << std::endl;
+	out << "/* @remark GENERATED FILE (libpapuga_python3_gen) - DO NOT MODIFY */" << std::endl;
 	out << std::endl << std::endl;
 
 	std::size_t ci;
