@@ -61,10 +61,12 @@ papuga_zend_object* papuga_php_create_object( papuga_zend_class_entry* ce);
 /*
 * @brief Initializes a zend object created with papuga_php_create_object with its host object reference
 * @param[in] selfzval zval of the object to initialize
-* @param[in] hostobjref pointer to host object reference structure (passed with ownership, freed on error)
+* @param[in] self pointer to host object data (pass with ownership, destroyed on error)
+* @param[in] classid class identifier of the object
+* @param[in] destroy destructor function of the host object data ('self')
 * @return true in success, error on a type mismatch error
 */
-bool papuga_php_init_object( void* selfzval, papuga_HostObject* hostobjref);
+bool papuga_php_init_object( void* selfzval, void* self, int classid, papuga_Deleter destroy);
 
 /*
 * @brief Fills a structure with the arguments passed in a PHP binding function/method call

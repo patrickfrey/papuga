@@ -48,9 +48,13 @@ void papuga_python_init();
 
 /*
 * @brief Create a non initialized (NULL) host object in the Python context
-* @param[in] ce class description (method table for Python)
+* @param[in] self pointer to host object data (pass with ownership, destroyed on error)
+* @param[in] classid class identifier of the object
+* @param[in] destroy destructor function of the host object data ('self')
+* @param[in,out] errbuf where to report errors
+* @return object without reference increment, NULL on error
 */
-PyObject* papuga_python_create_object( papuga_HostObject* hostobjref);
+PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, papuga_ErrorBuffer* errbuf);
 
 /*
 * @brief Fills a structure with the arguments passed in a Python binding function/method call

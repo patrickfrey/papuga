@@ -100,7 +100,7 @@ static void define_constructor(
 				"return NULL;",
 			"}",
 			"papuga_python_destroy_CallArgs( &argstruct);",
-			"PyObject* rt = papuga_pyhon_create_HostObject( &thisHostObject, {classid}, self, &{destructor}, &errbuf);",
+			"PyObject* rt = papuga_pyhon_create_object( self, {classid}, &{destructor}, &errbuf);",
 			"if (!rt)",
 			"{",
 				"if (papuga_ErrorBuffer_hasError( &errbuf))",

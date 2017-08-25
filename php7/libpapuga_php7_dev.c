@@ -100,7 +100,7 @@ DLL_PUBLIC papuga_zend_object* papuga_php_create_object(
 	return &cobj->zobj;
 }
 
-DLL_PUBLIC bool papuga_php_init_object( void* selfzval, papuga_HostObject* hobj)
+DLL_PUBLIC bool papuga_php_init_object( void* selfzval, void* self, int classid, papuga_Deleter destroy)
 {
 	zval* sptr = (zval*)selfzval;
 	if (Z_TYPE_P(sptr) == IS_OBJECT)
@@ -109,16 +109,16 @@ DLL_PUBLIC bool papuga_php_init_object( void* selfzval, papuga_HostObject* hobj)
 		ClassObject *cobj = getClassObject( zobj);
 		if (cobj->checksum != calcObjectCheckSum( cobj))
 		{
-			papuga_destroy_HostObject( hobj);
+			destroy( self);
 			return false;
 		}
-		papuga_init_HostObject( &cobj->hobj, hobj->classid, hobj->data, hobj->destroy);
+		papuga_init_HostObject( &cobj->hobj, classid, self, destroy);
 		cobj->checksum = calcObjectCheckSum( cobj);
 		return true;
 	}
 	else
 	{
-		papuga_destroy_HostObject( hobj);
+		destroy( self);
 		return false;
 	}
 }
@@ -448,7 +448,7 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 			}
 			object_init(return_value);
 			Z_OBJ_P(return_value) = zobj;
-			if (papuga_php_init_object( return_value, hobj))
+			if (papuga_php_init_object( return_value, hobj->data, hobj->classid, hobj->destroy))
 			{
 				papuga_release_HostObject(hobj);
 				Z_SET_REFCOUNT_P(return_value,1);
