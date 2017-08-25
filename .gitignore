@@ -25,6 +25,7 @@ pkg/
 
 # Generated source files:
 include/papuga/version.h
+include/papuga/languages.h
 src/internationalization.c
 
 # CMake generated files
@@ -48,5 +49,9 @@ cmake/build_rules.cmake.user
 # Generated test data
 tests/lua/exec
 tests/php7/exec
+
+# Programs built
+3rdParty/lua_cmake/lua
+src/papugaDoc
 
 
