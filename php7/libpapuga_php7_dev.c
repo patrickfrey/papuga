@@ -629,7 +629,7 @@ static bool deserialize( zval* return_value, papuga_Allocator* allocator, const 
 	return rt;
 }
 
-DLL_PUBLIC bool papuga_php_init_CallArgs( void* selfzval, int argc, papuga_php_CallArgs* as)
+DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_php_CallArgs* as, void* selfzval, int argc)
 {
 	zval args[ papuga_PHP_MAX_NOF_ARGUMENTS];
 	int argi = -1;

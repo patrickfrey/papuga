@@ -700,7 +700,7 @@ DLL_PUBLIC void papuga_lua_error_str( lua_State* ls, const char* function, const
 	luaL_error( ls, "%s (%s)", errormsg, function);
 }
 
-DLL_PUBLIC bool papuga_lua_init_CallArgs( lua_State *ls, int argc, papuga_lua_CallArgs* as, const char* classname)
+DLL_PUBLIC bool papuga_lua_init_CallArgs( papuga_lua_CallArgs* as, lua_State *ls, int argc, const char* classname)
 {
 	int argi = 1;
 	as->erridx = -1;

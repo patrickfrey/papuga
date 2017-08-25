@@ -72,7 +72,7 @@ bool papuga_php_init_object( void* selfzval, papuga_HostObject* hostobjref);
 * @param[in] argc number of function arguments
 * @param[out] arg argument structure initialized
 */
-bool papuga_php_init_CallArgs( void* selfzval, int argc, papuga_php_CallArgs* arg);
+bool papuga_php_init_CallArgs( papuga_php_CallArgs* arg, void* selfzval, int argc);
 
 /*
 * @brief Frees the arguments of a papuga call (to call after the call)

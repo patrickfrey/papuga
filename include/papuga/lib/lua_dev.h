@@ -105,7 +105,7 @@ void papuga_lua_error_str( lua_State* ls, const char* function, const char* erro
 * @param[out] arg argument structure initialized
 * @param[in] classname name of the class of the called method
 */
-bool papuga_lua_init_CallArgs( lua_State *ls, int argc, papuga_lua_CallArgs* arg, const char* classname);
+bool papuga_lua_init_CallArgs( papuga_lua_CallArgs* arg, lua_State *ls, int argc, const char* classname);
 
 /*
 * @brief Frees the arguments of a papuga call (to call after the call)
