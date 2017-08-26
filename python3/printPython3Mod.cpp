@@ -27,7 +27,7 @@ static void define_method(
 		const papuga_MethodDescription& method)
 {
 	std::string modulename = descr.name;
-	out << "static const char* g_paramname_" << classdef.name << " __" << method.name << "[] = {";
+	out << "static const char* g_paramname_" << classdef.name << "__" << method.name << "[] = {";
 	const papuga_ParameterDescription* pi = method.parameter;
 	for (; pi->name; ++pi)
 	{
@@ -204,6 +204,9 @@ static void define_class(
 		"{",
 			"PyObject_Del(self);",
 		"}",
+		"static PyObject* {classname}_new( PyTypeObject *subtype, PyObject *args, PyObject *kwargs)",
+		"{",
+		"}",
 		"",
 		"static PyTypeObject g_typeobject_{classname} =",
 		"{",
@@ -244,7 +247,7 @@ static void define_class(
 		"0,                              /* tp_dictoffset */",
 		"0,                              /* tp_init */",
 		"PyType_GenericAlloc,            /* tp_alloc */",
-		"{classname}_new,                /* tp_new */",
+		"constructor__{classname},       /* tp_new */",
 		"};",
 		0),
 			fmt::arg("classname", classdef.name)
