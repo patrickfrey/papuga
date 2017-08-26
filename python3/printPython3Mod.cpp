@@ -80,7 +80,6 @@ static void define_constructor(
 		"static PyObject* constructor__{classname}(PyObject* self, PyObject* args)",
 		"{",
 			"PyObject* rt;",
-			"papuga_HostObject thisHostObject;",
 			"papuga_python_CallArgs argstruct;",
 			"papuga_ErrorBuffer errbuf;",
 			"char errstr[ 2048];",
@@ -145,7 +144,7 @@ static void define_methodtable(
 		const papuga_ClassDescription& classdef)
 {
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static PyMethodDef g_{classname}_methods[] =",
+		"static PyMethodDef g_methods_{classname}[] =",
 		"{",
 		0),
 			fmt::arg("classname", classdef.name)
@@ -185,7 +184,7 @@ static void define_class(
 		const papuga_ClassDescription& classdef)
 {
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"PyTypeObject Py{classname}_Type =",
+		"static PyTypeObject g_typeobject_{classname} =",
 		"{",
 		"PyVarObject_HEAD_INIT(&PyType_Type, 0)",
 		"\"{classname}\",                /* tp_name */",
@@ -214,7 +213,7 @@ static void define_class(
 		"0,                              /* tp_weaklistoffset */",
 		"0,                              /* tp_iter */",
 		"0,                              /* tp_iternext */",
-		"g_{classname}_methods,          /* tp_methods */",
+		"g_methods_{classname},          /* tp_methods */",
 		"0,                              /* tp_members */",
 		"0,                              /* tp_getset */",
 		"0,                              /* tp_base */",
@@ -253,6 +252,27 @@ static void define_main(
 			fmt::arg("ModuleName", ModuleName),
 			fmt::arg("description", descr.description ? descr.description : "")
 		);
+
+	out << "static bool initModule(void)" << std::endl
+		<< "{" << std::endl;
+	std::size_t ci;
+	for (ci=0; descr.classes[ci].name; ++ci)
+	{
+		out << "\t" << "g_typeobjectar[ " << ci << "] = &g_typeobject_" << descr.classes[ci].name << ";" << std::endl;
+	}
+	out << "}" << std::endl << std::endl;
+}
+
+static void define_class_entrymap(
+		std::ostream& out,
+		unsigned int nofClasses)
+{
+	unsigned int ci = 0;
+	out << "static PyTypeObject* g_typeobjectar[ " << (nofClasses+1) << "] = {";
+	for (; ci < nofClasses; ++ci) out << "0,";
+	out << "0};" << std::endl;
+	out << "static papuga_python_ClassEntryMap g_class_entry_map = { " << nofClasses << ", g_typeobjectar };" << std::endl;
+	out << std::endl;
 }
 
 void papuga::printPython3ModSource(
@@ -296,6 +316,9 @@ void papuga::printPython3ModSource(
 	out << std::endl << std::endl;
 
 	std::size_t ci;
+	for (ci=0; descr.classes[ci].name; ++ci){}
+	define_class_entrymap( out, ci);
+
 	for (ci=0; descr.classes[ci].name; ++ci)
 	{
 		const papuga_ClassDescription& classdef = descr.classes[ci];
