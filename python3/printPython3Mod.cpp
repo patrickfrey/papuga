@@ -31,6 +31,7 @@ static void define_method(
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"static PyObject* {classname}__{methodname}(PyObject* self, PyObject* args)",
 		"{",
+			"PyObject* rt;",
 			"papuga_python_CallArgs argstruct;",
 			"papuga_CallResult retstruct;",
 			"papuga_ErrorBuffer errbuf;",
@@ -53,7 +54,7 @@ static void define_method(
 			"}",
 			"papuga_python_destroy_CallArgs( &argstruct);",
 			"papuga_init_ErrorBuffer( &errbuf, errstr, sizeof(errstr));",
-			"PyObject* rt = papuga_python_move_CallResult( &retstruct, &g_class_entry_map, &errbuf);",
+			"rt = papuga_python_move_CallResult( &retstruct, &g_class_entry_map, &errbuf);",
 			"if (papuga_ErrorBuffer_hasError( &errbuf))",
 			"{",
 				"papuga_python_error( \"error in '%s': %s\", \"{classname}->{methodname}\", errbuf.ptr);",
@@ -77,9 +78,10 @@ static void define_constructor(
 	std::string modulename = descr.name;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static PyObject* constructor__{classname}(PyObject* self, PyObject* args)",
+		"static PyObject* constructor__{classname}(PyObject*, PyObject* args)",
 		"{",
 			"PyObject* rt;",
+			"void* self;",
 			"papuga_python_CallArgs argstruct;",
 			"papuga_ErrorBuffer errbuf;",
 			"char errstr[ 2048];",
@@ -184,11 +186,16 @@ static void define_class(
 		const papuga_ClassDescription& classdef)
 {
 	out << fmt::format( papuga::cppCodeSnippet( 0,
+		"static void {classname}_dealloc( PyObject* self)",
+		"{",
+			"PyObject_Del(self);",
+		"}",
+		"",
 		"static PyTypeObject g_typeobject_{classname} =",
 		"{",
 		"PyVarObject_HEAD_INIT(&PyType_Type, 0)",
 		"\"{classname}\",                /* tp_name */",
-		"sizeof({classname}Impl),        /* tp_basicsize */",
+		"sizeof(void*),                  /* tp_basicsize */",
 		"0,                              /* tp_itemsize */",
 		"(destructor){classname}_dealloc,/* tp_dealloc */",
 		"0,                              /* tp_print */",
@@ -237,7 +244,10 @@ static void define_main(
 	std::string ModuleName = descr.name;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static struct PyModuleDef g_moduledef = {",
+		"static PyMethodDef g_module_functions[] = { {0, 0} };",
+		"",
+		"static struct PyModuleDef g_moduledef =",
+		"{",
 		"PyModuleDef_HEAD_INIT,",
 		"\"{ModuleName}\",",
 		"\"{description}\",     /* m_doc */",
@@ -251,15 +261,18 @@ static void define_main(
 		0),
 			fmt::arg("ModuleName", ModuleName),
 			fmt::arg("description", descr.description ? descr.description : "")
-		);
+		) << std::endl << std::endl;
 
-	out << "static bool initModule(void)" << std::endl
-		<< "{" << std::endl;
+	out << "PyMODINIT_FUNC PyInit_" << ModuleName << "(void)" << std::endl
+		<< "{" << std::endl
+		<< "\t" << "PyObject* rt;" << std::endl;
 	std::size_t ci;
 	for (ci=0; descr.classes[ci].name; ++ci)
 	{
 		out << "\t" << "g_typeobjectar[ " << ci << "] = &g_typeobject_" << descr.classes[ci].name << ";" << std::endl;
 	}
+	out << "\t" << "rt = PyModule_Create( &g_moduledef);" << std::endl;
+	out << "\t" << "return rt;" << std::endl;
 	out << "}" << std::endl << std::endl;
 }
 

@@ -107,7 +107,6 @@ static void define_constructor(
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"PHP_METHOD({nsclassname}, __construct)",
 		"{",
-		"papuga_HostObject thisHostObject;",
 		"papuga_php_CallArgs argstruct;",
 		"papuga_ErrorBuffer errbuf;",
 		"void* self;",
