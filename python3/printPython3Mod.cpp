@@ -36,16 +36,17 @@ static void define_method(
 	out << "NULL};" << std::endl << std::endl;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static PyObject* {classname}__{methodname}(PyObject* self, PyObject* args, PyObject* kwargs)",
+		"static PyObject* {classname}__{methodname}(PyObject* selfobj, PyObject* args)",
 		"{",
 			"PyObject* rt;",
+			"void* self = ((papuga_python_ClassObject*)selfobj)->self;"
 			"papuga_python_CallArgs argstruct;",
 			"papuga_CallResult retstruct;",
 			"papuga_ErrorBuffer errbuf;",
 			"char errstr[ 2048];",
 			"const char* msg;",
 			"",
-			"if (!papuga_python_init_CallArgs( &argstruct, args, kwargs, g_paramname_{classname}__{methodname}))",
+			"if (!papuga_python_init_CallArgs( &argstruct, args, g_paramname_{classname}__{methodname}))",
 			"{",
 				"papuga_python_error( \"error in '%s': %s\", \"{classname}->{methodname}\", papuga_ErrorCode_tostring( argstruct.errcode));",
 				"return NULL;",
@@ -92,16 +93,15 @@ static void define_constructor(
 	out << "NULL};" << std::endl << std::endl;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static PyObject* constructor__{classname}(PyObject* unused_, PyObject* args, PyObject *kwargs)",
+		"static PyObject* constructor__{classname}( PyObject* selfobj, PyObject* args)",
 		"{",
-			"PyObject* rt;",
 			"void* self;",
 			"papuga_python_CallArgs argstruct;",
 			"papuga_ErrorBuffer errbuf;",
 			"char errstr[ 2048];",
 			"const char* msg;",
 			"",
-			"if (!papuga_python_init_CallArgs( &argstruct, args, kwargs, g_paramname_constructor__{classname}))",
+			"if (!papuga_python_init_CallArgs( &argstruct, args, g_paramname_constructor__{classname}))",
 			"{",
 				"papuga_python_error( \"error in constructor of '%s': %s\", \"{classname}\", papuga_ErrorCode_tostring( argstruct.errcode));",
 				"return NULL;",
@@ -115,21 +115,9 @@ static void define_constructor(
 				"papuga_python_error( \"error in constructor of '%s': %s\", \"{classname}\", msg);",
 				"return NULL;",
 			"}",
+			"((papuga_python_ClassObject*)selfobj)->self = self;"
 			"papuga_python_destroy_CallArgs( &argstruct);",
-			"rt = papuga_python_create_object( self, {classid}, &{destructor}, &errbuf);",
-			"if (!rt)",
-			"{",
-				"if (papuga_ErrorBuffer_hasError( &errbuf))",
-				"{",
-					"papuga_python_error( \"error in constructor of '%s': %s\", \"{classname}\", errbuf.ptr);",
-				"}",
-				"else",
-				"{",
-					"papuga_python_error( \"constructor of '%s' failed\", \"{classname}\");",
-				"}",
-				"return NULL;",
-			"}",
-			"Py_RETURN( rt);",
+			"Py_RETURN( selfobj);",
 		"}",
 		0),
 			fmt::arg("classname", classdef.name),
@@ -164,29 +152,28 @@ static void define_methodtable(
 		"{",
 		0),
 			fmt::arg("classname", classdef.name)
-		) << std::endl;
+		);
 	if (classdef.constructor)
 	{
 		const char* description = getAnnotationText( classdef.doc, papuga_AnnotationType_Description);
 		out << fmt::format( papuga::cppCodeSnippet( 1,
-			"{{\"_ _init_ _\", &constructor__{classname}, METH_VARARGS, \"{description}\"}},",
+			"{{\"_ _init_ _\", &constructor__{classname}, METH_VARARGS|METH_KEYWORDS, \"{description}\"}},",
 			0),
 				fmt::arg("classname", classdef.name),
 				fmt::arg("description", description)
-			) << std::endl;
+			);
 	}
 	papuga_MethodDescription const* mi = classdef.methodtable;
 	for (; mi->name; ++mi)
 	{
 		const char* description = getAnnotationText( mi->doc, papuga_AnnotationType_Description);
 		out << fmt::format( papuga::cppCodeSnippet( 1,
-			"{{\"{methodname}\", &{classname}__{methodname}, METH_VARARGS, \"{description}\"}},",
+			"{{\"{methodname}\", &{classname}__{methodname}, METH_VARARGS|METH_KEYWORDS, \"{description}\"}},",
 			0),
 				fmt::arg("classname", classdef.name),
 				fmt::arg("methodname", mi->name),
 				fmt::arg("description", description)
-				
-			) << std::endl;
+			);
 	}
 	out << fmt::format( papuga::cppCodeSnippet( 1,
 			"{{NULL, NULL, 0, NULL}}",
@@ -200,21 +187,24 @@ static void define_class(
 		const papuga_ClassDescription& classdef)
 {
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static void {classname}_dealloc( PyObject* self)",
+		"static void dealloc__{classname}( PyObject* selfobj)",
 		"{",
+			"void* self = ((papuga_python_ClassObject*)selfobj)->self;",
+			"{destructor}( self);",
 			"PyObject_Del(self);",
 		"}",
-		"static PyObject* {classname}_new( PyTypeObject *subtype, PyObject *args, PyObject *kwargs)",
+		"static PyObject* init__{classname}( PyTypeObject *subtype, PyObject *args, PyObject *kwargs)",
 		"{",
+		    "return args ? constructor__{classname}( NULL, args) : constructor__{classname}( NULL, kwargs);",
 		"}",
 		"",
 		"static PyTypeObject g_typeobject_{classname} =",
 		"{",
 		"PyVarObject_HEAD_INIT(&PyType_Type, 0)",
 		"\"{classname}\",                /* tp_name */",
-		"sizeof(void*),                  /* tp_basicsize */",
+		"sizeof(papuga_python_ClassObject), /* tp_basicsize */",
 		"0,                              /* tp_itemsize */",
-		"(destructor){classname}_dealloc,/* tp_dealloc */",
+		"(destructor)dealloc__{classname},/* tp_dealloc */",
 		"0,                              /* tp_print */",
 		"0,                              /* tp_getattr */",
 		"0,                              /* tp_setattr */",
@@ -245,12 +235,13 @@ static void define_class(
 		"0,                              /* tp_descr_get */",
 		"0,                              /* tp_descr_set */",
 		"0,                              /* tp_dictoffset */",
-		"0,                              /* tp_init */",
-		"PyType_GenericAlloc,            /* tp_alloc */",
-		"constructor__{classname},       /* tp_new */",
+		"init__{classname},              /* tp_init */",
+		"0,                              /* tp_alloc */",
+		"0,                              /* tp_new */",
 		"};",
 		0),
-			fmt::arg("classname", classdef.name)
+			fmt::arg("classname", classdef.name),
+			fmt::arg("destructor", classdef.funcname_destructor)
 		) << std::endl;
 }
 

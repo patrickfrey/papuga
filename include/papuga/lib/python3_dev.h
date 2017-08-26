@@ -41,12 +41,22 @@ typedef struct papuga_python_ClassEntryMap
 } papuga_python_ClassEntryMap;
 
 /*
+* @brief Papuga class object frame
+*/
+typedef struct papuga_python_ClassObject
+{
+	PyObject_HEAD				/*< Python object header */
+	void* self;				/*< pointer to host object representation */
+} papuga_python_ClassObject;
+
+/*
 * @brief Initialize papuga globals for Python3
 * @remark this function has to be called before using any of the functions of this module
 */
 void papuga_python_init();
 
 /*
+* DEPRECATED
 * @brief Create a non initialized (NULL) host object in the Python context
 * @param[in] self pointer to host object data (pass with ownership, destroyed on error)
 * @param[in] classid class identifier of the object
@@ -54,17 +64,16 @@ void papuga_python_init();
 * @param[in,out] errbuf where to report errors
 * @return object without reference increment, NULL on error
 */
-PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, papuga_ErrorBuffer* errbuf);
+/* PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, papuga_ErrorBuffer* errbuf); */
 
 /*
 * @brief Fills a structure with the arguments passed in a Python binding function/method call
 * @param[out] argstruct argument structure initialized
 * @param[in] args positional arguments or NULL
-* @param[in] kwargs named arguments or NULL
 * @param[in] kwargnames NULL terminated list of argument names in their order of definition
 * @return true on success, false on error, see error code in argstruct to determine the error
 */
-bool papuga_python_init_CallArgs( papuga_python_CallArgs* argstruct, PyObject* args, PyObject* kwargs, const char** kwargnames);
+bool papuga_python_init_CallArgs( papuga_python_CallArgs* argstruct, PyObject* args, const char** kwargnames);
 
 /*
 * @brief Frees the arguments of a papuga call (to call after the call)
