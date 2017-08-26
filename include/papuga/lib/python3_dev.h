@@ -58,14 +58,16 @@ PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter d
 
 /*
 * @brief Fills a structure with the arguments passed in a Python binding function/method call
-* @param[in] argc number of function arguments
-* @param[out] arg argument structure initialized
+* @param[out] argstruct argument structure initialized
+* @param[in] args positional arguments or NULL
+* @param[in] kwargs named arguments or NULL
+* @return true on success, false on error, see error code in argstruct to determine the error
 */
-bool papuga_python_init_CallArgs( papuga_python_CallArgs* argstruct, PyObject* pyargs);
+bool papuga_python_init_CallArgs( papuga_python_CallArgs* argstruct, PyObject* args, PyObject* kwargs);
 
 /*
 * @brief Frees the arguments of a papuga call (to call after the call)
-* @param[in] arg argument structure freed
+* @param[in] argstruct argument structure freed
 */
 void papuga_python_destroy_CallArgs( papuga_python_CallArgs* argstruct);
 

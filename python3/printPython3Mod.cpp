@@ -29,7 +29,7 @@ static void define_method(
 	std::string modulename = descr.name;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static PyObject* {classname}__{methodname}(PyObject* self, PyObject* args)",
+		"static PyObject* {classname}__{methodname}(PyObject* self, PyObject* args, PyObject* kwargs)",
 		"{",
 			"PyObject* rt;",
 			"papuga_python_CallArgs argstruct;",
@@ -38,7 +38,7 @@ static void define_method(
 			"char errstr[ 2048];",
 			"const char* msg;",
 			"",
-			"if (!papuga_python_init_CallArgs( &argstruct, args))",
+			"if (!papuga_python_init_CallArgs( &argstruct, args, kwargs))",
 			"{",
 				"papuga_python_error( \"error in '%s': %s\", \"{classname}->{methodname}\", papuga_ErrorCode_tostring( argstruct.errcode));",
 				"return NULL;",
@@ -60,7 +60,7 @@ static void define_method(
 				"papuga_python_error( \"error in '%s': %s\", \"{classname}->{methodname}\", errbuf.ptr);",
 				"return NULL;",
 			"}",
-			"py_RETURN( rt);",
+			"Py_RETURN( rt);",
 		"}",
 		0),
 			fmt::arg("methodname", method.name),
@@ -78,7 +78,7 @@ static void define_constructor(
 	std::string modulename = descr.name;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static PyObject* constructor__{classname}(PyObject*, PyObject* args)",
+		"static PyObject* constructor__{classname}(PyObject* unused_, PyObject* args, PyObject *kwargs)",
 		"{",
 			"PyObject* rt;",
 			"void* self;",
@@ -87,7 +87,7 @@ static void define_constructor(
 			"char errstr[ 2048];",
 			"const char* msg;",
 			"",
-			"if (!papuga_python_init_CallArgs( &argstruct, args))",
+			"if (!papuga_python_init_CallArgs( &argstruct, args, kwargs))",
 			"{",
 				"papuga_python_error( \"error in constructor of '%s': %s\", \"{classname}\", papuga_ErrorCode_tostring( argstruct.errcode));",
 				"return NULL;",

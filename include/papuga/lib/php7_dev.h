@@ -70,9 +70,10 @@ bool papuga_php_init_object( void* selfzval, void* self, int classid, papuga_Del
 
 /*
 * @brief Fills a structure with the arguments passed in a PHP binding function/method call
+* @param[out] arg argument structure initialized
 * @param[in] selfzval the zend zval pointer of the self parameter of the object called
 * @param[in] argc number of function arguments
-* @param[out] arg argument structure initialized
+* @return true on success, false on error, see error code in argstruct to determine the error
 */
 bool papuga_php_init_CallArgs( papuga_php_CallArgs* arg, void* selfzval, int argc);
 
