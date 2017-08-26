@@ -132,7 +132,7 @@ static void define_constructor(
 		"}",
 		"papuga_php_destroy_CallArgs( &argstruct);",
 		"thiszval = getThis();",
-		"if (!papuga_php_init_object( thiszval, {classid}, self, &{destructor}))",
+		"if (!papuga_php_init_object( thiszval, self, {classid}, &{destructor}))",
 		"{",
 			"PHP_FAIL( \"object initialization failed\");",
 			"return;",
