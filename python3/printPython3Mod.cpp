@@ -244,7 +244,7 @@ static void define_main(
 	std::string ModuleName = descr.name;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static PyMethodDef g_module_functions[] = { {0, 0} };",
+		"static PyMethodDef g_module_functions[] = {{ {{0, 0}} }};",
 		"",
 		"static struct PyModuleDef g_moduledef =",
 		"{",
