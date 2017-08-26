@@ -27,6 +27,13 @@ static void define_method(
 		const papuga_MethodDescription& method)
 {
 	std::string modulename = descr.name;
+	out << "static const char* g_paramname_" << classdef.name << " __" << method.name << "[] = {";
+	const papuga_ParameterDescription* pi = method.parameter;
+	for (; pi->name; ++pi)
+	{
+		out << "\"" << pi->name << "\",";
+	}
+	out << "NULL};" << std::endl << std::endl;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"static PyObject* {classname}__{methodname}(PyObject* self, PyObject* args, PyObject* kwargs)",
@@ -38,7 +45,7 @@ static void define_method(
 			"char errstr[ 2048];",
 			"const char* msg;",
 			"",
-			"if (!papuga_python_init_CallArgs( &argstruct, args, kwargs))",
+			"if (!papuga_python_init_CallArgs( &argstruct, args, kwargs, g_paramname_{classname}__{methodname}))",
 			"{",
 				"papuga_python_error( \"error in '%s': %s\", \"{classname}->{methodname}\", papuga_ErrorCode_tostring( argstruct.errcode));",
 				"return NULL;",
@@ -76,6 +83,13 @@ static void define_constructor(
 		const papuga_ClassDescription& classdef)
 {
 	std::string modulename = descr.name;
+	out << "static const char* g_paramname_constructor__" << classdef.name << "[] = {";
+	const papuga_ParameterDescription* pi = classdef.constructor->parameter;
+	for (; pi->name; ++pi)
+	{
+		out << "\"" << pi->name << "\",";
+	}
+	out << "NULL};" << std::endl << std::endl;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"static PyObject* constructor__{classname}(PyObject* unused_, PyObject* args, PyObject *kwargs)",
@@ -87,7 +101,7 @@ static void define_constructor(
 			"char errstr[ 2048];",
 			"const char* msg;",
 			"",
-			"if (!papuga_python_init_CallArgs( &argstruct, args, kwargs))",
+			"if (!papuga_python_init_CallArgs( &argstruct, args, kwargs, g_paramname_constructor__{classname}))",
 			"{",
 				"papuga_python_error( \"error in constructor of '%s': %s\", \"{classname}\", papuga_ErrorCode_tostring( argstruct.errcode));",
 				"return NULL;",

@@ -61,9 +61,10 @@ PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter d
 * @param[out] argstruct argument structure initialized
 * @param[in] args positional arguments or NULL
 * @param[in] kwargs named arguments or NULL
+* @param[in] kwargnames NULL terminated list of argument names in their order of definition
 * @return true on success, false on error, see error code in argstruct to determine the error
 */
-bool papuga_python_init_CallArgs( papuga_python_CallArgs* argstruct, PyObject* args, PyObject* kwargs);
+bool papuga_python_init_CallArgs( papuga_python_CallArgs* argstruct, PyObject* args, PyObject* kwargs, const char** kwargnames);
 
 /*
 * @brief Frees the arguments of a papuga call (to call after the call)
