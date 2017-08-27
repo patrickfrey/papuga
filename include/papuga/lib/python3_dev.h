@@ -53,7 +53,7 @@ typedef struct papuga_python_ClassObject
 * @brief Initialize papuga globals for Python3
 * @remark this function has to be called before using any of the functions of this module
 */
-void papuga_python_init();
+void papuga_python_init(void);
 
 /*
 * @brief Create a non initialized (NULL) host object in the Python context
