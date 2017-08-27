@@ -177,6 +177,9 @@ static void define_class(
 		const papuga_InterfaceDescription& descr,
 		const papuga_ClassDescription& classdef)
 {
+	const std::string constructor_name =
+		classdef.constructor ? (std::string("init__") + classdef.name):"NULL";
+
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"static void dealloc__{classname}( PyObject* selfobj)",
 		"{",
@@ -222,12 +225,13 @@ static void define_class(
 		"0,				/* tp_descr_get */",
 		"0,				/* tp_descr_set */",
 		"0,				/* tp_dictoffset */",
-		"init__{classname},		/* tp_init */",
+		"{constructor},			/* tp_init */",
 		"0,				/* tp_alloc */",
 		"0,				/* tp_new */",
 		"};",
 		0),
 			fmt::arg("classname", classdef.name),
+			fmt::arg("constructor", constructor_name),
 			fmt::arg("destructor", classdef.funcname_destructor)
 		) << std::endl;
 }
