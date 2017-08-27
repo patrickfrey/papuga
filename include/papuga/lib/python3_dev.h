@@ -56,7 +56,6 @@ typedef struct papuga_python_ClassObject
 void papuga_python_init();
 
 /*
-* DEPRECATED
 * @brief Create a non initialized (NULL) host object in the Python context
 * @param[in] self pointer to host object data (pass with ownership, destroyed on error)
 * @param[in] classid class identifier of the object
@@ -64,7 +63,7 @@ void papuga_python_init();
 * @param[in,out] errbuf where to report errors
 * @return object without reference increment, NULL on error
 */
-/* PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, papuga_ErrorBuffer* errbuf); */
+PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, papuga_ErrorBuffer* errbuf);
 
 /*
 * @brief Fills a structure with the arguments passed in a Python binding function/method call
