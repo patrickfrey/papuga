@@ -93,7 +93,7 @@ static void define_constructor(
 	out << "NULL};" << std::endl << std::endl;
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static int init__{classname}( PyObject* selfobj, PyObject* args)",
+		"static int init__{classname}( PyObject* selfobj, PyObject* args, PyObject *kwargs)",
 		"{",
 			"void* self;",
 			"papuga_python_CallArgs argstruct;",
@@ -101,7 +101,7 @@ static void define_constructor(
 			"char errstr[ 2048];",
 			"const char* msg;",
 			"",
-			"if (!papuga_python_init_CallArgs( &argstruct, args, g_paramname_constructor__{classname}))",
+			"if (!papuga_python_init_CallArgs( &argstruct, args ? args:kwargs, g_paramname_constructor__{classname}))",
 			"{",
 				"papuga_python_error( \"error in constructor of '%s': %s\", \"{classname}\", papuga_ErrorCode_tostring( argstruct.errcode));",
 				"return -1;",
@@ -119,13 +119,6 @@ static void define_constructor(
 			"papuga_python_destroy_CallArgs( &argstruct);",
 			"Py_INCREF( selfobj);",
 			"return 0;",
-		"}",
-		"",
-		"static void dealloc__{classname}( PyObject* selfobj)",
-		"{",
-			"void* self = ((papuga_python_ClassObject*)selfobj)->self;",
-			"{destructor}( self);",
-			"PyObject_Del(self);",
 		"}",
 		0),
 			fmt::arg("classname", classdef.name),
@@ -161,16 +154,6 @@ static void define_methodtable(
 		0),
 			fmt::arg("classname", classdef.name)
 		);
-	if (classdef.constructor)
-	{
-		const char* description = getAnnotationText( classdef.doc, papuga_AnnotationType_Description);
-		out << fmt::format( papuga::cppCodeSnippet( 1,
-			"{{\"_ _init_ _\", &constructor__{classname}, METH_VARARGS|METH_KEYWORDS, \"{description}\"}},",
-			0),
-				fmt::arg("classname", classdef.name),
-				fmt::arg("description", description)
-			);
-	}
 	papuga_MethodDescription const* mi = classdef.methodtable;
 	for (; mi->name; ++mi)
 	{
@@ -195,6 +178,13 @@ static void define_class(
 		const papuga_ClassDescription& classdef)
 {
 	out << fmt::format( papuga::cppCodeSnippet( 0,
+		"static void dealloc__{classname}( PyObject* selfobj)",
+		"{",
+			"void* self = ((papuga_python_ClassObject*)selfobj)->self;",
+			"{destructor}( self);",
+			"PyObject_Del(self);",
+		"}",
+		"",
 		"static PyTypeObject g_typeobject_{classname} =",
 		"{",
 		"PyVarObject_HEAD_INIT(&PyType_Type, 0)",
@@ -237,7 +227,8 @@ static void define_class(
 		"0,				/* tp_new */",
 		"};",
 		0),
-			fmt::arg("classname", classdef.name)
+			fmt::arg("classname", classdef.name),
+			fmt::arg("destructor", classdef.funcname_destructor)
 		) << std::endl;
 }
 
