@@ -23,12 +23,12 @@ include_directories(
 	"${PROJECT_SOURCE_DIR}/3rdParty/fmt"
 	"${PROJECT_SOURCE_DIR}/3rdParty/python"
 	"${PROJECT_SOURCE_DIR}/include"
-	${PYTHON_INCLUDE_DIRS}
+	${PYTHON3_INCLUDE_DIRS}
 )
 
 link_directories(
 	"${PROJECT_SOURCE_DIR}/3rdParty/fmt/fmt"
-	${PYTHON_LIBRARY_DIRS}
+	${PYTHON3_LIBRARY_DIRS}
 )
 
 
