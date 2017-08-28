@@ -23,12 +23,12 @@ include_directories(
 	"${PROJECT_SOURCE_DIR}/3rdParty/fmt"
 	"${PROJECT_SOURCE_DIR}/3rdParty/php"
 	"${PROJECT_SOURCE_DIR}/include"
-	${PHP_INCLUDE_DIRS}
+	${PHP7_INCLUDE_DIRS}
 )
 
 link_directories(
 	"${PROJECT_SOURCE_DIR}/3rdParty/fmt/fmt"
-	${PHP_LIBRARY_DIRS}
+	${PHP7_LIBRARY_DIRS}
 )
 
 
