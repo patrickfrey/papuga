@@ -8,7 +8,7 @@ set( source_files
 	serialization.c
 	callResult.c
 	errors.c
-	internationalization.c
+	${CMAKE_CURRENT_BINARY_DIR}/internationalization.c
 	stack.c
 	errors.cpp
 	valueVariant.cpp

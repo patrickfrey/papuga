@@ -46,7 +46,7 @@ ENDIF (WITH_PYTHON STREQUAL "YES")
 
 set( PAPUGA_GETTEXT_PACKAGE "papuga-dom" )	 #... 1st parameter of bindtextdomain(...)
 set( PAPUGA_GETTEXT_LOCALEDIR "" )			 #... 2nd parameter of bindtextdomain(...)
-configure_file( "${PROJECT_SOURCE_DIR}/src/internationalization.c.in"           "${PROJECT_SOURCE_DIR}/src/internationalization.c"  @ONLY )
+configure_file( "${PROJECT_SOURCE_DIR}/src/internationalization.c.in"           "${CMAKE_BINARY_DIR}/src/internationalization.c"  @ONLY )
 configure_file( "${PROJECT_SOURCE_DIR}/include/papuga/version.h.in"          "${CMAKE_BINARY_DIR}/include/papuga/version.h"   @ONLY )
 configure_file( "${PROJECT_SOURCE_DIR}/include/papuga/languages.h.in"      "${CMAKE_BINARY_DIR}/include/papuga/languages.h"   @ONLY )
 
