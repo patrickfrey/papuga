@@ -245,7 +245,7 @@ static void define_main(
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"static PyMethodDef g_module_functions[] = {{ {{0, 0}} }};",
 		"",
-		"static struct PyModuleDef g_moduledef =",
+		"static PyModuleDef g_moduledef =",
 		"{",
 		"PyModuleDef_HEAD_INIT,",
 		"\"{ModuleName}\",",
@@ -347,59 +347,5 @@ void papuga::printPython3ModSource(
 		define_class( out, descr, classdef);
 	}
 	define_main( out, descr);
-}
-
-void papuga::printPython3ModSetup(
-		std::ostream& out,
-		const papuga_InterfaceDescription& descr,
-		const std::string& c_includedir,
-		const std::string& c_libdir)
-{
-	char const* vi = descr.about && descr.about->version ? descr.about->version : "";
-	std::string version_major;
-	std::string version_minor;
-	for (; *vi && *vi <= 32; ++vi){}
-	for (; *vi && *vi >= '0' && *vi <= '9'; ++vi) {version_major.push_back(*vi);}
-	if (*vi == '.' || *vi == '-')
-	{
-		++vi;
-		for (; *vi && *vi >= '0' && *vi <= '9'; ++vi) {version_minor.push_back(*vi);}
-	}
-	if (version_major.empty()) version_major = "0";
-	if (version_minor.empty()) version_minor = "0";
-	std::string ModuleName = descr.name;
-	std::string modulename = descr.name;
-	std::transform( modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
-	std::string MODULENAME = descr.name;
-	std::transform( MODULENAME.begin(), MODULENAME.end(), MODULENAME.begin(), ::toupper);
-
-	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"from distutils.core import setup, Extension",
-		"module1 = Extension('demo',"
-		"define_macros = [('MAJOR_VERSION', '{MAJOR_VERSION}'),('MINOR_VERSION', '{MINOR_VERSION}')],",
-		"include_dirs = ['{c_includedir}'],",
-		"libraries = ['tcl83'],",
-		"library_dirs = ['{c_libdir}'],",
-		"sources = ['{modulename}.c'])",
-		"",
-		"setup (name = '{ModuleName}',",
-		"version = '{version}',",
-		"description = '{description}',",
-		"author = '{author}',",
-		"url = '{url}',",
-		"ext_modules = [Extension('{modulename}', ['{modulename}.c'])],",
-		0),
-			fmt::arg("MODULENAME", MODULENAME),
-			fmt::arg("ModuleName", ModuleName),
-			fmt::arg("modulename", modulename),
-			fmt::arg("MAJOR_VERSION", version_major),
-			fmt::arg("MINOR_VERSION", version_minor),
-			fmt::arg("version", descr.about && descr.about->version ? descr.about->version : "0.0"),
-			fmt::arg("c_includedir", c_includedir),
-			fmt::arg("c_libdir", c_libdir),
-			fmt::arg("description", descr.description ? descr.description:""),
-			fmt::arg("author", descr.about && descr.about->author ? descr.about->author:""),
-			fmt::arg("url", descr.about && descr.about->url ? descr.about->url:"")
-		) << std::endl;
 }
 

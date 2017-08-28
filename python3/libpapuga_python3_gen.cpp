@@ -34,12 +34,6 @@ DLL_PUBLIC bool papuga::generatePython3Source(
 		{
 			printPython3ModSource( out, descr, getGeneratorArguments( args, "include"));
 		}
-		else if (what == "setup")
-		{
-			std::string c_includedir( getGeneratorArgument( args, "incdir", 0));
-			std::string c_libdir( getGeneratorArgument( args, "libdir", 0));
-			printPython3ModSetup( out, descr, c_includedir, c_libdir);
-		}
 		else if (what == "doc")
 		{
 			printPython3Doc( out, descr);
