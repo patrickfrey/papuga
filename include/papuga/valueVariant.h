@@ -66,7 +66,7 @@ extern "C" {
 * @brief Variant value initializer as c string (UTF-8) reference
 * @param[out] self pointer to structure 
 */
-#define papuga_init_ValueVariant_charp(self,val)		{papuga_ValueVariant* s = self; const char* o = val; s->valuetype = (unsigned char)papuga_TypeString; s->encoding=papuga_UTF8; s->length=strlen(o); s->value.string=o;}
+#define papuga_init_ValueVariant_charp(self,val)		{papuga_ValueVariant* s = self; const char* o = (const char*)val; s->valuetype = (unsigned char)papuga_TypeString; s->encoding=papuga_UTF8; s->length=strlen(o); s->value.string=o;}
 
 /*
 * @brief Variant value initializer as c string (UTF-8) reference with size

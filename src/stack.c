@@ -87,3 +87,9 @@ void* papuga_Stack_top( const papuga_Stack* self)
 	return (void*)((char*)self->ar + (self->arsize * self->elemsize));
 }
 
+void* papuga_Stack_element( const papuga_Stack* self, size_t idx)
+{
+	if (idx >= self->arsize) return NULL;
+	return (void*)((char*)self->ar + (idx * self->elemsize));
+}
+

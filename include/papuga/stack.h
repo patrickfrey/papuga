@@ -58,11 +58,20 @@ void* papuga_Stack_pop( papuga_Stack* self);
 
 /*
 * @brief Get a reference to the top element on the stack
-* @param[in] self pointer to structure 
-* @return a pointer to the top element popped or NULL if stack is empty
+* @param[in] self pointer to structure
+* @return a pointer to the top element or NULL if stack is empty
 * @remark the element returned is not guaranteed to stay valid with the further use of the stack. You have to copy the element, if you want to keep it.
 */
 void* papuga_Stack_top( const papuga_Stack* self);
+
+/*
+* @brief Get a reference to an element (random access)
+* @param[in] self pointer to structure
+* @param[in] idx index of element starting with 0
+* @return a pointer to the element or NULL if the access is out of bounds
+* @remark the element returned is not guaranteed to stay valid with the further use of the stack. You have to copy the element, if you want to keep it.
+*/
+void* papuga_Stack_element( const papuga_Stack* self, size_t idx);
 
 #ifdef __cplusplus
 }

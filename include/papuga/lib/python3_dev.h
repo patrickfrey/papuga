@@ -25,7 +25,6 @@ typedef struct papuga_python_CallArgs
 	int erridx;			/*< index of argument (starting with 1), that caused the error or 0 */
 	papuga_ErrorCode errcode;	/*< papuga error code */
 	size_t argc;			/*< number of arguments passed to call */
-	void* self;			/*< pointer to host-object of the method called */
 	papuga_Allocator allocator;	/*< allocator used for deep copies */
 	papuga_ValueVariant argv[ papuga_PYTHON_MAX_NOF_ARGUMENTS];	/* argument list */
 	int allocbuf[ 1024];		/*< static buffer for allocator to start with (to avoid early malloc) */
@@ -47,6 +46,8 @@ typedef struct papuga_python_ClassObject
 {
 	PyObject_HEAD				/*< Python object header */
 	void* self;				/*< pointer to host object representation */
+	int classid;				/*< class identifier of the object */
+	int checksum;				/*< checksum for verification */
 } papuga_python_ClassObject;
 
 /*
@@ -56,23 +57,33 @@ typedef struct papuga_python_ClassObject
 void papuga_python_init(void);
 
 /*
+* @brief Initialize an allocated host object in the Python context
+* @param[in] selfobj pointer to the allocated and zeroed python object
+* @param[in] classid class identifier of the object
+* @param[in] self pointer to host object representation
+*/
+void papuga_python_init_object( PyObject* selfobj, int classid, void* self);
+
+/*
 * @brief Create a non initialized (NULL) host object in the Python context
 * @param[in] self pointer to host object data (pass with ownership, destroyed on error)
 * @param[in] classid class identifier of the object
 * @param[in] destroy destructor function of the host object data ('self')
+* @param[in] cemap map of class ids to python class descriptions
 * @param[in,out] errbuf where to report errors
 * @return object without reference increment, NULL on error
 */
-PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, papuga_ErrorBuffer* errbuf);
+PyObject* papuga_python_create_object( void* self, int classid, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
 /*
 * @brief Fills a structure with the arguments passed in a Python binding function/method call
 * @param[out] argstruct argument structure initialized
 * @param[in] args positional arguments or NULL
 * @param[in] kwargnames NULL terminated list of argument names in their order of definition
+* @param[in] cemap map of class ids to python class descriptions
 * @return true on success, false on error, see error code in argstruct to determine the error
 */
-bool papuga_python_init_CallArgs( papuga_python_CallArgs* argstruct, PyObject* args, const char** kwargnames);
+bool papuga_python_init_CallArgs( papuga_python_CallArgs* argstruct, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap);
 
 /*
 * @brief Frees the arguments of a papuga call (to call after the call)
@@ -83,11 +94,11 @@ void papuga_python_destroy_CallArgs( papuga_python_CallArgs* argstruct);
 /*
 * @brief Transfers the call result of a binding function into the Python context, freeing the call result structure
 * @param[in,out] retval return values to move to the Python context
-* @param[in] cemap map of class ids to zend class descriptions
-* @param[in,out] errbuf buffer for error messages
+* @param[in] cemap map of class ids to python class descriptions
+* @param[out] errcode error code
 * @return Python3 return value without reference counter increment on success, NULL on failure or if no values returned
 */
-PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, const papuga_python_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf);
+PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
 /*
 * @brief Report an error to Python

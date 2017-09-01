@@ -431,7 +431,7 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 
 			if (!cemap)
 			{
-				papuga_ErrorBuffer_reportError( errbuf, "cannot create host object in this context");
+				papuga_ErrorBuffer_reportError( errbuf, "cannot create host object in %s", context);
 				return false;
 			}
 			ce = get_class_entry( cemap, hobj->classid);
@@ -634,7 +634,7 @@ DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_php_CallArgs* as, void* selfzva
 	zval args[ papuga_PHP_MAX_NOF_ARGUMENTS];
 	int argi = -1;
 	as->erridx = -1;
-	as->errcode = 0;
+	as->errcode = papuga_Ok;
 	as->self = 0;
 	as->argc = 0;
 
