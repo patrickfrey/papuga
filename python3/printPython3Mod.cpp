@@ -26,7 +26,6 @@ static void define_method(
 		const papuga_ClassDescription& classdef,
 		const papuga_MethodDescription& method)
 {
-	std::string modulename = descr.name;
 	out << "static const char* g_paramname_" << classdef.name << "__" << method.name << "[] = {";
 	const papuga_ParameterDescription* pi = method.parameter;
 	for (; pi->name; ++pi)
@@ -83,7 +82,6 @@ static void define_constructor(
 		const papuga_InterfaceDescription& descr,
 		const papuga_ClassDescription& classdef)
 {
-	std::string modulename = descr.name;
 	out << "static const char* g_paramname_constructor__" << classdef.name << "[] = {";
 	const papuga_ParameterDescription* pi = classdef.constructor->parameter;
 	for (; pi->name; ++pi)
@@ -241,6 +239,8 @@ static void define_main(
 		const papuga_InterfaceDescription& descr)
 {
 	std::string ModuleName = descr.name;
+	std::string modulename;
+	std::transform( modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"static PyMethodDef g_module_functions[] = {{ {{0, 0}} }};",
@@ -248,7 +248,7 @@ static void define_main(
 		"static PyModuleDef g_moduledef =",
 		"{",
 		"PyModuleDef_HEAD_INIT,",
-		"\"{ModuleName}\",",
+		"\"{modulename}\",",
 		"\"{description}\",	/* m_doc */",
 		"-1,			/* m_size */",
 		"g_module_functions,	/* m_methods */",
@@ -258,11 +258,11 @@ static void define_main(
 		"NULL,			/* m_free */",
 		"};",
 		0),
-			fmt::arg("ModuleName", ModuleName),
+			fmt::arg("modulename", modulename),
 			fmt::arg("description", descr.description ? descr.description : "")
 		) << std::endl << std::endl;
 
-	out << "PyMODINIT_FUNC PyInit_" << ModuleName << "(void)" << std::endl
+	out << "PyMODINIT_FUNC PyInit_" << modulename << "(void)" << std::endl
 		<< "{" << std::endl
 		<< "\t" << "PyObject* rt;" << std::endl;
 	std::size_t ci;

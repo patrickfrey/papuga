@@ -132,8 +132,8 @@ typedef enum papuga_Tag
 */
 typedef struct papuga_ValueVariant
 {
-	int valuetype:8;				/*< casts to a papuga_Type */
-	int encoding:8;					/*< casts to a papuga_StringEncoding */
+	uint8_t valuetype;				/*< casts to a papuga_Type */
+	uint8_t encoding;				/*< casts to a papuga_StringEncoding */
 	int32_t length;					/*< length of a string in bytes */
 	union {
 		double Double;				/*< double precision floating point value */
