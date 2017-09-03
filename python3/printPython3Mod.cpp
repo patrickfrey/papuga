@@ -270,6 +270,10 @@ static void define_main(
 		out << "\t" << "g_typeobjectar[ " << ci << "] = &g_typeobject_" << descr.classes[ci].name << ";" << std::endl;
 	}
 	out << "\t" << "rt = PyModule_Create( &g_moduledef);" << std::endl;
+	for (ci=0; descr.classes[ci].name; ++ci)
+	{
+		out << "\t" << "PyModule_AddObject( rt, \"" << descr.classes[ci].name << "\", (PyObject *)&g_typeobject_" << descr.classes[ci].name << ");";
+	}
 	out << "\t" << "return rt;" << std::endl;
 	out << "}" << std::endl << std::endl;
 }
