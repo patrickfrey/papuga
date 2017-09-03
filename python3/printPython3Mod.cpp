@@ -238,8 +238,7 @@ static void define_main(
 		std::ostream& out,
 		const papuga_InterfaceDescription& descr)
 {
-	std::string ModuleName = descr.name;
-	std::string modulename;
+	std::string modulename( descr.name);
 	std::transform( modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
