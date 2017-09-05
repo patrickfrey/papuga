@@ -298,6 +298,7 @@ static void define_main(
 
 	for (ci=0; descr.classes[ci].name; ++ci)
 	{
+		out << "\t" << "Py_INCREF( &g_typeobject_" << descr.classes[ci].name << ");" << std::endl;
 		out << "\t" << "PyModule_AddObject( rt, \"" << descr.classes[ci].name << "\", (PyObject *)&g_typeobject_" << descr.classes[ci].name << ");" << std::endl;
 	}
 	out << "\t" << "return rt;" << std::endl;
