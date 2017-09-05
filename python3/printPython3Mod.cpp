@@ -126,7 +126,7 @@ static void define_constructor(
 		) << std::endl;
 }
 
-static const char* getAnnotationText(
+static std::string getAnnotationText(
 		const papuga_Annotation* ann,
 		const papuga_AnnotationType type)
 {
@@ -135,7 +135,21 @@ static const char* getAnnotationText(
 	{
 		if (di->type == type)
 		{
-			return di->text;
+			std::string rt;
+			char const* si = di->text;
+			for (;*si; ++si)
+			{
+				if ((unsigned int)*si <= 32)
+				{
+					if (!rt.empty() && rt.back() == ' ') continue;
+					rt.push_back( ' ');
+				}
+				else
+				{
+					rt.push_back( *si);
+				}
+			}
+			return rt;
 		}
 	}
 	return "";
@@ -155,7 +169,7 @@ static void define_methodtable(
 	papuga_MethodDescription const* mi = classdef.methodtable;
 	for (; mi->name; ++mi)
 	{
-		const char* description = getAnnotationText( mi->doc, papuga_AnnotationType_Description);
+		std::string description = getAnnotationText( mi->doc, papuga_AnnotationType_Description);
 		out << fmt::format( papuga::cppCodeSnippet( 1,
 			"{{\"{methodname}\", &{classname}__{methodname}, METH_VARARGS|METH_KEYWORDS, \"{description}\"}},",
 			0),
