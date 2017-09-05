@@ -191,7 +191,7 @@ static void define_class(
 		"PyVarObject_HEAD_INIT(&PyType_Type, 0)",
 		"\"{classname}\",		/* tp_name */",
 		"sizeof(papuga_python_ClassObject), /* tp_basicsize */",
-		"0,				/* tp_itemsize */",
+		"1,				/* tp_itemsize */",
 		"dealloc__{classname},		/* tp_dealloc */",
 		"0,				/* tp_print */",
 		"0,				/* tp_getattr */",
@@ -208,7 +208,7 @@ static void define_class(
 		"0,				/* tp_setattro */",
 		"0,				/* tp_as_buffer */",
 		"Py_TPFLAGS_DEFAULT,		/* tp_flags */",
-		"0,				/* tp_doc */",
+		"\"{doc}\",	/* tp_doc */",
 		"0,				/* tp_traverse */",
 		"0,				/* tp_clear */",
 		"0,				/* tp_richcompare */",
@@ -224,13 +224,24 @@ static void define_class(
 		"0,				/* tp_descr_set */",
 		"0,				/* tp_dictoffset */",
 		"{constructor},			/* tp_init */",
-		"0,				/* tp_alloc */",
-		"0,				/* tp_new */",
+		"PyType_GenericAlloc,		/* tp_alloc */",
+		"PyType_GenericNew,		/* tp_new */",
+		"0,				/* tp_free */",
+		"0,				/* tp_is_gc */",
+		"0,				/* tp_bases */",
+		"0,				/* tp_mro */",
+		"0,				/* tp_cache */",
+		"0,				/* tp_subclasses */",
+		"0,				/* tp_weaklist */",
+		"0,				/* tp_del */",
+		"0,				/* tp_version_tag */",
+		"0				/* tp_finalize */",
 		"};",
 		0),
 			fmt::arg("classname", classdef.name),
 			fmt::arg("constructor", constructor_name),
-			fmt::arg("destructor", classdef.funcname_destructor)
+			fmt::arg("destructor", classdef.funcname_destructor),
+			fmt::arg("doc", getAnnotationText( classdef.doc, papuga_AnnotationType_Description))
 		) << std::endl;
 }
 
@@ -242,19 +253,17 @@ static void define_main(
 	std::transform( modulename.begin(), modulename.end(), modulename.begin(), ::tolower);
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static PyMethodDef g_module_functions[] = {{ {{0, 0}} }};",
-		"",
 		"static PyModuleDef g_moduledef =",
 		"{",
 		"PyModuleDef_HEAD_INIT,",
 		"\"{modulename}\",",
 		"\"{description}\",	/* m_doc */",
 		"-1,			/* m_size */",
-		"g_module_functions,	/* m_methods */",
-		"NULL,			/* m_reload */",
+		"NULL,			/* m_methods */",
+		"NULL,			/* m_slots */",
 		"NULL,			/* m_traverse */",
 		"NULL,			/* m_clear */",
-		"NULL,			/* m_free */",
+		"NULL			/* m_free */",
 		"};",
 		0),
 			fmt::arg("modulename", modulename),
@@ -268,11 +277,14 @@ static void define_main(
 	for (ci=0; descr.classes[ci].name; ++ci)
 	{
 		out << "\t" << "g_typeobjectar[ " << ci << "] = &g_typeobject_" << descr.classes[ci].name << ";" << std::endl;
+		out << "\t" << "if (PyType_Ready(&g_typeobject_" << descr.classes[ci].name << ") < 0) return NULL;" << std::endl;
 	}
 	out << "\t" << "rt = PyModule_Create( &g_moduledef);" << std::endl;
+	out << "\t" << "if (rt == NULL) return NULL;" << std::endl;
+
 	for (ci=0; descr.classes[ci].name; ++ci)
 	{
-		out << "\t" << "PyModule_AddObject( rt, \"" << descr.classes[ci].name << "\", (PyObject *)&g_typeobject_" << descr.classes[ci].name << ");";
+		out << "\t" << "PyModule_AddObject( rt, \"" << descr.classes[ci].name << "\", (PyObject *)&g_typeobject_" << descr.classes[ci].name << ");" << std::endl;
 	}
 	out << "\t" << "return rt;" << std::endl;
 	out << "}" << std::endl << std::endl;
