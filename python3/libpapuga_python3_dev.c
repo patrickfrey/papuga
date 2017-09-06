@@ -717,25 +717,21 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 			}
 			if (ni->tag == papuga_TagOpen)
 			{
-				++ni;
 				if (!papuga_init_PyStruct_serialization( &pystruct, allocator, &ni, ne, cemap, errcode))
 				{
 					break;
 				}
-				if (ni == ne)
-				{
-					*errcode = papuga_UnexpectedEof;
-					break;
-				}
-				++ni;
-				if (ni != ne)
-				{
-					*errcode = papuga_TypeError;
-					break;
-				}
 				if (pystruct.nofKeyValuePairs == 0)
 				{
-					rt = papuga_PyStruct_create_tuple( &pystruct, errcode);
+					if (pystruct.nofElements == 1)
+					{
+						papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct.stk, 0);
+						rt = nd->valobj;
+					}
+					else
+					{
+						rt = papuga_PyStruct_create_tuple( &pystruct, errcode);
+					}
 				}
 				else
 				{
