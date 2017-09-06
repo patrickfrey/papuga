@@ -85,6 +85,14 @@ static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_A
 	{
 		papuga_init_ValueVariant( value);
 	}
+	else if (pyobj == Py_True)
+	{
+		papuga_init_ValueVariant_bool( value, true);
+	}
+	else if (pyobj == Py_False)
+	{
+		papuga_init_ValueVariant_bool( value, false);
+	}
 	else if (PyLong_Check( pyobj))
 	{
 		papuga_init_ValueVariant_int( value, PyLong_AS_LONG( pyobj));
@@ -181,7 +189,6 @@ static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* alloc
 			/* Serialize value: */
 			if (!serialize_element( ser, allocator, valitem, cemap, errcode)) return false;
 		}
-		if (!papuga_Serialization_pushClose( ser)) goto ERROR_NOMEM;
 	}
 	else if (PyTuple_Check( pyobj))
 	{
