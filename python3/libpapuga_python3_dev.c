@@ -426,6 +426,11 @@ static void papuga_init_PyStruct( papuga_PyStruct* pystruct)
 	papuga_init_Stack( &pystruct->stk, sizeof(papuga_PyStructNode), pystruct->stk_local_mem, sizeof(pystruct->stk_local_mem));
 }
 
+static void papuga_destroy_PyStruct( papuga_PyStruct* pystruct)
+{
+	papuga_destroy_Stack( &pystruct->stk);
+}
+
 static PyObject* papuga_PyStruct_create_dict( papuga_PyStruct* pystruct, papuga_ErrorCode* errcode)
 {
 	PyObject* rt = PyDict_New();
@@ -543,20 +548,22 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, papug
 			if (nd.keyobj || !papuga_ValueVariant_isatomic( &(*ni)->value))
 			{
 				*errcode = papuga_TypeError;
-				return false;
+				goto ERROR;
 			}
 			nd.keyobj = createPyObjectFromVariant( allocator, &(*ni)->value, cemap, errcode);
-			if (!nd.keyobj) return false;
+			++pystruct->nofKeyValuePairs;
+			if (!nd.keyobj) goto ERROR;
 		}
 		else if ((*ni)->tag == papuga_TagValue)
 		{
 			nd.valobj = createPyObjectFromVariant( allocator, &(*ni)->value, cemap, errcode);
-			if (!nd.valobj) return false;
+			if (!nd.valobj) goto ERROR;
 			if (!papuga_Stack_push( &pystruct->stk, &nd))
 			{
 				*errcode = papuga_TypeError;
-				return false;
+				goto ERROR;
 			}
+			++pystruct->nofElements;
 			papuga_init_PyStructNode( &nd);
 		}
 		else if ((*ni)->tag == papuga_TagOpen)
@@ -566,25 +573,34 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, papug
 			++(*ni);
 			if (!papuga_init_PyStruct_serialization( &subpystruct, allocator, ni, ne, cemap, errcode))
 			{
-				return false;
+				goto ERROR;
 			}
 			nd.valobj = papuga_PyStruct_create_object( &subpystruct, errcode);
-			if (!nd.valobj) return false;
+			papuga_destroy_PyStruct( &subpystruct);
+			if (!nd.valobj) goto ERROR;
 			if (!papuga_Stack_push( &pystruct->stk, &nd))
 			{
 				*errcode = papuga_TypeError;
-				return false;
+				goto ERROR;
 			}
 			papuga_init_PyStructNode( &nd);
 
 			if (*ni == ne)
 			{
 				*errcode = papuga_UnexpectedEof;
-				return false;
+				goto ERROR;
 			}
 		}
 	}
+	if (nd.keyobj)
+	{
+		*errcode = papuga_UnexpectedEof;
+		goto ERROR;
+	}
 	return true;
+ERROR:
+	papuga_destroy_PyStruct( pystruct);
+	return false;
 }
 
 static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_ValueVariant* value, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
@@ -704,6 +720,7 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 				{
 					rt = papuga_PyStruct_create_dict( &pystruct, errcode);
 				}
+				papuga_destroy_PyStruct( &pystruct);
 			}
 			break;
 		}
