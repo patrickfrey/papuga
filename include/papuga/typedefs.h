@@ -113,7 +113,8 @@ typedef enum papuga_StringEncoding {
 	papuga_UTF16,		/*< Unicode UTF-16 machine endianess encoding */
 	papuga_UTF32BE,		/*< Unicode chars big endian */
 	papuga_UTF32LE,		/*< Unicode chars little endian */
-	papuga_UTF32		/*< Unicode chars in machine endianess encoding */
+	papuga_UTF32,		/*< Unicode chars in machine endianess encoding */
+	papuga_Binary		/*< Binary blob of bytes */
 } papuga_StringEncoding;
 
 /*

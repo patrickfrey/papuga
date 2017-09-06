@@ -648,7 +648,7 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 				switch ((papuga_StringEncoding)value->encoding)
 				{
 					case papuga_UTF8:
-						rt = PyUnicode_FromStringAndSize( value->value.string, value->length);
+						rt = PyUnicode_FromStringAndSize( value->value.langstring, value->length);
 						break;
 					case papuga_UTF16BE:
 					case papuga_UTF32BE:
@@ -666,6 +666,9 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 					case papuga_UTF32LE:
 					case papuga_UTF32:
 						rt = PyUnicode_FromKindAndData( PyUnicode_4BYTE_KIND, value->value.langstring, value->length);
+						break;
+					case papuga_Binary:
+						rt = PyBytes_FromStringAndSize( value->value.langstring, value->length);
 						break;
 				}
 			}
@@ -692,6 +695,9 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 					case papuga_UTF32BE:
 					case papuga_UTF32:
 						rt = PyUnicode_FromKindAndData( PyUnicode_4BYTE_KIND, value->value.langstring, value->length);
+						break;
+					case papuga_Binary:
+						rt = PyBytes_FromStringAndSize( value->value.langstring, value->length);
 						break;
 					default:
 						*errcode = papuga_NotImplemented;

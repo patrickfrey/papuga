@@ -472,7 +472,7 @@ static void deserialize_key( papuga_ValueVariant* item, lua_State *ls)
 			lua_pushlstring( ls, item->value.string, item->length);
 			break;
 		case papuga_TypeLangString:
-			if (item->encoding == papuga_UTF8)
+			if (item->encoding == papuga_UTF8 || item->encoding == papuga_Binary)
 			{
 				lua_pushlstring( ls, item->value.langstring, item->length);
 			}
@@ -513,7 +513,7 @@ static void deserialize_value( papuga_CallResult* retval, papuga_ValueVariant* i
 			lua_pushlstring( ls, item->value.string, item->length);
 			break;
 		case papuga_TypeLangString:
-			if (item->encoding == papuga_UTF8)
+			if (item->encoding == papuga_UTF8 || item->encoding == papuga_Binary)
 			{
 				lua_pushlstring( ls, item->value.langstring, item->length);
 			}

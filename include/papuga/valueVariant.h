@@ -63,6 +63,12 @@ extern "C" {
 #define papuga_init_ValueVariant_int(self,val)			{papuga_ValueVariant* s = self; s->valuetype = (unsigned char)papuga_TypeInt; s->encoding=0; s->length=0; s->value.Int=(val);}
 
 /*
+* @brief Variant value initializer as c binary blob reference
+* @param[out] self pointer to structure 
+*/
+#define papuga_init_ValueVariant_blob(self,val,sz)		{papuga_ValueVariant* s = self; s->valuetype = (unsigned char)papuga_TypeLangString; s->encoding=papuga_Binary; s->length=(sz); s->value.langstring=(val);}
+
+/*
 * @brief Variant value initializer as c string (UTF-8) reference
 * @param[out] self pointer to structure 
 */

@@ -100,6 +100,10 @@ static void* uft8string_to_any_langstring( papuga_StringEncoding enc, const char
 			rt = uft8string_to_langstring<W32CHARSET>( (char*)buf, bufsize*4, len, str, strsize, err);
 			*len /= 4;
 			break;
+		case papuga_Binary:
+			*err = papuga_NotImplemented;
+			rt = 0;
+			break;
 		default:
 			*err = papuga_TypeError;
 			rt = 0;
@@ -143,6 +147,9 @@ static char* any_langstring_to_uft8string( papuga_Allocator* allocator, papuga_S
 			return langstring_to_uft8string<textwolf::charset::UCS4LE>( allocator, (const char*)str, strsize * 4, err);
 		case papuga_UTF32:
 			return langstring_to_uft8string<W32CHARSET>( allocator, (const char*)str, strsize * 4, err);
+		case papuga_Binary:
+			*err = papuga_NotImplemented;
+			return 0;
 		default:
 			*err = papuga_TypeError;
 			return 0;
@@ -184,6 +191,9 @@ static std::string any_langstring_to_uft8string_stl( papuga_StringEncoding enc, 
 			return langstring_to_uft8string_stl<textwolf::charset::UCS4LE>( (const char*)str, strsize * 4);
 		case papuga_UTF32:
 			return langstring_to_uft8string_stl<W32CHARSET>( (const char*)str, strsize * 4);
+		case papuga_Binary:
+		default:
+			break;
 	}
 	return std::string();
 	
@@ -223,6 +233,7 @@ static char* any_langstring_toascii( papuga_StringEncoding enc, char* destbuf, s
 			return langstring_toascii<textwolf::charset::UCS4LE>( destbuf, destbufsize, (const char*)str, strsize*4);
 		case papuga_UTF32:
 			return langstring_toascii<W32CHARSET>( destbuf, destbufsize, (const char*)str, strsize*4);
+		case papuga_Binary:
 		default:
 			return 0;
 	}
@@ -314,6 +325,7 @@ static NumericType any_langstring_tonumstr( papuga_StringEncoding enc, char* des
 			return langstring_tonumstr<textwolf::charset::UCS4LE>( destbuf, destbufsize, (const char*)str, strsize*4);
 		case papuga_UTF32:
 			return langstring_tonumstr<W32CHARSET>( destbuf, destbufsize, (const char*)str, strsize*4);
+		case papuga_Binary:
 		default:
 			return NumericNone;
 	}

@@ -408,16 +408,22 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 			{
 				papuga_ErrorCode errcode = papuga_Ok;
 				size_t strsize;
-				const char* str = papuga_ValueVariant_tostring( value, allocator, &strsize, &errcode);
-				if (!str)
+				const char* str;
+				if (value->encoding == papuga_UTF8 || value->encoding == papuga_Binary)
 				{
-					papuga_ErrorBuffer_reportError( errbuf, "failed to convert unicode string in %s: %s", context, papuga_ErrorCode_tostring( errcode));
-					return false;
+					str = (const char*)value->value.langstring;
+					strsize = value->length;
 				}
 				else
 				{
-					RETVAL_STRINGL( str, strsize);
+					str = papuga_ValueVariant_tostring( value, allocator, &strsize, &errcode);
+					if (!str)
+					{
+						papuga_ErrorBuffer_reportError( errbuf, "failed to convert unicode string in %s: %s", context, papuga_ErrorCode_tostring( errcode));
+						return false;
+					}
 				}
+				RETVAL_STRINGL( str, strsize);
 			}
 			else
 			{
