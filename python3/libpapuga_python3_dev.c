@@ -354,7 +354,7 @@ static PyObject* papuga_Iterator_next( PyObject *selfobj_)
 	}
 }
 
-static PyTypeObject papuga_IteratorType = {
+static PyTypeObject g_papuga_IteratorType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	"papuga_Iterator",	/*tp_name*/
 	sizeof(papuga_python_IteratorObject),/*tp_basicsize*/
@@ -387,7 +387,7 @@ static PyTypeObject papuga_IteratorType = {
 static PyObject* createPyObjectFromIterator( papuga_Iterator* iterator, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	papuga_python_IteratorObject* itr;
-	PyObject* iterobj = PyType_GenericAlloc( &papuga_IteratorType, 1);
+	PyObject* iterobj = PyType_GenericAlloc( &g_papuga_IteratorType, 1);
 	if (!iterobj)
 	{
 		*errcode = papuga_NoMemError;
@@ -781,8 +781,12 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 
 
 
-DLL_PUBLIC void papuga_python_init(void)
-{}
+DLL_PUBLIC int papuga_python_init(void)
+{
+	if (PyType_Ready(&g_papuga_IteratorType) < 0) return -1;
+	Py_INCREF( &g_papuga_IteratorType);
+	return 0;
+}
 
 DLL_PUBLIC void papuga_python_init_object( PyObject* selfobj, int classid, void* self)
 {
