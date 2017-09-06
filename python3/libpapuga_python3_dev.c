@@ -30,6 +30,8 @@
 #include <limits.h>
 #include <Python.h>
 
+#undef PAPUGA_LOWLEVEL_DEBUG
+
 typedef struct papuga_python_IteratorObject {
 	PyObject_HEAD
 	papuga_Iterator impl;
@@ -179,6 +181,7 @@ static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* alloc
 			/* Serialize value: */
 			if (!serialize_element( ser, allocator, pyobj, cemap, errcode)) return false;
 		}
+		if (!papuga_Serialization_pushClose( ser)) goto ERROR_NOMEM;
 	}
 	else if (PyTuple_Check( pyobj))
 	{
@@ -261,7 +264,9 @@ static bool init_ValueVariant_pyobj( papuga_ValueVariant* value, papuga_Allocato
 			return false;
 		}
 		papuga_init_ValueVariant_serialization( value, ser);
+		if (!papuga_Serialization_pushOpen( ser)) goto ERROR_NOMEM;		
 		if (!serialize_struct( ser, allocator, pyobj, cemap, errcode)) return false;
+		if (!papuga_Serialization_pushClose( ser)) goto ERROR_NOMEM;
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 		char* str = papuga_Serialization_tostring( ser);
 		if (ser)
@@ -277,6 +282,9 @@ static bool init_ValueVariant_pyobj( papuga_ValueVariant* value, papuga_Allocato
 		return false;
 	}
 	return true;
+ERROR_NOMEM:
+	*errcode = papuga_NoMemError;
+	return false;
 }
 
 static PyObject* papuga_Iterator_iter( PyObject *selfobj)
