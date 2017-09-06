@@ -179,7 +179,7 @@ static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* alloc
 			if (!papuga_Serialization_pushName( ser, &keyval)) goto ERROR_NOMEM;
 
 			/* Serialize value: */
-			if (!serialize_element( ser, allocator, pyobj, cemap, errcode)) return false;
+			if (!serialize_element( ser, allocator, valitem, cemap, errcode)) return false;
 		}
 		if (!papuga_Serialization_pushClose( ser)) goto ERROR_NOMEM;
 	}
