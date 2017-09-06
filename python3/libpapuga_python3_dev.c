@@ -79,7 +79,11 @@ static papuga_python_ClassObject* getClassObject( PyObject* pyobj, const papuga_
 static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	papuga_python_ClassObject* cobj;
-	if (PyLong_Check( pyobj))
+	if (pyobj == Py_None)
+	{
+		papuga_init_ValueVariant( value);
+	}
+	else if (PyLong_Check( pyobj))
 	{
 		papuga_init_ValueVariant_int( value, PyLong_AS_LONG( pyobj));
 	}
