@@ -715,39 +715,27 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 			{
 				return Py_None;
 			}
-			if (ni->tag == papuga_TagOpen)
+			if (!papuga_init_PyStruct_serialization( &pystruct, allocator, &ni, ne, cemap, errcode))
 			{
-				if (!papuga_init_PyStruct_serialization( &pystruct, allocator, &ni, ne, cemap, errcode))
+				break;
+			}
+			if (pystruct.nofKeyValuePairs == 0)
+			{
+				if (pystruct.nofElements == 1)
 				{
-					break;
-				}
-				if (pystruct.nofKeyValuePairs == 0)
-				{
-					if (pystruct.nofElements == 1)
-					{
-						papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct.stk, 0);
-						rt = nd->valobj;
-					}
-					else
-					{
-						rt = papuga_PyStruct_create_tuple( &pystruct, errcode);
-					}
+					papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct.stk, 0);
+					rt = nd->valobj;
 				}
 				else
 				{
-					rt = papuga_PyStruct_create_dict( &pystruct, errcode);
+					rt = papuga_PyStruct_create_tuple( &pystruct, errcode);
 				}
-				papuga_destroy_PyStruct( &pystruct);
-			}
-			else if (ni->tag != papuga_TagValue || value->value.serialization->arsize > 1)
-			{
-				*errcode = papuga_TypeError;
-				break;
 			}
 			else
 			{
-				rt = createPyObjectFromVariant( allocator, &ni->value, cemap, errcode);
+				rt = papuga_PyStruct_create_dict( &pystruct, errcode);
 			}
+			papuga_destroy_PyStruct( &pystruct);
 			break;
 		}
 		case papuga_TypeIterator:
