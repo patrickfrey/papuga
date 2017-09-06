@@ -631,6 +631,7 @@ static int deserialize_root( papuga_CallResult* retval, papuga_Serialization* se
 	if (ser)
 	{
 		fprintf( stderr, "DESERIALIZE STRUCT:\n%s\n", str);
+		free( str);
 	}
 #endif
 	papuga_Node* ni = ser->ar;

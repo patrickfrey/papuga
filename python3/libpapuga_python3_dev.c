@@ -262,6 +262,14 @@ static bool init_ValueVariant_pyobj( papuga_ValueVariant* value, papuga_Allocato
 		}
 		papuga_init_ValueVariant_serialization( value, ser);
 		if (!serialize_struct( ser, allocator, pyobj, cemap, errcode)) return false;
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		char* str = papuga_Serialization_tostring( ser);
+		if (ser)
+		{
+			fprintf( stderr, "SERIALIZE STRUCT:\n%s\n", str);
+			free( str);
+		}
+#endif
 	}
 	else
 	{

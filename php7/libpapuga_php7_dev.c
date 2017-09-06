@@ -38,6 +38,8 @@ typedef void siginfo_t;
 #include <zend_API.h>
 #include <zend_interfaces.h>
 
+#undef PAPUGA_LOWLEVEL_DEBUG
+
 static zend_class_entry* get_class_entry( const papuga_php_ClassEntryMap* cemap, unsigned int classid)
 {
 	--classid;
@@ -616,6 +618,7 @@ static bool deserialize( zval* return_value, papuga_Allocator* allocator, const 
 	if (ser)
 	{
 		fprintf( stderr, "DESERIALIZE STRUCT:\n%s\n", str);
+		free( str);
 	}
 #endif
 	papuga_Node* ni = serialization->ar;
