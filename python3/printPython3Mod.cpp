@@ -287,9 +287,9 @@ static void define_main(
 	out << "PyMODINIT_FUNC PyInit_" << modulename << "(void)" << std::endl
 		<< "{" << std::endl
 		<< "\t" << "PyObject* rt;" << std::endl
-		<< "\t" << "if (0>papuga_python_init())" << std::endl;
-		<< "\t" << "{" << std::endl;
-		<< "\t" << "return NULL;" << std::endl;
+		<< "\t" << "if (0>papuga_python_init())" << std::endl
+		<< "\t" << "{" << std::endl
+		<< "\t" << "return NULL;" << std::endl
 		<< "\t" << "}" << std::endl << std::endl;
 	std::size_t ci;
 	for (ci=0; descr.classes[ci].name; ++ci)
