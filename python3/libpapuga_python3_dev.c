@@ -583,6 +583,7 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, papug
 				*errcode = papuga_TypeError;
 				goto ERROR;
 			}
+			++pystruct->nofElements;
 			papuga_init_PyStructNode( &nd);
 
 			if (*ni == ne)
