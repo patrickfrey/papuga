@@ -332,6 +332,7 @@ static PyObject* papuga_Iterator_next( PyObject *selfobj_)
 		PyErr_SetNone( PyExc_StopIteration);
 		return NULL;
 	}
+	papuga_init_CallResult( &result);
 	if (selfobj->impl.getNext( selfobj->impl.data, &result))
 	{
 		PyObject* rt = papuga_python_move_CallResult( &result, selfobj->cemap, &errcode);
@@ -344,6 +345,7 @@ static PyObject* papuga_Iterator_next( PyObject *selfobj_)
 		{
 			papuga_python_error( "%s", papuga_ErrorBuffer_lastError( &result.errorbuf));
 		}
+		papuga_destroy_CallResult( &result);
 		selfobj->eof = true;
 		PyErr_SetNone( PyExc_StopIteration);
 		return NULL;
