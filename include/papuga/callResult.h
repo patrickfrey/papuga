@@ -59,41 +59,62 @@ void papuga_set_CallResult_double( papuga_CallResult* self, double val);
 void papuga_set_CallResult_bool( papuga_CallResult* self, bool val);
 
 /*
-* @brief Define value of CallResult as string (copied)
-* @param[in,out] self pointer to structure
-* @param[in] val value to set as return value
-* @return true on success, false on memory allocation error
-*/
-bool papuga_set_CallResult_string( papuga_CallResult* self, const char* val, size_t valsize);
-
-/*
 * @brief Define value of CallResult as string reference
 * @param[in,out] self pointer to structure
 * @param[in] val value to set as return value
+* @param[in] valsize size of value in bytes
 */
-void papuga_set_CallResult_string_const( papuga_CallResult* self, const char* val, size_t valsize);
+void papuga_set_CallResult_string( papuga_CallResult* self, const char* val, size_t valsize);
 
 /*
-* @brief Define value of CallResult as C-string (copied)
+* @brief Define value of CallResult as string copy
 * @param[in,out] self pointer to structure
 * @param[in] val value to set as return value
+* @param[in] valsize size of value in bytes
+* @return true on success, false on memory allocation error
 */
-void papuga_set_CallResult_charp( papuga_CallResult* self, const char* val);
+bool papuga_set_CallResult_string_copy( papuga_CallResult* self, const char* val, size_t valsize);
+
+/*
+* @brief Define value of CallResult as binary blob reference
+* @param[in,out] self pointer to structure
+* @param[in] val value to set as return value
+* @param[in] valsize size of value in bytes
+*/
+void papuga_set_CallResult_blob( papuga_CallResult* self, const void* val, size_t valsize);
+
+/*
+* @brief Define value of CallResult as string copy
+* @param[in,out] self pointer to structure
+* @param[in] val value to set as return value
+* @param[in] valsize size of value in bytes
+* @return true on success, false on memory allocation error
+*/
+bool papuga_set_CallResult_blob_copy( papuga_CallResult* self, const void* val, size_t valsize);
 
 /*
 * @brief Define value of CallResult as C-string reference
 * @param[in,out] self pointer to structure
 * @param[in] val value to set as return value
 */
-void papuga_set_CallResult_charp_const( papuga_CallResult* self, const char* val);
+void papuga_set_CallResult_charp( papuga_CallResult* self, const char* val);
+
+/*
+* @brief Define value of CallResult as C-string copy
+* @param[in,out] self pointer to structure
+* @param[in] val value to set as return value
+* @return true on success, false on memory allocation error
+*/
+bool papuga_set_CallResult_charp_copy( papuga_CallResult* self, const char* val);
 
 /*
 * @brief Define value of CallResult as unicode string reference
 * @param[in,out] self pointer to structure
 * @param[in] enc character set encoding of the string
 * @param[in] val value to set as return value
+* @param[in] valsize size of value in character units (the number if bytes is depending on the encoding)
 */
-void papuga_set_CallResult_langstring_const( papuga_CallResult* self, papuga_StringEncoding enc, const void* val, size_t valsize);
+void papuga_set_CallResult_langstring( papuga_CallResult* self, papuga_StringEncoding enc, const void* val, size_t valsize);
 
 /*
 * @brief Define value of CallResult as host object with ownership

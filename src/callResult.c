@@ -58,7 +58,7 @@ void papuga_set_CallResult_bool( papuga_CallResult* self, bool val)
 	papuga_init_ValueVariant_bool( &self->value, val);
 }
 
-bool papuga_set_CallResult_string( papuga_CallResult* self, const char* val, size_t valsize)
+bool papuga_set_CallResult_string_copy( papuga_CallResult* self, const char* val, size_t valsize)
 {
 	char* val_copy = papuga_Allocator_copy_string( &self->allocator, val, valsize);
 	if (!val_copy) return false;
@@ -66,25 +66,41 @@ bool papuga_set_CallResult_string( papuga_CallResult* self, const char* val, siz
 	return true;
 }
 
-void papuga_set_CallResult_string_const( papuga_CallResult* self, const char* val, size_t valsize)
+void papuga_set_CallResult_string( papuga_CallResult* self, const char* val, size_t valsize)
 {
 	papuga_init_ValueVariant_string( &self->value, val, valsize);
 }
 
-void papuga_set_CallResult_charp( papuga_CallResult* self, const char* val)
+bool papuga_set_CallResult_blob_copy( papuga_CallResult* self, const void* val, size_t valsize)
+{
+	char* val_copy = papuga_Allocator_alloc( &self->allocator, valsize, 0);
+	if (!val_copy) return false;
+	memcpy( val_copy, val, valsize);
+	papuga_init_ValueVariant_blob( &self->value, val_copy, valsize);
+	return true;
+}
+
+void papuga_set_CallResult_blob( papuga_CallResult* self, const void* val, size_t valsize)
+{
+	papuga_init_ValueVariant_blob( &self->value, val, valsize);
+}
+
+bool papuga_set_CallResult_charp_copy( papuga_CallResult* self, const char* val)
 {
 	if (val)
 	{
 		char* val_copy = papuga_Allocator_copy_charp( &self->allocator, val);
+		if (!val_copy) return false;
 		papuga_init_ValueVariant_charp( &self->value, val_copy);
 	}
 	else
 	{
 		papuga_init_ValueVariant( &self->value);
 	}
+	return true;
 }
 
-void papuga_set_CallResult_charp_const( papuga_CallResult* self, const char* val)
+void papuga_set_CallResult_charp( papuga_CallResult* self, const char* val)
 {
 	if (val)
 	{

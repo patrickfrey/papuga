@@ -43,6 +43,46 @@
 #define W32CHARSET textwolf::charset::UCS4LE
 #endif
 
+static const unsigned char* convertEndianess2( const void* ptr, size_t len, papuga_Allocator* allocator, papuga_ErrorCode* err)
+{
+	unsigned char* rt = (unsigned char*)papuga_Allocator_alloc( allocator, len * 2, 2);
+	if (!rt)
+	{
+		*err = papuga_NoMemError;
+		return NULL;
+	}
+	unsigned char const* pi = (const unsigned char*)ptr;
+	const unsigned char* pe = pi + len * 2;
+	unsigned char* ri = (unsigned char*)rt;
+	for (; pi != pe; pi += 2, ri += 2)
+	{
+		ri[1] = pi[0]; 
+		ri[0] = pi[1]; 
+	}
+	return rt;
+}
+
+static const unsigned char* convertEndianess4( const void* ptr, size_t len, papuga_Allocator* allocator, papuga_ErrorCode* err)
+{
+	unsigned char* rt = (unsigned char*)papuga_Allocator_alloc( allocator, len * 4, 2);
+	if (!rt)
+	{
+		*err = papuga_NoMemError;
+		return NULL;
+	}
+	unsigned char const* pi = (const unsigned char*)ptr;
+	const unsigned char* pe = pi + len * 4;
+	unsigned char* ri = (unsigned char*)rt;
+	for (; pi != pe; pi += 4, ri += 4)
+	{
+		ri[3] = pi[0]; 
+		ri[2] = pi[1]; 
+		ri[1] = pi[2]; 
+		ri[0] = pi[3]; 
+	}
+	return rt;
+}
+
 template <class DESTCHARSET>
 static void* uft8string_to_langstring( char* destbuf, int destbufsize, size_t* destlen, const char* str, size_t strsize, papuga_ErrorCode* err)
 {
@@ -534,6 +574,127 @@ extern "C" const void* papuga_ValueVariant_tolangstring( const papuga_ValueVaria
 		std::size_t numlen;
 		if (!bufprint_number_variant( localbuf, sizeof(localbuf), numlen, value, err)) return 0;
 		return uft8string_to_any_langstring( enc, localbuf, numlen, (char*)buf, bufsize, len, err);
+	}
+	else if (papuga_ValueVariant_defined( value))
+	{
+		*err = papuga_TypeError;
+		return NULL;
+	}
+	else
+	{
+		*err = papuga_ValueUndefined;
+		return NULL;
+	}
+}
+
+extern "C" const unsigned char* papuga_ValueVariant_toblob( const papuga_ValueVariant* value, papuga_Allocator* allocator, size_t* len, papuga_ErrorCode* err)
+{
+	if (papuga_ValueVariant_isstring( value))
+	{
+		if (value->valuetype == papuga_TypeString)
+		{
+			*len = value->length;
+			return (const unsigned char*)value->value.langstring;
+		}
+		else if (value->valuetype == papuga_TypeLangString)
+		{
+			switch ((papuga_StringEncoding)value->encoding)
+			{
+				case papuga_UTF8:
+					*len = value->length;
+					return (const unsigned char*)value->value.langstring;
+				case papuga_UTF16BE:
+					*len = value->length * 2;
+					if (IS_BIG_ENDIAN)
+					{
+						return (const unsigned char*)value->value.langstring;
+					}
+					else
+					{
+						return convertEndianess2( value->value.langstring, value->length, allocator, err);
+					}
+				case papuga_UTF16LE:
+					*len = value->length * 2;
+					if (IS_BIG_ENDIAN)
+					{
+						return convertEndianess2( value->value.langstring, value->length, allocator, err);
+					}
+					else
+					{
+						return (const unsigned char*)value->value.langstring;
+					}
+				case papuga_UTF16:
+					*len = value->length * 2;
+					return (const unsigned char*)value->value.langstring;
+				case papuga_UTF32BE:
+					*len = value->length * 4;
+					if (IS_BIG_ENDIAN)
+					{
+						return (const unsigned char*)value->value.langstring;
+					}
+					else
+					{
+						return convertEndianess4( value->value.langstring, value->length, allocator, err);
+					}
+				case papuga_UTF32LE:
+					*len = value->length * 4;
+					if (IS_BIG_ENDIAN)
+					{
+						return convertEndianess4( value->value.langstring, value->length, allocator, err);
+					}
+					else
+					{
+						return (const unsigned char*)value->value.langstring;
+					}
+				case papuga_UTF32:
+					*len = value->length * 4;
+					return (const unsigned char*)value->value.langstring;
+				case papuga_Binary:
+					*len = value->length;
+					return (const unsigned char*)value->value.langstring;
+				default:
+					*err = papuga_NotImplemented;
+					return NULL;
+			}
+		}
+		else
+		{
+			*err = papuga_TypeError;
+			return NULL;
+		}
+	}
+	else if (papuga_ValueVariant_isnumeric( value))
+	{
+		if ((papuga_Type)value->valuetype == papuga_TypeDouble)
+		{
+			*len = sizeof(value->value.Double);
+			return (const unsigned char*)&value->value.Double;
+		}
+		else if ((papuga_Type)value->valuetype == papuga_TypeUInt)
+		{
+			*len = sizeof(value->value.UInt);
+			return (const unsigned char*)&value->value.UInt;
+		}
+		else if ((papuga_Type)value->valuetype == papuga_TypeInt)
+		{
+			*len = sizeof(value->value.Int);
+			return (const unsigned char*)&value->value.Int;
+		}
+		else if ((papuga_Type)value->valuetype == papuga_TypeBool)
+		{
+			*len = sizeof(value->value.Bool);
+			return (const unsigned char*)&value->value.Bool;
+		}
+		else if ((papuga_Type)value->valuetype == papuga_TypeVoid)
+		{
+			*len = 0;
+			return 0;
+		}
+		else
+		{
+			*err = papuga_TypeError;
+			return NULL;
+		}
 	}
 	else if (papuga_ValueVariant_defined( value))
 	{

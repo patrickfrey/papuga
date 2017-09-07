@@ -161,6 +161,16 @@ const char* papuga_ValueVariant_tostring( const papuga_ValueVariant* self, papug
 const void* papuga_ValueVariant_tolangstring( const papuga_ValueVariant* self, papuga_StringEncoding enc, void* buf, size_t bufsize, size_t* len, papuga_ErrorCode* err);
 
 /*
+* @brief Convert a value variant to a binary blob
+* @param[in] self pointer to structure 
+* @param[in,out] allocator allocator to use for deep copy of memory
+* @param[out] len length of the result in bytes
+* @param[out] err error code in case of error (untouched if call succeeds)
+* @return the pointer to the result blob
+*/
+const unsigned char* papuga_ValueVariant_toblob( const papuga_ValueVariant* self, papuga_Allocator* allocator, size_t* len, papuga_ErrorCode* err);
+
+/*
 * @brief Convert a value variant to a signed integer
 * @param[in] self pointer to structure 
 * @param[out] err error code in case of error (untouched if call succeeds)
