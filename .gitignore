@@ -29,22 +29,19 @@ include/papuga/languages.h
 src/internationalization.c
 
 # CMake generated files
+*.cmake.user
 CMakeCache.txt
 CMakeFiles
 Makefile
 cmake_install.cmake
-cmake_install.cmake.user
-build_rules.cmake.user
 install_manifest.txt
 CTestTestfile.cmake
 CMakeLists.txt.user
-CTestTestfile.cmake.user
 uninstall.cmake
 DartConfiguration.tcl
 Testing/
 CPackConfig.cmake
 CPackSourceConfig.cmake
-cmake/build_rules.cmake.user
 
 # Generated test data
 tests/lua/exec
