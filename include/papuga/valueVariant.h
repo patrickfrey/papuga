@@ -168,7 +168,7 @@ const void* papuga_ValueVariant_tolangstring( const papuga_ValueVariant* self, p
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the pointer to the result blob
 */
-const unsigned char* papuga_ValueVariant_toblob( const papuga_ValueVariant* self, papuga_Allocator* allocator, size_t* len, papuga_ErrorCode* err);
+const unsigned void* papuga_ValueVariant_toblob( const papuga_ValueVariant* self, papuga_Allocator* allocator, size_t* len, papuga_ErrorCode* err);
 
 /*
 * @brief Convert a value variant to a signed integer

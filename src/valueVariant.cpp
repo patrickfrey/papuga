@@ -587,7 +587,7 @@ extern "C" const void* papuga_ValueVariant_tolangstring( const papuga_ValueVaria
 	}
 }
 
-extern "C" const unsigned char* papuga_ValueVariant_toblob( const papuga_ValueVariant* value, papuga_Allocator* allocator, size_t* len, papuga_ErrorCode* err)
+extern "C" const void* papuga_ValueVariant_toblob( const papuga_ValueVariant* value, papuga_Allocator* allocator, size_t* len, papuga_ErrorCode* err)
 {
 	if (papuga_ValueVariant_isstring( value))
 	{
