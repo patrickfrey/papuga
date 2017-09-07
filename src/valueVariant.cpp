@@ -486,7 +486,15 @@ extern "C" const char* papuga_ValueVariant_tostring( const papuga_ValueVariant* 
 		}
 		else//if (value->valuetype == papuga_TypeLangString)
 		{
-			return any_langstring_to_uft8string( allocator, (papuga_StringEncoding)value->encoding, value->value.langstring, value->length, err);
+			if ((papuga_StringEncoding)value->encoding == papuga_Binary)
+			{
+				*len = value->length;
+				return (const char*)value->value.langstring;
+			}
+			else
+			{
+				return any_langstring_to_uft8string( allocator, (papuga_StringEncoding)value->encoding, value->value.langstring, value->length, err);
+			}
 		}
 	}
 	else if (papuga_ValueVariant_isnumeric( value))
