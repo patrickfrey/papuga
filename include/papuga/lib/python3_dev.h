@@ -47,6 +47,7 @@ typedef struct papuga_python_ClassObject
 	PyObject_HEAD				/*< Python object header */
 	void* self;				/*< pointer to host object representation */
 	int classid;				/*< class identifier of the object */
+	papuga_Deleter destroy;			/*< destructor function */
 	int checksum;				/*< checksum for verification */
 } papuga_python_ClassObject;
 
@@ -60,13 +61,15 @@ int papuga_python_init(void);
 /*
 * @brief Initialize an allocated host object in the Python context
 * @param[in] selfobj pointer to the allocated and zeroed python object
+* @param[in] self pointer to host object data
 * @param[in] classid class identifier of the object
+* @param[in] destroy destructor function of the host object data ('self')
 * @param[in] self pointer to host object representation
 */
-void papuga_python_init_object( PyObject* selfobj, int classid, void* self);
+void papuga_python_init_object( PyObject* selfobj, void* self, int classid, papuga_Deleter destroy);
 
 /*
-* @brief Create a non initialized (NULL) host object in the Python context
+* @brief Create a host object representation in the Python context
 * @param[in] self pointer to host object data (pass with ownership, destroyed on error)
 * @param[in] classid class identifier of the object
 * @param[in] destroy destructor function of the host object data ('self')
@@ -74,7 +77,13 @@ void papuga_python_init_object( PyObject* selfobj, int classid, void* self);
 * @param[in,out] errbuf where to report errors
 * @return object without reference increment, NULL on error
 */
-PyObject* papuga_python_create_object( void* self, int classid, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+
+/*
+* @brief Destroy a host object representation in the Python context created with papuga_python_create_object
+* @param[in] self pointer to host object data
+*/
+void papuga_python_destroy_object( PyObject* selfobj);
 
 /*
 * @brief Fills a structure with the arguments passed in a Python binding function/method call

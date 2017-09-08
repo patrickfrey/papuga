@@ -50,7 +50,7 @@ static PyTypeObject* getTypeObject( const papuga_python_ClassEntryMap* cemap, in
 #define KNUTH_HASH 2654435761U
 static int calcObjectCheckSum( papuga_python_ClassObject* cobj)
 {
-	return (cobj->classid * KNUTH_HASH) + ((uintptr_t)cobj->self % 0xFfFf ^ ((uintptr_t)cobj->self >> 16));
+	return (cobj->classid * KNUTH_HASH) + (((uintptr_t)cobj->self << 2) ^ ((uintptr_t)cobj->destroy << 3));
 }
 static int calcIteratorCheckSum( const papuga_python_IteratorObject* iobj)
 {
@@ -709,7 +709,7 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 		case papuga_TypeHostObject:
 		{
 			papuga_HostObject* hobj = value->value.hostObject;
-			rt = papuga_python_create_object( hobj->data, hobj->classid, cemap, errcode);
+			rt = papuga_python_create_object( hobj->data, hobj->classid, hobj->destroy, cemap, errcode);
 			if (rt) papuga_release_HostObject( hobj);
 			break;
 		}
@@ -772,15 +772,16 @@ DLL_PUBLIC int papuga_python_init(void)
 	return 0;
 }
 
-DLL_PUBLIC void papuga_python_init_object( PyObject* selfobj, int classid, void* self)
+DLL_PUBLIC void papuga_python_init_object( PyObject* selfobj, void* self, int classid, papuga_Deleter destroy)
 {
 	papuga_python_ClassObject* cobj = (papuga_python_ClassObject*)selfobj;
 	cobj->classid = classid;
 	cobj->self = self;
+	cobj->destroy = destroy;
 	cobj->checksum = calcObjectCheckSum( cobj);
 }
 
-DLL_PUBLIC PyObject* papuga_python_create_object( void* self, int classid, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+DLL_PUBLIC PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	PyTypeObject* typeobj = getTypeObject( cemap, classid);
 	if (!typeobj)
@@ -794,8 +795,17 @@ DLL_PUBLIC PyObject* papuga_python_create_object( void* self, int classid, const
 		*errcode = papuga_NoMemError;
 		return NULL;
 	}
-	papuga_python_init_object( selfobj, classid, self);
+	papuga_python_init_object( selfobj, self, classid, destroy);
 	return selfobj;
+}
+
+DLL_PUBLIC void papuga_python_destroy_object( PyObject* selfobj)
+{
+	papuga_python_ClassObject* cobj = (papuga_python_ClassObject*)selfobj;
+	if (cobj->checksum == calcObjectCheckSum( cobj))
+	{
+		cobj->destroy( cobj->self);
+	}
 }
 
 DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_python_CallArgs* as, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap)
