@@ -806,6 +806,10 @@ DLL_PUBLIC void papuga_python_destroy_object( PyObject* selfobj)
 	{
 		cobj->destroy( cobj->self);
 	}
+	else
+	{
+		papuga_python_error( "%s", papuga_ErrorCode_tostring( papuga_InvalidAccess));
+	}
 }
 
 DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_python_CallArgs* as, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap)
