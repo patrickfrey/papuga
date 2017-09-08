@@ -614,7 +614,9 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 	switch (value->valuetype)
 	{
 		case papuga_TypeVoid:
-			return Py_None;
+			Py_INCREF( Py_None);
+			rt = Py_None;
+			break;
 		case papuga_TypeDouble:
 			rt = PyFloat_FromDouble( value->value.Double);
 			break;
@@ -635,7 +637,16 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 			rt = PyLong_FromLong( value->value.Int);
 			break;
 		case papuga_TypeBool:
-			return (value->value.Bool)? Py_True : Py_False;
+			if (value->value.Bool)
+			{
+				Py_INCREF( Py_True);
+				rt = Py_True;
+			}
+			else
+			{
+				Py_INCREF( Py_False);
+				rt = Py_False;
+			}
 		case papuga_TypeString:
 		{
 			rt = PyUnicode_FromStringAndSize( value->value.string, value->length);
@@ -720,6 +731,7 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 			papuga_Node* ne = ni + value->value.serialization->arsize;
 			if (ni == ne)
 			{
+				Py_INCREF( Py_None);
 				return Py_None;
 			}
 			if (!papuga_init_PyStruct_serialization( &pystruct, allocator, &ni, ne, cemap, errcode))
@@ -894,7 +906,6 @@ DLL_PUBLIC PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, c
 {
 	PyObject* rt = createPyObjectFromVariant( &retval->allocator, &retval->value, cemap, errcode);
 	papuga_destroy_CallResult( retval);
-	Py_INCREF( rt);
 	return rt;
 }
 
