@@ -115,7 +115,6 @@ static void define_constructor(
 			"}",
 			"papuga_python_init_object( selfobj, {classid}, self);",
 			"papuga_python_destroy_CallArgs( &argstruct);",
-			"Py_INCREF( selfobj);",
 			"return 0;",
 		"}",
 		0),
