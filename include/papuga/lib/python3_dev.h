@@ -106,7 +106,7 @@ void papuga_python_destroy_CallArgs( papuga_python_CallArgs* argstruct);
 * @param[in,out] retval return values to move to the Python context
 * @param[in] cemap map of class ids to python class descriptions
 * @param[out] errcode error code
-* @return Python3 return value without reference counter increment on success, NULL on failure or if no values returned
+* @return Python3 return value with reference counter increment on success, NULL on failure or if no values returned
 */
 PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
