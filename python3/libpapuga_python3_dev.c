@@ -710,6 +710,7 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 		{
 			papuga_HostObject* hobj = value->value.hostObject;
 			rt = papuga_python_create_object( hobj->data, hobj->classid, cemap, errcode);
+			if (rt) papuga_release_HostObject( hobj);
 			break;
 		}
 		case papuga_TypeSerialization:
@@ -748,14 +749,7 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 		{
 			papuga_Iterator* itr = value->value.iterator;
 			rt = createPyObjectFromIterator( itr, cemap, errcode);
-			if (rt)
-			{
-				papuga_release_Iterator( itr);
-			}
-			else
-			{
-				return NULL;
-			}
+			if (rt) papuga_release_Iterator( itr);
 			break;
 		}
 		default:
