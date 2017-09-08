@@ -884,7 +884,10 @@ DLL_PUBLIC void papuga_python_destroy_CallArgs( papuga_python_CallArgs* argstruc
 
 DLL_PUBLIC PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
-	return createPyObjectFromVariant( &retval->allocator, &retval->value, cemap, errcode);
+	PyObject* rt = createPyObjectFromVariant( &retval->allocator, &retval->value, cemap, errcode);
+	papuga_destroy_CallResult( retval);
+	Py_INCREF( rt);
+	return rt;
 }
 
 
