@@ -647,6 +647,7 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, papuga_
 				Py_INCREF( Py_False);
 				rt = Py_False;
 			}
+			break;
 		case papuga_TypeString:
 		{
 			rt = PyUnicode_FromStringAndSize( value->value.string, value->length);
