@@ -4,10 +4,10 @@ if ( WIN32 )
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_WINDOWS" )
 endif( WIN32 )
 if( APPLE )
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_MACOSX" )
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_MACOSX -DLUA_WITHOUT_GPL" )
 endif( APPLE )
 if( UNIX )
-set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_LINUX" )
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_LINUX -DLUA_WITHOUT_GPL" )
 endif( UNIX )
 
 # --------------------------------------
@@ -52,6 +52,7 @@ set( source_files
 
 include_directories(
 	"${Intl_INCLUDE_DIRS}"
+	"${PROJECT_SOURCE_DIR}/3rdParty/lua_cmake"
 	"${PROJECT_SOURCE_DIR}/3rdParty/lua"
 )
 

@@ -1,15 +1,22 @@
-Library dependencies of strusBindings:
+Library dependencies of papuga:
 	- boost (headers and -lboost_system)
+	- Python3 if built with cmake -DWITH_PYTHON=YES
+	- PHP7 if built with cmake -DWITH_PHP=YES
 
 Ubuntu:
 	sudo apt-get install liboost-all-dev
 
 
-
 PHP7 (Ubuntu):
-	sudo apt-get install python-software-properties
 	sudo add-apt-repository ppa:ondrej/php
 	sudo apt-get update
 	sudo apt-get install php7.1
 	sudo apt-get install php7.1-dev  
+
+Python3 (Ubuntu):
+	sudo apt-get install python-software-properties
+	sudo apt-get install -y python3-pip
+	sudo apt-get install build-essential python3-dev
+
+
 

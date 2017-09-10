@@ -7,7 +7,8 @@ Table of Contents
 	boost
 	fmt
 	Lua
-	Zend framework (PHP)
+	Zend framework (PHP7)
+	Python (v3)
 
 textwolf
 ----------
@@ -21,12 +22,15 @@ boost
 Lua
 ----------------
 	MIT license (https://www.lua.org/license.html)
+	(Remark: The original Lua has an optional dependency to readline that is enabled in the standard Linus/MacOS build.
+		Building with readline support is disabled for the papuga build because readline is licensed under GPLv3)
 
 fmt
 ----------------
-       BSD 2-clause "Simplified" License
-       https://github.com/fmtlib/fmt/blob/master/LICENSE.rst
+	BSD 2-clause "Simplified" License
+	https://github.com/fmtlib/fmt/blob/master/LICENSE.rst
 
 Zend framework (PHP)
 ----------------
-       New BSD License
+	New BSD License
+

@@ -4,7 +4,7 @@ git submodule foreach git pull
 
 mkdir build
 cd build
-cmake -DWITH_PHP="YES" -DWITH_PYTHON="YES" ..
+cmake -DWITH_PHP=YES -DWITH_PYTHON=YES ..
 make -j<N>
 make test ARGS=-j<N>
 
