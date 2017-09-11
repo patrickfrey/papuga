@@ -27,7 +27,7 @@ include_directories(
 )
 
 link_directories(
-	"${PROJECT_SOURCE_DIR}/3rdParty/fmt/fmt"
+	"${CMAKE_CURRENT_BINARY_DIR}/../3rdParty/fmt/fmt"
 	${PYTHON3_LIBRARY_DIRS}
 )
 
