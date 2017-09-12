@@ -31,6 +31,8 @@ typedef void siginfo_t;
 #ifdef _MSC_VER
 #include <zend_config.w32.h>
 #else
+#define __USE_POSIX199309 1
+#include <signal.h>
 #include <zend_config.nw.h>
 #endif
 #include <php.h>
