@@ -21,7 +21,7 @@ include_directories(
 )
 
 link_directories(
-	"${CMAKE_CURRENT_BINARY_DIR}/../3rdParty/fmt/fmt"
+	"${CMAKE_CURRENT_BINARY_DIR}/../3rdParty/fmt_build"
 )
 
 
@@ -29,7 +29,7 @@ link_directories(
 # LIBRARIES
 # ------------------------------
 add_library( papuga_lua_gen SHARED ${gen_source_files} )
-target_link_libraries( papuga_lua_gen fmt papuga_gen_utils )
+target_link_libraries( papuga_lua_gen papuga_gen_utils papuga_fmt )
 
 set_target_properties(
     papuga_lua_gen

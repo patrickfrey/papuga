@@ -27,7 +27,7 @@ include_directories(
 )
 
 link_directories(
-	"${CMAKE_CURRENT_BINARY_DIR}/../3rdParty/fmt/fmt"
+	"${CMAKE_CURRENT_BINARY_DIR}/../3rdParty/fmt_build"
 	${PYTHON3_LIBRARY_DIRS}
 )
 
@@ -36,7 +36,7 @@ link_directories(
 # LIBRARIES
 # ------------------------------
 add_library( papuga_python3_gen SHARED ${python3_gen_source_files} )
-target_link_libraries( papuga_python3_gen fmt papuga_gen_utils )
+target_link_libraries( papuga_python3_gen papuga_gen_utils papuga_fmt  )
 
 set_target_properties(
     papuga_python3_gen

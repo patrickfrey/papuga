@@ -27,7 +27,7 @@ include_directories(
 )
 
 link_directories(
-	"${CMAKE_CURRENT_BINARY_DIR}/../3rdParty/fmt/fmt"
+	"${CMAKE_CURRENT_BINARY_DIR}/../3rdParty/fmt_build"
 	${PHP7_LIBRARY_DIRS}
 )
 
@@ -36,7 +36,7 @@ link_directories(
 # LIBRARIES
 # ------------------------------
 add_library( papuga_php7_gen SHARED ${php7_gen_source_files} )
-target_link_libraries( papuga_php7_gen fmt papuga_gen_utils )
+target_link_libraries( papuga_php7_gen papuga_gen_utils papuga_fmt  )
 
 set_target_properties(
     papuga_php7_gen
