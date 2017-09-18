@@ -30,10 +30,9 @@
 #ifdef _MSC_VER
 #include <zend_config.w32.h>
 #else
-#define _POSIX_C_SOURCE 199309L
 #include <zend_config.nw.h>
 #endif
-typedef struct siginfo siginfo_t;
+#define ZEND_SIGNAL_H // PH:HACK: Exclude compilation of stuff we don't need with system dependencies
 #include <php.h>
 #include <zend.h>
 #include <zend_API.h>
