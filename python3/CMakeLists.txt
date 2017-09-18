@@ -22,6 +22,7 @@ include_directories(
 	"${Intl_INCLUDE_DIRS}"
 	"${PROJECT_SOURCE_DIR}/3rdParty/fmt"
 	"${PROJECT_SOURCE_DIR}/3rdParty/python"
+	"${CMAKE_CURRENT_BINARY_DIR}/../include"
 	"${PROJECT_SOURCE_DIR}/include"
 	${PYTHON3_INCLUDE_DIRS}
 )
