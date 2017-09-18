@@ -27,14 +27,13 @@
 #include <inttypes.h>
 
 // PHP & Zend includes:
-typedef void siginfo_t;
 #ifdef _MSC_VER
 #include <zend_config.w32.h>
 #else
-#define __USE_POSIX199309 1
-#include <signal.h>
+#define _POSIX_C_SOURCE 199309L
 #include <zend_config.nw.h>
 #endif
+typedef struct siginfo siginfo_t;
 #include <php.h>
 #include <zend.h>
 #include <zend_API.h>
