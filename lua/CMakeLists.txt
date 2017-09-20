@@ -15,14 +15,15 @@ set( gen_source_files
 
 include_directories(
 	"${Intl_INCLUDE_DIRS}"
-	"${PROJECT_SOURCE_DIR}/3rdParty/fmt"
-	"${PROJECT_SOURCE_DIR}/3rdParty/lua"
-	"${CMAKE_CURRENT_BINARY_DIR}/../include"
-	"${PROJECT_SOURCE_DIR}/include"
+	"${FMT_INCLUDE_DIRS}"
+	"${LUA_INCLUDE_DIRS}"
+	"${PAPUGA_INCLUDE_DIRS}"
 )
 
 link_directories(
-	"${CMAKE_CURRENT_BINARY_DIR}/../3rdParty/fmt_build"
+	"${FMT_LIBRARY_DIRS}"
+	"${PAPUGA_LIBRARY_DIRS}"
+	"${LUA_LIBRARY_DIRS}"
 )
 
 

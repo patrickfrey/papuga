@@ -20,18 +20,16 @@ set( php7_gen_source_files
 
 include_directories(
 	"${Intl_INCLUDE_DIRS}"
-	"${PROJECT_SOURCE_DIR}/3rdParty/fmt"
-	"${PROJECT_SOURCE_DIR}/3rdParty/php"
-	"${CMAKE_CURRENT_BINARY_DIR}/../include"
-	"${PROJECT_SOURCE_DIR}/include"
-	${PHP7_INCLUDE_DIRS}
+        "${FMT_INCLUDE_DIRS}"
+	"${PHP7_INCLUDE_DIRS}"
+	"${PAPUGA_INCLUDE_DIRS}"
 )
 
 link_directories(
-	"${CMAKE_CURRENT_BINARY_DIR}/../3rdParty/fmt_build"
-	${PHP7_LIBRARY_DIRS}
+	"${FMT_LIBRARY_DIRS}"
+	"${PAPUGA_LIBRARY_DIRS}"
+	"${PHP7_LIBRARY_DIRS}"
 )
-
 
 # ------------------------------
 # LIBRARIES

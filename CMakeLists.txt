@@ -50,6 +50,22 @@ configure_file( "${PROJECT_SOURCE_DIR}/include/papuga/languages.h.in"      "${CM
 
 enable_testing()
 
+# Path declarations:
+set( FMT_INCLUDE_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/fmt" )
+set( FMT_LIBRARY_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/fmt_build" )
+set( LUA_INCLUDE_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/lua" )
+set( LUA_LIBRARY_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/lua_cmake" )
+set( TEXTWOLF_INCLUDE_DIRS                 "${PROJECT_SOURCE_DIR}/3rdParty/textwolf/include" )
+set( PAPUGA_INCLUDE_DIRS                      "${CMAKE_CURRENT_BINARY_DIR}/include"  "${PROJECT_SOURCE_DIR}/include" )
+set( PAPUGA_SOURCE_DIRS                      "${PROJECT_SOURCE_DIR}/src" )
+set( PAPUGA_LIBRARY_DIRS                      "${CMAKE_CURRENT_BINARY_DIR}/src" )
+set( PAPUGA_PHP7_SOURCE_DIRS            "${PROJECT_SOURCE_DIR}/php7" )
+set( PAPUGA_PHP7_LIBRARY_DIRS            "${CMAKE_CURRENT_BINARY_DIR}/php7" )
+set( PAPUGA_PYTHON3_SOURCE_DIRS     "${PROJECT_SOURCE_DIR}/python3" )
+set( PAPUGA_PYTHON3_LIBRARY_DIRS     "${CMAKE_CURRENT_BINARY_DIR}/python3" )
+set( PAPUGA_LUA_SOURCE_DIRS              "${PROJECT_SOURCE_DIR}/lua" )
+set( PAPUGA_LUA_LIBRARY_DIRS              "${CMAKE_CURRENT_BINARY_DIR}/lua" )
+
 # Subdirectories:
 add_subdirectory( 3rdParty )
 add_subdirectory( src )
