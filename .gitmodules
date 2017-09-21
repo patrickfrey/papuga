@@ -1,9 +1,9 @@
 [submodule "3rdParty/fmt"]
 	path = 3rdParty/fmt
-	url = https://github.com/fmtlib/fmt.git
+	url = https://github.com/fmtlib/fmt
 [submodule "3rdParty/textwolf"]
 	path = 3rdParty/textwolf
-	url = git@github.com:patrickfrey/textwolf.git
+	url = https://github.com/patrickfrey/textwolf
 [submodule "3rdParty/lua"]
 	path = 3rdParty/lua
-	url = https://github.com/lua/lua.git
+	url = https://github.com/lua/lua
