@@ -43,6 +43,9 @@ Testing/
 CPackConfig.cmake
 CPackSourceConfig.cmake
 
+# Suggested build directory
+build
+
 # Generated test data
 tests/lua/exec
 tests/php7/exec
