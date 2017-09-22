@@ -4,7 +4,7 @@ set -e
 
 OS=$(uname -s)
 
-PROJECT=strusAll
+PROJECT=papuga
 
 # set up environment
 case $OS in
