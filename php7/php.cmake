@@ -3,7 +3,7 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 # PHP
 # --------------------------------------
-find_program( PHP7_CONFIG_EXECUTABLE NAMES "php-config-7.1" "php-config-7.0" )
+find_program( PHP7_CONFIG_EXECUTABLE NAMES "php-config7.1" "php-config7.0" )
 MESSAGE( "PHP php-config executable:  ${PHP7_CONFIG_EXECUTABLE}" )
 
 find_program( PHP7_EXECUTABLE NAMES  "php7.1" "php7.0" )
