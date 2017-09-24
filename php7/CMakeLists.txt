@@ -46,7 +46,7 @@ set_target_properties(
 )
 
 add_library( papuga_php7_dev SHARED ${php7_dev_source_files} )
-target_link_libraries( papuga_php7_dev papuga_gen_utils papuga_devel )
+target_link_libraries( papuga_php7_dev papuga_gen_utils papuga_devel ${PHP7_LIBRARIES} )
 
 set_target_properties(
     papuga_php7_dev

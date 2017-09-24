@@ -461,7 +461,7 @@ extern "C" const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbu
 		if (destbufsize <= (size_t)val->length) return NULL;
 		const char* si = val->value.string;
 		char* di = destbuf;
-		while (*si && *si < 128)
+		while (*si && (unsigned char)*si < 128)
 		{
 			*di++ = *si++;
 		}

@@ -47,7 +47,7 @@ set_target_properties(
 )
 
 add_library( papuga_python3_dev SHARED ${python3_dev_source_files} )
-target_link_libraries( papuga_python3_dev papuga_gen_utils papuga_devel )
+target_link_libraries( papuga_python3_dev papuga_gen_utils papuga_devel ${PYTHON3_LIBRARIES} )
 
 set_target_properties(
     papuga_python3_dev
