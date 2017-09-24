@@ -21,6 +21,7 @@ case $OS in
 		fi
 		brew install \
 			cmake \
+			gettext \
 			boost \
 			python3 \
 			|| true
