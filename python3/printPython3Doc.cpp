@@ -55,19 +55,19 @@ public:
 	virtual std::string constructorDeclaration( const std::string& classname, const papuga_ConstructorDescription* cdef) const
 	{
 		std::ostringstream out;
-		out << "def __init__( self, ";
+		out << "\tdef __init__( self, ";
 		printParameterList( out, cdef->parameter);
-		out << "):" << std::endl << "\t" << "pass" << std::endl;
+		out << "):" << std::endl << "\t\t" << "pass" << std::endl;
 		return out.str();
 	}
 
 	virtual std::string methodDeclaration( const std::string& classname, const papuga_MethodDescription* mdef) const
 	{
 		std::ostringstream out;
-		out << "def " << mdef->name << "(";
+		out << "\tdef " << mdef->name << "(";
 		if (mdef->nonstatic) out << " self, ";
 		printParameterList( out, mdef->parameter);
-		out << "):" << std::endl << "\t" << "pass" << std::endl;
+		out << "):" << std::endl << "\t\t" << "pass" << std::endl;
 		return out.str();
 	}
 

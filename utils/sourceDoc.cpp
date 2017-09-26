@@ -130,6 +130,17 @@ static void printParameterDescription(
 	}
 }
 
+static void printResultDescription(
+		std::ostream& out,
+		const SourceDocLanguageDescription* lang,
+		const papuga_CallResultDescription* result)
+{
+	if (!result) return;
+	const char* description = getAnnotationText( result->doc, papuga_AnnotationType_Description);
+	printDocumentationTag( out, lang, "return", description?description:"");
+	printAnnotations( out, lang, result->doc, false);
+}
+
 static void printConstructor(
 		std::ostream& out,
 		const SourceDocLanguageDescription* lang,
@@ -140,8 +151,8 @@ static void printConstructor(
 	printDocumentationTag( out, lang, "constructor", "new");
 
 	printAnnotations( out, lang, cdef->doc, true);
-
 	printParameterDescription( out, lang, cdef->parameter);
+
 	out << lang->constructorDeclaration( classname, cdef) << std::endl;
 }
 
@@ -155,8 +166,9 @@ static void printMethod(
 	printDocumentationTag( out, lang, "method", mdef->name);
 
 	printAnnotations( out, lang, mdef->doc, true);
-
 	printParameterDescription( out, lang, mdef->parameter);
+	printResultDescription( out, lang, mdef->result);
+
 	out << lang->methodDeclaration( classname, mdef) << std::endl;
 }
 
