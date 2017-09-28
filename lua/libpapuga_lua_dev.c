@@ -9,12 +9,7 @@
 /// \file papuga/lib/lua_dev.h
 
 #include "papuga/lib/lua_dev.h"
-#include "papuga/valueVariant.h"
-#include "papuga/callResult.h"
-#include "papuga/errors.h"
-#include "papuga/serialization.h"
-#include "papuga/iterator.h"
-#include "papuga/hostObject.h"
+#include "papuga.h"
 #include "private/dll_tags.h"
 #include <stddef.h>
 #include <math.h>
@@ -278,7 +273,7 @@ static void init_ValueVariant_number( papuga_ValueVariant* result, double numval
 }
 
 
-static bool serialize_key( papuga_lua_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
+static bool serialize_key( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
 {
 	bool rt = true;
 	switch (lua_type (ls, li))
@@ -315,9 +310,9 @@ static bool serialize_key( papuga_lua_CallArgs* as, papuga_Serialization* result
 	return true;
 }
 
-static bool serialize_node( papuga_lua_CallArgs* as, papuga_Serialization* result, lua_State *ls, int li);
+static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, lua_State *ls, int li);
 
-static bool serialize_value( papuga_lua_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
+static bool serialize_value( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
 {
 	bool rt = true;
 	const char* str;
@@ -374,7 +369,7 @@ static bool serialize_value( papuga_lua_CallArgs* as, papuga_Serialization* resu
 	return true;
 }
 
-static bool try_serialize_array( papuga_lua_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
+static bool try_serialize_array( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
 {
 	size_t start_size = result->arsize;
 	int idx = 0;
@@ -398,7 +393,7 @@ ERROR:
 	return false;
 }
 
-static bool serialize_node( papuga_lua_CallArgs* as, papuga_Serialization* result, lua_State *ls, int li)
+static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, lua_State *ls, int li)
 {
 	size_t start_size = result->arsize;
 	if (!lua_checkstack( ls, 8))
@@ -428,16 +423,14 @@ ERROR:
 	return false;
 }
 
-static papuga_Serialization* new_Serialization( papuga_lua_CallArgs* as)
+static bool serialize_root( papuga_CallArgs* as, lua_State *ls, int li)
 {
-	papuga_Serialization* rt = &as->serializations[ as->serc++];
-	papuga_init_Serialization( rt);
-	return rt;
-}
-
-static bool serialize_root( papuga_lua_CallArgs* as, lua_State *ls, int li)
-{
-	papuga_Serialization* result = new_Serialization( as);
+	papuga_Serialization* result = papuga_Allocator_alloc_Serialization( &as->allocator);
+	if (!result)
+	{
+		as->errcode = papuga_NoMemError;
+		return false;
+	}
 	papuga_init_ValueVariant_serialization( &as->argv[as->argc], result);
 	as->argc += 1;
 	bool rt = true;
@@ -701,15 +694,10 @@ DLL_PUBLIC void papuga_lua_error_str( lua_State* ls, const char* function, const
 	luaL_error( ls, "%s (%s)", errormsg, function);
 }
 
-DLL_PUBLIC bool papuga_lua_init_CallArgs( papuga_lua_CallArgs* as, lua_State *ls, int argc, const char* classname)
+DLL_PUBLIC bool papuga_lua_init_CallArgs( papuga_CallArgs* as, lua_State *ls, int argc, const char* classname)
 {
 	int argi = 1;
-	as->erridx = -1;
-	as->errcode = 0;
-	as->self = 0;
-	as->serc = 0;
-	as->argc = 0;
-	papuga_init_Allocator( &as->allocator, as->allocbuf, sizeof( as->allocbuf));
+	papuga_init_CallArgs( as);
 
 	if (classname)
 	{
@@ -722,7 +710,7 @@ DLL_PUBLIC bool papuga_lua_init_CallArgs( papuga_lua_CallArgs* as, lua_State *ls
 		as->self = udata->objectref;
 		++argi;
 	}
-	if (argc > papuga_LUA_MAX_NOF_ARGUMENTS)
+	if (argc > papuga_MAX_NOF_ARGUMENTS)
 	{
 		as->errcode = papuga_NofArgsError;
 		return false;
@@ -793,18 +781,8 @@ DLL_PUBLIC bool papuga_lua_init_CallArgs( papuga_lua_CallArgs* as, lua_State *ls
 ERROR:
 	as->erridx = argi;
 	as->errcode = papuga_TypeError;
-	papuga_lua_destroy_CallArgs( as);
+	papuga_destroy_CallArgs( as);
 	return false;
-}
-
-DLL_PUBLIC void papuga_lua_destroy_CallArgs( papuga_lua_CallArgs* arg)
-{
-	size_t si=0, se=arg->serc;
-	for (; si != se; ++si)
-	{
-		papuga_destroy_Serialization( &arg->serializations[si]);
-	}
-	papuga_destroy_Allocator( &arg->allocator);
 }
 
 DLL_PUBLIC int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* retval, const papuga_lua_ClassNameMap* classnamemap, papuga_ErrorCode* errcode)

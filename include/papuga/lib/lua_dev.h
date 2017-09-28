@@ -17,24 +17,6 @@
 #include "lua.h"
 #include "lauxlib.h"
 
-#define papuga_LUA_MAX_NOF_ARGUMENTS 64
-
-/*
-* @brief Call arguments structure
-*/
-typedef struct papuga_lua_CallArgs
-{
-	int erridx;			/*< index of argument (starting with 1), that caused the error or 0 */
-	papuga_ErrorCode errcode;	/*< papuga error code */
-	size_t argc;			/*< number of arguments passed to call */
-	size_t serc;			/*< number of serialization objects referenced by arguments */
-	void* self;			/*< pointer to host-object of the method called */
-	papuga_Allocator allocator;	/*< allocator used for deep copies */
-	papuga_ValueVariant argv[ papuga_LUA_MAX_NOF_ARGUMENTS];		/* argument list */
-	papuga_Serialization serializations[ papuga_LUA_MAX_NOF_ARGUMENTS];	/* serialization objects*/
-	int allocbuf[ 1024];		/*< static buffer for allocator to start with (to avoid early malloc) */
-} papuga_lua_CallArgs;
-
 /*
 * @brief Map of class identifiers to class names (for accessing lua metatable by name)
 */
@@ -105,13 +87,7 @@ void papuga_lua_error_str( lua_State* ls, const char* function, const char* erro
 * @param[out] arg argument structure initialized
 * @param[in] classname name of the class of the called method
 */
-bool papuga_lua_init_CallArgs( papuga_lua_CallArgs* arg, lua_State *ls, int argc, const char* classname);
-
-/*
-* @brief Frees the arguments of a papuga call (to call after the call)
-* @param[in] arg argument structure freed
-*/
-void papuga_lua_destroy_CallArgs( papuga_lua_CallArgs* arg);
+bool papuga_lua_init_CallArgs( papuga_CallArgs* arg, lua_State *ls, int argc, const char* classname);
 
 /*
 * @brief Procedure that transfers the call result of a function into the lua context, freeing the call result structure

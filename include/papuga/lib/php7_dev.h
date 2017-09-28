@@ -14,22 +14,6 @@
 #include "papuga/typedefs.h"
 #include "papuga/allocator.h"
 
-#define papuga_PHP_MAX_NOF_ARGUMENTS 64
-
-/*
-* @brief Call arguments structure
-*/
-typedef struct papuga_php_CallArgs
-{
-	int erridx;			/*< index of argument (starting with 1), that caused the error or 0 */
-	papuga_ErrorCode errcode;	/*< papuga error code */
-	size_t argc;			/*< number of arguments passed to call */
-	void* self;			/*< pointer to host-object of the method called */
-	papuga_Allocator allocator;	/*< allocator used for deep copies */
-	papuga_ValueVariant argv[ papuga_PHP_MAX_NOF_ARGUMENTS]; /* argument list */
-	int allocbuf[ 1024];		/*< static buffer for allocator to start with (to avoid early malloc) */
-} papuga_php_CallArgs;
-
 /*
 * @brief Handles for PHP internal structures
 * @remark Tunnel them (explicit reinterpret cast on both sides) to avoid poisoned includes
@@ -75,13 +59,7 @@ bool papuga_php_init_object( void* selfzval, void* self, int classid, papuga_Del
 * @param[in] argc number of function arguments
 * @return true on success, false on error, see error code in argstruct to determine the error
 */
-bool papuga_php_init_CallArgs( papuga_php_CallArgs* arg, void* selfzval, int argc);
-
-/*
-* @brief Frees the arguments of a papuga call (to call after the call)
-* @param[in] arg argument structure freed
-*/
-void papuga_php_destroy_CallArgs( papuga_php_CallArgs* arg);
+bool papuga_php_init_CallArgs( papuga_CallArgs* arg, void* selfzval, int argc);
 
 /*
 * @brief Transfers the call result of a binding function into the PHP context, freeing the call result structure

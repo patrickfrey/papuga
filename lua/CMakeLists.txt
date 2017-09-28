@@ -36,7 +36,7 @@ target_link_libraries( papuga_lua_gen papuga_gen_utils papuga_fmt )
 set_target_properties(
     papuga_lua_gen
     PROPERTIES
-    DEBUG_POSTFIX "_d"
+    DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}"
     SOVERSION "${PAPUGA_MAJOR_VERSION}.${PAPUGA_MINOR_VERSION}"
     VERSION ${PAPUGA_VERSION}
 )
@@ -47,7 +47,7 @@ target_link_libraries( papuga_lua_dev papuga_gen_utils papuga_devel strus_lua )
 set_target_properties(
     papuga_lua_dev
     PROPERTIES
-    DEBUG_POSTFIX "_d"
+    DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}"
     SOVERSION "${PAPUGA_MAJOR_VERSION}.${PAPUGA_MINOR_VERSION}"
     VERSION ${PAPUGA_VERSION}
 )

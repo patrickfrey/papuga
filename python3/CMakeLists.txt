@@ -41,7 +41,7 @@ target_link_libraries( papuga_python3_gen papuga_gen_utils papuga_fmt  )
 set_target_properties(
     papuga_python3_gen
     PROPERTIES
-    DEBUG_POSTFIX "_d"
+    DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}"
     SOVERSION "${PAPUGA_MAJOR_VERSION}.${PAPUGA_MINOR_VERSION}"
     VERSION ${PAPUGA_VERSION}
 )
@@ -52,7 +52,7 @@ target_link_libraries( papuga_python3_dev papuga_gen_utils papuga_devel ${PYTHON
 set_target_properties(
     papuga_python3_dev
     PROPERTIES
-    DEBUG_POSTFIX "_d"
+    DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}"
     SOVERSION "${PAPUGA_MAJOR_VERSION}.${PAPUGA_MINOR_VERSION}"
     VERSION ${PAPUGA_VERSION}
 )

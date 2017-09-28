@@ -16,6 +16,7 @@
 #include "papuga/languages.h"
 #include "papuga/errors.h"
 #include "papuga/callResult.h"
+#include "papuga/callArgs.h"
 #include "papuga/hostObject.h"
 #include "papuga/iterator.h"
 #include "papuga/serialization.h"

@@ -15,21 +15,6 @@
 #include "papuga/allocator.h"
 #include <Python.h>
 
-#define papuga_PYTHON_MAX_NOF_ARGUMENTS 64
-
-/*
-* @brief Call arguments structure
-*/
-typedef struct papuga_python_CallArgs
-{
-	int erridx;			/*< index of argument (starting with 1), that caused the error or 0 */
-	papuga_ErrorCode errcode;	/*< papuga error code */
-	size_t argc;			/*< number of arguments passed to call */
-	papuga_Allocator allocator;	/*< allocator used for deep copies */
-	papuga_ValueVariant argv[ papuga_PYTHON_MAX_NOF_ARGUMENTS];	/* argument list */
-	int allocbuf[ 1024];		/*< static buffer for allocator to start with (to avoid early malloc) */
-} papuga_python_CallArgs;
-
 /*
 * @brief Map of class identifiers to Python object type structures (for creating objects with classid as only info)
 */
@@ -93,13 +78,7 @@ void papuga_python_destroy_object( PyObject* selfobj);
 * @param[in] cemap map of class ids to python class descriptions
 * @return true on success, false on error, see error code in argstruct to determine the error
 */
-bool papuga_python_init_CallArgs( papuga_python_CallArgs* argstruct, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap);
-
-/*
-* @brief Frees the arguments of a papuga call (to call after the call)
-* @param[in] argstruct argument structure freed
-*/
-void papuga_python_destroy_CallArgs( papuga_python_CallArgs* argstruct);
+bool papuga_python_init_CallArgs( papuga_CallArgs* argstruct, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap);
 
 /*
 * @brief Transfers the call result of a binding function into the Python context, freeing the call result structure

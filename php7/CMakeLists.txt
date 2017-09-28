@@ -40,7 +40,7 @@ target_link_libraries( papuga_php7_gen papuga_gen_utils papuga_fmt  )
 set_target_properties(
     papuga_php7_gen
     PROPERTIES
-    DEBUG_POSTFIX "_d"
+    DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}"
     SOVERSION "${PAPUGA_MAJOR_VERSION}.${PAPUGA_MINOR_VERSION}"
     VERSION ${PAPUGA_VERSION}
 )
@@ -51,7 +51,7 @@ target_link_libraries( papuga_php7_dev papuga_gen_utils papuga_devel ${PHP7_LIBR
 set_target_properties(
     papuga_php7_dev
     PROPERTIES
-    DEBUG_POSTFIX "_d"
+    DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}"
     SOVERSION "${PAPUGA_MAJOR_VERSION}.${PAPUGA_MINOR_VERSION}"
     VERSION ${PAPUGA_VERSION}
 )

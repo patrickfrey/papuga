@@ -9,13 +9,7 @@
 /// \file libpapuga_php7_dev.c
 
 #include "papuga/lib/php7_dev.h"
-#include "papuga/valueVariant.h"
-#include "papuga/callResult.h"
-#include "papuga/errors.h"
-#include "papuga/serialization.h"
-#include "papuga/hostObject.h"
-#include "papuga/iterator.h"
-#include "papuga/hostObject.h"
+#include "papuga.h"
 #include "private/dll_tags.h"
 #include <stddef.h>
 #include <math.h>
@@ -638,14 +632,11 @@ static bool deserialize( zval* return_value, papuga_Allocator* allocator, const 
 	return rt;
 }
 
-DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_php_CallArgs* as, void* selfzval, int argc)
+DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_CallArgs* as, void* selfzval, int argc)
 {
-	zval args[ papuga_PHP_MAX_NOF_ARGUMENTS];
+	zval args[ papuga_MAX_NOF_ARGUMENTS];
 	int argi = -1;
-	as->erridx = -1;
-	as->errcode = papuga_Ok;
-	as->self = 0;
-	as->argc = 0;
+	papuga_init_CallArgs( as);
 
 	if (selfzval)
 	{
@@ -668,7 +659,7 @@ DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_php_CallArgs* as, void* selfzva
 			return false;
 		}
 	}
-	if (argc > papuga_PHP_MAX_NOF_ARGUMENTS)
+	if (argc > papuga_MAX_NOF_ARGUMENTS)
 	{
 		as->errcode = papuga_NofArgsError;
 		return false;
@@ -688,13 +679,8 @@ DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_php_CallArgs* as, void* selfzva
 ERROR:
 	as->erridx = argi;
 	as->errcode = papuga_TypeError;
-	papuga_php_destroy_CallArgs( as);
+	papuga_destroy_CallArgs( as);
 	return false;
-}
-
-DLL_PUBLIC void papuga_php_destroy_CallArgs( papuga_php_CallArgs* arg)
-{
-	papuga_destroy_Allocator( &arg->allocator);
 }
 
 DLL_PUBLIC bool papuga_php_move_CallResult( void* zval_return_value, papuga_CallResult* retval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)

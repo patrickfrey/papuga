@@ -259,6 +259,26 @@ struct papuga_CallResult
 	int allocbuf[ 1024];			/*< static buffer for allocator */
 };
 
+/*
+* @brief Maximum number of arguments a method call can have
+* @note More positional parameters do not make sense, pass a structure with named arguments instead
+*/
+#define papuga_MAX_NOF_ARGUMENTS 32
+
+/*
+* @brief Structure representing the parameters of an interface method call
+*/
+typedef struct papuga_CallArgs
+{
+	int erridx;				/*< index of argument (starting with 1), that caused the error or 0 */
+	papuga_ErrorCode errcode;		/*< papuga error code */
+	void* self;				/*< pointer to host-object of the method called */
+	size_t argc;				/*< number of arguments passed to call */
+	papuga_Allocator allocator;		/*< allocator used for deep copies */
+	papuga_ValueVariant argv[ papuga_MAX_NOF_ARGUMENTS];	/* argument list */
+	int allocbuf[ 2048];			/*< static buffer for allocator to start with (to avoid early malloc) */
+} papuga_CallArgs;
+
 #ifdef __cplusplus
 }
 #endif

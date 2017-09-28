@@ -7,6 +7,7 @@ set( source_files
 	allocator.c
 	serialization.c
 	callResult.c
+	callArgs.c
 	errors.c
 	${CMAKE_CURRENT_BINARY_DIR}/internationalization.c
 	stack.c
@@ -36,7 +37,7 @@ target_link_libraries( papuga_doc_gen papuga_gen_utils )
 set_target_properties(
     papuga_doc_gen
     PROPERTIES
-    DEBUG_POSTFIX "_d"
+    DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}"
     SOVERSION "${PAPUGA_MAJOR_VERSION}.${PAPUGA_MINOR_VERSION}"
     VERSION ${PAPUGA_VERSION}
 )

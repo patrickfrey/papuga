@@ -9,14 +9,7 @@
 /// \file libpapuga_python3_dev.c
 
 #include "papuga/lib/python3_dev.h"
-#include "papuga/valueVariant.h"
-#include "papuga/callResult.h"
-#include "papuga/errors.h"
-#include "papuga/serialization.h"
-#include "papuga/hostObject.h"
-#include "papuga/iterator.h"
-#include "papuga/stack.h"
-#include "papuga/hostObject.h"
+#include "papuga.h"
 #include "private/dll_tags.h"
 #include <stddef.h>
 #include <math.h>
@@ -825,13 +818,9 @@ DLL_PUBLIC void papuga_python_destroy_object( PyObject* selfobj)
 	}
 }
 
-DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_python_CallArgs* as, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap)
+DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_CallArgs* as, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap)
 {
-	as->erridx = -1;
-	as->errcode = papuga_Ok;
-	as->argc = 0;
-
-	papuga_init_Allocator( &as->allocator, as->allocbuf, sizeof( as->allocbuf));
+	papuga_init_CallArgs( as);
 
 	if (PyDict_Check( args))
 	{
@@ -840,9 +829,9 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_python_CallArgs* as, PyObjec
 
 		for (argi=0; kwargnames[ argi]; ++argi)
 		{
-			if (argi > papuga_PYTHON_MAX_NOF_ARGUMENTS)
+			if (argi > papuga_MAX_NOF_ARGUMENTS)
 			{
-				papuga_python_destroy_CallArgs( as);
+				papuga_destroy_CallArgs( as);
 				as->errcode = papuga_NofArgsError;
 				return false;
 			}
@@ -852,7 +841,7 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_python_CallArgs* as, PyObjec
 				if (!init_ValueVariant_pyobj( &as->argv[ argi], &as->allocator, argitem, cemap, &as->errcode))
 				{
 					as->erridx = argi;
-					papuga_python_destroy_CallArgs( as);
+					papuga_destroy_CallArgs( as);
 					return false;
 				}
 				++argcnt;
@@ -872,9 +861,9 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_python_CallArgs* as, PyObjec
 	else if (PyTuple_Check( args))
 	{
 		Py_ssize_t ai = 0, ae = PyTuple_GET_SIZE( args);
-		if (ae > papuga_PYTHON_MAX_NOF_ARGUMENTS)
+		if (ae > papuga_MAX_NOF_ARGUMENTS)
 		{
-			papuga_python_destroy_CallArgs( as);
+			papuga_destroy_CallArgs( as);
 			as->errcode = papuga_NofArgsError;
 			return false;
 		}
@@ -884,7 +873,7 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_python_CallArgs* as, PyObjec
 			if (!init_ValueVariant_pyobj( &as->argv[ ai], &as->allocator, argitem, cemap, &as->errcode))
 			{
 				as->erridx = ai;
-				papuga_python_destroy_CallArgs( as);
+				papuga_destroy_CallArgs( as);
 				return false;
 			}
 			++as->argc;
@@ -896,11 +885,6 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_python_CallArgs* as, PyObjec
 		return false;
 	}
 	return true;
-}
-
-DLL_PUBLIC void papuga_python_destroy_CallArgs( papuga_python_CallArgs* argstruct)
-{
-	papuga_destroy_Allocator( &argstruct->allocator);
 }
 
 DLL_PUBLIC PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
