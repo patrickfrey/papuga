@@ -8,3 +8,4 @@ cmake -DWITH_PHP=YES -DWITH_PYTHON=YES ..
 make -j<N>
 make test ARGS=-j<N>
 
+
