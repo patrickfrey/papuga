@@ -7,8 +7,9 @@
  */
 /// \brief Some functions on serialization using C++ features like STL
 /// \file serialization.cpp
-#include "papuga/serialization.hpp"
+#include "papuga/serialization.h"
 #include "papuga/valueVariant.h"
+#include "papuga/valueVariant.hpp"
 #include <stdexcept>
 #include <sstream>
 #include <iostream>
@@ -17,14 +18,14 @@
 
 using namespace papuga;
 
-static bool Serialization_print( std::ostream& out, std::string indent, const papuga_Serialization& serialization, papuga_ErrorCode& errcode)
+static bool Serialization_print( std::ostream& out, std::string indent, const papuga_Serialization* serialization, papuga_ErrorCode& errcode)
 {
-	Serialization::const_iterator
-		si = Serialization::begin( &serialization),
-		se = Serialization::end( &serialization);
-	for (; si != se; ++si)
+	papuga_SerializationIter seriter;
+	papuga_init_SerializationIter( &seriter, serialization);
+
+	for (; !papuga_SerializationIter_eof(&seriter); papuga_SerializationIter_skip(&seriter))
 	{
-		switch (si->tag)
+		switch (papuga_SerializationIter_tag(&seriter))
 		{
 			case papuga_TagOpen:
 				out << indent << "open" << std::endl;
@@ -40,24 +41,26 @@ static bool Serialization_print( std::ostream& out, std::string indent, const pa
 				out << indent << "close" << std::endl;
 				break;
 			case papuga_TagName:
-				out << indent << "name " << ValueVariant_tostring( si->value, errcode) << std::endl;
+				out << indent << "name " << ValueVariant_tostring( *papuga_SerializationIter_value( &seriter), errcode) << std::endl;
 				break;
 			case papuga_TagValue:
-				if (!papuga_ValueVariant_defined( &si->value))
+			{
+				const papuga_ValueVariant* val = papuga_SerializationIter_value( &seriter);
+				if (!papuga_ValueVariant_defined( val))
 				{
 					out << indent << "value NULL" << std::endl;
 				}
-				else if (!papuga_ValueVariant_isatomic( &si->value))
+				else if (!papuga_ValueVariant_isatomic( val))
 				{
-					if (si->value.valuetype == papuga_TypeSerialization)
+					if (val->valuetype == papuga_TypeSerialization)
 					{
-						if (!Serialization_print( out, indent, *si->value.value.serialization, errcode)) return false;
+						if (!Serialization_print( out, indent, val->value.serialization, errcode)) return false;
 					}
-					else if (si->value.valuetype == papuga_TypeHostObject)
+					else if (val->valuetype == papuga_TypeHostObject)
 					{
 						out << indent << "value HOSTOBJ" << std::endl;
 					}
-					else if (si->value.valuetype == papuga_TypeIterator)
+					else if (val->valuetype == papuga_TypeIterator)
 					{
 						out << indent << "value ITERATOR" << std::endl;
 					}
@@ -67,15 +70,16 @@ static bool Serialization_print( std::ostream& out, std::string indent, const pa
 						return false;
 					}
 				}
-				else if (papuga_ValueVariant_isstring( &si->value))
+				else if (papuga_ValueVariant_isstring( val))
 				{
-					out << indent << "value '" << ValueVariant_tostring( si->value, errcode) << "'" << std::endl;
+					out << indent << "value '" << ValueVariant_tostring( *val, errcode) << "'" << std::endl;
 				}
 				else
 				{
-					out << indent << "value " << ValueVariant_tostring( si->value, errcode) << std::endl;
+					out << indent << "value " << ValueVariant_tostring( *val, errcode) << std::endl;
 				}
 				break;
+			}
 			default:
 			{
 				errcode = papuga_TypeError;
@@ -86,29 +90,16 @@ static bool Serialization_print( std::ostream& out, std::string indent, const pa
 	return true;
 }
 
-std::string Serialization::tostring( const papuga_Serialization& serialization, papuga_ErrorCode& errcode)
-{
-	try
-	{
-		std::string indent;
-		std::ostringstream out;
-		Serialization_print( out, indent, serialization, errcode);
-		return out.str();
-	}
-	catch (const std::bad_alloc&)
-	{
-		errcode = papuga_NoMemError;
-		return std::string();
-	}
-}
-
 extern "C" char* papuga_Serialization_tostring( const papuga_Serialization* self)
 {
 	try
 	{
 		if (!self) return 0;
 		papuga_ErrorCode errcode = papuga_Ok;
-		std::string str = Serialization::tostring( *self, errcode);
+		std::string indent;
+		std::ostringstream out;
+		if (!Serialization_print( out, indent, self, errcode)) return NULL;
+		std::string str = out.str();
 		char* rt = (char*)std::malloc( str.size()+1);
 		if (!rt) return 0;
 		std::memcpy( rt, str.c_str(), str.size());
@@ -127,7 +118,7 @@ extern "C" const char* papuga_Serialization_print_node( const papuga_Node* nd, c
 	{
 		std::ostringstream out;
 		papuga_ErrorCode errcode = papuga_Ok;
-		switch (nd->tag)
+		switch ((papuga_Tag)nd->content._tag)
 		{
 			case papuga_TagOpen:
 				out << "open";
@@ -136,23 +127,23 @@ extern "C" const char* papuga_Serialization_print_node( const papuga_Node* nd, c
 				out << "close";
 				break;
 			case papuga_TagName:
-				if (papuga_ValueVariant_isatomic( &nd->value))
+				if (papuga_ValueVariant_isatomic( &nd->content))
 				{
-					out << "name " << ValueVariant_tostring( nd->value, errcode);
+					out << "name " << ValueVariant_tostring( nd->content, errcode);
 				}
 				else
 				{
-					out << "name <" << papuga_Type_name( (papuga_Type)nd->value.valuetype) << ">";
+					out << "name <" << papuga_Type_name( (papuga_Type)nd->content.valuetype) << ">";
 				}
 				break;
 			case papuga_TagValue:
-				if (papuga_ValueVariant_isatomic( &nd->value))
+				if (papuga_ValueVariant_isatomic( &nd->content))
 				{
-					out << "value " << ValueVariant_tostring( nd->value, errcode);
+					out << "value " << ValueVariant_tostring( nd->content, errcode);
 				}
 				else
 				{
-					out << "value <" << papuga_Type_name( (papuga_Type)nd->value.valuetype) << ">";
+					out << "value <" << papuga_Type_name( (papuga_Type)nd->content.valuetype) << ">";
 				}
 				break;
 		}

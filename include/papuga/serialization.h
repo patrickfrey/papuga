@@ -19,29 +19,10 @@ extern "C" {
 #endif
 
 /*
-* @brief Constructor
+* @brief Serialization constructor
 * @param[out] self pointer to structure 
 */
-#define papuga_init_Serialization(self)			{papuga_Serialization* s = self; s->ar=NULL;s->allocsize=0;s->arsize=0;}
-
-/*
-* @brief Destructor
-* @param[in] self pointer to structure 
-*/
-#define papuga_destroy_Serialization(self)		{papuga_Serialization* s = self; if (s->ar){free( s->ar);s->ar=NULL;}}
-
-#define papuga_Serialization_clear(self)		{(self)->arsize=0;}
-
-/*
-* @brief Test if serialization is empty
-*/
-#define papuga_Serialization_empty(self)		!!(self)->ar
-
-/*
-* @brief Copy constructor
-* @param[out] self pointer to structure 
-*/
-bool papuga_init_Serialization_copy( papuga_Serialization* self, const papuga_Serialization* o);
+#define papuga_init_Serialization(self_,allocator_)		{papuga_Serialization* s = (self_); s->head.next=NULL; s->head.size=0; s->allocator=(allocator_); s->current=&s->head;}
 
 /*
 * @brief Add a node to the serialization
@@ -222,21 +203,13 @@ bool papuga_Serialization_pushValue_hostobject( papuga_Serialization* self, papu
 bool papuga_Serialization_pushValue_bool( papuga_Serialization* self, bool value);
 
 /*
-* @brief Append a serialization to another one
-* @param[in,out] self pointer to structure 
-* @param[in] o serialization to append
-* @return true on success, false on memory allocation error
-*/
-bool papuga_Serialization_append( papuga_Serialization* self, const papuga_Serialization* o);
-
-/*
 * @brief Conversing a tail sequence from an array to an associative array
 * @param[in,out] self pointer to structure
 * @param[in] arraystart start of the serialization of the array to convert
 * @param[in] countfrom start counting of the inserted indices
 * @return true on success, false on error
 */
-bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, size_t arraystart, unsigned int countfrom, papuga_ErrorCode* errcode);
+bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, papuga_SerializationIter* seriter, unsigned int countfrom, papuga_ErrorCode* errcode);
 
 /*
 * @brief Print serialization as null terminated string, 
@@ -255,6 +228,51 @@ char* papuga_Serialization_tostring( const papuga_Serialization* self);
 * @return pointer to string with node printed (without exceeding the buffer used)
 */
 const char* papuga_Serialization_print_node( const papuga_Node* nd, char* buf, size_t bufsize);
+
+/*
+* @brief Serialization iterator constructor
+* @param[out] self pointer to structure 
+* @param[in] ser serialization to iterate on
+*/
+void papuga_init_SerializationIter( papuga_SerializationIter* self, const papuga_Serialization* ser);
+
+/*
+* @brief Serialization iterator constructor skipping to end of serialization
+* @param[out] self pointer to structure 
+* @param[in] ser serialization to iterate on
+*/
+void papuga_init_SerializationIter_end( papuga_SerializationIter* self, const papuga_Serialization* ser);
+
+/*
+* @brief Skip to next element of serialization
+* @param[out] self pointer to structure 
+*/
+void papuga_SerializationIter_skip( papuga_SerializationIter* self);
+
+/*
+* @brief Test if serialization is at eof
+* @remark Has to be checked if we got an unexpected close, meaning an unexpected eof
+* @param[out] self pointer to structure 
+*/
+#define papuga_SerializationIter_eof(self_)		(!(self_)->value)
+
+/*
+* @brief Test if there are more than one serialization elements left
+* @param[int] self pointer to structure 
+*/
+bool papuga_SerializationIter_more_than_one( const papuga_SerializationIter* self);
+
+/*
+* @brief Read the current tag
+* @param[out] self pointer to structure 
+*/
+#define papuga_SerializationIter_tag(self_)		((self_)->tag)
+
+/*
+* @brief Read the current value
+* @param[out] self pointer to structure 
+*/
+#define papuga_SerializationIter_value(self_)		((self_)->value)
 
 #ifdef __cplusplus
 }

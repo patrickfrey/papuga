@@ -22,12 +22,6 @@ typedef struct papuga_ReferenceHostObject
 	papuga_HostObject hostObject;
 } papuga_ReferenceHostObject;
 
-typedef struct papuga_ReferenceSerialization
-{
-	papuga_ReferenceHeader header;
-	papuga_Serialization serialization;
-} papuga_ReferenceSerialization;
-
 typedef struct papuga_ReferenceIterator
 {
 	papuga_ReferenceHeader header;
@@ -50,12 +44,6 @@ void papuga_destroy_ReferenceHeader( papuga_ReferenceHeader* hdritr)
 			{
 				papuga_ReferenceHostObject* obj = (papuga_ReferenceHostObject*)hdritr;
 				papuga_destroy_HostObject( &obj->hostObject);
-				break;
-			}
-			case papuga_RefTypeSerialization:
-			{
-				papuga_ReferenceSerialization* obj = (papuga_ReferenceSerialization*)hdritr;
-				papuga_destroy_Serialization( &obj->serialization);
 				break;
 			}
 			case papuga_RefTypeIterator:
@@ -177,13 +165,10 @@ papuga_HostObject* papuga_Allocator_alloc_HostObject( papuga_Allocator* self, in
 
 papuga_Serialization* papuga_Allocator_alloc_Serialization( papuga_Allocator* self)
 {
-	papuga_ReferenceSerialization* rt = (papuga_ReferenceSerialization*)papuga_Allocator_alloc( self, sizeof( papuga_ReferenceSerialization), 0);
+	papuga_Serialization* rt = (papuga_Serialization*)papuga_Allocator_alloc( self, sizeof( papuga_Serialization), 0);
 	if (!rt) return 0;
-	rt->header.type = papuga_RefTypeSerialization;
-	rt->header.next = self->reflist;
-	self->reflist = &rt->header;
-	papuga_init_Serialization( &rt->serialization);
-	return &rt->serialization;
+	papuga_init_Serialization( rt, self);
+	return rt;
 }
 
 papuga_Iterator* papuga_Allocator_alloc_Iterator( papuga_Allocator* self, void* object_, papuga_Deleter destroy_, papuga_GetNext getNext_)

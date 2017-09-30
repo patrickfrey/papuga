@@ -122,10 +122,10 @@ typedef enum papuga_StringEncoding {
 */
 typedef enum papuga_Tag
 {
+	papuga_TagValue,	/*< Atomic value */
 	papuga_TagOpen,		/*< Open a scope */
 	papuga_TagClose,	/*< Closes a scope */
-	papuga_TagName,		/*< The name of the following value (Value) or structure (Open) */
-	papuga_TagValue		/*< Atomic value */
+	papuga_TagName		/*< The name of the following value (Value) or structure (Open) */
 } papuga_Tag;
 
 /*
@@ -135,6 +135,7 @@ typedef struct papuga_ValueVariant
 {
 	uint8_t valuetype;				/*< casts to a papuga_Type */
 	uint8_t encoding;				/*< casts to a papuga_StringEncoding */
+	uint8_t _tag;					/*< private element tag used by papuga_Node in serialization */
 	int32_t length;					/*< length of a string in bytes */
 	union {
 		double Double;				/*< double precision floating point value */
@@ -157,25 +158,6 @@ struct papuga_LangString
 	papuga_StringEncoding encoding;		/*< specifies the encoding of this langstring type */
 	int length;				/*< length of the langstring in items (UTF-8 item length = 1, UTF-16 item length = 2, etc.) */
 	void* ptr;				/*< pointer to array of characters of the string */
-};
-
-/*
-* @brief One node of a papuga serialization
-*/
-typedef struct papuga_Node
-{
-	papuga_Tag tag;				/*< tag of the serialization node */
-	papuga_ValueVariant value;		/*< value of the serialization node */
-} papuga_Node;
-
-/*
-* @brief Papuga serialization structure
-*/
-struct papuga_Serialization
-{
-	unsigned int allocsize;			/*< allocation size of the array */
-	unsigned int arsize;			/*< number of nodes */
-	papuga_Node* ar;			/*< array of nodes */
 };
 
 /*
@@ -213,7 +195,6 @@ struct papuga_Iterator
 */
 typedef enum papuga_RefType {
 	papuga_RefTypeHostObject,		/*< object of type papuga_HostObject */
-	papuga_RefTypeSerialization,		/*< object of type papuga_Serialization */
 	papuga_RefTypeIterator,			/*< object of type papuga_Iterator */
 	papuga_RefTypeAllocator			/*< object of type papuga_Allocator */
 } papuga_RefType;
@@ -247,6 +228,46 @@ typedef struct papuga_Allocator
 	papuga_AllocatorNode root;		/*< root node */
 	papuga_ReferenceHeader* reflist;	/*< list of objects object that need a call of a destructor when freed */
 } papuga_Allocator;
+
+/*
+* @brief One node of a papuga serialization sequence
+*/
+typedef struct papuga_Node
+{
+	papuga_ValueVariant content;		/*< value of the serialization node */
+} papuga_Node;
+
+/*
+* @brief Allocation chunk for serialization node sequences
+*/
+#define papuga_NodeChunkSize 255
+typedef struct papuga_NodeChunk
+{
+	papuga_Node ar[ papuga_NodeChunkSize];
+	struct papuga_NodeChunk* next;
+	int size;
+} papuga_NodeChunk;
+
+/*
+* @brief Papuga serialization structure
+*/
+struct papuga_Serialization
+{
+	papuga_NodeChunk head;
+	papuga_Allocator* allocator;
+	papuga_NodeChunk* current;
+};
+
+/*
+* @brief Papuga serialization iterator structure
+*/
+typedef struct papuga_SerializationIter
+{
+	papuga_NodeChunk const* chunk;
+	papuga_Tag tag;
+	int chunkpos;
+	const papuga_ValueVariant* value;
+} papuga_SerializationIter;
 
 /*
 * @brief Structure representing the result of an interface method call

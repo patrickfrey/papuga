@@ -3,7 +3,7 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 # PYTHON
 # --------------------------------------
-find_program( PYTHON3_CONFIG_EXECUTABLE NAMES  "python3-config"  "python-config" )
+find_program( PYTHON3_CONFIG_EXECUTABLE NAMES  "python3-config"  "python3*-config"  "python-config" )
 MESSAGE( "Python-config executable:  ${PYTHON3_CONFIG_EXECUTABLE}" )
 
 find_program( PYTHON3_EXECUTABLE NAMES  python3 "python3*" python)

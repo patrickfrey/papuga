@@ -369,57 +369,53 @@ static bool serialize_value( papuga_CallArgs* as, papuga_Serialization* result, 
 	return true;
 }
 
-static bool try_serialize_array( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
+static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
 {
-	size_t start_size = result->arsize;
 	int idx = 0;
-	STACKTRACE( ls, "loop before serialize array");
+	papuga_SerializationIter start;
+	papuga_init_SerializationIter_end( &start, result);
+	//... we mark the end of the result as start of conversion to an associative array (map), if assumption of array fails
+
+	if (!lua_checkstack( ls, 8))
+	{
+		as->errcode = papuga_NoMemError;
+		return false;
+	}
+	STACKTRACE( ls, "loop before serialize table as map or array");
 	lua_pushvalue( ls, li);
 	lua_pushnil( ls);
 	while (lua_next( ls, -2))
 	{
-		STACKTRACE( ls, "loop next serialize array");
-		if (!lua_isinteger( ls, -2) || lua_tointeger( ls, -2) != ++idx) goto ERROR;
-		serialize_value( as, result, ls, -1);
-		lua_pop(ls, 1);
+		STACKTRACE( ls, "loop next serialize table as map or array");
+		if (!lua_isinteger( ls, -2) || lua_tointeger( ls, -2) != ++idx)
+		{
+			//... not an array, convert to map and continue to build rest of map
+			if (!papuga_Serialization_convert_array_assoc( result, &start, 1, &as->errcode)) goto ERROR;
+			if (!serialize_key( as, result, ls, -2)) goto ERROR;
+			if (!serialize_value( as, result, ls, -1)) goto ERROR;
+			lua_pop(ls, 1);
+
+			while (lua_next( ls, -2))
+			{
+				STACKTRACE( ls, "loop next serialize table as map");
+				if (!serialize_key( as, result, ls, -2)) goto ERROR;
+				if (!serialize_value( as, result, ls, -1)) goto ERROR;
+				lua_pop( ls, 1);
+			}
+			break;
+		}
+		else
+		{
+			serialize_value( as, result, ls, -1);
+			lua_pop(ls, 1);
+		}
 	}
 	lua_pop( ls, 1);
 	STACKTRACE( ls, "loop after serialize array");
 	return true;
 ERROR:
 	lua_pop( ls, 3);
-	result->arsize = start_size;
-	STACKTRACE( ls, "loop after try serialize array");
-	return false;
-}
-
-static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, lua_State *ls, int li)
-{
-	size_t start_size = result->arsize;
-	if (!lua_checkstack( ls, 8))
-	{
-		as->errcode = papuga_NoMemError;
-		return false;
-	}
-	STACKTRACE( ls, "loop before serialize table");
-	if (try_serialize_array( as, result, ls, li)) return true;
-
-	lua_pushvalue( ls, li);
-	lua_pushnil( ls);
-	while (lua_next( ls, -2))
-	{
-		STACKTRACE( ls, "loop next serialize table");
-		if (!serialize_key( as, result, ls, -2)) goto ERROR;
-		if (!serialize_value( as, result, ls, -1)) goto ERROR;
-		lua_pop( ls, 1);
-	}
-	lua_pop( ls, 1);
-	STACKTRACE( ls, "loop after serialize table");
-	return true;
-ERROR:
-	lua_pop(ls, 3);
-	result->arsize = start_size;
-	papuga_Serialization_pushValue_void( result);
+	STACKTRACE( ls, "loop after serialize array (error)");
 	return false;
 }
 
@@ -483,7 +479,7 @@ static void deserialize_key( papuga_ValueVariant* item, lua_State *ls)
 	}
 }
 
-static void deserialize_value( papuga_CallResult* retval, papuga_ValueVariant* item, lua_State *ls, const papuga_lua_ClassNameMap* classnamemap)
+static void deserialize_value( papuga_CallResult* retval, const papuga_ValueVariant* item, lua_State *ls, const papuga_lua_ClassNameMap* classnamemap)
 {
 	switch (item->valuetype)
 	{
@@ -555,22 +551,22 @@ static void deserialize_value( papuga_CallResult* retval, papuga_ValueVariant* i
 	}
 }
 
-static void deserialize_node( papuga_CallResult* retval, papuga_Node** ni, papuga_Node* ne, lua_State *ls, const papuga_lua_ClassNameMap* classnamemap)
+static void deserialize_node( papuga_CallResult* retval, papuga_SerializationIter* seriter, lua_State *ls, const papuga_lua_ClassNameMap* classnamemap)
 {
 	unsigned int keyindex = 0;
 	papuga_ValueVariant name;
 
 	papuga_init_ValueVariant( &name);
 
-	for (; (*ni) != ne; ++(*ni))
+	for (; !papuga_SerializationIter_tag(seriter) != papuga_TagClose; papuga_SerializationIter_skip(seriter))
 	{
-		switch ((*ni)->tag)
+		switch (papuga_SerializationIter_tag(seriter))
 		{
 			case papuga_TagOpen:
 				STACKTRACE( ls, "deserialize node open");
 				lua_newtable( ls);
-				++(*ni);
-				deserialize_node( retval, ni, ne, ls, classnamemap);
+				papuga_SerializationIter_skip( seriter);
+				deserialize_node( retval, seriter, ls, classnamemap);
 				if (papuga_ValueVariant_defined( &name))
 				{
 					deserialize_key( &name, ls);
@@ -580,7 +576,7 @@ static void deserialize_node( papuga_CallResult* retval, papuga_Node** ni, papug
 				{
 					lua_pushinteger( ls, ++keyindex);
 				}
-				if ((*ni)->tag != papuga_TagClose)
+				if (papuga_SerializationIter_tag(seriter) != papuga_TagClose)
 				{
 					papuga_lua_error( ls, "deserialize result", papuga_TypeError);
 				}
@@ -588,7 +584,6 @@ static void deserialize_node( papuga_CallResult* retval, papuga_Node** ni, papug
 				lua_rawset( ls, -3);
 				break;
 			case papuga_TagClose:
-				STACKTRACE( ls, "deserialize node close");
 				return;
 			case papuga_TagName:
 				STACKTRACE( ls, "deserialize node name");
@@ -596,7 +591,7 @@ static void deserialize_node( papuga_CallResult* retval, papuga_Node** ni, papug
 				{
 					papuga_lua_error( ls, "deserialize result", papuga_TypeError);
 				}
-				papuga_init_ValueVariant_copy( &name, &(*ni)->value);
+				papuga_init_ValueVariant_copy( &name, papuga_SerializationIter_value(seriter));
 				break;
 			case papuga_TagValue:
 				STACKTRACE( ls, "deserialize node value");
@@ -609,16 +604,18 @@ static void deserialize_node( papuga_CallResult* retval, papuga_Node** ni, papug
 				{
 					lua_pushinteger( ls, ++keyindex);
 				}
-				deserialize_value( retval, &(*ni)->value, ls, classnamemap);
+				deserialize_value( retval, papuga_SerializationIter_value(seriter), ls, classnamemap);
 				lua_rawset( ls, -3);
 				break;
 		}
 	}
+	STACKTRACE( ls, "deserialize node close");
 }
 
 static int deserialize_root( papuga_CallResult* retval, papuga_Serialization* ser, lua_State *ls, const papuga_lua_ClassNameMap* classnamemap)
 {
 	int rt = 0;
+	papuga_SerializationIter seriter;
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	char* str = papuga_Serialization_tostring( ser);
 	if (ser)
@@ -627,26 +624,31 @@ static int deserialize_root( papuga_CallResult* retval, papuga_Serialization* se
 		free( str);
 	}
 #endif
-	papuga_Node* ni = ser->ar;
-	papuga_Node* ne = ni + ser->arsize;
-	if (ni == ne)
+	papuga_init_SerializationIter( &seriter, ser);
+	if (papuga_SerializationIter_eof( &seriter))
 	{
 		lua_pushnil( ls);
 		++rt;
 	}
-	else for (; ni != ne; ++ni,++rt)
+	else for (; !papuga_SerializationIter_eof(&seriter); papuga_SerializationIter_skip(&seriter))
 	{
-		if (ni->tag == papuga_TagOpen)
+		if (papuga_SerializationIter_tag( &seriter) == papuga_TagOpen)
 		{
-			++ni;
+			papuga_SerializationIter_skip( &seriter);
 			lua_newtable( ls);
-			deserialize_node( retval, &ni, ne, ls, classnamemap);
-			if (ni == ne) papuga_lua_error( ls, "deserialize result", papuga_UnexpectedEof);
-			if (ni->tag != papuga_TagClose) papuga_lua_error( ls, "deserialize result", papuga_TypeError);
+			deserialize_node( retval, &seriter, ls, classnamemap);
+			if (papuga_SerializationIter_tag(&seriter) != papuga_TagClose)
+			{
+				papuga_lua_error( ls, "deserialize result", papuga_TypeError);
+			}
+			else if (papuga_SerializationIter_eof(&seriter))
+			{
+				papuga_lua_error( ls, "deserialize result", papuga_UnexpectedEof);
+			}
 		}
-		else if (ni->tag == papuga_TagValue)
+		else if (papuga_SerializationIter_tag( &seriter) == papuga_TagValue)
 		{
-			deserialize_value( retval, &ni->value, ls, classnamemap);
+			deserialize_value( retval, papuga_SerializationIter_value( &seriter), ls, classnamemap);
 		}
 		else
 		{

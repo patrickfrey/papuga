@@ -211,13 +211,15 @@ static bool serializeAssocArray( papuga_Serialization* ser, HashTable *hash, Has
 static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_ErrorCode* errcode)
 {
 	bool rt = papuga_Serialization_pushOpen( ser);
-	size_t resultstart = ser->arsize;
 	zval *data;
 	HashTable *hash = Z_ARRVAL_P( langval);
 	HashPosition ptr;
 	zend_string *str_index;
 	zend_ulong num_index;
 	zend_ulong indexcount = 0;
+	papuga_SerializationIter resultstart;
+	papuga_init_SerializationIter_end( &resultstart, ser);
+
 	for(
 		zend_hash_internal_pointer_reset_ex( hash, &ptr);
 		0!=(data=zend_hash_get_current_data_ex(hash,&ptr));
@@ -225,7 +227,7 @@ static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_Err
 	{
 		if (zend_hash_get_current_key_ex( hash, &str_index, &num_index, &ptr) == HASH_KEY_IS_STRING)
 		{
-			if (indexcount && !papuga_Serialization_convert_array_assoc( ser, resultstart, 0/*start count*/, errcode))
+			if (indexcount && !papuga_Serialization_convert_array_assoc( ser, &resultstart, 0/*start count*/, errcode))
 			{
 				return false;
 			}
@@ -245,7 +247,7 @@ static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_Err
 		}
 		else
 		{
-			if (indexcount && !papuga_Serialization_convert_array_assoc( ser, resultstart, 0/*start count*/, errcode))
+			if (indexcount && !papuga_Serialization_convert_array_assoc( ser, &resultstart, 0/*start count*/, errcode))
 			{
 				return false;
 			}
@@ -360,7 +362,7 @@ static bool deserialize( zval* return_value, papuga_Allocator* allocator, const 
 
 static bool iteratorToZval( zval* return_value, papuga_Iterator* iterator, papuga_ErrorBuffer* errbuf);
 
-static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator, papuga_ValueVariant* value, const papuga_php_ClassEntryMap* cemap, const char* context, papuga_ErrorBuffer* errbuf)
+static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator, const papuga_ValueVariant* value, const papuga_php_ClassEntryMap* cemap, const char* context, papuga_ErrorBuffer* errbuf)
 {
 	switch (value->valuetype)
 	{
@@ -490,7 +492,7 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 	return true;
 }
 
-static bool deserialize_value( zval* return_value, papuga_Allocator* allocator, papuga_ValueVariant* value, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)
+static bool deserialize_value( zval* return_value, papuga_Allocator* allocator, const papuga_ValueVariant* value, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)
 {
 	return valueVariantToZval( return_value, allocator, value, cemap, "deserialization of structure", errbuf);
 }
@@ -530,72 +532,67 @@ static bool zval_structure_addnode( zval* structure, papuga_Allocator* allocator
 	return true;
 }
 
-static bool deserialize_nodes( zval* return_value, papuga_Allocator* allocator, papuga_Node** ni_p, const papuga_Node* ne, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)
+static bool deserialize_nodes( zval* return_value, papuga_Allocator* allocator, papuga_SerializationIter* seriter, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)
 {
-	papuga_Node* ni = *ni_p;
 	const papuga_ValueVariant* name = 0;
-	for (; ni != ne && ni->tag != papuga_TagClose; ++ni)
+
+	for (; !papuga_SerializationIter_tag( seriter) != papuga_TagClose; papuga_SerializationIter_skip( seriter))
 	{
-		if (ni->tag == papuga_TagName)
+		if (papuga_SerializationIter_tag(seriter) == papuga_TagName)
 		{
 			if (name)
 			{
 				papuga_ErrorBuffer_reportError( errbuf, "duplicate name tag in serialization");
-				*ni_p = ni;
 				return false;
 			}
-			name = &ni->value;
+			name = papuga_SerializationIter_value(seriter);
 			if (!papuga_ValueVariant_isatomic( name))
 			{
 				papuga_ErrorBuffer_reportError( errbuf, "atomic value expected for key element in serialization");
-				*ni_p = ni;
 				return false;
 			}
 		}
-		else if (ni->tag == papuga_TagOpen)
+		else if (papuga_SerializationIter_tag(seriter) == papuga_TagOpen)
 		{
 			zval substructure;
 			array_init( &substructure);
-			++ni;
-			if (!deserialize_nodes( &substructure, allocator, &ni, ne, cemap, errbuf))
+			papuga_SerializationIter_skip( seriter);
+			if (!deserialize_nodes( &substructure, allocator, seriter, cemap, errbuf))
 			{
 				zval_dtor( &substructure);
-				*ni_p = ni;
 				return false;
 			}
 			if (!zval_structure_addnode( return_value, allocator, name, &substructure, errbuf))
 			{
 				zval_dtor( &substructure);
-				*ni_p = ni;
 				return false;
 			}
 			name = NULL;
-			if (ni == ne)
+			if (papuga_SerializationIter_tag( seriter) == papuga_TagClose)
 			{
-				papuga_ErrorBuffer_reportError( errbuf, "structure deserialization failed: %s", papuga_ErrorCode_tostring( papuga_UnexpectedEof));
-				*ni_p = ni;
-				return false;
+				if (papuga_SerializationIter_eof( seriter))
+				{
+					papuga_ErrorBuffer_reportError( errbuf, "structure deserialization failed: %s", papuga_ErrorCode_tostring( papuga_UnexpectedEof));
+					return false;
+				}
 			}
-			if (ni->tag != papuga_TagClose)
+			else
 			{
 				papuga_ErrorBuffer_reportError( errbuf, "close expected after structure in serialization");
-				*ni_p = ni;
 				return false;
 			}
 		}
-		else if (ni->tag == papuga_TagValue)
+		else if (papuga_SerializationIter_tag(seriter) == papuga_TagValue)
 		{
 			zval item;
-			if (!deserialize_value( &item, allocator, &ni->value, cemap, errbuf))
+			if (!deserialize_value( &item, allocator, papuga_SerializationIter_value( seriter), cemap, errbuf))
 			{
 				zval_dtor( &item);
-				*ni_p = ni;
 				return false;
 			}
 			if (!zval_structure_addnode( return_value, allocator, name, &item, errbuf))
 			{
 				zval_dtor( &item);
-				*ni_p = ni;
 				return false;
 			}
 			name = NULL;
@@ -603,16 +600,15 @@ static bool deserialize_nodes( zval* return_value, papuga_Allocator* allocator, 
 		else
 		{
 			papuga_ErrorBuffer_reportError( errbuf, "unknown tag in structure deserialization");
-			*ni_p = ni;
 			return false;
 		}
 	}
-	*ni_p = ni;
 	return true;
 }
 
 static bool deserialize( zval* return_value, papuga_Allocator* allocator, const papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)
 {
+	papuga_SerializationIter seriter;
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	char* str = papuga_Serialization_tostring( ser);
 	if (ser)
@@ -621,15 +617,22 @@ static bool deserialize( zval* return_value, papuga_Allocator* allocator, const 
 		free( str);
 	}
 #endif
-	papuga_Node* ni = serialization->ar;
-	papuga_Node* ne = ni + serialization->arsize;
-	bool rt = deserialize_nodes( return_value, allocator, &ni, ne, cemap, errbuf);
-	if (rt && ni != ne)
+	papuga_init_SerializationIter( &seriter, serialization);
+	if (papuga_SerializationIter_eof( &seriter))
 	{
-		papuga_ErrorBuffer_reportError( errbuf, "unexpected tokens at end of serialization");
-		rt = false;
+		RETVAL_NULL();
+		return false;
 	}
-	return rt;
+	else
+	{
+		bool rt = deserialize_nodes( return_value, allocator, &seriter, cemap, errbuf);
+		if (rt && papuga_SerializationIter_eof( &seriter))
+		{
+			papuga_ErrorBuffer_reportError( errbuf, "unexpected tokens at end of serialization");
+			rt = false;
+		}
+		return rt;
+	}
 }
 
 DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_CallArgs* as, void* selfzval, int argc)
@@ -689,51 +692,47 @@ DLL_PUBLIC bool papuga_php_move_CallResult( void* zval_return_value, papuga_Call
 	zval* return_value = (zval*)zval_return_value;
 	if (retval->value.valuetype == papuga_TypeSerialization)
 	{
-		papuga_Node* ni = retval->value.value.serialization->ar;
-		papuga_Node* ne = ni + retval->value.value.serialization->arsize;
-	
-		if (ni == ne)
+		papuga_SerializationIter seriter;
+
+		papuga_init_SerializationIter( &seriter, retval->value.value.serialization);
+		if (papuga_SerializationIter_tag( &seriter) == papuga_TagClose)
 		{
 			RETVAL_FALSE;
 		}
 		// Complicated decision making because PHP does not support multiple return values:
-		else if (ni->tag == papuga_TagValue)
+		else if (papuga_SerializationIter_tag( &seriter) == papuga_TagValue)
 		{
-			if (ni + 1 == ne)
-			{
-				//... one value in serialization => one return value
-				rt &= deserialize_value( return_value, &retval->allocator, &ni->value, cemap, errbuf);
-			}
-			else
+			if (papuga_SerializationIter_more_than_one( &seriter))
 			{
 				//... more than one value in serialization => array with values as return value
 				rt &= valueVariantToZval( return_value, &retval->allocator, &retval->value, cemap, "assign return values", errbuf);
 			}
+			else
+			{
+				//... one value in serialization => one return value
+				rt &= deserialize_value( return_value, &retval->allocator, papuga_SerializationIter_value( &seriter), cemap, errbuf);
+			}
 		}
-		else if (ni->tag == papuga_TagOpen)
+		else if (papuga_SerializationIter_tag( &seriter) == papuga_TagOpen)
 		{
 			zval substructure;
 			array_init( &substructure);
-			++ni;
-			if (!deserialize_nodes( &substructure, &retval->allocator, &ni, ne, cemap, errbuf))
+			papuga_SerializationIter_skip( &seriter);
+
+			if (!deserialize_nodes( &substructure, &retval->allocator, &seriter, cemap, errbuf))
 			{
 				zval_dtor( &substructure);
 				rt = false;
 			}
-			else if (ni == ne)
+			if (papuga_SerializationIter_tag( &seriter) == papuga_TagClose)
 			{
-				papuga_ErrorBuffer_reportError( errbuf, "structure deserialization failed: %s", papuga_ErrorCode_tostring( papuga_UnexpectedEof));
-				rt = false;
-			}
-			else if (ni->tag != papuga_TagClose)
-			{
-				papuga_ErrorBuffer_reportError( errbuf, "close expected after structure in serialization");
-				rt = false;
-			}
-			else
-			{
-				++ni;
-				if (ni == ne)
+				if (papuga_SerializationIter_eof( &seriter))
+				{
+					papuga_ErrorBuffer_reportError( errbuf, "structure deserialization failed: %s", papuga_ErrorCode_tostring( papuga_UnexpectedEof));
+					rt = false;
+				}
+				papuga_SerializationIter_skip( &seriter);
+				if (papuga_SerializationIter_eof( &seriter))
 				{
 					//... one structure in serialization => one return structure
 					RETVAL_ZVAL( &substructure, 0, 1);
@@ -747,11 +746,16 @@ DLL_PUBLIC bool papuga_php_move_CallResult( void* zval_return_value, papuga_Call
 						zval_dtor( &substructure);
 						rt = false;
 					}
-					else if (!deserialize_nodes( return_value, &retval->allocator, &ni, ne, cemap, errbuf))
+					else if (!deserialize_nodes( return_value, &retval->allocator, &seriter, cemap, errbuf))
 					{
 						rt = false;
 					}
 				}
+			}
+			else
+			{
+				papuga_ErrorBuffer_reportError( errbuf, "close expected after structure in serialization");
+				rt = false;
 			}
 		}
 		else

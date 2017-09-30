@@ -12,7 +12,6 @@
 
 #include "papuga.h"
 #include "papuga/errors.hpp"
-#include "papuga/serialization.hpp"
 #include "papuga/valueVariant.hpp"
 
 #endif
