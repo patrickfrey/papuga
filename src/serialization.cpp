@@ -171,7 +171,7 @@ std::string papuga::Serialization_tostring( const papuga_Serialization& value, p
 		std::ostringstream out;
 		if (!Serialization_print( out, std::string(), &value, errcode))
 		{
-			return false;
+			return std::string();
 		}
 		return out.str();
 	}
