@@ -182,6 +182,8 @@ bool papuga_Serialization_pushValue_bool( papuga_Serialization* self, bool value
 	{PUSH_NODE_1(self,papuga_TagValue,papuga_init_ValueVariant_bool,value)}
 bool papuga_Serialization_pushValue_hostobject( papuga_Serialization* self, papuga_HostObject* value)
 	{PUSH_NODE_1(self,papuga_TagValue,papuga_init_ValueVariant_hostobj,value)}
+bool papuga_Serialization_pushValue_serialization( papuga_Serialization* self, papuga_Serialization* value)
+	{PUSH_NODE_1(self,papuga_TagValue,papuga_init_ValueVariant_serialization,value)}
 
 
 static void NodeArray_push_Open( papuga_Node* nar, int* naridx)
@@ -330,10 +332,10 @@ void papuga_init_SerializationIter( papuga_SerializationIter* self, const papuga
 	}
 }
 
-void papuga_init_SerializationIter_end( papuga_SerializationIter* self, const papuga_Serialization* ser)
+void papuga_init_SerializationIter_last( papuga_SerializationIter* self, const papuga_Serialization* ser)
 {
 	self->chunk = ser->current;
-	if (self->chunk->size==0)
+	if (self->chunk->size == 0)
 	{
 		self->chunkpos = 0;
 		self->tag = papuga_TagClose;
@@ -360,7 +362,7 @@ void papuga_SerializationIter_skip( papuga_SerializationIter* self)
 		}
 		else
 		{
-			--self->chunkpos;
+			self->chunkpos = self->chunk->size;
 			self->tag = papuga_TagClose;
 			self->value = NULL;
 		}

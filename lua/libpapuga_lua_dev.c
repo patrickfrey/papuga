@@ -373,7 +373,8 @@ static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, l
 {
 	int idx = 0;
 	papuga_SerializationIter start;
-	papuga_init_SerializationIter_end( &start, result);
+	papuga_init_SerializationIter_last( &start, result);
+	bool start_at_eof = papuga_SerializationIter_eof( &start);
 	//... we mark the end of the result as start of conversion to an associative array (map), if assumption of array fails
 
 	if (!lua_checkstack( ls, 8))
@@ -390,7 +391,11 @@ static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, l
 		if (!lua_isinteger( ls, -2) || lua_tointeger( ls, -2) != ++idx)
 		{
 			//... not an array, convert to map and continue to build rest of map
-			if (!papuga_Serialization_convert_array_assoc( result, &start, 1, &as->errcode)) goto ERROR;
+			if (!start_at_eof)
+			{
+				papuga_SerializationIter_skip( &start);
+				if (!papuga_Serialization_convert_array_assoc( result, &start, 1, &as->errcode)) goto ERROR;
+			}
 			if (!serialize_key( as, result, ls, -2)) goto ERROR;
 			if (!serialize_value( as, result, ls, -1)) goto ERROR;
 			lua_pop(ls, 1);
@@ -645,10 +650,12 @@ static int deserialize_root( papuga_CallResult* retval, papuga_Serialization* se
 			{
 				papuga_lua_error( ls, "deserialize result", papuga_UnexpectedEof);
 			}
+			++rt;
 		}
 		else if (papuga_SerializationIter_tag( &seriter) == papuga_TagValue)
 		{
 			deserialize_value( retval, papuga_SerializationIter_value( &seriter), ls, classnamemap);
+			++rt;
 		}
 		else
 		{

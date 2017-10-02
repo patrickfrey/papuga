@@ -218,7 +218,7 @@ static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_Err
 	zend_ulong num_index;
 	zend_ulong indexcount = 0;
 	papuga_SerializationIter resultstart;
-	papuga_init_SerializationIter_end( &resultstart, ser);
+	papuga_init_SerializationIter_last( &resultstart, ser);
 
 	for(
 		zend_hash_internal_pointer_reset_ex( hash, &ptr);
@@ -227,9 +227,13 @@ static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_Err
 	{
 		if (zend_hash_get_current_key_ex( hash, &str_index, &num_index, &ptr) == HASH_KEY_IS_STRING)
 		{
-			if (indexcount && !papuga_Serialization_convert_array_assoc( ser, &resultstart, 0/*start count*/, errcode))
+			if (indexcount)
 			{
-				return false;
+				papuga_SerializationIter_skip( &resultstart);
+				if (!papuga_Serialization_convert_array_assoc( ser, &resultstart, 0/*start count*/, errcode))
+				{
+					return false;
+				}
 			}
 			rt &= papuga_Serialization_pushName_string( ser, ZSTR_VAL(str_index), ZSTR_LEN(str_index));
 			rt &= serializeValue( ser, data, errcode);
@@ -247,9 +251,13 @@ static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_Err
 		}
 		else
 		{
-			if (indexcount && !papuga_Serialization_convert_array_assoc( ser, &resultstart, 0/*start count*/, errcode))
+			if (indexcount)
 			{
-				return false;
+				papuga_SerializationIter_skip( &resultstart);
+				if (!papuga_Serialization_convert_array_assoc( ser, &resultstart, 0/*start count*/, errcode))
+				{
+					return false;
+				}
 			}
 			rt &= papuga_Serialization_pushName_int( ser, num_index);
 			rt &= serializeValue( ser, data, errcode);
@@ -536,7 +544,7 @@ static bool deserialize_nodes( zval* return_value, papuga_Allocator* allocator, 
 {
 	const papuga_ValueVariant* name = 0;
 
-	for (; !papuga_SerializationIter_tag( seriter) != papuga_TagClose; papuga_SerializationIter_skip( seriter))
+	for (; papuga_SerializationIter_tag( seriter) != papuga_TagClose; papuga_SerializationIter_skip( seriter))
 	{
 		if (papuga_SerializationIter_tag(seriter) == papuga_TagName)
 		{

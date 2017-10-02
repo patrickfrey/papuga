@@ -165,7 +165,7 @@ bool papuga_Serialization_pushValue_langstring( papuga_Serialization* self, papu
 /*
 * @brief Add a 'value' element as a signed integer to the serialization
 * @param[in,out] self pointer to structure 
-* @param[in] value numeric value value of the added node
+* @param[in] value numeric value of the added node
 * @return true on success, false on memory allocation error
 */
 bool papuga_Serialization_pushValue_int( papuga_Serialization* self, int64_t value);
@@ -173,7 +173,7 @@ bool papuga_Serialization_pushValue_int( papuga_Serialization* self, int64_t val
 /*
 * @brief Add a 'value' element as an unsigned signed integer to the serialization
 * @param[in,out] self pointer to structure 
-* @param[in] value numeric value value of the added node
+* @param[in] value numeric value of the added node
 * @return true on success, false on memory allocation error
 */
 bool papuga_Serialization_pushValue_uint( papuga_Serialization* self, uint64_t value);
@@ -181,7 +181,7 @@ bool papuga_Serialization_pushValue_uint( papuga_Serialization* self, uint64_t v
 /*
 * @brief Add a 'value' element as a double precision floating point value to the serialization
 * @param[in,out] self pointer to structure 
-* @param[in] value numeric value value of the added node
+* @param[in] value numeric value of the added node
 * @return true on success, false on memory allocation error
 */
 bool papuga_Serialization_pushValue_double( papuga_Serialization* self, double value);
@@ -189,15 +189,23 @@ bool papuga_Serialization_pushValue_double( papuga_Serialization* self, double v
 /*
 * @brief Add a 'value' element as a host object reference to the serialization
 * @param[in,out] self pointer to structure 
-* @param[in] value numeric value value of the added node
+* @param[in] value pointer to hostobject of the added node
 * @return true on success, false on memory allocation error
 */
 bool papuga_Serialization_pushValue_hostobject( papuga_Serialization* self, papuga_HostObject* value);
 
 /*
+* @brief Add a 'value' element as a serialization reference to the serialization
+* @param[in,out] self pointer to structure
+* @param[in] value pointer to serialization of the added node
+* @return true on success, false on memory allocation error
+*/
+bool papuga_Serialization_pushValue_serialization( papuga_Serialization* self, papuga_Serialization* value);
+
+/*
 * @brief Add a 'value' element as a boolean value to the serialization
 * @param[in,out] self pointer to structure 
-* @param[in] value boolean value value of the added node
+* @param[in] value boolean value of the added node
 * @return true on success, false on memory allocation error
 */
 bool papuga_Serialization_pushValue_bool( papuga_Serialization* self, bool value);
@@ -212,7 +220,7 @@ bool papuga_Serialization_pushValue_bool( papuga_Serialization* self, bool value
 bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, papuga_SerializationIter* seriter, unsigned int countfrom, papuga_ErrorCode* errcode);
 
 /*
-* @brief Print serialization as null terminated string, 
+* @brief Print serialization in readable form as null terminated string, 
 * @param[in] self pointer to structure
 * @return NULL on memory allocation error, null terminated string with serialization printed, allocated with malloc, to free by the caller, on success
 */
@@ -237,11 +245,18 @@ const char* papuga_Serialization_print_node( const papuga_Node* nd, char* buf, s
 void papuga_init_SerializationIter( papuga_SerializationIter* self, const papuga_Serialization* ser);
 
 /*
-* @brief Serialization iterator constructor skipping to end of serialization
+* @brief Serialization iterator constructor skipping to last element of serialization
 * @param[out] self pointer to structure 
 * @param[in] ser serialization to iterate on
 */
-void papuga_init_SerializationIter_end( papuga_SerializationIter* self, const papuga_Serialization* ser);
+void papuga_init_SerializationIter_last( papuga_SerializationIter* self, const papuga_Serialization* ser);
+
+/*
+* @brief Serialization iterator copy constructor
+* @param[out] self_ pointer to structure 
+* @param[in] oth_ serialization iterator to copy
+*/
+#define papuga_init_SerializationIter_copy(self_,oth_)	{papuga_SerializationIter* s_=self_;const papuga_SerializationIter* o_=oth_; s_->chunk=o_->chunk;s_->tag=o_->tag;s_->chunkpos=o_->chunkpos;s_->value=o_->value;}
 
 /*
 * @brief Skip to next element of serialization
@@ -252,25 +267,32 @@ void papuga_SerializationIter_skip( papuga_SerializationIter* self);
 /*
 * @brief Test if serialization is at eof
 * @remark Has to be checked if we got an unexpected close, meaning an unexpected eof
-* @param[out] self pointer to structure 
+* @param[in] self pointer to structure 
 */
 #define papuga_SerializationIter_eof(self_)		(!(self_)->value)
 
 /*
+* @brief Test if two serialization interators are pointing to the same element
+* @param[in] self_ pointer to structure 
+* @param[in] oth_ pointer to iterator to compare
+*/
+#define papuga_SerializationIter_isequal(self_,oth_)	((self_)->value == (oth_)->value)
+
+/*
 * @brief Test if there are more than one serialization elements left
-* @param[int] self pointer to structure 
+* @param[in] self pointer to structure 
 */
 bool papuga_SerializationIter_more_than_one( const papuga_SerializationIter* self);
 
 /*
 * @brief Read the current tag
-* @param[out] self pointer to structure 
+* @param[in] self pointer to structure 
 */
 #define papuga_SerializationIter_tag(self_)		((self_)->tag)
 
 /*
 * @brief Read the current value
-* @param[out] self pointer to structure 
+* @param[in] self pointer to structure 
 */
 #define papuga_SerializationIter_value(self_)		((self_)->value)
 

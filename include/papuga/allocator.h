@@ -19,25 +19,25 @@ extern "C" {
 
 /*
 * @brief Constructor of AllocatorNode
-* @param[out] self pointer to structure initialized
-* @param[in] buf pointer to preallocated (local) buffer
-* @param[in] bufsize allocation size of buf in bytes
+* @param[out] self_ pointer to structure initialized
+* @param[in] buf_ pointer to preallocated (local) buffer
+* @param[in] bufsize_ allocation size of buf in bytes
 */
-#define papuga_init_AllocatorNode(self,buf,bufsize)	{papuga_Allocator* s = self; s->allocsize=bufsize;s->arsize=0;s->allocated=!bufsize;s->ar=(char*)buf;s->next=0;}
+#define papuga_init_AllocatorNode(self_,buf_,bufsize_)	{papuga_Allocator* s = self_; s->allocsize=bufsize_;s->arsize=0;s->allocated=!bufsize_;s->ar=(char*)buf_;s->next=0;}
 
 /*
 * @brief Constructor of Allocator
-* @param[out] self pointer to structure initialized
-* @param[in] buf pointer to preallocated (local) buffer
-* @param[in] bufsize allocation size of buf in bytes
+* @param[out] self_ pointer to structure initialized
+* @param[in] buf_ pointer to preallocated (local) buffer
+* @param[in] bufsize_ allocation size of buf in bytes
 */
-#define papuga_init_Allocator(self,buf,bufsize)		{papuga_Allocator* s = self; s->root.allocsize=bufsize;s->root.arsize=0;s->root.allocated=!buf;s->root.ar=(char*)buf;s->root.next=0;s->reflist=0;}
+#define papuga_init_Allocator(self_,buf_,bufsize_)	{papuga_Allocator* s = self_; s->root.allocsize=bufsize_;s->root.arsize=0;s->root.allocated=((buf_)==NULL);s->root.ar=(char*)buf_;s->root.next=0;s->reflist=0;}
 
 /*
 * @brief Destructor of Allocator
-* @param[in] self pointer to structure destroyed
+* @param[in] self_ pointer to structure destroyed
 */
-#define papuga_destroy_Allocator(self)			{papuga_Allocator* s = self; if (s->reflist != NULL) papuga_destroy_ReferenceHeader( s->reflist); if ((s->root.ar != NULL && s->root.allocated) || s->root.next != NULL) papuga_destroy_AllocatorNode( &s->root);}
+#define papuga_destroy_Allocator(self_)			{papuga_Allocator* s = self_; if (s->reflist != NULL) papuga_destroy_ReferenceHeader( s->reflist); if ((s->root.ar != NULL && s->root.allocated) || s->root.next != NULL) papuga_destroy_AllocatorNode( &s->root);}
 
 /*
 * @brief Destructor of linked list of AllocatorNode

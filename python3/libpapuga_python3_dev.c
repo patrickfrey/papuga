@@ -539,7 +539,7 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, papug
 	papuga_init_PyStruct( pystruct);
 	papuga_init_PyStructNode( &nd);
 
-	for (; !papuga_SerializationIter_tag(seriter) != papuga_TagClose; papuga_SerializationIter_skip(seriter))
+	for (; papuga_SerializationIter_tag(seriter) != papuga_TagClose; papuga_SerializationIter_skip(seriter))
 	{
 		if (papuga_SerializationIter_tag(seriter) == papuga_TagName)
 		{

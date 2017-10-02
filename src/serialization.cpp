@@ -8,6 +8,7 @@
 /// \brief Some functions on serialization using C++ features like STL
 /// \file serialization.cpp
 #include "papuga/serialization.h"
+#include "papuga/serialization.hpp"
 #include "papuga/valueVariant.h"
 #include "papuga/valueVariant.hpp"
 #include <stdexcept>
@@ -17,6 +18,15 @@
 #include <cstring>
 
 using namespace papuga;
+
+static char* stringCopyAsCString( const std::string& str)
+{
+	char* rt = (char*)std::malloc( str.size()+1);
+	if (!rt) return 0;
+	std::memcpy( rt, str.c_str(), str.size());
+	rt[ str.size()] = 0;
+	return rt;
+}
 
 static bool Serialization_print( std::ostream& out, std::string indent, const papuga_Serialization* serialization, papuga_ErrorCode& errcode)
 {
@@ -99,12 +109,7 @@ extern "C" char* papuga_Serialization_tostring( const papuga_Serialization* self
 		std::string indent;
 		std::ostringstream out;
 		if (!Serialization_print( out, indent, self, errcode)) return NULL;
-		std::string str = out.str();
-		char* rt = (char*)std::malloc( str.size()+1);
-		if (!rt) return 0;
-		std::memcpy( rt, str.c_str(), str.size());
-		rt[ str.size()] = 0;
-		return rt;
+		return stringCopyAsCString( out.str());
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -158,4 +163,24 @@ extern "C" const char* papuga_Serialization_print_node( const papuga_Node* nd, c
 		return 0;
 	}
 }
+
+std::string papuga::Serialization_tostring( const papuga_Serialization& value, papuga_ErrorCode& errcode)
+{
+	try
+	{
+		std::ostringstream out;
+		if (!Serialization_print( out, std::string(), &value, errcode))
+		{
+			return false;
+		}
+		return out.str();
+	}
+	catch (const std::bad_alloc&)
+	{
+		errcode = papuga_NoMemError;
+		return std::string();
+	}
+}
+
+
 
