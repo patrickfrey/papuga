@@ -180,7 +180,12 @@ private:
 				out << *ei++;
 				for (; (*ei >= '0' && *ei <= '9') || *ei == '_' || ((*ei|32) >= 'a' && (*ei|32) <= 'z') ; ++ei) out << *ei;
 				for (; *ei && *ei <= 32; ++ei){}
-				if (*ei == ':' || *ei == '=')
+				if (*ei == ':')
+				{
+					out << ':';
+					++ei;
+				}
+				else if (*ei == '=')
 				{
 					out << '=';
 					++ei;
