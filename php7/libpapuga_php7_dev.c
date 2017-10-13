@@ -852,12 +852,14 @@ static bool iteratorToZval( zval* return_value, papuga_Iterator* iterator, papug
 
 PHP_METHOD( PapugaIterator, current)
 {
-	/*[-]*/fprintf( stderr, "CALL PapugaIterator::current \n");
+	zend_object* zobj;
+	IteratorObject *iobj;
+
 	if (zend_parse_parameters_none() == FAILURE) {
 		return;
 	}
-	zend_object* zobj = Z_OBJ_P( getThis());
-	IteratorObject *iobj = getIteratorObject( zobj);
+	zobj = Z_OBJ_P( getThis());
+	iobj = getIteratorObject( zobj);
 	if (iobj->eof)
 	{
 		RETVAL_FALSE;
@@ -870,7 +872,6 @@ PHP_METHOD( PapugaIterator, current)
 
 PHP_METHOD( PapugaIterator, key)
 {
-	/*[-]*/fprintf( stderr, "CALL PapugaIterator::key \n");
 	if (zend_parse_parameters_none() == FAILURE) {
 		return;
 	}
@@ -879,16 +880,17 @@ PHP_METHOD( PapugaIterator, key)
 
 PHP_METHOD( PapugaIterator, next)
 {
-	/*[-]*/fprintf( stderr, "CALL PapugaIterator::next \n");
+	zend_object* zobj;
+	IteratorObject *iobj;
 	papuga_ErrorBuffer errbuf;
 	char errmsgbuf[ 2048];
-	papuga_init_ErrorBuffer( &errbuf, errmsgbuf, sizeof(errmsgbuf));
 
+	papuga_init_ErrorBuffer( &errbuf, errmsgbuf, sizeof(errmsgbuf));
 	if (zend_parse_parameters_none() == FAILURE) {
 		return;
 	}
-	zend_object* zobj = Z_OBJ_P( getThis());
-	IteratorObject *iobj = getIteratorObject( zobj);
+	zobj = Z_OBJ_P( getThis());
+	iobj = getIteratorObject( zobj);
 	if (!iteratorFetchNext( iobj, &errbuf))
 	{
 		if (papuga_ErrorBuffer_hasError( &errbuf))
@@ -905,12 +907,13 @@ PHP_METHOD( PapugaIterator, rewind)
 
 PHP_METHOD( PapugaIterator, valid)
 {
-	/*[-]*/fprintf( stderr, "CALL PapugaIterator::rewind \n");
+	zend_object* zobj;
+	IteratorObject *iobj;
 	if (zend_parse_parameters_none() == FAILURE) {
 		return;
 	}
-	zend_object* zobj = Z_OBJ_P( getThis());
-	IteratorObject *iobj = getIteratorObject( zobj);
+	zobj = Z_OBJ_P( getThis());
+	iobj = getIteratorObject( zobj);
 	if (iobj->eof)
 	{
 		RETVAL_FALSE;
@@ -973,12 +976,14 @@ static void zend_papuga_iterator_get_current_key( zend_object_iterator *iter, zv
 /* step forwards to next element */
 static void zend_papuga_iterator_move_forward( zend_object_iterator *iter)
 {
+	zend_object* zobj;
+	IteratorObject *iobj;
 	papuga_ErrorBuffer errbuf;
 	char errmsgbuf[ 2048];
 	papuga_init_ErrorBuffer( &errbuf, errmsgbuf, sizeof(errmsgbuf));
 	
-	zend_object* zobj = Z_OBJ_P( &iter->data);
-	IteratorObject *iobj = getIteratorObject( zobj);
+	zobj = Z_OBJ_P( &iter->data);
+	iobj = getIteratorObject( zobj);
 	if (!iteratorFetchNext( iobj, &errbuf))
 	{
 		if (papuga_ErrorBuffer_hasError( &errbuf))
@@ -1000,7 +1005,10 @@ static zend_object_iterator_funcs g_iterator_funcs = {
 
 static zend_object_iterator* zend_papuga_get_iterator( zend_class_entry *ce, zval *object, int by_ref)
 {
+	zend_object* zobj;
+	IteratorObject *iobj;
 	zend_object_iterator* rt;
+
 	if (by_ref) {
 		zend_error( E_ERROR, "iteration by reference not supported");
 		return NULL;
@@ -1013,8 +1021,8 @@ static zend_object_iterator* zend_papuga_get_iterator( zend_class_entry *ce, zva
 		zend_error( E_ERROR, "object expected as this get iterator argument");
 		return NULL;
 	}
-	zend_object* zobj = Z_OBJ_P( object);
-	IteratorObject *iobj = getIteratorObject( zobj);
+	zobj = Z_OBJ_P( object);
+	iobj = getIteratorObject( zobj);
 
 	if (iobj->checksum != calcIteratorCheckSum( iobj))
 	{
