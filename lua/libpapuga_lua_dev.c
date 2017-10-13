@@ -563,7 +563,7 @@ static void deserialize_node( papuga_CallResult* retval, papuga_SerializationIte
 
 	papuga_init_ValueVariant( &name);
 
-	for (; !papuga_SerializationIter_tag(seriter) != papuga_TagClose; papuga_SerializationIter_skip(seriter))
+	for (; papuga_SerializationIter_tag(seriter) != papuga_TagClose; papuga_SerializationIter_skip(seriter))
 	{
 		switch (papuga_SerializationIter_tag(seriter))
 		{
