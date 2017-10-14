@@ -218,7 +218,7 @@ bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, papug
 		{
 			papuga_NodeChunk* chunk = (papuga_NodeChunk*)seriter->chunk;
 
-			// At end of the current chunk check if the buffer is also full:
+			/* At end of the current chunk check if the buffer is also full: */
 			int restsize = papuga_NodeChunkSize - seridx;
 			if (naridx >= restsize)
 			{

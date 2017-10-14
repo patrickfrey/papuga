@@ -5,9 +5,10 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
-/// \brief Library implementation for lua bindings built by papuga
-/// \file papuga/lib/lua_dev.h
-
+/*
+ * \brief Library implementation for lua bindings built by papuga
+ * \file papuga/lib/lua_dev.h
+ */
 #include "papuga/lib/lua_dev.h"
 #include "papuga.h"
 #include "private/dll_tags.h"
@@ -106,9 +107,10 @@ static int papuga_lua_destroy_UserData( lua_State* ls)
 
 static const papuga_lua_UserData* get_UserData( lua_State* ls, int idx)
 {
+	const char* cname;
 	const papuga_lua_UserData* udata = (const papuga_lua_UserData*)lua_touserdata( ls, idx);
 	if (!udata) return 0;
-	const char* cname = get_classname( udata->classnamemap, udata->classid);
+	cname = get_classname( udata->classnamemap, udata->classid);
 	if (calcCheckSum(udata) != udata->checksum) return 0;
 	if (!cname) return 0;
 	if (!luaL_testudata( ls, idx, cname)) return 0;
@@ -182,12 +184,13 @@ static int iteratorGetNext( lua_State* ls)
 	papuga_CallResult retval;
 	papuga_ErrorCode errcode = papuga_Ok;
 	char errbuf[ 2048];
+	const papuga_lua_UserData* udata;
 
 	void* objref = lua_touserdata( ls, lua_upvalueindex( 1));
 	*(void **) &getNext = lua_touserdata( ls, lua_upvalueindex( 2));
-	// ... PF:HACK circumvents warning "ISO C forbids conversion of object pointer to function pointer type"
+	/* ... PF:HACK circumvents warning "ISO C forbids conversion of object pointer to function pointer type" */
 
-	const papuga_lua_UserData* udata = get_IteratorUserData( ls, lua_upvalueindex( 3));
+	udata = get_IteratorUserData( ls, lua_upvalueindex( 3));
 	if (!udata) papuga_lua_error( ls, "iterator get next", papuga_InvalidAccess);
 
 	papuga_init_CallResult( &retval, errbuf, sizeof(errbuf));
@@ -208,9 +211,10 @@ static int iteratorGetNext( lua_State* ls)
 
 static void pushIterator( lua_State* ls, void* objectref, papuga_Deleter destructor, papuga_GetNext getNext, const papuga_lua_ClassNameMap* classnamemap)
 {
+	papuga_lua_UserData* udata;
 	lua_pushlightuserdata( ls, objectref);
 	lua_pushlightuserdata( ls, *(void**)&getNext);
-	papuga_lua_UserData* udata = papuga_lua_new_userdata( ls, ITERATOR_METATABLE_NAME);
+	udata = papuga_lua_new_userdata( ls, ITERATOR_METATABLE_NAME);
 	papuga_lua_init_UserData( udata, 0, objectref, destructor, classnamemap);
 	lua_pushcclosure( ls, iteratorGetNext, 3);
 }
@@ -375,7 +379,7 @@ static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, l
 	papuga_SerializationIter start;
 	papuga_init_SerializationIter_last( &start, result);
 	bool start_at_eof = papuga_SerializationIter_eof( &start);
-	//... we mark the end of the result as start of conversion to an associative array (map), if assumption of array fails
+	/*... we mark the end of the result as start of conversion to an associative array (map), if assumption of array fails */
 
 	if (!lua_checkstack( ls, 8))
 	{
@@ -390,7 +394,7 @@ static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, l
 		STACKTRACE( ls, "loop next serialize table as map or array");
 		if (!lua_isinteger( ls, -2) || lua_tointeger( ls, -2) != ++idx)
 		{
-			//... not an array, convert to map and continue to build rest of map
+			/*... not an array, convert to map and continue to build rest of map */
 			if (!start_at_eof)
 			{
 				papuga_SerializationIter_skip( &start);
@@ -525,7 +529,7 @@ static void deserialize_value( papuga_CallResult* retval, const papuga_ValueVari
 			{
 				papuga_lua_error( ls, "deserialize result", papuga_LogicError);
 			}
-			// MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when papuga_lua_new_userdata fails because of a memory allocation error
+			/* MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when papuga_lua_new_userdata fails because of a memory allocation error */
 			udata = papuga_lua_new_userdata( ls, cname);
 			papuga_lua_init_UserData( udata, obj->classid, obj->data, obj->destroy, classnamemap);
 			papuga_release_HostObject( obj);
@@ -826,7 +830,7 @@ DLL_PUBLIC int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* ret
 			rt = 1;
 			break;
 		case papuga_TypeString:
-			// MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when lua_pushlstring fails because of a memory allocation error
+			/* MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when lua_pushlstring fails because of a memory allocation error */
 			lua_pushlstring( ls, retval->value.value.string, retval->value.length);
 			rt = 1;
 			break;
@@ -840,7 +844,7 @@ DLL_PUBLIC int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* ret
 			}
 			else
 			{
-				// MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when lua_pushlstring fails because of a memory allocation error
+				/* MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when lua_pushlstring fails because of a memory allocation error */
 				lua_pushlstring( ls, str, strsize);
 				rt = 1;
 			}
@@ -856,7 +860,7 @@ DLL_PUBLIC int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* ret
 				papuga_destroy_CallResult( retval);
 				papuga_lua_error( ls, "move result", papuga_LogicError);
 			}
-			// MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when papuga_lua_new_userdata fails because of a memory allocation error
+			/* MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when papuga_lua_new_userdata fails because of a memory allocation error */
 			udata = papuga_lua_new_userdata( ls, cname);
 			papuga_lua_init_UserData( udata, obj->classid, obj->data, obj->destroy, classnamemap);
 			papuga_release_HostObject( obj);
@@ -864,13 +868,13 @@ DLL_PUBLIC int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* ret
 			break;
 		}
 		case papuga_TypeSerialization:
-			// MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when papuga_lua_new_userdata fails because of a memory allocation error
+			/* MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when papuga_lua_new_userdata fails because of a memory allocation error */
 			rt = deserialize_root( retval, retval->value.value.serialization, ls, classnamemap);
 			break;
 		case papuga_TypeIterator:
 		{
 			papuga_Iterator* itr = retval->value.value.iterator;
-			// MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when papuga_lua_new_userdata fails because of a memory allocation error
+			/* MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when papuga_lua_new_userdata fails because of a memory allocation error */
 			pushIterator( ls, itr->data, itr->destroy, itr->getNext, classnamemap);
 			papuga_release_Iterator( itr);
 			rt = 1;

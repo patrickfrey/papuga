@@ -39,13 +39,14 @@ void papuga_destroy_Stack( papuga_Stack* self)
 
 static bool alloc_nodes( papuga_Stack* self, size_t addsize)
 {
+	size_t newallocsize;
 	size_t newsize = self->arsize + addsize;
 	if (newsize < self->arsize) return false;
 	if (newsize > self->allocsize)
 	{
 		size_t mm = self->allocsize ? (self->allocsize * 2) : 256;
 		while (mm > self->allocsize && mm < newsize) mm *= 2;
-		size_t newallocsize = mm;
+		newallocsize = mm;
 		mm *= self->elemsize;
 		if (mm < newsize) return false;
 		if (self->allocated)

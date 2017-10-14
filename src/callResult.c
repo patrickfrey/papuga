@@ -143,14 +143,15 @@ bool papuga_set_CallResult_iterator( papuga_CallResult* self, void* data, papuga
 
 void papuga_CallResult_reportError( papuga_CallResult* self, const char* msg, ...)
 {
+	size_t nn;
 	va_list ap;
-	va_start(ap, msg);
-	size_t nn = vsnprintf( self->errorbuf.ptr, self->errorbuf.size, msg, ap);
+	va_start( ap, msg);
+	nn = vsnprintf( self->errorbuf.ptr, self->errorbuf.size, msg, ap);
 	if (nn >= self->errorbuf.size-1)
 	{
 		self->errorbuf.ptr[ self->errorbuf.size-1] = 0;
 	}
-	va_end(ap);
+	va_end( ap);
 }
 
 

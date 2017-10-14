@@ -69,21 +69,25 @@ void papuga_destroy_ReferenceHeader( papuga_ReferenceHeader* hdritr)
 
 void papuga_destroy_AllocatorNode( papuga_AllocatorNode* self)
 {
+	papuga_AllocatorNode* itr;
+
 	if (self->ar != NULL && self->allocated)
 	{
 		free( self->ar);
 		self->ar = 0;
 	}
-	papuga_AllocatorNode* itr = self->next;
+	itr = self->next;
 	self->next = 0;
 	while (itr != NULL)
 	{
+		papuga_AllocatorNode* next;
+
 		if (itr->ar != NULL && itr->allocated)
 		{
 			free( itr->ar);
 			itr->ar = 0;
 		}
-		papuga_AllocatorNode* next = itr->next;
+		next = itr->next;
 		free( itr);
 		itr = next;
 	}
@@ -101,6 +105,7 @@ struct MaxAlignStruct {int _;};
 void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned int alignment)
 {
 	void* rt;
+	papuga_AllocatorNode* next;
 
 	if (alignment == 0) alignment = MAXALIGN;
 	if (!isPowerOfTwo( alignment)
@@ -117,7 +122,7 @@ void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned
 			self->root.arsize += blocksize;
 			return rt;
 		}
-		papuga_AllocatorNode* next = (papuga_AllocatorNode*)calloc( 1, sizeof( papuga_AllocatorNode));
+		next = (papuga_AllocatorNode*)calloc( 1, sizeof( papuga_AllocatorNode));
 		if (next == NULL) return 0;
 		memcpy( next, &self->root, sizeof(self->root));
 		memset( &self->root, 0, sizeof(self->root));

@@ -5,8 +5,10 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
-/// \brief Library implementation for Python (v3) bindings built by papuga
-/// \file libpapuga_python3_dev.c
+/*
+ * \brief Library implementation for Python (v3) bindings built by papuga
+ * \file libpapuga_python3_dev.c
+ */
 
 #include "papuga/lib/python3_dev.h"
 #include "papuga.h"
@@ -63,9 +65,10 @@ static bool isLittleEndian()
 
 static papuga_python_ClassObject* getClassObject( PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
+	papuga_python_ClassObject* cobj;
 	PyTypeObject* pytype = pyobj->ob_type;
 	if (pytype->tp_basicsize != sizeof(papuga_python_ClassObject)) return NULL;
-	papuga_python_ClassObject* cobj = (papuga_python_ClassObject*)pyobj;
+	cobj = (papuga_python_ClassObject*)pyobj;
 	if (pytype != getTypeObject( cemap, cobj->classid));
 	if (cobj->checksum != calcObjectCheckSum( cobj)) return NULL;
 	return cobj;
@@ -790,13 +793,14 @@ DLL_PUBLIC void papuga_python_init_object( PyObject* selfobj, void* self, int cl
 
 DLL_PUBLIC PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
+	PyObject* selfobj;
 	PyTypeObject* typeobj = getTypeObject( cemap, classid);
 	if (!typeobj)
 	{
 		*errcode = papuga_InvalidAccess;
 		return NULL;
 	}
-	PyObject* selfobj = PyType_GenericAlloc( typeobj, 1);
+	selfobj = PyType_GenericAlloc( typeobj, 1);
 	if (!selfobj)
 	{
 		*errcode = papuga_NoMemError;
@@ -827,6 +831,7 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_CallArgs* as, PyObject* args
 	{
 		int argi;
 		Py_ssize_t argcnt = 0;
+		PyObject* argitem;
 
 		for (argi=0; kwargnames[ argi]; ++argi)
 		{
@@ -836,7 +841,7 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_CallArgs* as, PyObject* args
 				as->errcode = papuga_NofArgsError;
 				return false;
 			}
-			PyObject* argitem = PyDict_GetItemString( args, kwargnames[argi]);
+			argitem = PyDict_GetItemString( args, kwargnames[argi]);
 			if (argitem)
 			{
 				if (!init_ValueVariant_pyobj( &as->argv[ argi], &as->allocator, argitem, cemap, &as->errcode))

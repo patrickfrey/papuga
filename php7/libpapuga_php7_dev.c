@@ -5,8 +5,10 @@
 * License, v. 2.0. If a copy of the MPL was not distributed with this
 * file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
-/// \brief Library implementation for PHP (v7) bindings built by papuga
-/// \file libpapuga_php7_dev.c
+/*
+ * \brief Library implementation for PHP (v7) bindings built by papuga
+ * \file libpapuga_php7_dev.c
+ */
 
 #include "papuga/lib/php7_dev.h"
 #include "papuga.h"
@@ -26,7 +28,7 @@
 #else
 #include <zend_config.nw.h>
 #endif
-#define ZEND_SIGNAL_H // PH:HACK: Exclude compilation of stuff we don't need with system dependencies
+#define ZEND_SIGNAL_H /* PH:HACK: Exclude compilation of stuff we don't need with system dependencies */
 #include <php.h>
 #include <zend.h>
 #include <zend_API.h>
@@ -707,17 +709,17 @@ DLL_PUBLIC bool papuga_php_move_CallResult( void* zval_return_value, papuga_Call
 		{
 			RETVAL_FALSE;
 		}
-		// Complicated decision making because PHP does not support multiple return values:
+		/* Complicated decision making because PHP does not support multiple return values: */
 		else if (papuga_SerializationIter_tag( &seriter) == papuga_TagValue)
 		{
 			if (papuga_SerializationIter_more_than_one( &seriter))
 			{
-				//... more than one value in serialization => array with values as return value
+				/*... more than one value in serialization => array with values as return value */
 				rt &= valueVariantToZval( return_value, &retval->allocator, &retval->value, cemap, "assign return values", errbuf);
 			}
 			else
 			{
-				//... one value in serialization => one return value
+				/*... one value in serialization => one return value */
 				rt &= deserialize_value( return_value, &retval->allocator, papuga_SerializationIter_value( &seriter), cemap, errbuf);
 			}
 		}
@@ -742,12 +744,12 @@ DLL_PUBLIC bool papuga_php_move_CallResult( void* zval_return_value, papuga_Call
 				papuga_SerializationIter_skip( &seriter);
 				if (papuga_SerializationIter_eof( &seriter))
 				{
-					//... one structure in serialization => one return structure
+					/*... one structure in serialization => one return structure */
 					RETVAL_ZVAL( &substructure, 0, 1);
 				}
 				else
 				{
-					//... more than one structure in serialization => array with values as return value
+					/*... more than one structure in serialization => array with values as return value */
 					array_init(return_value);
 					if (!zval_structure_addnode( return_value, &retval->allocator, 0, &substructure, errbuf))
 					{
