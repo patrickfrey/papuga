@@ -619,14 +619,6 @@ static bool deserialize_nodes( zval* return_value, papuga_Allocator* allocator, 
 static bool deserialize( zval* return_value, papuga_Allocator* allocator, const papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)
 {
 	papuga_SerializationIter seriter;
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	char* str = papuga_Serialization_tostring( ser);
-	if (ser)
-	{
-		fprintf( stderr, "DESERIALIZE STRUCT:\n%s\n", str);
-		free( str);
-	}
-#endif
 	papuga_init_SerializationIter( &seriter, serialization);
 	if (papuga_SerializationIter_eof( &seriter))
 	{
@@ -702,6 +694,14 @@ DLL_PUBLIC bool papuga_php_move_CallResult( void* zval_return_value, papuga_Call
 	zval* return_value = (zval*)zval_return_value;
 	if (retval->value.valuetype == papuga_TypeSerialization)
 	{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		char* str = papuga_Serialization_tostring( retval->value.value.serialization);
+		if (ser)
+		{
+			fprintf( stderr, "CALL RESULT STRUCTURE:\n%s\n", str);
+			free( str);
+		}
+#endif
 		papuga_SerializationIter seriter;
 
 		papuga_init_SerializationIter( &seriter, retval->value.value.serialization);
