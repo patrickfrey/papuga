@@ -636,7 +636,7 @@ static bool deserialize( zval* return_value, papuga_Allocator* allocator, const 
 	else
 	{
 		bool rt = deserialize_nodes( return_value, allocator, &seriter, cemap, errbuf);
-		if (rt && papuga_SerializationIter_eof( &seriter))
+		if (rt && !papuga_SerializationIter_eof( &seriter))
 		{
 			papuga_ErrorBuffer_reportError( errbuf, "unexpected tokens at end of serialization");
 			rt = false;
