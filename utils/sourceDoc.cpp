@@ -8,6 +8,7 @@
 /// \brief Function to print source documentation out of a language description
 /// \file sourceDoc.cpp
 #include "private/sourceDoc.hpp"
+#include "private/gen_utils.hpp"
 #include <cstdarg>
 #include <iostream>
 #include <sstream>
@@ -80,7 +81,8 @@ static void printAnnotations(
 				break;
 			case papuga_AnnotationType_Example:
 			{
-				std::string examplecode = lang->mapCodeExample( di->text);
+				SourceDocExampleTree ast( di->text);
+				std::string examplecode = lang->mapCodeExample( ast.root());
 				printDocumentationTag( out, lang, "usage", examplecode.c_str());
 				break;
 			}

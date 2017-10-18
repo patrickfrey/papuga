@@ -31,7 +31,7 @@ public:
 		return "//";
 	}
 
-	virtual std::string mapCodeExample( const std::string& example) const
+	virtual std::string mapCodeExample( const SourceDocExampleNode* example) const
 	{
 		std::ostringstream out;
 		printCodeSnippet( out, example);
@@ -93,125 +93,66 @@ private:
 		}
 	}
 
-	static const char* skipSpaces( char const* ei)
+	static bool isAlpha( char ch)
 	{
-		for (; *ei && *ei != '\n' && (unsigned char)*ei <= 32; ++ei){}
-		return ei;
+		if ((ch|32) >= 'a' && (ch|32) <= 'z') return true;
+		if (ch == '_') return true;
+		return false;
 	}
 
-	static void printCodeSnippetSeparator( std::ostream& out, char const* ei)
+	static void printCodeSnippet( std::ostream& out, const SourceDocExampleNode* example)
 	{
-		ei = skipSpaces( ei);
-		if (*ei && *ei != '(' && *ei != ')' && *ei != ']' && *ei != ',' && *ei != '\n')
+		SourceDocExampleNode const* ei = example;
+		for (; ei; ei = ei->next)
 		{
-			out << ", ";
-		}
-	}
-
-	static void printCodeSnippet( std::ostream& out, const std::string& examples)
-	{
-		if (!examples[0]) return;
-		unsigned int bcnt = 0;
-		unsigned int ocnt = 0;
-		char const* ei = examples.c_str();
-		while (*ei)
-		{
-			ei = skipSpaces( ei);
-			if (!*ei) break;
-			if (*ei == '\n')
+			if (ei->proc)
 			{
-				++ei;
-				out << std::endl;
-			}
-			else if (*ei == '(')
-			{
-				ei = skipSpaces( ei+1);
-				++ocnt;
-				out << "(";
-			}
-			else if (*ei == ')')
-			{
-				ei = skipSpaces( ei+1);
-				--ocnt;
+				out << ei->proc << "( ";
+				printCodeSnippet( out, ei->chld);
 				out << ")";
-				printCodeSnippetSeparator( out, ei);
-			}
-			else if (*ei == '[')
-			{
-				ei = skipSpaces( ei+1);
-				++bcnt;
-				out << "{";
-			}
-			else if (*ei == ']')
-			{
-				ei = skipSpaces( ei+1);
-				--bcnt;
-				out << "}";
-				printCodeSnippetSeparator( out, ei);
-			}
-			else if (*ei == '\"' || *ei == '\'')
-			{
-				const char* start = ei;
-				char eb = *ei;
-				++ei;
-				for (; *ei && *ei != eb && *ei != '\n'; ++ei)
+				if (ei->next)
 				{
-					if (*ei == '\\' && *(ei+1)) ++ei;
+					out << ", ";
 				}
-				out << std::string( start, ei-start) << (char)eb;
-				if (*ei != eb) throw std::runtime_error("string not correctly terminated");
-				++ei;
-				printCodeSnippetSeparator( out, ei);
+				continue;
 			}
-			else if (*ei == '-' || (*ei >= '0' && *ei <= '9'))
+			if (ei->name)
 			{
-				out << *ei++;
-				for (; *ei >= '0' && *ei <= '9'; ++ei) out << *ei;
-				if (*ei == '.') out << *ei++;
-				for (; *ei >= '0' && *ei <= '9'; ++ei) out << *ei;
-				if (*ei == 'E') out << *ei++;
-				if (*ei == '-') out << *ei++;
-				for (; *ei >= '0' && *ei <= '9'; ++ei) out << *ei;
-				printCodeSnippetSeparator( out, ei);
+				out << ei->name;
+				out << "=>";
 			}
-			else if (*ei == '_' || ((*ei|32) >= 'a' && (*ei|32) <= 'z'))
+			if (ei->value)
 			{
-				out << *ei++;
-				for (; (*ei >= '0' && *ei <= '9') || *ei == '_' || ((*ei|32) >= 'a' && (*ei|32) <= 'z') ; ++ei) out << *ei;
-				for (; *ei && *ei <= 32; ++ei){}
-				if (*ei == ':' || *ei == '=')
+				if (std::strcmp( ei->value, "false") == 0)
 				{
-					out << '=';
-					++ei;
+					out << "FALSE";
+				}
+				else if (std::strcmp( ei->value, "true") == 0)
+				{
+					out << "TRUE";
+				}
+				else if (isAlpha( ei->value[0]))
+				{
+					out << '$' << ei->value;
 				}
 				else
 				{
-					printCodeSnippetSeparator( out, ei);
+					out << ei->value;
 				}
-			}
-			else if (*ei == ',')
-			{
-				out << ", ";
-				ei = skipSpaces( ei+1);
 			}
 			else
 			{
-				char buf[ 1024];
-				std::snprintf( buf, sizeof(buf), "syntax error in example, unexpected token '%c'", *ei);
-				throw std::runtime_error( buf);
+				out << "[";
+				printCodeSnippet( out, ei->chld);
+				out << "]";
+			}
+			if (ei->next)
+			{
+				out << ", ";
 			}
 		}
-		if (ocnt || bcnt)
-		{
-			std::string expr(
-				examples.c_str(), 
-				std::min( examples.size(), (std::size_t)60));
-			char buf[ 1024];
-			if (ocnt) std::snprintf( buf, sizeof(buf), "oval brackets ( ) are not balanced in expression at '%s...'", expr.c_str());
-			if (bcnt) std::snprintf( buf, sizeof(buf), "square brackets [ ] are not balanced in expression at '%s...'", expr.c_str());
-			throw std::runtime_error( buf);
-		}
 	}
+
 private:
 	const papuga_InterfaceDescription* m_descr;
 };

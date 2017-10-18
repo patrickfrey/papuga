@@ -10,9 +10,11 @@
 #ifndef _PAPUGA_GEN_UTILS_HPP_INCLUDED
 #define _PAPUGA_GEN_UTILS_HPP_INCLUDED
 #include "papuga/interfaceDescription.h"
+#include "private/sourceDoc.hpp"
 #include <string>
 #include <vector>
 #include <map>
+#include <list>
 #include <stdexcept>
 
 namespace papuga {
@@ -29,6 +31,26 @@ std::string getGeneratorArgument(
 
 std::string readFile( const std::string& path);
 void writeFile( const std::string& filename, const std::string& content);
+
+class SourceDocExampleTree
+{
+public:
+	explicit SourceDocExampleTree( const char* source);
+	const SourceDocExampleNode* root() const		{return m_root;}
+
+private:
+	SourceDocExampleNode* parseExpression( char const*& ei);
+	SourceDocExampleNode* parseExpressionList( char const*& ei, char eb);
+	const char* parseIdentifier( char const*& ei);
+	const char* parseNumber( char const*& ei);
+	const char* parseString( char const*& ei);
+	const char* parseFunctionArgs( char const*& ei);
+
+private:
+	SourceDocExampleNode* m_root;
+	std::string m_strings;
+	std::list<SourceDocExampleNode> m_nodes;
+};
 
 }//namespace
 #endif
