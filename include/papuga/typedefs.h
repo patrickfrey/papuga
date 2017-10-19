@@ -240,7 +240,7 @@ typedef struct papuga_Node
 /*
 * @brief Allocation chunk for serialization node sequences
 */
-#define papuga_NodeChunkSize 2
+#define papuga_NodeChunkSize 128
 typedef struct papuga_NodeChunk
 {
 	papuga_Node ar[ papuga_NodeChunkSize];

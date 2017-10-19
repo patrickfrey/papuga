@@ -135,8 +135,12 @@ static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_A
 				}
 				break;
 			case PyUnicode_1BYTE_KIND:/*UTF-8*/
-				papuga_init_ValueVariant_charp( value, PyUnicode_1BYTE_DATA( pyobj));
+			{
+				Py_ssize_t utf8bytes;
+				char* utf8str = PyUnicode_AsUTF8AndSize( pyobj, &utf8bytes);
+				papuga_init_ValueVariant_string( value, utf8str, utf8bytes);
 				break;
+			}
 			case PyUnicode_2BYTE_KIND:
 				papuga_init_ValueVariant_langstring( value, papuga_UTF16, PyUnicode_2BYTE_DATA( pyobj), PyUnicode_GET_SIZE( pyobj));
 				break;
@@ -558,7 +562,10 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, papug
 		else if (papuga_SerializationIter_tag(seriter) == papuga_TagValue)
 		{
 			nd.valobj = createPyObjectFromVariant( allocator, papuga_SerializationIter_value(seriter), cemap, errcode);
-			if (!nd.valobj) goto ERROR;
+			if (!nd.valobj)
+			{
+				goto ERROR;
+			}
 			if (!papuga_Stack_push( &pystruct->stk, &nd))
 			{
 				*errcode = papuga_TypeError;
@@ -648,6 +655,17 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 		case papuga_TypeString:
 		{
 			rt = PyUnicode_FromStringAndSize( value->value.string, value->length);
+			if (rt == 0)
+			{
+				/* check if malloc is possible to guess the error cause: */
+				void* mem = malloc( value->length+1);
+				if (mem)
+				{
+					free( mem);
+					*errcode = papuga_EncodingError;
+					/* ... PF:HACK: This might not always work, implements sane encoding error checking later */
+				}
+			}
 			break;
 		}
 		case papuga_TypeLangString:
