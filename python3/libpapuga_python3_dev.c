@@ -112,42 +112,16 @@ static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_A
 	}
 	else if (PyUnicode_Check( pyobj))
 	{
+		Py_ssize_t utf8bytes;
+		char* utf8str;
+
 		if (0>PyUnicode_READY( pyobj))
 		{
 			*errcode = papuga_NoMemError;
 			return false;
 		}
-		switch (PyUnicode_KIND( pyobj))
-		{
-			case PyUnicode_WCHAR_KIND:
-				if (sizeof(wchar_t) == 2)
-				{
-					papuga_init_ValueVariant_langstring( value, papuga_UTF16, PyUnicode_2BYTE_DATA( pyobj), PyUnicode_GET_SIZE( pyobj));
-				}
-				else if (sizeof(wchar_t) == 4)
-				{
-					papuga_init_ValueVariant_langstring( value, papuga_UTF32, PyUnicode_4BYTE_DATA( pyobj), PyUnicode_GET_SIZE( pyobj));
-				}
-				else
-				{
-					*errcode = papuga_TypeError;
-					return false;
-				}
-				break;
-			case PyUnicode_1BYTE_KIND:/*UTF-8*/
-			{
-				Py_ssize_t utf8bytes;
-				char* utf8str = PyUnicode_AsUTF8AndSize( pyobj, &utf8bytes);
-				papuga_init_ValueVariant_string( value, utf8str, utf8bytes);
-				break;
-			}
-			case PyUnicode_2BYTE_KIND:
-				papuga_init_ValueVariant_langstring( value, papuga_UTF16, PyUnicode_2BYTE_DATA( pyobj), PyUnicode_GET_SIZE( pyobj));
-				break;
-			case PyUnicode_4BYTE_KIND:
-				papuga_init_ValueVariant_langstring( value, papuga_UTF32, PyUnicode_4BYTE_DATA( pyobj), PyUnicode_GET_SIZE( pyobj));
-				break;
-		}
+		utf8str = PyUnicode_AsUTF8AndSize( pyobj, &utf8bytes);
+		papuga_init_ValueVariant_string( value, utf8str, utf8bytes);
 	}
 	else if (NULL!=(cobj = getClassObject( pyobj, cemap, errcode)))
 	{
