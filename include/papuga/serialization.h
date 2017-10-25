@@ -213,11 +213,11 @@ bool papuga_Serialization_pushValue_bool( papuga_Serialization* self, bool value
 /*
 * @brief Conversing a tail sequence from an array to an associative array
 * @param[in,out] self pointer to structure
-* @param[in] arraystart start of the serialization of the array to convert
+* @param[in] seriter iterator pointing to start of the serialization of the array to convert
 * @param[in] countfrom start counting of the inserted indices
 * @return true on success, false on error
 */
-bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, papuga_SerializationIter* seriter, unsigned int countfrom, papuga_ErrorCode* errcode);
+bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, const papuga_SerializationIter* seriter, unsigned int countfrom, papuga_ErrorCode* errcode);
 
 /*
 * @brief Print serialization in readable form as null terminated string, 
@@ -277,12 +277,6 @@ void papuga_SerializationIter_skip( papuga_SerializationIter* self);
 * @param[in] oth_ pointer to iterator to compare
 */
 #define papuga_SerializationIter_isequal(self_,oth_)	((self_)->value == (oth_)->value)
-
-/*
-* @brief Test if there are more than one serialization elements left
-* @param[in] self pointer to structure 
-*/
-bool papuga_SerializationIter_more_than_one( const papuga_SerializationIter* self);
 
 /*
 * @brief Read the current tag

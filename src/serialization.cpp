@@ -64,7 +64,11 @@ static bool Serialization_print( std::ostream& out, std::string indent, const pa
 				{
 					if (val->valuetype == papuga_TypeSerialization)
 					{
+						out << indent << "open (serialization)" << std::endl;
+						indent.append( "  ");
 						if (!Serialization_print( out, indent, val->value.serialization, errcode)) return false;
+						indent.resize( indent.size()-2);
+						out << indent << "close (serialization)" << std::endl;
 					}
 					else if (val->valuetype == papuga_TypeHostObject)
 					{

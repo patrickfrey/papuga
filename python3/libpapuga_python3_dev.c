@@ -239,15 +239,10 @@ static bool init_ValueVariant_pyobj( papuga_ValueVariant* value, papuga_Allocato
 	if (PyDict_Check( pyobj) || PySequence_Check( pyobj))
 	{
 		papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( allocator);
-		if (!ser)
-		{
-			*errcode = papuga_NoMemError;
-			return false;
-		}
+		if (!ser) goto ERROR_NOMEM;
+
 		papuga_init_ValueVariant_serialization( value, ser);
-		if (!papuga_Serialization_pushOpen( ser)) goto ERROR_NOMEM;		
 		if (!serialize_struct( ser, allocator, pyobj, cemap, errcode)) return false;
-		if (!papuga_Serialization_pushClose( ser)) goto ERROR_NOMEM;
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 		char* str = papuga_Serialization_tostring( ser);
 		if (ser)
@@ -476,30 +471,6 @@ static PyObject* papuga_PyStruct_create_list( papuga_PyStruct* pystruct, papuga_
 	return rt;
 }
 
-static PyObject* papuga_PyStruct_create_tuple( papuga_PyStruct* pystruct, papuga_ErrorCode* errcode)
-{
-	PyObject* rt = PyTuple_New( pystruct->nofElements);
-	if (rt)
-	{
-		unsigned int ei = 0, ee = pystruct->nofElements;
-		for (; ei != ee; ++ei)
-		{
-			papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
-			if (0>PyTuple_SetItem( rt, ei, nd->valobj))
-			{
-				*errcode = papuga_NoMemError;
-				break;
-			}
-		}
-		if (ei != ee)
-		{
-			_PyTuple_Resize( &rt, 0);
-			rt = NULL;
-		}
-	}
-	return rt;
-}
-
 static PyObject* papuga_PyStruct_create_object( papuga_PyStruct* pystruct, papuga_ErrorCode* errcode)
 {
 	PyObject* rt = NULL;
@@ -719,31 +690,11 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 			papuga_PyStruct pystruct;
 			papuga_SerializationIter seriter;
 			papuga_init_SerializationIter( &seriter, value->value.serialization);
-			if (papuga_SerializationIter_eof( &seriter))
-			{
-				Py_INCREF( Py_None);
-				return Py_None;
-			}
 			if (!papuga_init_PyStruct_serialization( &pystruct, allocator, &seriter, cemap, errcode))
 			{
 				break;
 			}
-			if (pystruct.nofKeyValuePairs == 0)
-			{
-				if (pystruct.nofElements == 1)
-				{
-					papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct.stk, 0);
-					rt = nd->valobj;
-				}
-				else
-				{
-					rt = papuga_PyStruct_create_tuple( &pystruct, errcode);
-				}
-			}
-			else
-			{
-				rt = papuga_PyStruct_create_dict( &pystruct, errcode);
-			}
+			rt = papuga_PyStruct_create_object( &pystruct, errcode);
 			papuga_destroy_PyStruct( &pystruct);
 			break;
 		}
@@ -765,7 +716,28 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 	return rt;
 }
 
-
+static PyObject* papuga_python_create_tuple( PyObject** ar, size_t arsize, papuga_ErrorCode* errcode)
+{
+	PyObject* rt = PyTuple_New( arsize);
+	if (rt)
+	{
+		size_t ei = 0, ee = arsize;
+		for (; ei != ee; ++ei)
+		{
+			if (0>PyTuple_SetItem( rt, ei, ar[ei]))
+			{
+				*errcode = papuga_NoMemError;
+				break;
+			}
+		}
+		if (ei != ee)
+		{
+			_PyTuple_Resize( &rt, 0);
+			rt = NULL;
+		}
+	}
+	return rt;
+}
 
 DLL_PUBLIC int papuga_python_init(void)
 {
@@ -887,11 +859,34 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_CallArgs* as, PyObject* args
 
 DLL_PUBLIC PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
-	PyObject* rt = createPyObjectFromVariant( &retval->allocator, &retval->value, cemap, errcode);
+	PyObject* rt = 0;
+	PyObject* ar[ papuga_MAX_NOF_RETURNS];
+	size_t ai = 0, ae = retval->nofvalues;
+	for (;ai != ae; ++ai)
+	{
+		ar[ai] = createPyObjectFromVariant( &retval->allocator, &retval->valuear[ai], cemap, errcode);
+		if (!ar[ai])
+		{
+			papuga_destroy_CallResult( retval);
+			return NULL;
+		}
+	}
+	if (ai > 1)
+	{
+		rt = papuga_python_create_tuple( ar, ae, errcode);
+	}
+	else if (ai == 1)
+	{
+		rt = ar[ 0];
+	}
+	else
+	{
+		Py_INCREF( Py_None);
+		rt = Py_None;
+	}
 	papuga_destroy_CallResult( retval);
 	return rt;
 }
-
 
 DLL_PUBLIC void papuga_python_error( const char* msg, ...)
 {
