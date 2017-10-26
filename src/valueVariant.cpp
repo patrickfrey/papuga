@@ -20,10 +20,8 @@
 #endif
 #include <inttypes.h>
 
-#define PRINT_FORMAT_UINT "%" PRIu64
 #define PRINT_FORMAT_INT "%" PRId64
 #define PRINT_FORMAT_DOUBLE "%.15g"
-#define SCAN_FORMAT_UINT "%" PRIu64
 #define SCAN_FORMAT_INT "%" PRId64
 #define SCAN_FORMAT_DOUBLE "%lf"
 
@@ -279,7 +277,7 @@ static char* any_langstring_toascii( papuga_StringEncoding enc, char* destbuf, s
 	}
 }
 
-enum NumericType {NumericDouble,NumericInt,NumericUInt,NumericNone};
+enum NumericType {NumericDouble,NumericInt,NumericNone};
 template <class LANGCHARSET>
 static NumericType langstring_tonumstr( char* destbuf, size_t destbufsize, const char* str, size_t strsize)
 {
@@ -301,7 +299,7 @@ static NumericType langstring_tonumstr( char* destbuf, size_t destbufsize, const
 	}
 	else if (chr >= '0' && chr <= '9')
 	{
-		rt = NumericUInt;
+		rt = NumericInt;
 	}
 	else
 	{
@@ -400,16 +398,6 @@ static bool numstr_to_variant( papuga_ValueVariant* value, NumericType numtype, 
 			papuga_init_ValueVariant_int( value, val);
 			return true;
 		}
-		case NumericUInt:
-		{
-			papuga_UInt val;
-			if (std::sscanf( numstr, SCAN_FORMAT_UINT, &val) < 1)
-			{
-				return false;
-			}
-			papuga_init_ValueVariant_uint( value, val);
-			return true;
-		}
 		case NumericNone:
 			break;
 	}
@@ -425,10 +413,6 @@ static bool bufprint_number_variant( char* buf, std::size_t bufsize, std::size_t
 	else if (value->valuetype == papuga_TypeInt)
 	{
 		len = snprintf( buf, bufsize, PRINT_FORMAT_INT, value->value.Int);
-	}
-	else if (value->valuetype == papuga_TypeUInt)
-	{
-		len = snprintf( buf, bufsize, PRINT_FORMAT_UINT, value->value.UInt);
 	}
 	else if (value->valuetype == papuga_TypeBool)
 	{
@@ -678,11 +662,6 @@ extern "C" const void* papuga_ValueVariant_toblob( const papuga_ValueVariant* va
 			*len = sizeof(value->value.Double);
 			return (const unsigned char*)&value->value.Double;
 		}
-		else if ((papuga_Type)value->valuetype == papuga_TypeUInt)
-		{
-			*len = sizeof(value->value.UInt);
-			return (const unsigned char*)&value->value.UInt;
-		}
 		else if ((papuga_Type)value->valuetype == papuga_TypeInt)
 		{
 			*len = sizeof(value->value.Int);
@@ -725,15 +704,6 @@ extern "C" int64_t papuga_ValueVariant_toint( const papuga_ValueVariant* value, 
 		if (value->valuetype == papuga_TypeInt)
 		{
 			return value->value.Int;
-		}
-		else if (value->valuetype == papuga_TypeUInt)
-		{
-			if (value->value.UInt > (papuga_UInt)std::numeric_limits<papuga_Int>::max())
-			{
-				*err = papuga_OutOfRangeError;
-				return 0;
-			}
-			return value->value.UInt;
 		}
 		else if (value->valuetype == papuga_TypeBool)
 		{
@@ -798,11 +768,7 @@ extern "C" uint64_t papuga_ValueVariant_touint( const papuga_ValueVariant* value
 
 	if (papuga_ValueVariant_isatomic( value))
 	{
-		if (value->valuetype == papuga_TypeUInt)
-		{
-			return value->value.UInt;
-		}
-		else if (value->valuetype == papuga_TypeInt)
+		if (value->valuetype == papuga_TypeInt)
 		{
 			if (value->value.Int < 0)
 			{
@@ -817,7 +783,7 @@ extern "C" uint64_t papuga_ValueVariant_touint( const papuga_ValueVariant* value
 		}
 		else if (value->valuetype == papuga_TypeDouble)
 		{
-			if (value->value.Double > std::numeric_limits<papuga_UInt>::max()
+			if (value->value.Double > std::numeric_limits<papuga_Int>::max()
 			||  value->value.Double < 0.0)
 			{
 				*err = papuga_OutOfRangeError;
@@ -872,10 +838,6 @@ extern "C" double papuga_ValueVariant_todouble( const papuga_ValueVariant* value
 		{
 			return value->value.Double;
 		}
-		else if (value->valuetype == papuga_TypeUInt)
-		{
-			return value->value.UInt;
-		}
 		else if (value->valuetype == papuga_TypeInt)
 		{
 			return value->value.Int;
@@ -929,11 +891,7 @@ extern "C" bool papuga_ValueVariant_tobool( const papuga_ValueVariant* value, pa
 
 	if (papuga_ValueVariant_isatomic( value))
 	{
-		if (value->valuetype == papuga_TypeUInt)
-		{
-			return !!value->value.UInt;
-		}
-		else if (value->valuetype == papuga_TypeInt)
+		if (value->valuetype == papuga_TypeInt)
 		{
 			return !!value->value.Int;
 		}
@@ -988,12 +946,7 @@ extern "C" papuga_ValueVariant* papuga_ValueVariant_tonumeric( const papuga_Valu
 	{
 		if (papuga_ValueVariant_isnumeric( value))
 		{
-			if (value->valuetype == papuga_TypeUInt)
-			{
-				papuga_init_ValueVariant_uint( res, value->value.UInt);
-				return res;
-			}
-			else if (value->valuetype == papuga_TypeInt)
+			if (value->valuetype == papuga_TypeInt)
 			{
 				papuga_init_ValueVariant_int( res, value->value.Int);
 				return res;
@@ -1057,7 +1010,6 @@ extern "C" const char* papuga_Type_name( papuga_Type type)
 	{
 		case papuga_TypeVoid: return "Void";
 		case papuga_TypeDouble: return "Double";
-		case papuga_TypeUInt: return "UInt";
 		case papuga_TypeInt: return "Int";
 		case papuga_TypeBool: return "Bool";
 		case papuga_TypeString: return "String";

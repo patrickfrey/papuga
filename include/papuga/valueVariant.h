@@ -20,7 +20,7 @@ extern "C" {
 /*
 * @brief Mask for checking a variant value type for being numeric
 */
-#define papuga_NumericTypeMask	((1U<<(unsigned int)papuga_TypeUInt)|(1U<<(unsigned int)papuga_TypeInt)|(1U<<(unsigned int)papuga_TypeBool)|(1U<<(unsigned int)papuga_TypeDouble))
+#define papuga_NumericTypeMask	((1U<<(unsigned int)papuga_TypeInt)|(1U<<(unsigned int)papuga_TypeBool)|(1U<<(unsigned int)papuga_TypeDouble))
 
 /*
 * @brief Mask for checking a variant value type for being a string
@@ -51,13 +51,6 @@ extern "C" {
 * @param[in] val_ value to initialize structure with
 */
 #define papuga_init_ValueVariant_bool(self_,val_)		{papuga_ValueVariant* s = self_; s->valuetype = (unsigned char)papuga_TypeBool; s->encoding=0; s->_tag=0; s->length=0; s->value.Bool=!!(val_);}
-
-/*
-* @brief Variant value initializer as an unsigned integer value
-* @param[out] self_ pointer to structure 
-* @param[in] val_ value to initialize structure with
-*/
-#define papuga_init_ValueVariant_uint(self_,val_)		{papuga_ValueVariant* s = self_; s->valuetype = (unsigned char)papuga_TypeUInt; s->encoding=0; s->_tag=0; s->length=0; s->value.UInt=(val_);}
 
 /*
 * @brief Variant value initializer as a signed integer value

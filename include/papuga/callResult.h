@@ -41,14 +41,6 @@ void papuga_destroy_CallResult( papuga_CallResult* self);
 bool papuga_add_CallResult_int( papuga_CallResult* self, papuga_Int val);
 
 /*
-* @brief Add a return value of CallResult as unsigned int
-* @param[in,out] self pointer to structure
-* @param[in] val value to set as return value
-* @return true on success, false if too many return values defined
-*/
-bool papuga_add_CallResult_uint( papuga_CallResult* self, papuga_UInt val);
-
-/*
 * @brief Add a return value of CallResult as double precision floating point value
 * @param[in,out] self pointer to structure
 * @param[in] val value to set as return value

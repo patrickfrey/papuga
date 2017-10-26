@@ -22,7 +22,7 @@
 #define MAX_DOUBLE_INT            ((int64_t)1<<53)
 #define MIN_DOUBLE_INT           -((int64_t)1<<53)
 #define IS_CONVERTIBLE_TOINT( x)  ((x-floor(x) <= 2*DBL_EPSILON) && x < MAX_DOUBLE_INT && x > MIN_DOUBLE_INT)
-#define NUM_EPSILON               (2*DBL_EPSILON)
+#define NUM_EPSILON               (4*DBL_EPSILON)
 
 #define PAPUGA_DEEP_TYPE_CHECKING
 
@@ -223,13 +223,13 @@ static bool Serialization_pushName_number( papuga_Serialization* result, double 
 {
 	if (IS_CONVERTIBLE_TOINT( numval))
 	{
-		if (numval > 0.0)
+		if (numval < 0.0)
 		{
-			return papuga_Serialization_pushName_uint( result, (uint64_t)(numval + NUM_EPSILON));
+			return papuga_Serialization_pushName_int( result, (int64_t)(numval - NUM_EPSILON));
 		}
 		else
 		{
-			return papuga_Serialization_pushName_int( result, (int64_t)(numval - NUM_EPSILON));
+			return papuga_Serialization_pushName_int( result, (int64_t)(numval + NUM_EPSILON));
 		}
 	}
 	else
@@ -242,13 +242,13 @@ static bool Serialization_pushValue_number( papuga_Serialization* result, double
 {
 	if (IS_CONVERTIBLE_TOINT( numval))
 	{
-		if (numval > 0.0)
+		if (numval < 0.0)
 		{
-			return papuga_Serialization_pushValue_uint( result, (uint64_t)(numval + NUM_EPSILON));
+			return papuga_Serialization_pushValue_int( result, (int64_t)(numval - NUM_EPSILON));
 		}
 		else
 		{
-			return papuga_Serialization_pushValue_int( result, (int64_t)(numval - NUM_EPSILON));
+			return papuga_Serialization_pushValue_int( result, (int64_t)(numval + NUM_EPSILON));
 		}
 	}
 	else
@@ -261,13 +261,13 @@ static void init_ValueVariant_number( papuga_ValueVariant* result, double numval
 {
 	if (IS_CONVERTIBLE_TOINT( numval))
 	{
-		if (numval > 0.0)
+		if (numval < 0.0)
 		{
-			papuga_init_ValueVariant_uint( result, (uint64_t)(numval + NUM_EPSILON));
+			papuga_init_ValueVariant_int( result, (int64_t)(numval - NUM_EPSILON));
 		}
 		else
 		{
-			papuga_init_ValueVariant_int( result, (int64_t)(numval - NUM_EPSILON));
+			papuga_init_ValueVariant_int( result, (int64_t)(numval + NUM_EPSILON));
 		}
 	}
 	else
@@ -455,9 +455,6 @@ static void deserialize_key( papuga_ValueVariant* item, lua_State *ls)
 		case papuga_TypeDouble:
 			lua_pushnumber( ls, item->value.Double);
 			break;
-		case papuga_TypeUInt:
-			lua_pushinteger( ls, item->value.UInt);
-			break;
 		case papuga_TypeInt:
 			lua_pushinteger( ls, item->value.Int);
 			break;
@@ -495,9 +492,6 @@ static void deserialize_value( papuga_CallResult* retval, const papuga_ValueVari
 			break;
 		case papuga_TypeDouble:
 			lua_pushnumber( ls, item->value.Double);
-			break;
-		case papuga_TypeUInt:
-			lua_pushinteger( ls, item->value.UInt);
 			break;
 		case papuga_TypeInt:
 			lua_pushinteger( ls, item->value.Int);
@@ -778,9 +772,6 @@ DLL_PUBLIC int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* ret
 				break;
 			case papuga_TypeDouble:
 				lua_pushnumber( ls, retval->valuear[ ni].value.Double);
-				break;
-			case papuga_TypeUInt:
-				lua_pushnumber( ls, retval->valuear[ ni].value.UInt);
 				break;
 			case papuga_TypeInt:
 				lua_pushinteger( ls, retval->valuear[ ni].value.Int);

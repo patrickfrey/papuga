@@ -569,14 +569,6 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 		case papuga_TypeDouble:
 			rt = PyFloat_FromDouble( value->value.Double);
 			break;
-		case papuga_TypeUInt:
-			if (value->value.UInt > LONG_MAX)
-			{
-				*errcode = papuga_OutOfRangeError;
-				return NULL;
-			}
-			rt = PyLong_FromLong( value->value.UInt);
-			break;
 		case papuga_TypeInt:
 			if (value->value.Int > LONG_MAX || value->value.Int < LONG_MIN)
 			{

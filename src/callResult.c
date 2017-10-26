@@ -45,13 +45,6 @@ bool papuga_add_CallResult_int( papuga_CallResult* self, papuga_Int val)
 	return true;
 }
 
-bool papuga_add_CallResult_uint( papuga_CallResult* self, papuga_UInt val)
-{
-	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;
-	papuga_init_ValueVariant_uint( &self->valuear[ self->nofvalues++], val);
-	return true;
-}
-
 bool papuga_add_CallResult_double( papuga_CallResult* self, double val)
 {
 	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;

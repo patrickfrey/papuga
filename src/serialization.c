@@ -130,9 +130,6 @@ bool papuga_Serialization_pushName_langstring( papuga_Serialization* self, papug
 bool papuga_Serialization_pushName_int( papuga_Serialization* self, int64_t name)
 	{PUSH_NODE_1(self,papuga_TagName,papuga_init_ValueVariant_int,name)}
 
-bool papuga_Serialization_pushName_uint( papuga_Serialization* self, uint64_t name)
-	{PUSH_NODE_1(self,papuga_TagName,papuga_init_ValueVariant_uint,name)}
-
 bool papuga_Serialization_pushName_double( papuga_Serialization* self, double name)
 	{PUSH_NODE_1(self,papuga_TagName,papuga_init_ValueVariant_double,name)}
 
@@ -157,9 +154,6 @@ bool papuga_Serialization_pushValue_langstring( papuga_Serialization* self, papu
 
 bool papuga_Serialization_pushValue_int( papuga_Serialization* self, int64_t value)
 	{PUSH_NODE_1(self,papuga_TagValue,papuga_init_ValueVariant_int,value)}
-
-bool papuga_Serialization_pushValue_uint( papuga_Serialization* self, uint64_t value)
-	{PUSH_NODE_1(self,papuga_TagValue,papuga_init_ValueVariant_uint,value)}
 
 bool papuga_Serialization_pushValue_double( papuga_Serialization* self, double value)
 	{PUSH_NODE_1(self,papuga_TagValue,papuga_init_ValueVariant_double,value)}

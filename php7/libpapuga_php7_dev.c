@@ -397,11 +397,8 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 		case papuga_TypeDouble:
 			RETVAL_DOUBLE( value->value.Double);
 			break;
-		case papuga_TypeUInt:
-			RETVAL_LONG( value->value.UInt);
-			break;
 		case papuga_TypeInt:
-			RETVAL_LONG( value->value.UInt);
+			RETVAL_LONG( value->value.Int);
 			break;
 		case papuga_TypeBool:
 			if (value->value.Bool)
@@ -533,10 +530,10 @@ static bool zval_structure_addnode( zval* structure, papuga_Allocator* allocator
 		if (papuga_ValueVariant_isnumeric( name))
 		{
 			papuga_ErrorCode errcode = papuga_Ok;
-			uint64_t index = papuga_ValueVariant_touint( name, &errcode);
+			int64_t index = papuga_ValueVariant_toint( name, &errcode);
 			if (!index && errcode != papuga_Ok)
 			{
-				papuga_ErrorBuffer_reportError( errbuf, "cannot build uint index for key in serialization: %s", papuga_ErrorCode_tostring( errcode));
+				papuga_ErrorBuffer_reportError( errbuf, "cannot build int index for key in serialization: %s", papuga_ErrorCode_tostring( errcode));
 				return false;
 			}
 			add_index_zval( structure, index, value);

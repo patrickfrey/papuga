@@ -105,14 +105,6 @@ bool papuga_Serialization_pushName_langstring( papuga_Serialization* self, papug
 bool papuga_Serialization_pushName_int( papuga_Serialization* self, int64_t name);
 
 /*
-* @brief Add a 'name' element as an unsigned signed integer to the serialization
-* @param[in,out] self pointer to structure 
-* @param[in] name numeric name value of the added node
-* @return true on success, false on memory allocation error
-*/
-bool papuga_Serialization_pushName_uint( papuga_Serialization* self, uint64_t name);
-
-/*
 * @brief Add a 'name' element as a double precision floating point value to the serialization
 * @param[in,out] self pointer to structure 
 * @param[in] name numeric name value of the added node
@@ -169,14 +161,6 @@ bool papuga_Serialization_pushValue_langstring( papuga_Serialization* self, papu
 * @return true on success, false on memory allocation error
 */
 bool papuga_Serialization_pushValue_int( papuga_Serialization* self, int64_t value);
-
-/*
-* @brief Add a 'value' element as an unsigned signed integer to the serialization
-* @param[in,out] self pointer to structure 
-* @param[in] value numeric value of the added node
-* @return true on success, false on memory allocation error
-*/
-bool papuga_Serialization_pushValue_uint( papuga_Serialization* self, uint64_t value);
 
 /*
 * @brief Add a 'value' element as a double precision floating point value to the serialization
