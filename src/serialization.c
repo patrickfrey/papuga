@@ -124,8 +124,8 @@ bool papuga_Serialization_pushName_string( papuga_Serialization* self, const cha
 bool papuga_Serialization_pushName_charp( papuga_Serialization* self, const char* name)
 	{PUSH_NODE_1(self,papuga_TagName,papuga_init_ValueVariant_charp,name)}
 
-bool papuga_Serialization_pushName_langstring( papuga_Serialization* self, papuga_StringEncoding enc, const char* name, int namelen)
-	{PUSH_NODE_3(self,papuga_TagName,papuga_init_ValueVariant_langstring,enc,name,namelen)}
+bool papuga_Serialization_pushName_string_enc( papuga_Serialization* self, papuga_StringEncoding enc, const void* name, int namelen)
+	{PUSH_NODE_3(self,papuga_TagName,papuga_init_ValueVariant_string_enc,enc,name,namelen)}
 
 bool papuga_Serialization_pushName_int( papuga_Serialization* self, int64_t name)
 	{PUSH_NODE_1(self,papuga_TagName,papuga_init_ValueVariant_int,name)}
@@ -149,8 +149,8 @@ bool papuga_Serialization_pushValue_string( papuga_Serialization* self, const ch
 bool papuga_Serialization_pushValue_charp( papuga_Serialization* self, const char* value)
 	{PUSH_NODE_1(self,papuga_TagValue,papuga_init_ValueVariant_charp,value)}
 
-bool papuga_Serialization_pushValue_langstring( papuga_Serialization* self, papuga_StringEncoding enc, const char* value, int valuelen)
-	{PUSH_NODE_3(self,papuga_TagValue,papuga_init_ValueVariant_langstring,enc,value,valuelen)}
+bool papuga_Serialization_pushValue_string_enc( papuga_Serialization* self, papuga_StringEncoding enc, const void* value, int valuelen)
+	{PUSH_NODE_3(self,papuga_TagValue,papuga_init_ValueVariant_string_enc,enc,value,valuelen)}
 
 bool papuga_Serialization_pushValue_int( papuga_Serialization* self, int64_t value)
 	{PUSH_NODE_1(self,papuga_TagValue,papuga_init_ValueVariant_int,value)}

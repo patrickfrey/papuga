@@ -102,7 +102,7 @@ public:
 		:m_str(o.m_str)
 	{
 		std::memcpy( &m_val, &o.m_val, sizeof(m_val));
-		if (m_val.valuetype == papuga_TypeString || m_val.valuetype == papuga_TypeLangString)
+		if (m_val.valuetype == papuga_TypeString)
 		{
 			m_val.value.string = m_str.c_str();
 		}

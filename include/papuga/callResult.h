@@ -109,14 +109,14 @@ bool papuga_add_CallResult_charp( papuga_CallResult* self, const char* val);
 bool papuga_add_CallResult_charp_copy( papuga_CallResult* self, const char* val);
 
 /*
-* @brief Define value of CallResult as unicode string reference
+* @brief Define value of CallResult as string reference with character set encoding specified
 * @param[in,out] self pointer to structure
 * @param[in] enc character set encoding of the string
 * @param[in] val value to set as return value
 * @param[in] valsize size of value in character units (the number if bytes is depending on the encoding)
 * @return true on success, false if too many return values defined
 */
-void papuga_add_CallResult_langstring( papuga_CallResult* self, papuga_StringEncoding enc, const void* val, size_t valsize);
+bool papuga_add_CallResult_string_enc( papuga_CallResult* self, papuga_StringEncoding enc, const void* val, size_t valsize);
 
 /*
 * @brief Define value of CallResult as host object with ownership

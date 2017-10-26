@@ -56,10 +56,6 @@ typedef struct papuga_ErrorBuffer
 /*
 * @brief Forward declaration
 */
-typedef struct papuga_LangString papuga_LangString;
-/*
-* @brief Forward declaration
-*/
 typedef struct papuga_HostObject papuga_HostObject;
 /*
 * @brief Forward declaration
@@ -82,11 +78,10 @@ typedef enum papuga_Type {
 	papuga_TypeDouble		= 0x01,			/*< double precision floating point value (C double) */
 	papuga_TypeInt			= 0x02,			/*< signed integer value (maximum width 64 bits) */
 	papuga_TypeBool			= 0x03,			/*< boolean value */
-	papuga_TypeString		= 0x04,			/*< host environment string (null-terminated UTF-8) */
-	papuga_TypeLangString		= 0x05,			/*< bindings language string (string with a defined encoding - papuga_StringEncoding) */
-	papuga_TypeHostObject		= 0x06,			/*< class object defined in the host environment, part of the interface */
-	papuga_TypeSerialization	= 0x07,			/*< serialization of an object constructed in the binding language */
-	papuga_TypeIterator		= 0x08			/*< iterator closure */
+	papuga_TypeString		= 0x04,			/*< string (encoding defined as papuga_StringEncoding in the papuga_ValueVariant structure) */
+	papuga_TypeHostObject		= 0x05,			/*< class object defined in the host environment, part of the interface */
+	papuga_TypeSerialization	= 0x06,			/*< serialization of an object constructed in the binding language */
+	papuga_TypeIterator		= 0x07			/*< iterator closure */
 } papuga_Type;
 
 /*
@@ -99,7 +94,7 @@ typedef int64_t papuga_Int;
 typedef double papuga_Float;
 
 /*
-* @brief Enumeration of character set encodings used for strings defined in the binding language (papuga_LangString)
+* @brief Enumeration of character set encodings used for strings (papuga_TypeString)
 */
 typedef enum papuga_StringEncoding {
 	papuga_UTF8,						/*< Unicode UTF-8 encoding */
@@ -136,23 +131,12 @@ typedef struct papuga_ValueVariant
 		double Double;					/*< double precision floating point value */
 		int64_t Int;					/*< signed integer value */
 		bool Bool;					/*< boolean value */
-		const char* string;				/*< null terminated UTF-8 string (host string representation) */
-		const void* langstring;				/*< string value (not nessesarily null terminated) for other character set encodings (binding language string representation) */
+		const char* string;				/*< string (not nessesarily null terminated), encoding defined in papuga_ValueVariant::encoding */
 		papuga_HostObject* hostObject;			/*< reference of an object represented in the host environment */
 		papuga_Serialization* serialization;		/*< reference of an object serialization */
 		papuga_Iterator* iterator;			/*< reference of an iterator closure */
 	} value;
 } papuga_ValueVariant;
-
-/*
-* @brief String defined in the binding language
-*/
-struct papuga_LangString
-{
-	papuga_StringEncoding encoding;				/*< specifies the encoding of this langstring type */
-	int length;						/*< length of the langstring in items (UTF-8 item length = 1, UTF-16 item length = 2, etc.) */
-	void* ptr;						/*< pointer to array of characters of the string */
-};
 
 /*
 * @brief Destructor function of an object

@@ -87,14 +87,14 @@ bool papuga_Serialization_pushName_string( papuga_Serialization* self, const cha
 bool papuga_Serialization_pushName_charp( papuga_Serialization* self, const char* name);
 
 /*
-* @brief Add a 'name' element as a unicode string to the serialization
+* @brief Add a 'name' element as a string in a specified encoding to the serialization
 * @param[in,out] self pointer to structure 
 * @param[in] enc character set encoding of the name of the added node
 * @param[in] name pointer to name of the added node
-* @param[in] namelen length of the name of the added node in bytes
+* @param[in] namelen length of the name of the added node in character units (bytes in UTF-8, 16bit ints for UTF-16, etc.)
 * @return true on success, false on memory allocation error
 */
-bool papuga_Serialization_pushName_langstring( papuga_Serialization* self, papuga_StringEncoding enc, const char* name, int namelen);
+bool papuga_Serialization_pushName_string_enc( papuga_Serialization* self, papuga_StringEncoding enc, const void* name, int namelen);
 
 /*
 * @brief Add a 'name' element as a signed integer to the serialization
@@ -137,7 +137,7 @@ bool papuga_Serialization_pushValue_void( papuga_Serialization* self);
 bool papuga_Serialization_pushValue_string( papuga_Serialization* self, const char* value, int valuelen);
 
 /*
-* @brief Add a 'value' element as an UTF-8 string to the serialization
+* @brief Add a 'value' element as a null terminated UTF-8 string to the serialization
 * @param[in,out] self pointer to structure 
 * @param[in] value pointer to value of the added node
 * @return true on success, false on memory allocation error
@@ -145,14 +145,14 @@ bool papuga_Serialization_pushValue_string( papuga_Serialization* self, const ch
 bool papuga_Serialization_pushValue_charp( papuga_Serialization* self, const char* value);
 
 /*
-* @brief Add a 'value' element as a unicode string to the serialization
+* @brief Add a 'value' element as a string in a specified encoding to the serialization
 * @param[in,out] self pointer to structure 
 * @param[in] enc character set encoding of the value of the added node
 * @param[in] value pointer to value of the added node
-* @param[in] valuelen length of the value of the added node in bytes
+* @param[in] valuelen length of the value of the added node in character units (bytes in UTF-8, 16bit ints for UTF-16, etc.)
 * @return true on success, false on memory allocation error
 */
-bool papuga_Serialization_pushValue_langstring( papuga_Serialization* self, papuga_StringEncoding enc, const char* value, int valuelen);
+bool papuga_Serialization_pushValue_string_enc( papuga_Serialization* self, papuga_StringEncoding enc, const void* value, int valuelen);
 
 /*
 * @brief Add a 'value' element as a signed integer to the serialization

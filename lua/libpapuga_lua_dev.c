@@ -445,6 +445,32 @@ static bool serialize_root( papuga_CallArgs* as, lua_State *ls, int li)
 
 static void deserialize_root( papuga_CallResult* retval, papuga_Serialization* ser, lua_State *ls, const papuga_lua_ClassNameMap* classnamemap);
 
+static void push_string( const papuga_ValueVariant* item, lua_State *ls, const char* context)
+{
+	if (item->encoding == papuga_UTF8 || item->encoding == papuga_Binary)
+	{
+		lua_pushlstring( ls, item->value.string, item->length);
+	}
+	else
+	{
+		papuga_ErrorCode err = papuga_Ok;
+		papuga_Allocator allocator;
+		size_t len = 0;
+		const char* str;
+
+		papuga_init_Allocator( &allocator, 0, 0);
+		str = papuga_ValueVariant_tostring( item, &allocator, &len, &err);
+		if (!str)
+		{
+			papuga_destroy_Allocator( &allocator);
+			papuga_lua_error( ls, "deserialize result (value)", err);
+		}
+		/* MEMORY LEAK ON ERROR: allocator not freed if lua_pushlstring fails */
+		lua_pushlstring( ls, str, len);
+		papuga_destroy_Allocator( &allocator);
+	}
+}
+
 static void deserialize_key( papuga_ValueVariant* item, lua_State *ls)
 {
 	switch (item->valuetype)
@@ -462,24 +488,14 @@ static void deserialize_key( papuga_ValueVariant* item, lua_State *ls)
 			lua_pushboolean( ls, item->value.Bool);
 			break;
 		case papuga_TypeString:
-			lua_pushlstring( ls, item->value.string, item->length);
-			break;
-		case papuga_TypeLangString:
-			if (item->encoding == papuga_UTF8 || item->encoding == papuga_Binary)
-			{
-				lua_pushlstring( ls, item->value.langstring, item->length);
-			}
-			else
-			{
-				papuga_lua_error( ls, "deserialize result", papuga_TypeError);
-			}
+			push_string( item, ls, "deserialize result (key)");
 			break;
 		case papuga_TypeSerialization:
 		case papuga_TypeHostObject:
-			papuga_lua_error( ls, "deserialize result", papuga_TypeError);
+			papuga_lua_error( ls, "deserialize result (key)", papuga_TypeError);
 		case papuga_TypeIterator:
 		default:
-			papuga_lua_error( ls, "deserialize result", papuga_NotImplemented);
+			papuga_lua_error( ls, "deserialize result (key)", papuga_NotImplemented);
 	}
 }
 
@@ -500,17 +516,7 @@ static void deserialize_value( papuga_CallResult* retval, const papuga_ValueVari
 			lua_pushboolean( ls, item->value.Bool);
 			break;
 		case papuga_TypeString:
-			lua_pushlstring( ls, item->value.string, item->length);
-			break;
-		case papuga_TypeLangString:
-			if (item->encoding == papuga_UTF8 || item->encoding == papuga_Binary)
-			{
-				lua_pushlstring( ls, item->value.langstring, item->length);
-			}
-			else
-			{
-				papuga_lua_error( ls, "deserialize result", papuga_TypeError);
-			}
+			push_string( item, ls, "deserialize result (value)");
 			break;
 		case papuga_TypeHostObject:
 		{
@@ -519,7 +525,7 @@ static void deserialize_value( papuga_CallResult* retval, const papuga_ValueVari
 			const char* cname = get_classname( classnamemap, obj->classid);
 			if (!cname)
 			{
-				papuga_lua_error( ls, "deserialize result", papuga_LogicError);
+				papuga_lua_error( ls, "deserialize result (value)", papuga_LogicError);
 			}
 			/* MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when papuga_lua_new_userdata fails because of a memory allocation error */
 			udata = papuga_lua_new_userdata( ls, cname);
@@ -540,7 +546,7 @@ static void deserialize_value( papuga_CallResult* retval, const papuga_ValueVari
 			break;
 		}
 		default:
-			papuga_lua_error( ls, "deserialize result", papuga_NotImplemented);
+			papuga_lua_error( ls, "deserialize result (value)", papuga_NotImplemented);
 	}
 }
 
@@ -780,10 +786,6 @@ DLL_PUBLIC int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* ret
 				lua_pushboolean( ls, retval->valuear[ ni].value.Bool);
 				break;
 			case papuga_TypeString:
-				/* MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when lua_pushlstring fails because of a memory allocation error */
-				lua_pushlstring( ls, retval->valuear[ ni].value.string, retval->valuear[ ni].length);
-				break;
-			case papuga_TypeLangString:
 			{
 				size_t strsize;
 				const char* str = papuga_ValueVariant_tostring( &retval->valuear[ ni], &retval->allocator, &strsize, errcode);

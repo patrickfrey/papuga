@@ -124,10 +124,10 @@ bool papuga_add_CallResult_charp( papuga_CallResult* self, const char* val)
 	return true;
 }
 
-bool papuga_add_CallResult_langstring_const( papuga_CallResult* self, papuga_StringEncoding enc, const void* val, size_t valsize)
+bool papuga_add_CallResult_string_enc( papuga_CallResult* self, papuga_StringEncoding enc, const void* val, size_t valsize)
 {
 	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;
-	papuga_init_ValueVariant_langstring( &self->valuear[ self->nofvalues++], enc, val, valsize);
+	papuga_init_ValueVariant_string_enc( &self->valuear[ self->nofvalues++], enc, val, valsize);
 	return true;
 }
 

@@ -52,17 +52,6 @@ static int calcIteratorCheckSum( const papuga_python_IteratorObject* iobj)
 	return (int)(unsigned int)(((uintptr_t)iobj->impl.data+107) * KNUTH_HASH) ^ (uintptr_t)iobj->impl.destroy ^ ((uintptr_t)iobj->impl.getNext << 6) ^ ((uintptr_t)(iobj->cemap) << 3);
 }
 
-static bool isLittleEndian()
-{
-	union
-	{
-		char data[2];
-		short val;
-	} u;
-	u.val = 1;
-	return (bool)u.data[0];
-}
-
 static papuga_python_ClassObject* getClassObject( PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	papuga_python_ClassObject* cobj;
@@ -591,8 +580,24 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 			break;
 		case papuga_TypeString:
 		{
-			rt = PyUnicode_FromStringAndSize( value->value.string, value->length);
-			if (rt == 0)
+			if ((papuga_StringEncoding)value->encoding == papuga_UTF8)
+			{
+				rt = PyUnicode_FromStringAndSize( value->value.string, value->length);
+			}
+			else
+			{
+				size_t len;
+				const char* str = papuga_ValueVariant_tostring( value, allocator, &len, errcode);
+				if (!str)
+				{
+					return NULL;
+				}
+				else
+				{
+					rt = PyUnicode_FromStringAndSize( str, len);
+				}
+			}
+			if (rt == NULL)
 			{
 				/* check if malloc is possible to guess the error cause: */
 				void* mem = malloc( value->length+1);
@@ -601,71 +606,6 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 					free( mem);
 					*errcode = papuga_EncodingError;
 					/* ... PF:HACK: This might not always work, implements sane encoding error checking later */
-				}
-			}
-			break;
-		}
-		case papuga_TypeLangString:
-		{
-			if (isLittleEndian())
-			{
-				switch ((papuga_StringEncoding)value->encoding)
-				{
-					case papuga_UTF8:
-						rt = PyUnicode_FromStringAndSize( value->value.langstring, value->length);
-						break;
-					case papuga_UTF16BE:
-					case papuga_UTF32BE:
-					{
-						size_t len;
-						const char* str = papuga_ValueVariant_tostring( value, allocator, &len, errcode);
-						if (!str) return false;
-						rt = PyUnicode_FromStringAndSize( str, len);
-						break;
-					}
-					case papuga_UTF16LE:
-					case papuga_UTF16:
-						rt = PyUnicode_FromKindAndData( PyUnicode_2BYTE_KIND, value->value.langstring, value->length);
-						break;
-					case papuga_UTF32LE:
-					case papuga_UTF32:
-						rt = PyUnicode_FromKindAndData( PyUnicode_4BYTE_KIND, value->value.langstring, value->length);
-						break;
-					case papuga_Binary:
-						rt = PyBytes_FromStringAndSize( value->value.langstring, value->length);
-						break;
-				}
-			}
-			else
-			{
-				switch ((papuga_StringEncoding)value->encoding)
-				{
-					case papuga_UTF8:
-						rt = PyUnicode_FromStringAndSize( value->value.string, value->length);
-						break;
-					case papuga_UTF16LE:
-					case papuga_UTF32LE:
-					{
-						size_t len;
-						const char* str = papuga_ValueVariant_tostring( value, allocator, &len, errcode);
-						if (!str) return false;
-						rt = PyUnicode_FromStringAndSize( str, len);
-						break;
-					}
-					case papuga_UTF16BE:
-					case papuga_UTF16:
-						rt = PyUnicode_FromKindAndData( PyUnicode_2BYTE_KIND, value->value.langstring, value->length);
-						break;
-					case papuga_UTF32BE:
-					case papuga_UTF32:
-						rt = PyUnicode_FromKindAndData( PyUnicode_4BYTE_KIND, value->value.langstring, value->length);
-						break;
-					case papuga_Binary:
-						rt = PyBytes_FromStringAndSize( value->value.langstring, value->length);
-						break;
-					default:
-						*errcode = papuga_NotImplemented;
-						return NULL;
 				}
 			}
 			break;

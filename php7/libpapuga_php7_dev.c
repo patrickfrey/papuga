@@ -411,16 +411,6 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 			}
 			break;
 		case papuga_TypeString:
-			if (value->length)
-			{
-				RETVAL_STRINGL( value->value.string, value->length);
-			}
-			else
-			{
-				RETVAL_EMPTY_STRING();
-			}
-			break;
-		case papuga_TypeLangString:
 		{
 			if (value->length)
 			{
@@ -429,7 +419,7 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 				const char* str;
 				if (value->encoding == papuga_UTF8 || value->encoding == papuga_Binary)
 				{
-					str = (const char*)value->value.langstring;
+					str = value->value.string;
 					strsize = value->length;
 				}
 				else

@@ -25,7 +25,7 @@ extern "C" {
 /*
 * @brief Mask for checking a variant value type for being a string
 */
-#define papuga_StringTypeMask	((1U<<(unsigned int)papuga_TypeString) | (1U<<(unsigned int)papuga_TypeLangString))
+#define papuga_StringTypeMask	(1U<<(unsigned int)papuga_TypeString)
 
 /*
 * @brief Mask for checking a variant value type for being atomic (numeric or a string)
@@ -64,7 +64,7 @@ extern "C" {
 * @param[out] self_ pointer to structure 
 * @param[in] val_ value to initialize structure with
 */
-#define papuga_init_ValueVariant_blob(self_,val_,sz_)		{papuga_ValueVariant* s = self_; s->valuetype = (unsigned char)papuga_TypeLangString; s->encoding=papuga_Binary; s->_tag=0; s->length=(sz_); s->value.langstring=(val_);}
+#define papuga_init_ValueVariant_blob(self_,val_,sz_)		{papuga_ValueVariant* s = self_; s->valuetype = (unsigned char)papuga_TypeString; s->encoding=papuga_Binary; s->_tag=0; s->length=(sz_); s->value.string=(const char*)(val_);}
 
 /*
 * @brief Variant value initializer as c string (UTF-8) reference
@@ -85,7 +85,7 @@ extern "C" {
 * @param[out] self_ pointer to structure 
 * @param[in] val_ value to initialize structure with
 */
-#define papuga_init_ValueVariant_langstring(self_,enc_,val_,sz_){papuga_ValueVariant* s = self_; s->valuetype = (unsigned char)papuga_TypeLangString; s->encoding=(enc_); s->_tag=0; s->length=(sz_); s->value.langstring=(val_);}
+#define papuga_init_ValueVariant_string_enc(self_,enc_,val_,sz_){papuga_ValueVariant* s = self_; s->valuetype = (unsigned char)papuga_TypeString; s->encoding=(enc_); s->_tag=0; s->length=(sz_); s->value.string=(const char*)(val_);}
 
 /*
 * @brief Variant value initializer as a reference to a host object
@@ -144,26 +144,26 @@ extern "C" {
 #define papuga_ValueVariant_isstring(self_)			(0!=((1U << (self_)->valuetype) & papuga_StringTypeMask))
 
 /*
-* @brief Convert a value variant to a null terminated C-string
-* @param[in] self pointer to structure 
+* @brief Convert a value variant to an UTF-8 string with its length specified (not necessarily null terminated)
+* @param[in] self pointer to structure
 * @param[in,out] allocator allocator to use for deep copy of string
 * @param[out] len length of the string copied
 * @param[out] err error code in case of error (untouched if call succeeds)
-* @return the pointer to the result string
+* @return the pointer to the first character of the result string
 */
 const char* papuga_ValueVariant_tostring( const papuga_ValueVariant* self, papuga_Allocator* allocator, size_t* len, papuga_ErrorCode* err);
 
 /*
-* @brief Convert a value variant to a unicode string of a specific encoding
+* @brief Convert a value variant to a unicode string of a specific encoding using a static buffer with limited size
 * @param[in] self pointer to structure 
 * @param[in] enc encoding of the result string
 * @param[out] buf pointer to character buffer to use for deep copies
 * @param[in] bufsize allocation size of 'buf' in bytes
 * @param[out] len length of the string copied
 * @param[out] err error code in case of error (untouched if call succeeds)
-* @return the pointer to the result string
+* @return the pointer to the result string or NULL in case of an error (conversion error or the result buffer allocation size is too small)
 */
-const void* papuga_ValueVariant_tolangstring( const papuga_ValueVariant* self, papuga_StringEncoding enc, void* buf, size_t bufsize, size_t* len, papuga_ErrorCode* err);
+const void* papuga_ValueVariant_tostring_enc( const papuga_ValueVariant* self, papuga_StringEncoding enc, void* buf, size_t bufsize, size_t* len, papuga_ErrorCode* err);
 
 /*
 * @brief Convert a value variant to a binary blob
@@ -184,7 +184,7 @@ const void* papuga_ValueVariant_toblob( const papuga_ValueVariant* self, papuga_
 int64_t papuga_ValueVariant_toint( const papuga_ValueVariant* self, papuga_ErrorCode* err);
 
 /*
-* @brief Convert a value variant to an unsigned integer
+* @brief Convert a value variant to an unsigned integer with a maximum size of std::numeric_limits<int64_t>::max(), using only 63 bits !
 * @param[in] self pointer to structure 
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the result value in case the conversion succeeded
