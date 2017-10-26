@@ -126,7 +126,7 @@ typedef struct papuga_ValueVariant
 	uint8_t valuetype;					/*< casts to a papuga_Type */
 	uint8_t encoding;					/*< casts to a papuga_StringEncoding */
 	uint8_t _tag;						/*< private element tag used by papuga_Node in serialization */
-	int32_t length;						/*< length of a string in bytes */
+	uint32_t length;					/*< length of a string in bytes */
 	union {
 		double Double;					/*< double precision floating point value */
 		int64_t Int;					/*< signed integer value */

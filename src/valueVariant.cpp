@@ -369,11 +369,6 @@ static NumericType any_string_enc_tonumstr( papuga_StringEncoding enc, char* des
 	}
 }
 
-static NumericType string_tonumstr( char* destbuf, size_t destbufsize, const char* str, size_t strsize)
-{
-	return string_enc_tonumstr<textwolf::charset::UTF8>( destbuf, destbufsize, str, strsize);
-}
-
 static bool numstr_to_variant( papuga_ValueVariant* value, NumericType numtype, const char* numstr)
 {
 	switch (numtype)
