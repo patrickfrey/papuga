@@ -59,6 +59,13 @@ static ClassObject* getClassObject( zend_object* object)
 	return (ClassObject*)((char *)object - XtOffsetOf( ClassObject, zobj));
 }
 
+static ClassObject* getClassObjectVerified( zend_object* object, const papuga_php_ClassEntryMap* cemap)
+{
+	ClassObject* cobj = (ClassObject*)((char *)object - XtOffsetOf( ClassObject, zobj));
+	if (cobj->hobj.classid <= cemap->size && object->ce == (zend_class_entry*)cemap->ar[cobj->hobj.classid-1]) return cobj;
+	return NULL;
+}
+
 typedef struct IteratorObject {
 	papuga_Iterator iterator;
 	zval resultval;
@@ -184,18 +191,20 @@ DLL_PUBLIC void papuga_php_init()
 	initIteratorZendClassEntry();
 }
 
-static bool serializeMemberValue( papuga_Serialization* ser, zval* langval, papuga_ErrorCode* errcode);
+/* Forward declarations: */
+static bool serializeValue( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+static bool serializeMemberValue( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
-static bool serializeAssocArray( papuga_Serialization* ser, HashTable *hash, HashPosition* ptr, papuga_ErrorCode* errcode)
+static bool serializeRestAssocArray( papuga_Serialization* ser, HashTable *hash, HashPosition* ptr, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	bool rt = true;
 	zval *data;
 	zend_string *str_index;
 	zend_ulong num_index;
 
-	data = zend_hash_get_current_data_ex( hash, ptr);
-	for( ;0!=(data = zend_hash_get_current_data_ex( hash, ptr));
-		zend_hash_move_forward_ex( hash, ptr))
+	for( data = zend_hash_get_current_data_ex( hash, ptr);
+		data != NULL;
+		zend_hash_move_forward_ex( hash, ptr), data = zend_hash_get_current_data_ex( hash, ptr))
 	{
 		if (zend_hash_get_current_key_ex( hash, &str_index, &num_index, ptr) == HASH_KEY_IS_STRING)
 		{
@@ -205,16 +214,15 @@ static bool serializeAssocArray( papuga_Serialization* ser, HashTable *hash, Has
 		{
 			rt &= papuga_Serialization_pushName_int( ser, num_index);
 		}
-		rt &= serializeMemberValue( ser, data, errcode);
+		rt &= serializeMemberValue( ser, data, cemap, errcode);
 	}
 	return rt;
 }
 
-static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_ErrorCode* errcode)
+static bool serializeHashTable( papuga_Serialization* ser, HashTable *hash, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	bool rt = true;
 	zval *data;
-	HashTable *hash = Z_ARRVAL_P( langval);
 	HashPosition ptr;
 	zend_string *str_index;
 	zend_ulong num_index;
@@ -223,9 +231,9 @@ static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_Err
 	papuga_init_SerializationIter_last( &resultstart, ser);
 
 	for(
-		zend_hash_internal_pointer_reset_ex( hash, &ptr);
-		0!=(data=zend_hash_get_current_data_ex(hash,&ptr));
-		zend_hash_move_forward_ex(hash,&ptr))
+		zend_hash_internal_pointer_reset_ex( hash, &ptr), data = zend_hash_get_current_data_ex(hash,&ptr);
+		data != NULL;
+		zend_hash_move_forward_ex(hash,&ptr), data = zend_hash_get_current_data_ex(hash,&ptr))
 	{
 		if (zend_hash_get_current_key_ex( hash, &str_index, &num_index, &ptr) == HASH_KEY_IS_STRING)
 		{
@@ -238,17 +246,17 @@ static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_Err
 				}
 			}
 			rt &= papuga_Serialization_pushName_string( ser, ZSTR_VAL(str_index), ZSTR_LEN(str_index));
-			rt &= serializeMemberValue( ser, data, errcode);
+			rt &= serializeMemberValue( ser, data, cemap, errcode);
 
 			zend_hash_move_forward_ex( hash, &ptr);
-			if (!serializeAssocArray( ser, hash, &ptr, errcode))
+			if (!serializeRestAssocArray( ser, hash, &ptr, cemap, errcode))
 			{
 				return false;
 			}
 		}
 		else if (num_index == indexcount)
 		{
-			rt &= serializeMemberValue( ser, data, errcode);
+			rt &= serializeMemberValue( ser, data, cemap, errcode);
 			++indexcount;
 		}
 		else
@@ -262,10 +270,10 @@ static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_Err
 				}
 			}
 			rt &= papuga_Serialization_pushName_int( ser, num_index);
-			rt &= serializeMemberValue( ser, data, errcode);
+			rt &= serializeMemberValue( ser, data, cemap, errcode);
 
 			zend_hash_move_forward_ex(hash,&ptr);
-			if (!serializeAssocArray( ser, hash, &ptr, errcode))
+			if (!serializeRestAssocArray( ser, hash, &ptr, cemap, errcode))
 			{
 				return false;
 			}
@@ -274,24 +282,50 @@ static bool serializeArray( papuga_Serialization* ser, zval* langval, papuga_Err
 	return rt;
 }
 
-static bool serializeObject( papuga_Serialization* ser, zval* langval, papuga_ErrorCode* errcode)
+static bool serializeArray( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+{
+	return serializeHashTable( ser, Z_ARRVAL_P( langval), cemap, errcode);
+}
+
+static bool serializeObject( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	zend_object* zobj = Z_OBJ_P( langval);
-	ClassObject *cobj = getClassObject( zobj);
-	if (cobj->checksum != calcObjectCheckSum( cobj))
+	ClassObject *cobj = getClassObjectVerified( zobj, cemap);
+	if (cobj)
 	{
-		*errcode = papuga_InvalidAccess;
-		return false;
+		if (cobj->checksum != calcObjectCheckSum( cobj))
+		{
+			*errcode = papuga_InvalidAccess;
+			return false;
+		}
+		if (!papuga_Serialization_pushValue_hostobject( ser, &cobj->hobj))
+		{
+			*errcode = papuga_NoMemError;
+			return false;
+		}
 	}
-	if (!papuga_Serialization_pushValue_hostobject( ser, &cobj->hobj))
+	else
 	{
-		*errcode = papuga_NoMemError;
-		return false;
+		HashTable *hash = Z_OBJPROP_P( langval);
+		if (hash)
+		{
+			return serializeHashTable( ser, hash, cemap, errcode);
+		}
+		else
+		{
+			*errcode = papuga_TypeError;
+			return false;
+		}
 	}
 	return true;
 }
 
-static bool serializeValue( papuga_Serialization* ser, zval* langval, papuga_ErrorCode* errcode)
+static bool serializeIndirect( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+{
+	return serializeValue( ser, Z_INDIRECT_P( langval), cemap, errcode);
+}
+
+static bool serializeValue( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	switch (Z_TYPE_P(langval))
 	{
@@ -303,8 +337,9 @@ static bool serializeValue( papuga_Serialization* ser, zval* langval, papuga_Err
 		case IS_STRING: if (!papuga_Serialization_pushValue_string( ser, Z_STRVAL_P( langval), Z_STRLEN_P( langval))) goto ERRNOMEM; return true;
 		case IS_DOUBLE: if (!papuga_Serialization_pushValue_double( ser, Z_DVAL_P( langval))) goto ERRNOMEM; return true;
 		case IS_NULL: if (!papuga_Serialization_pushValue_void( ser)) goto ERRNOMEM; return true;
-		case IS_ARRAY: if (!serializeArray( ser, langval, errcode)) goto ERRNOMEM; return true;
-		case IS_OBJECT: if (!serializeObject( ser, langval, errcode)) goto ERRNOMEM; return true;
+		case IS_ARRAY: if (!serializeArray( ser, langval, cemap, errcode)) goto ERRNOMEM; return true;
+		case IS_OBJECT: if (!serializeObject( ser, langval, cemap, errcode)) goto ERRNOMEM; return true;
+		case IS_INDIRECT: if (!serializeIndirect( ser, langval, cemap, errcode)) goto ERRNOMEM; return true;
 		case IS_RESOURCE:
 		case IS_REFERENCE:
 		default: *errcode = papuga_TypeError; return false;
@@ -316,23 +351,42 @@ ERRNOMEM:
 	return false;
 }
 
-static bool serializeMemberValue( papuga_Serialization* ser, zval* langval, papuga_ErrorCode* errcode)
+static bool serializeMemberValue( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	bool rt = true;
-	if (Z_TYPE_P(langval) == IS_ARRAY)
+	int ztype = Z_TYPE_P(langval);
+	if (ztype == IS_ARRAY)
 	{
 		rt &= papuga_Serialization_pushOpen( ser);
-		rt &= serializeValue( ser, langval, errcode);
+		rt &= serializeValue( ser, langval, cemap, errcode);
 		rt &= papuga_Serialization_pushClose( ser);
+	}
+	else if (ztype == IS_OBJECT)
+	{
+		zend_object* zobj = Z_OBJ_P( langval);
+		if (getClassObjectVerified( zobj, cemap))
+		{
+			rt &= serializeObject( ser, langval, cemap, errcode);
+		}
+		else
+		{
+			rt &= papuga_Serialization_pushOpen( ser);
+			rt &= serializeObject( ser, langval, cemap, errcode);
+			rt &= papuga_Serialization_pushClose( ser);
+		}
+	}
+	else if (ztype == IS_INDIRECT)
+	{
+		return serializeMemberValue( ser, Z_INDIRECT_P(langval), cemap, errcode);
 	}
 	else
 	{
-		rt &= serializeValue( ser, langval, errcode);
+		rt &= serializeValue( ser, langval, cemap, errcode);
 	}
 	return rt;
 }
 
-static bool initArray( papuga_ValueVariant* hostval, papuga_Allocator* allocator, zval* langval, papuga_ErrorCode* errcode)
+static bool initArray( papuga_ValueVariant* hostval, papuga_Allocator* allocator, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( allocator);
 	if (!ser)
@@ -342,28 +396,46 @@ static bool initArray( papuga_ValueVariant* hostval, papuga_Allocator* allocator
 	}
 	papuga_init_ValueVariant_serialization( hostval, ser);
 
-	if (!serializeValue( ser, langval, errcode))
-	{
-		*errcode = papuga_NoMemError;
-		return false;
-	}
-	return true;
+	return serializeArray( ser, langval, cemap, errcode);
 }
 
-static bool initObject( papuga_ValueVariant* hostval, zval* langval, papuga_ErrorCode* errcode)
+static bool initObject( papuga_ValueVariant* hostval, papuga_Allocator* allocator, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	zend_object* zobj = Z_OBJ_P( langval);
-	ClassObject *cobj = getClassObject( zobj);
-	if (cobj->checksum != calcObjectCheckSum( cobj))
+	ClassObject *cobj = getClassObjectVerified( zobj, cemap);
+	if (cobj)
 	{
-		*errcode = papuga_InvalidAccess;
-		return false;
+		if (cobj->checksum != calcObjectCheckSum( cobj))
+		{
+			*errcode = papuga_InvalidAccess;
+			return false;
+		}
+		papuga_init_ValueVariant_hostobj( hostval, &cobj->hobj);
 	}
-	papuga_init_ValueVariant_hostobj( hostval, &cobj->hobj);
+	else
+	{
+		HashTable *hash = Z_OBJPROP_P( langval);
+		if (hash)
+		{
+			papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( allocator);
+			if (!ser)
+			{
+				*errcode = papuga_NoMemError;
+				return false;
+			}
+			papuga_init_ValueVariant_serialization( hostval, ser);
+			return serializeHashTable( ser, hash, cemap, errcode);
+		}
+		else
+		{
+			*errcode = papuga_TypeError;
+			return false;
+		}
+	}
 	return true;
 }
 
-static bool initValue( papuga_ValueVariant* hostval, papuga_Allocator* allocator, zval* langval, papuga_ErrorCode* errcode)
+static bool initValue( papuga_ValueVariant* hostval, papuga_Allocator* allocator, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	switch (Z_TYPE_P(langval))
 	{
@@ -375,8 +447,8 @@ static bool initValue( papuga_ValueVariant* hostval, papuga_Allocator* allocator
 		case IS_STRING: papuga_init_ValueVariant_string( hostval, Z_STRVAL_P( langval), Z_STRLEN_P( langval)); return true;
 		case IS_DOUBLE: papuga_init_ValueVariant_double( hostval, Z_DVAL_P( langval)); return true;
 		case IS_NULL: papuga_init_ValueVariant( hostval); return true;
-		case IS_ARRAY: return initArray( hostval, allocator, langval, errcode);
-		case IS_OBJECT: return initObject( hostval, langval, errcode);
+		case IS_ARRAY: return initArray( hostval, allocator, langval, cemap, errcode);
+		case IS_OBJECT: return initObject( hostval, allocator, langval, cemap, errcode);
 		case IS_RESOURCE:
 		case IS_REFERENCE:
 		default: *errcode = papuga_TypeError; return false;
@@ -641,7 +713,7 @@ static bool deserialize( zval* return_value, papuga_Allocator* allocator, const 
 	}
 }
 
-DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_CallArgs* as, void* selfzval, int argc)
+DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_CallArgs* as, void* selfzval, int argc, const papuga_php_ClassEntryMap* cemap)
 {
 	zval args[ papuga_MAX_NOF_ARGUMENTS];
 	int argi = -1;
@@ -673,12 +745,11 @@ DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_CallArgs* as, void* selfzval, i
 		as->errcode = papuga_NofArgsError;
 		return false;
 	}
-	papuga_init_Allocator( &as->allocator, as->allocbuf, sizeof( as->allocbuf));
 	if (zend_get_parameters_array_ex( argc, args) == FAILURE) goto ERROR;
 
 	for (argi=0; argi < argc; ++argi)
 	{
-		if (!initValue( &as->argv[ as->argc], &as->allocator, &args[argi], &as->errcode))
+		if (!initValue( &as->argv[ as->argc], &as->allocator, &args[argi], cemap, &as->errcode))
 		{
 			goto ERROR;
 		}

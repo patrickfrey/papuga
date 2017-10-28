@@ -65,7 +65,7 @@ static void define_method(
 		"int argc = ZEND_NUM_ARGS();",
 		"",
 		"zval *obj = {selfparam};",
-		"if (!papuga_php_init_CallArgs( &argstruct, (void*)obj, argc))",
+		"if (!papuga_php_init_CallArgs( &argstruct, (void*)obj, argc, &g_class_entry_map))",
 		"{",
 			"PHP_FAIL( papuga_ErrorCode_tostring( argstruct.errcode));",
 			"return;",
@@ -115,7 +115,7 @@ static void define_constructor(
 		"const char* msg;",
 		"int argc = ZEND_NUM_ARGS();",
 
-		"if (!papuga_php_init_CallArgs( &argstruct,  NULL/*self*/, argc))",
+		"if (!papuga_php_init_CallArgs( &argstruct,  NULL/*self*/, argc, &g_class_entry_map))",
 		"{",
 			"PHP_FAIL( papuga_ErrorCode_tostring( argstruct.errcode));",
 			"return;",

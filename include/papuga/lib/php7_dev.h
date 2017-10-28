@@ -59,7 +59,7 @@ bool papuga_php_init_object( void* selfzval, void* self, int classid, papuga_Del
 * @param[in] argc number of function arguments
 * @return true on success, false on error, see error code in argstruct to determine the error
 */
-bool papuga_php_init_CallArgs( papuga_CallArgs* arg, void* selfzval, int argc);
+bool papuga_php_init_CallArgs( papuga_CallArgs* arg, void* selfzval, int argc, const papuga_php_ClassEntryMap* cemap);
 
 /*
 * @brief Transfers the call result of a binding function into the PHP context, freeing the call result structure

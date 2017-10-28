@@ -23,7 +23,9 @@
 #include <inttypes.h>
 #include <stdarg.h>
 #include <limits.h>
+/* Python includes: */
 #include <Python.h>
+#include <structmember.h>
 
 #undef PAPUGA_LOWLEVEL_DEBUG
 
@@ -129,9 +131,114 @@ static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_A
 	return true;
 }
 
+/* Forward declarations: */
 static bool serialize_element( papuga_Serialization* ser, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+
+static bool serialize_members( papuga_Serialization* ser, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+{
+#define GET_PYSTRUCT_MEMBER( Type, pyobj, offset) *(Type*)((unsigned char*)(void*)pyobj + offset)
+
+	PyMemberDef const* mi = pyobj->ob_type->tp_members;
+	if (mi) for (; mi->name; ++mi)
+	{
+		switch (mi->type)
+		{
+			case T_BOOL:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_bool( ser, GET_PYSTRUCT_MEMBER( char, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_CHAR:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( char, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_BYTE:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( char, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_UBYTE:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( unsigned char, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_SHORT:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( short, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_USHORT:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( unsigned short, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_INT:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( int, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_UINT:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( unsigned int, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_LONG:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( long, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_ULONG:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( unsigned long, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_LONGLONG:if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( long long, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_ULONGLONG: if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( unsigned long long, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_PYSSIZET:if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( Py_ssize_t, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_FLOAT:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_double( ser, GET_PYSTRUCT_MEMBER( float, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_DOUBLE:	if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_double( ser, GET_PYSTRUCT_MEMBER( double, pyobj, mi->offset))) goto ERROR_NOMEM;
+					break;
+			case T_STRING:
+			{
+					const char* memval = GET_PYSTRUCT_MEMBER( char*, pyobj, mi->offset);
+					if (memval)
+					{
+						if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+						if (!papuga_Serialization_pushValue_charp( ser, memval)) goto ERROR_NOMEM;
+					}
+					break;
+			}
+			case T_OBJECT:
+			case T_OBJECT_EX:
+			{
+				PyObject* memobj = GET_PYSTRUCT_MEMBER( PyObject*, pyobj, mi->offset);
+				if (memobj)
+				{
+					papuga_ValueVariant singleval;
+					if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
+					if (init_ValueVariant_pyobj_single( &singleval, allocator, memobj, cemap, errcode))
+					{
+						if (!papuga_Serialization_pushValue( ser, &singleval)) goto ERROR_NOMEM;
+					}
+					else if (*errcode == papuga_Ok)
+					{
+						/* ... the member is a substructure, we have to enclose it in open/close brackets */
+						if (!papuga_Serialization_pushOpen( ser)) goto ERROR_NOMEM;
+						if (!serialize_struct( ser, allocator, memobj, cemap, errcode)) return false;
+						if (!papuga_Serialization_pushClose( ser)) goto ERROR_NOMEM;
+					}
+					else
+					{
+						return false;
+					}
+				}
+				break;
+			}
+			default:
+				*errcode = papuga_NotImplemented;
+				return false;
+		}
+	}
+	return true;
+ERROR_NOMEM:
+	*errcode = papuga_NoMemError;
+	return false;
+}
+
 static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
+	PyObject** pydictref;
 	if (PyDict_Check( pyobj))
 	{
 		PyObject* keyitem;
@@ -147,6 +254,7 @@ static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* alloc
 				if (*errcode == papuga_Ok) *errcode = papuga_TypeError;
 				return false;
 			}
+			if (keyval.valuetype == papuga_TypeString && keyval.encoding == papuga_UTF8 && keyval.length > 0 && keyval.value.string[0] == '_') continue;
 			if (!papuga_Serialization_pushName( ser, &keyval)) goto ERROR_NOMEM;
 
 			/* Serialize value: */
@@ -187,6 +295,14 @@ static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* alloc
 			if (!serialize_element( ser, allocator, item, cemap, errcode)) return false;
 		}
 	}
+	else if (NULL!=(pydictref = _PyObject_GetDictPtr( pyobj)))
+	{
+		if (!serialize_struct( ser, allocator, *pydictref, cemap, errcode)) goto ERROR_NOMEM;
+	}
+	else if (pyobj->ob_type->tp_members)
+	{
+		if (!serialize_members( ser, allocator, pyobj, cemap, errcode)) return false;
+	}
 	else
 	{
 		*errcode = papuga_TypeError;
@@ -224,14 +340,16 @@ static bool init_ValueVariant_pyobj( papuga_ValueVariant* value, papuga_Allocato
 	{
 		return true;
 	}
-	else if (*errcode != papuga_Ok) return false;
-	if (PyDict_Check( pyobj) || PySequence_Check( pyobj))
+	else
 	{
-		papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( allocator);
+		papuga_Serialization* ser = 0;
+		if (*errcode != papuga_Ok) return false;
+		ser = papuga_Allocator_alloc_Serialization( allocator);
 		if (!ser) goto ERROR_NOMEM;
-
+	
 		papuga_init_ValueVariant_serialization( value, ser);
 		if (!serialize_struct( ser, allocator, pyobj, cemap, errcode)) return false;
+
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 		char* str = papuga_Serialization_tostring( ser);
 		if (ser)
@@ -240,13 +358,8 @@ static bool init_ValueVariant_pyobj( papuga_ValueVariant* value, papuga_Allocato
 			free( str);
 		}
 #endif
+		return true;
 	}
-	else
-	{
-		*errcode = papuga_TypeError;
-		return false;
-	}
-	return true;
 ERROR_NOMEM:
 	*errcode = papuga_NoMemError;
 	return false;
