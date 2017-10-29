@@ -19,10 +19,12 @@
 #include <string.h>
 #include <stdio.h>
 
+#define MAX_INT                   ((int)1<<(8*sizeof(int)-2))
 #define MAX_DOUBLE_INT            ((int64_t)1<<53)
 #define MIN_DOUBLE_INT           -((int64_t)1<<53)
-#define IS_CONVERTIBLE_TOINT( x)  ((x-floor(x) <= 2*DBL_EPSILON) && x < MAX_DOUBLE_INT && x > MIN_DOUBLE_INT)
 #define NUM_EPSILON               (4*DBL_EPSILON)
+#define IS_CONVERTIBLE_TOINT64( x)  ((x-floor(x) <= NUM_EPSILON) && x < MAX_DOUBLE_INT && x > MIN_DOUBLE_INT)
+#define IS_CONVERTIBLE_TOUINT( x)   ((x-floor(x) <= NUM_EPSILON) && x < MAX_INT && x > -NUM_EPSILON)
 
 #define PAPUGA_DEEP_TYPE_CHECKING
 
@@ -221,7 +223,7 @@ static void pushIterator( lua_State* ls, void* objectref, papuga_Deleter destruc
 
 static bool Serialization_pushName_number( papuga_Serialization* result, double numval)
 {
-	if (IS_CONVERTIBLE_TOINT( numval))
+	if (IS_CONVERTIBLE_TOINT64( numval))
 	{
 		if (numval < 0.0)
 		{
@@ -240,7 +242,7 @@ static bool Serialization_pushName_number( papuga_Serialization* result, double 
 
 static bool Serialization_pushValue_number( papuga_Serialization* result, double numval)
 {
-	if (IS_CONVERTIBLE_TOINT( numval))
+	if (IS_CONVERTIBLE_TOINT64( numval))
 	{
 		if (numval < 0.0)
 		{
@@ -259,7 +261,7 @@ static bool Serialization_pushValue_number( papuga_Serialization* result, double
 
 static void init_ValueVariant_number( papuga_ValueVariant* result, double numval)
 {
-	if (IS_CONVERTIBLE_TOINT( numval))
+	if (IS_CONVERTIBLE_TOINT64( numval))
 	{
 		if (numval < 0.0)
 		{
@@ -392,32 +394,39 @@ static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, l
 	while (lua_next( ls, -2))
 	{
 		STACKTRACE( ls, "loop next serialize table as map or array");
-		if (!lua_isinteger( ls, -2) || lua_tointeger( ls, -2) != ++idx)
+		if (lua_isnumber( ls, -2))
 		{
-			/*... not an array, convert to map and continue to build rest of map */
-			if (!start_at_eof)
+			double idxval = lua_tonumber( ls, -2);
+			if (IS_CONVERTIBLE_TOUINT( idxval))
 			{
-				papuga_SerializationIter_skip( &start);
-				if (!papuga_Serialization_convert_array_assoc( result, &start, 1, &as->errcode)) goto ERROR;
+				int curidx = (int)(idxval + NUM_EPSILON);
+				if (curidx == ++idx)
+				{
+					/* ... still an array, push sequence of values */
+					serialize_value( as, result, ls, -1);
+					lua_pop(ls, 1);
+					continue;
+				}
 			}
+		}
+		/*... not an array, convert to map and continue to build rest of map */
+		if (!start_at_eof)
+		{
+			papuga_SerializationIter_skip( &start);
+			if (!papuga_Serialization_convert_array_assoc( result, &start, 1, &as->errcode)) goto ERROR;
+		}
+		if (!serialize_key( as, result, ls, -2)) goto ERROR;
+		if (!serialize_value( as, result, ls, -1)) goto ERROR;
+		lua_pop(ls, 1);
+
+		while (lua_next( ls, -2))
+		{
+			STACKTRACE( ls, "loop next serialize table as map");
 			if (!serialize_key( as, result, ls, -2)) goto ERROR;
 			if (!serialize_value( as, result, ls, -1)) goto ERROR;
-			lua_pop(ls, 1);
-
-			while (lua_next( ls, -2))
-			{
-				STACKTRACE( ls, "loop next serialize table as map");
-				if (!serialize_key( as, result, ls, -2)) goto ERROR;
-				if (!serialize_value( as, result, ls, -1)) goto ERROR;
-				lua_pop( ls, 1);
-			}
-			break;
+			lua_pop( ls, 1);
 		}
-		else
-		{
-			serialize_value( as, result, ls, -1);
-			lua_pop(ls, 1);
-		}
+		break;
 	}
 	lua_pop( ls, 1);
 	STACKTRACE( ls, "loop after serialize array");
