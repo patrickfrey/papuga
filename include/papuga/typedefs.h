@@ -234,6 +234,7 @@ struct papuga_Serialization
 	papuga_NodeChunk head;					/*< first chunk of serialization */
 	papuga_Allocator* allocator;				/*< pointer to allocator to use for serialization */
 	papuga_NodeChunk* current;				/*< pointer to current chunk where to append */
+	int interface;						/*< selection of a structure interface with a defined set of data members (0 for dictionary) */
 };
 
 /*

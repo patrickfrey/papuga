@@ -455,7 +455,7 @@ static bool initValue( papuga_ValueVariant* hostval, papuga_Allocator* allocator
 	}
 }
 
-static bool deserialize( zval* return_value, papuga_Allocator* allocator, const papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf);
+static bool deserialize( zval* return_value, bool asStruct, papuga_Allocator* allocator, const papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf);
 
 static bool iteratorToZval( zval* return_value, papuga_Iterator* iterator, papuga_ErrorBuffer* errbuf);
 
@@ -550,16 +550,26 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 		}
 		case papuga_TypeSerialization:
 		{
+			bool asStruct = value->value.serialization->interface > 0;
+			/* ... we just test, if a structure interface has been selected and build a std object in this case.
+			 * We do not check the correctness of the keys */
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-			char* str = papuga_Serialization_tostring( retval->value.value.serialization);
+			char* str = papuga_Serialization_tostring( value->value.serialization);
 			if (str)
 			{
 				fprintf( stderr, "variant value structure:\n%s\n", str);
 				free( str);
 			}
 #endif
-			array_init(return_value);
-			if (!deserialize( return_value, allocator, value->value.serialization, cemap, errbuf))
+			if (asStruct)
+			{
+				object_init( return_value);
+			}
+			else
+			{
+				array_init( return_value);
+			}
+			if (!deserialize( return_value, asStruct, allocator, value->value.serialization, cemap, errbuf))
 			{
 				return false;
 			}
@@ -620,7 +630,27 @@ static bool zval_structure_addnode( zval* structure, papuga_Allocator* allocator
 	return true;
 }
 
-static bool deserialize_nodes( zval* return_value, papuga_Allocator* allocator, papuga_SerializationIter* seriter, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)
+static bool zval_structure_addprop( zval* structure, papuga_Allocator* allocator, const papuga_ValueVariant* name, zval* value, papuga_ErrorBuffer* errbuf)
+{
+	const char* propkey;
+	size_t propkeylen;
+	papuga_ErrorCode errcode = papuga_Ok;
+	if (!name)
+	{
+		papuga_ErrorBuffer_reportError( errbuf, "key value pairs expected in serialization to feed properties of structure");
+		return false;
+	}
+	propkey = papuga_ValueVariant_tostring( name, allocator, &propkeylen, &errcode);
+	if (!propkey)
+	{
+		papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
+		return false;
+	}
+	add_property_zval_ex( structure, propkey, propkeylen, value);
+	return true;
+}
+
+static bool deserialize_nodes( zval* return_value, bool asStruct, papuga_Allocator* allocator, papuga_SerializationIter* seriter, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)
 {
 	const papuga_ValueVariant* name = 0;
 
@@ -643,17 +673,37 @@ static bool deserialize_nodes( zval* return_value, papuga_Allocator* allocator, 
 		else if (papuga_SerializationIter_tag(seriter) == papuga_TagOpen)
 		{
 			zval substructure;
-			array_init( &substructure);
+			bool substructure_asStruct = (papuga_SerializationIter_value( seriter)->valuetype == papuga_TypeInt);
+			/* ... we just test, if a structure interface has been selected, we do not check the correctness of the keys */
+			if (substructure_asStruct)
+			{
+				object_init( &substructure);
+			}
+			else
+			{
+				array_init( &substructure);
+			}
 			papuga_SerializationIter_skip( seriter);
-			if (!deserialize_nodes( &substructure, allocator, seriter, cemap, errbuf))
+			if (!deserialize_nodes( &substructure, substructure_asStruct, allocator, seriter, cemap, errbuf))
 			{
 				zval_dtor( &substructure);
 				return false;
 			}
-			if (!zval_structure_addnode( return_value, allocator, name, &substructure, errbuf))
+			if (asStruct)
 			{
-				zval_dtor( &substructure);
-				return false;
+				if (!zval_structure_addprop( return_value, allocator, name, &substructure, errbuf))
+				{
+					zval_dtor( &substructure);
+					return false;
+				}
+			}
+			else
+			{
+				if (!zval_structure_addnode( return_value, allocator, name, &substructure, errbuf))
+				{
+					zval_dtor( &substructure);
+					return false;
+				}
 			}
 			name = NULL;
 			if (papuga_SerializationIter_tag( seriter) == papuga_TagClose)
@@ -677,10 +727,21 @@ static bool deserialize_nodes( zval* return_value, papuga_Allocator* allocator, 
 			{
 				return false;
 			}
-			if (!zval_structure_addnode( return_value, allocator, name, &item, errbuf))
+			if (asStruct)
 			{
-				zval_dtor( &item);
-				return false;
+				if (!zval_structure_addprop( return_value, allocator, name, &item, errbuf))
+				{
+					zval_dtor( &item);
+					return false;
+				}
+			}
+			else
+			{
+				if (!zval_structure_addnode( return_value, allocator, name, &item, errbuf))
+				{
+					zval_dtor( &item);
+					return false;
+				}
 			}
 			name = NULL;
 		}
@@ -693,24 +754,17 @@ static bool deserialize_nodes( zval* return_value, papuga_Allocator* allocator, 
 	return true;
 }
 
-static bool deserialize( zval* return_value, papuga_Allocator* allocator, const papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)
+static bool deserialize( zval* return_value, bool asStruct, papuga_Allocator* allocator, const papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf)
 {
 	papuga_SerializationIter seriter;
 	papuga_init_SerializationIter( &seriter, serialization);
-	if (papuga_SerializationIter_eof( &seriter))
+	bool rt = deserialize_nodes( return_value, asStruct, allocator, &seriter, cemap, errbuf);
+	if (rt && !papuga_SerializationIter_eof( &seriter))
 	{
-		return true;
+		papuga_ErrorBuffer_reportError( errbuf, "unexpected tokens at end of serialization");
+		rt = false;
 	}
-	else
-	{
-		bool rt = deserialize_nodes( return_value, allocator, &seriter, cemap, errbuf);
-		if (rt && !papuga_SerializationIter_eof( &seriter))
-		{
-			papuga_ErrorBuffer_reportError( errbuf, "unexpected tokens at end of serialization");
-			rt = false;
-		}
-		return rt;
-	}
+	return rt;
 }
 
 DLL_PUBLIC bool papuga_php_init_CallArgs( papuga_CallArgs* as, void* selfzval, int argc, const papuga_php_ClassEntryMap* cemap)

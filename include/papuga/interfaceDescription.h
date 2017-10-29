@@ -100,6 +100,22 @@ typedef struct papuga_AboutDescription
 } papuga_AboutDescription;
 
 /*
+* @brief Description of a data member used in serialization of return values
+*/
+typedef struct papuga_StructMemberDescription
+{
+	const char* name;
+} papuga_StructMemberDescription;
+
+/*
+* @brief Description of a data structure used in serialization of return values
+*/
+typedef struct papuga_StructInterfaceDescription
+{
+	const papuga_StructMemberDescription* members;
+} papuga_StructInterfaceDescription;
+
+/*
 * @brief Structure describing the interface
 */
 typedef struct papuga_InterfaceDescription
@@ -108,6 +124,7 @@ typedef struct papuga_InterfaceDescription
 	const char* description;			/*< description of the module */
 	const char** includefiles;			/*< null terminated list of files to include */
 	const papuga_ClassDescription* classes;		/*< {NULL,..} terminated list of classes */
+	const papuga_StructInterfaceDescription* structs;/* {NULL,..} terminated list of structure definitions */
 	const papuga_AboutDescription* about;		/*< reference to authors,copyright,license,etc... */
 } papuga_InterfaceDescription;
 

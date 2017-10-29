@@ -22,7 +22,15 @@ extern "C" {
 * @brief Serialization constructor
 * @param[out] self pointer to structure 
 */
-#define papuga_init_Serialization(self_,allocator_)		{papuga_Serialization* s = (self_); s->head.next=NULL; s->head.size=0; s->allocator=(allocator_); s->current=&s->head;}
+#define papuga_init_Serialization(self_,allocator_)		{papuga_Serialization* s = (self_); s->head.next=NULL; s->head.size=0; s->allocator=(allocator_); s->current=&s->head; s->interface=0;}
+
+/*
+* @brief Define the structure interface to used for serialization (default 0 for dictionary)
+* @param[out] self pointer to structure
+* @param[in] interface index of the structure interface in the interface description or 0 in case of no structure interface selected
+* @note the selection of the interface is done with the argument of OPEN for substructures
+*/
+#define papuga_Serialization_set_interface(self_,allocator_)	{papuga_Serialization* s = (self_); s->head.next=NULL; s->head.size=0; s->allocator=(allocator_); s->current=&s->head; s->interface=0;}
 
 /*
 * @brief Add a node to the serialization
@@ -38,6 +46,14 @@ bool papuga_Serialization_push( papuga_Serialization* self, papuga_Node* node);
 * @return true on success, false on memory allocation error
 */
 bool papuga_Serialization_pushOpen( papuga_Serialization* self);
+
+/*
+* @brief Add an 'open' element to the serialization
+* @param[in,out] self pointer to structure 
+* @param[in] interface index of the structure interface in the interface description
+* @return true on success, false on memory allocation error
+*/
+bool papuga_Serialization_pushOpen_interface( papuga_Serialization* self, int interface);
 
 /*
 * @brief Add a 'close' element to the serialization
