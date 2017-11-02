@@ -43,6 +43,12 @@ void papuga_init_Stack( papuga_Stack* self, size_t elemsize, void* buf, size_t b
 void papuga_destroy_Stack( papuga_Stack* self);
 
 /*
+* @brief Get the size of the stack in number of elements inserted
+* @param[in] self pointer to structure 
+*/
+#define papuga_Stack_size( self)	(self)->arsize
+
+/*
 * @brief Push an element on the stack (memcpy)
 * @param[in] self pointer to structure 
 */

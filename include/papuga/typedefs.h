@@ -257,8 +257,8 @@ struct papuga_CallResult
 	papuga_ValueVariant valuear[ papuga_MAX_NOF_RETURNS];	/*< result values */
 	papuga_Allocator allocator;				/*< allocator for values that had to be copied */
 	papuga_ErrorBuffer errorbuf;				/*< static buffer for error messages */
-	int nofvalues;						/*< number of value in valuear */
-	int allocbuf[ 1024];					/*< static buffer for allocator */
+	int nofvalues;						/*< number of values in valuear */
+	int allocbuf[ 2048];					/*< static buffer for allocator */
 };
 
 /*

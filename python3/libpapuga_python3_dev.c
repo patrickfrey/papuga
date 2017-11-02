@@ -37,17 +37,110 @@ typedef struct papuga_python_IteratorObject {
 	bool eof;
 } papuga_python_IteratorObject;
 
-
 static PyTypeObject* getTypeObject( const papuga_python_ClassEntryMap* cemap, int classid)
 {
-	if (classid <= 0 && classid > cemap->size) return 0;
-	return cemap->ar[ classid-1];
+	if (classid <= 0 && classid > cemap->hoarsize) return 0;
+	return cemap->hoar[ classid-1];
 }
 
+static PyTypeObject* getTypeStruct( const papuga_python_ClassEntryMap* cemap, int structid)
+{
+	if (structid <= 0 && structid > cemap->soarsize) return 0;
+	return cemap->soar[ structid-1];
+}
+
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+#if 0
+static void log_ValueVariant( const char* msg, const papuga_ValueVariant* val)
+{
+	char buf[ 256];
+	char const* str;
+	size_t len;
+	papuga_Allocator allocator;
+	papuga_ErrorCode errcode = papuga_Ok;
+	char allocbuf[ 1024];
+	papuga_init_Allocator( &allocator, allocbuf, sizeof(allocbuf));
+
+	str = papuga_ValueVariant_tostring( val, &allocator, &len, &errcode);
+	if (str)
+	{
+		if (len > sizeof(buf)) len = sizeof(buf)-1;
+		memcpy( buf, str, len);
+		buf[ len] = 0;
+		str = buf;
+	}
+	else
+	{
+		str = "<not printable>";
+	}
+	fprintf( stdout, "%s '%s'\n", msg, str);
+}
+#endif
+static bool checkCircular_rec( PyObject* pyobj, PyObject** pyobjlist, size_t pyobjlistsize, size_t pyobjlistpos)
+{
+	PyObject** pydictref = NULL;
+	size_t pidx = 0;
+
+	if (!pyobj) return true;
+	for (; pidx < pyobjlistpos; ++pidx)
+	{
+		if (pyobj == pyobjlist[ pidx]) return false;
+	}
+	if (pyobjlistpos == pyobjlistsize) return true;
+	pyobjlist[ pyobjlistpos] = pyobj;
+
+	if (PyDict_Check( pyobj))
+	{
+		PyObject* keyitem = NULL;
+		PyObject* valitem = NULL;
+		Py_ssize_t pos = 0;
+
+		while (pidx < pyobjlistsize && PyDict_Next( pyobj, &pos, &keyitem, &valitem))
+		{
+			if (!checkCircular_rec( valitem, pyobjlist, pyobjlistsize, pyobjlistpos+1)) return false;
+		}
+	}
+	else if (PyTuple_Check( pyobj))
+	{
+		Py_ssize_t ii = 0, size = PyTuple_GET_SIZE( pyobj);
+		for (; ii < size; ++ii)
+		{
+			PyObject* item = PyTuple_GET_ITEM( pyobj, ii);
+			if (!checkCircular_rec( item, pyobjlist, pyobjlistsize, pyobjlistpos+1)) return false;
+		}
+	}
+	else if (PyList_Check( pyobj))
+	{
+		Py_ssize_t ii = 0, size = PyList_GET_SIZE( pyobj);
+		for (; ii < size; ++ii)
+		{
+			PyObject* item = PyList_GET_ITEM( pyobj, ii);
+			if (!checkCircular_rec( item, pyobjlist, pyobjlistsize, pyobjlistpos+1)) return false;
+		}
+	}
+	else if (NULL!=(pydictref = _PyObject_GetDictPtr( pyobj)))
+	{
+		if (!checkCircular_rec( *pydictref, pyobjlist, pyobjlistsize, pyobjlistpos+1)) return false;
+	}
+	return true;
+}
+
+static bool checkCircular( PyObject* pyobj)
+{
+	PyObject* pyobjlist[ 64];
+	size_t pyobjlistsize = sizeof(pyobjlist) / sizeof(pyobjlist[0]);
+	return checkCircular_rec( pyobj, pyobjlist, pyobjlistsize, 0);
+}
+#endif
+
 #define KNUTH_HASH 2654435761U
-static int calcObjectCheckSum( papuga_python_ClassObject* cobj)
+static int calcClassObjectCheckSum( papuga_python_ClassObject* cobj)
 {
 	return (cobj->classid * KNUTH_HASH) + (((uintptr_t)cobj->self << 2) ^ ((uintptr_t)cobj->destroy << 3));
+}
+static int calcStructObjectCheckSum( papuga_python_StructObject* cobj)
+{
+	return ((cobj->structid * cobj->elemarsize) * KNUTH_HASH);
 }
 static int calcIteratorCheckSum( const papuga_python_IteratorObject* iobj)
 {
@@ -60,8 +153,8 @@ static papuga_python_ClassObject* getClassObject( PyObject* pyobj, const papuga_
 	PyTypeObject* pytype = pyobj->ob_type;
 	if (pytype->tp_basicsize != sizeof(papuga_python_ClassObject)) return NULL;
 	cobj = (papuga_python_ClassObject*)pyobj;
-	if (pytype != getTypeObject( cemap, cobj->classid));
-	if (cobj->checksum != calcObjectCheckSum( cobj)) return NULL;
+	if (pytype != getTypeObject( cemap, cobj->classid)) return NULL;
+	if (cobj->checksum != calcClassObjectCheckSum( cobj)) return NULL;
 	return cobj;
 }
 
@@ -238,11 +331,11 @@ ERROR_NOMEM:
 
 static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
-	PyObject** pydictref;
+	PyObject** pydictref = NULL;
 	if (PyDict_Check( pyobj))
 	{
-		PyObject* keyitem;
-		PyObject* valitem;
+		PyObject* keyitem = NULL;
+		PyObject* valitem = NULL;
 		Py_ssize_t pos = 0;
 
 		while (PyDict_Next( pyobj, &pos, &keyitem, &valitem))
@@ -276,22 +369,6 @@ static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* alloc
 		for (; ii < size; ++ii)
 		{
 			PyObject* item = PyList_GET_ITEM( pyobj, ii);
-			if (!serialize_element( ser, allocator, item, cemap, errcode)) return false;
-		}
-	}
-	else if (PySequence_Check( pyobj))
-	{
-		Py_ssize_t ii,len;
-		PyObject* seqobj = PySequence_Fast( pyobj, papuga_ErrorCode_tostring( papuga_TypeError));
-		if (!seqobj)
-		{
-			*errcode = papuga_TypeError;
-			return false;
-		}
-		ii=0, len = PySequence_Size( seqobj);
-		for (; ii<len; ++ii)
-		{
-			PyObject* item = PySequence_Fast_GET_ITEM( seqobj, ii);
 			if (!serialize_element( ser, allocator, item, cemap, errcode)) return false;
 		}
 	}
@@ -354,7 +431,7 @@ static bool init_ValueVariant_pyobj( papuga_ValueVariant* value, papuga_Allocato
 		char* str = papuga_Serialization_tostring( ser);
 		if (ser)
 		{
-			fprintf( stderr, "SERIALIZE STRUCT:\n%s\n", str);
+			fprintf( stdout, "SERIALIZE STRUCT:\n%s\n", str);
 			free( str);
 		}
 #endif
@@ -482,8 +559,24 @@ typedef struct papuga_PyStructNode
 
 void papuga_init_PyStructNode( papuga_PyStructNode* nd)
 {
-	nd->keyobj = 0;
-	nd->valobj = 0;
+	nd->keyobj = NULL;
+	nd->valobj = NULL;
+}
+
+void papuga_destroy_PyStructNode( papuga_PyStructNode* nd)
+{
+	Py_XDECREF( nd->keyobj);
+	Py_XDECREF( nd->valobj);
+}
+
+void papuga_PyStructNode_set_key( papuga_PyStructNode* nd, PyObject* key)
+{
+	Py_XINCREF( nd->keyobj = key);
+}
+
+void papuga_PyStructNode_set_value( papuga_PyStructNode* nd, PyObject* val)
+{
+	Py_XINCREF( nd->valobj = val);
 }
 
 typedef struct papuga_PyStruct
@@ -491,19 +584,30 @@ typedef struct papuga_PyStruct
 	papuga_Stack stk;
 	char stk_local_mem[ 2048];
 	int nofKeyValuePairs;
-	int nofElements;
 } papuga_PyStruct;
 
 static void papuga_init_PyStruct( papuga_PyStruct* pystruct)
 {
 	pystruct->nofKeyValuePairs = 0;
-	pystruct->nofElements = 0;
 	papuga_init_Stack( &pystruct->stk, sizeof(papuga_PyStructNode), pystruct->stk_local_mem, sizeof(pystruct->stk_local_mem));
 }
 
 static void papuga_destroy_PyStruct( papuga_PyStruct* pystruct)
 {
+	unsigned int ei = 0, ee = papuga_Stack_size( &pystruct->stk);
+	for (; ei != ee; ++ei)
+	{
+		papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
+		papuga_destroy_PyStructNode( nd);
+	}
 	papuga_destroy_Stack( &pystruct->stk);
+}
+
+static bool papuga_PyStruct_push_node( papuga_PyStruct* pystruct, papuga_PyStructNode* nd)
+{
+	if (!papuga_Stack_push( &pystruct->stk, nd)) return false;
+	papuga_init_PyStructNode( nd);
+	return true;
 }
 
 static PyObject* papuga_PyStruct_create_dict( papuga_PyStruct* pystruct, papuga_ErrorCode* errcode)
@@ -512,7 +616,7 @@ static PyObject* papuga_PyStruct_create_dict( papuga_PyStruct* pystruct, papuga_
 	if (rt)
 	{
 		long currIndex = 0;
-		unsigned int ei = 0, ee = pystruct->nofElements;
+		unsigned int ei = 0, ee = papuga_Stack_size( &pystruct->stk);
 		for (; ei != ee; ++ei)
 		{
 			papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
@@ -540,6 +644,15 @@ static PyObject* papuga_PyStruct_create_dict( papuga_PyStruct* pystruct, papuga_
 				*errcode = papuga_NoMemError;
 				break;
 			}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			if (!checkCircular( rt))
+			{
+				fprintf( stderr, "circular reference in list created from papuga_pyStruct");
+				PyDict_Clear( rt);
+				*errcode = papuga_LogicError;
+				return NULL;
+			}
+#endif
 		}
 		if (ei != ee)
 		{
@@ -547,15 +660,24 @@ static PyObject* papuga_PyStruct_create_dict( papuga_PyStruct* pystruct, papuga_
 			rt = NULL;
 		}
 	}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	if (!checkCircular( rt))
+	{
+		fprintf( stderr, "circular reference in dictionary created from papuga_pyStruct");
+		PyDict_Clear( rt);
+		*errcode = papuga_LogicError;
+		return NULL;
+	}
+#endif
 	return rt;
 }
 
 static PyObject* papuga_PyStruct_create_list( papuga_PyStruct* pystruct, papuga_ErrorCode* errcode)
 {
-	PyObject* rt = PyList_New( pystruct->nofElements);
+	PyObject* rt = PyList_New( papuga_Stack_size( &pystruct->stk));
 	if (rt)
 	{
-		unsigned int ei = 0, ee = pystruct->nofElements;
+		unsigned int ei = 0, ee = papuga_Stack_size( &pystruct->stk);
 		for (; ei != ee; ++ei)
 		{
 			papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
@@ -570,6 +692,15 @@ static PyObject* papuga_PyStruct_create_list( papuga_PyStruct* pystruct, papuga_
 			rt = NULL;
 		}
 	}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	if (!checkCircular( rt))
+	{
+		fprintf( stderr, "circular reference in list created from papuga_pyStruct");
+		PyDict_Clear( rt);
+		*errcode = papuga_LogicError;
+		return NULL;
+	}
+#endif
 	return rt;
 }
 
@@ -602,24 +733,21 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, papug
 				*errcode = papuga_TypeError;
 				goto ERROR;
 			}
-			nd.keyobj = createPyObjectFromVariant( allocator, papuga_SerializationIter_value(seriter), cemap, errcode);
-			++pystruct->nofKeyValuePairs;
+			papuga_PyStructNode_set_key( &nd, createPyObjectFromVariant( allocator, papuga_SerializationIter_value(seriter), cemap, errcode));
 			if (!nd.keyobj) goto ERROR;
+
+			++pystruct->nofKeyValuePairs;
 		}
 		else if (papuga_SerializationIter_tag(seriter) == papuga_TagValue)
 		{
-			nd.valobj = createPyObjectFromVariant( allocator, papuga_SerializationIter_value(seriter), cemap, errcode);
-			if (!nd.valobj)
+			papuga_PyStructNode_set_value( &nd, createPyObjectFromVariant( allocator, papuga_SerializationIter_value(seriter), cemap, errcode));
+			if (!nd.valobj) goto ERROR;
+
+			if (!papuga_PyStruct_push_node( pystruct, &nd))
 			{
+				*errcode = papuga_NoMemError;
 				goto ERROR;
 			}
-			if (!papuga_Stack_push( &pystruct->stk, &nd))
-			{
-				*errcode = papuga_TypeError;
-				goto ERROR;
-			}
-			++pystruct->nofElements;
-			papuga_init_PyStructNode( &nd);
 		}
 		else if (papuga_SerializationIter_tag(seriter) == papuga_TagOpen)
 		{
@@ -630,17 +758,16 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, papug
 			{
 				goto ERROR;
 			}
-			nd.valobj = papuga_PyStruct_create_object( &subpystruct, errcode);
-			papuga_destroy_PyStruct( &subpystruct);
+			papuga_PyStructNode_set_value( &nd, papuga_PyStruct_create_object( &subpystruct, errcode));
 			if (!nd.valobj) goto ERROR;
-			if (!papuga_Stack_push( &pystruct->stk, &nd))
+
+			if (!papuga_PyStruct_push_node( pystruct, &nd))
 			{
-				*errcode = papuga_TypeError;
+				papuga_destroy_PyStruct( &subpystruct);
+				*errcode = papuga_NoMemError;
 				goto ERROR;
 			}
-			++pystruct->nofElements;
-			papuga_init_PyStructNode( &nd);
-
+			papuga_destroy_PyStruct( &subpystruct);
 			if (papuga_SerializationIter_eof(seriter))
 			{
 				*errcode = papuga_UnexpectedEof;
@@ -656,6 +783,7 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, papug
 	return true;
 ERROR:
 	papuga_destroy_PyStruct( pystruct);
+	papuga_destroy_PyStructNode( &nd);
 	return false;
 }
 
@@ -735,8 +863,19 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 			papuga_PyStruct pystruct;
 			papuga_SerializationIter seriter;
 			papuga_init_SerializationIter( &seriter, value->value.serialization);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			{
+				char* serstr = papuga_Serialization_tostring( value->value.serialization);
+				if (serstr)
+				{
+					fprintf( stderr, "create structure from serialization:\n%s\n", serstr);
+					free( serstr);
+				}
+			}
+#endif
 			if (!papuga_init_PyStruct_serialization( &pystruct, allocator, &seriter, cemap, errcode))
 			{
+				papuga_destroy_PyStruct( &pystruct);
 				break;
 			}
 			rt = papuga_PyStruct_create_object( &pystruct, errcode);
@@ -758,6 +897,15 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 	{
 		*errcode = papuga_NoMemError;
 	}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	if (!checkCircular( rt))
+	{
+		fprintf( stderr, "circular reference in created object");
+		PyDict_Clear( rt);
+		*errcode = papuga_LogicError;
+		return NULL;
+	}
+#endif
 	return rt;
 }
 
@@ -797,7 +945,15 @@ DLL_PUBLIC void papuga_python_init_object( PyObject* selfobj, void* self, int cl
 	cobj->classid = classid;
 	cobj->self = self;
 	cobj->destroy = destroy;
-	cobj->checksum = calcObjectCheckSum( cobj);
+	cobj->checksum = calcClassObjectCheckSum( cobj);
+}
+
+DLL_PUBLIC void papuga_python_init_struct( PyObject* selfobj, int structid)
+{
+	papuga_python_StructObject* cobj = (papuga_python_StructObject*)selfobj;
+	cobj->structid = structid;
+	cobj->elemarsize = (Py_TYPE(selfobj)->tp_basicsize - sizeof(papuga_python_StructObject)) / sizeof(papuga_python_StructObjectElement);
+	cobj->checksum = calcStructObjectCheckSum( cobj);
 }
 
 DLL_PUBLIC PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
@@ -819,12 +975,50 @@ DLL_PUBLIC PyObject* papuga_python_create_object( void* self, int classid, papug
 	return selfobj;
 }
 
+DLL_PUBLIC PyObject* papuga_python_create_struct( int structid, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+{
+	PyObject* selfobj;
+	PyTypeObject* typeobj = getTypeStruct( cemap, structid);
+	if (!typeobj)
+	{
+		*errcode = papuga_InvalidAccess;
+		return NULL;
+	}
+	selfobj = PyType_GenericAlloc( typeobj, 1);
+	if (!selfobj)
+	{
+		*errcode = papuga_NoMemError;
+		return NULL;
+	}
+	papuga_python_init_struct( selfobj, structid);
+	return selfobj;
+}
+
+
 DLL_PUBLIC void papuga_python_destroy_object( PyObject* selfobj)
 {
 	papuga_python_ClassObject* cobj = (papuga_python_ClassObject*)selfobj;
-	if (cobj->checksum == calcObjectCheckSum( cobj))
+	if (cobj->checksum == calcClassObjectCheckSum( cobj))
 	{
 		cobj->destroy( cobj->self);
+		Py_TYPE(selfobj)->tp_free( selfobj);
+	}
+	else
+	{
+		papuga_python_error( "%s", papuga_ErrorCode_tostring( papuga_InvalidAccess));
+	}
+}
+
+DLL_PUBLIC void papuga_python_destroy_struct( PyObject* selfobj)
+{
+	papuga_python_StructObject* cobj = (papuga_python_StructObject*)selfobj;
+	if (cobj->checksum == calcStructObjectCheckSum( cobj))
+	{
+		for (int ii=0; ii<cobj->elemarsize; ++ii)
+		{
+			Py_XDECREF( cobj->elemar[ii].pyobjref);
+		}
+		Py_TYPE(selfobj)->tp_free( selfobj);
 	}
 	else
 	{
@@ -944,4 +1138,5 @@ DLL_PUBLIC void papuga_python_error( const char* msg, ...)
 
 	PyErr_SetString( PyExc_RuntimeError, buf);
 }
+
 

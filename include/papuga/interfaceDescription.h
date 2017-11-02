@@ -104,7 +104,8 @@ typedef struct papuga_AboutDescription
 */
 typedef struct papuga_StructMemberDescription
 {
-	const char* name;
+	const char* name;				/*< name of the data member */
+	const papuga_Annotation* doc;			/*< description of the struct as {NULL,NULL} terminated list */
 } papuga_StructMemberDescription;
 
 /*
@@ -112,7 +113,9 @@ typedef struct papuga_StructMemberDescription
 */
 typedef struct papuga_StructInterfaceDescription
 {
-	const papuga_StructMemberDescription* members;
+	const char* name;				/*< name of the structure */
+	const papuga_Annotation* doc;			/*< description of the struct as {NULL,NULL} terminated list */
+	const papuga_StructMemberDescription* members;	/*< members of the struct as {NULL} terminated list */
 } papuga_StructInterfaceDescription;
 
 /*

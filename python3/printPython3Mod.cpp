@@ -10,6 +10,7 @@
 #include "printPython3Mod.hpp"
 #include "private/dll_tags.h"
 #include "private/gen_utils.hpp"
+#include "papuga/lib/python3_dev.h"
 #include "fmt/format.h"
 #include <string>
 #include <algorithm>
@@ -190,18 +191,13 @@ static void define_class(
 		classdef.constructor ? (std::string("init__") + classdef.name):"NULL";
 
 	out << fmt::format( papuga::cppCodeSnippet( 0,
-		"static void dealloc__{classname}( PyObject* selfobj)",
-		"{",
-			"papuga_python_destroy_object( selfobj);",
-		"}",
-		"",
 		"static PyTypeObject g_typeobject_{classname} =",
 		"{",
 		"PyVarObject_HEAD_INIT(&PyType_Type, 0)",
 		"\"{classname}\",		/* tp_name */",
 		"sizeof(papuga_python_ClassObject), /* tp_basicsize */",
 		"1,				/* tp_itemsize */",
-		"dealloc__{classname},		/* tp_dealloc */",
+		"papuga_python_destroy_object,	/* tp_dealloc */",
 		"0,				/* tp_print */",
 		"0,				/* tp_getattr */",
 		"0,				/* tp_setattr */",
@@ -254,6 +250,88 @@ static void define_class(
 		) << std::endl;
 }
 
+static void define_struct(
+		std::ostream& out,
+		const papuga_InterfaceDescription& descr,
+		const papuga_StructInterfaceDescription& structdef)
+{
+	int nofmembers = 0;
+	papuga_StructMemberDescription const* mi = structdef.members;
+	for (int midx=0; mi->name; ++mi,++midx) {++nofmembers;}
+
+	out << fmt::format( papuga::cppCodeSnippet( 0,
+		"static PyMemberDef g_members_{structname}[ {memberarraysize}] = {",
+		0),
+		fmt::arg("structname", structdef.name),
+		fmt::arg("memberarraysize", nofmembers+1)
+	);
+	mi = structdef.members;
+	for (int midx=0; mi->name; ++mi,++midx)
+	{
+		std::string memberdoc = getAnnotationText( mi->doc, papuga_AnnotationType_Description);
+		out << "\t" << "{\"" << mi->name << "\", T_OBJECT_EX, " << papuga_python_StructObjectElement_offset( midx) << ", 0, \"" << memberdoc << "\"}," << std::endl;
+	}
+	out << "\t" << "{NULL,0,0,0}" << std::endl << "};" << std::endl << std::endl;
+
+	out << fmt::format( papuga::cppCodeSnippet( 0,
+		"static PyTypeObject g_typestruct_{structname} =",
+		"{",
+		"PyVarObject_HEAD_INIT(&PyType_Type, 0)",
+		"\"{structname}\",		/* tp_name */",
+		"sizeof(papuga_python_StructObject) + {nofmembers} * sizeof(papuga_python_StructObjectElement), /* tp_basicsize */",
+		"1,				/* tp_itemsize */",
+		"papuga_python_destroy_struct,	/* tp_dealloc */",
+		"0,				/* tp_print */",
+		"0,				/* tp_getattr */",
+		"0,				/* tp_setattr */",
+		"0,				/* tp_reserved */",
+		"0,				/* tp_repr */",
+		"0,				/* tp_as_number */",
+		"0,				/* tp_as_sequence */",
+		"0,				/* tp_as_mapping */",
+		"0,				/* tp_hash */",
+		"0,				/* tp_call */",
+		"0,				/* tp_str */",
+		"0,				/* tp_getattro */",
+		"0,				/* tp_setattro */",
+		"0,				/* tp_as_buffer */",
+		"Py_TPFLAGS_DEFAULT,		/* tp_flags */",
+		"\"{doc}\",			/* tp_doc */",
+		"0,				/* tp_traverse */",
+		"0,				/* tp_clear */",
+		"0,				/* tp_richcompare */",
+		"0,				/* tp_weaklistoffset */",
+		"0,				/* tp_iter */",
+		"0,				/* tp_iternext */",
+		"0,				/* tp_methods */",
+		"g_members_{structname},	/* tp_members */",
+		"0,				/* tp_getset */",
+		"0,				/* tp_base */",
+		"0,				/* tp_dict */",
+		"0,				/* tp_descr_get */",
+		"0,				/* tp_descr_set */",
+		"0,				/* tp_dictoffset */",
+		"0,				/* tp_init */",
+		"PyType_GenericAlloc,		/* tp_alloc */",
+		"PyType_GenericNew,		/* tp_new */",
+		"0,				/* tp_free */",
+		"0,				/* tp_is_gc */",
+		"0,				/* tp_bases */",
+		"0,				/* tp_mro */",
+		"0,				/* tp_cache */",
+		"0,				/* tp_subclasses */",
+		"0,				/* tp_weaklist */",
+		"0,				/* tp_del */",
+		"0,				/* tp_version_tag */",
+		"0				/* tp_finalize */",
+		"};",
+		0),
+			fmt::arg("structname", structdef.name),
+			fmt::arg("nofmembers", nofmembers),
+			fmt::arg("doc", getAnnotationText( structdef.doc, papuga_AnnotationType_Description))
+		) << std::endl;
+}
+
 static void define_main(
 		std::ostream& out,
 		const papuga_InterfaceDescription& descr)
@@ -292,6 +370,12 @@ static void define_main(
 		out << "\t" << "g_typeobjectar[ " << ci << "] = &g_typeobject_" << descr.classes[ci].name << ";" << std::endl;
 		out << "\t" << "if (PyType_Ready(&g_typeobject_" << descr.classes[ci].name << ") < 0) return NULL;" << std::endl;
 	}
+	std::size_t mi;
+	for (mi=0; descr.structs[mi].name; ++mi)
+	{
+		out << "\t" << "g_typestructar[ " << mi << "] = &g_typestruct_" << descr.structs[mi].name << ";" << std::endl;
+		out << "\t" << "if (PyType_Ready(&g_typestruct_" << descr.structs[mi].name << ") < 0) return NULL;" << std::endl;
+	}
 	out << "\t" << "rt = PyModule_Create( &g_moduledef);" << std::endl;
 	out << "\t" << "if (rt == NULL) return NULL;" << std::endl;
 
@@ -300,19 +384,32 @@ static void define_main(
 		out << "\t" << "Py_INCREF( &g_typeobject_" << descr.classes[ci].name << ");" << std::endl;
 		out << "\t" << "PyModule_AddObject( rt, \"" << descr.classes[ci].name << "\", (PyObject *)&g_typeobject_" << descr.classes[ci].name << ");" << std::endl;
 	}
+	for (mi=0; descr.structs[mi].name; ++mi)
+	{
+		out << "\t" << "Py_INCREF( &g_typestruct_" << descr.structs[mi].name << ");" << std::endl;
+		out << "\t" << "PyModule_AddObject( rt, \"" << descr.structs[mi].name << "\", (PyObject *)&g_typestruct_" << descr.structs[mi].name << ");" << std::endl;
+	}
 	out << "\t" << "return rt;" << std::endl;
 	out << "}" << std::endl << std::endl;
 }
 
 static void define_class_entrymap(
 		std::ostream& out,
-		unsigned int nofClasses)
+		unsigned int nofClasses,
+		unsigned int nofStructs)
 {
-	unsigned int ci = 0;
-	out << "static PyTypeObject* g_typeobjectar[ " << (nofClasses+1) << "] = {";
-	for (; ci < nofClasses; ++ci) out << "0,";
-	out << "0};" << std::endl;
-	out << "static papuga_python_ClassEntryMap g_class_entry_map = { " << nofClasses << ", g_typeobjectar };" << std::endl;
+	{
+		unsigned int ci = 0;
+		out << "static PyTypeObject* g_typeobjectar[ " << (nofClasses+1) << "] = {";
+		for (; ci < nofClasses; ++ci) out << "0,";
+		out << "0};" << std::endl;
+	}{
+		unsigned int mi = 0;
+		out << "static PyTypeObject* g_typestructar[ " << (nofClasses+1) << "] = {";
+		for (; mi < nofStructs; ++mi) out << "0,";
+		out << "0};" << std::endl;
+	}
+	out << "static papuga_python_ClassEntryMap g_class_entry_map = { " << nofClasses << ", g_typeobjectar, " << nofStructs << ", g_typestructar};" << std::endl;
 	out << std::endl;
 }
 
@@ -332,8 +429,9 @@ void papuga::printPython3ModSource(
 		"#include \"papuga/lib/python3_dev.h\"",
 		"#include \"strus/bindingObjects.h\"",
 		"#include \"papuga.h\"",
-		"",
+		"/* Python includes: */",
 		"#include <Python.h>",
+		"#include <structmember.h>",
 		"",
 		0),
 			fmt::arg("MODULENAME", MODULENAME),
@@ -354,11 +452,13 @@ void papuga::printPython3ModSource(
 	out << "/* @remark GENERATED FILE (libpapuga_python3_gen) - DO NOT MODIFY */" << std::endl;
 	out << std::endl << std::endl;
 
-	std::size_t ci;
-	for (ci=0; descr.classes[ci].name; ++ci){}
-	define_class_entrymap( out, ci);
+	std::size_t nofClasses = 0;
+	for (; descr.classes[ nofClasses].name; ++nofClasses){}
+	std::size_t nofStructs = 0;
+	for (; descr.structs[ nofStructs].name; ++nofStructs){}
+	define_class_entrymap( out, nofClasses, nofStructs);
 
-	for (ci=0; descr.classes[ci].name; ++ci)
+	for (std::size_t ci=0; descr.classes[ci].name; ++ci)
 	{
 		const papuga_ClassDescription& classdef = descr.classes[ci];
 		if (classdef.constructor)
@@ -372,6 +472,10 @@ void papuga::printPython3ModSource(
 		}
 		define_methodtable( out, descr, classdef);
 		define_class( out, descr, classdef);
+	}
+	for (std::size_t mi=0; descr.structs[mi].name; ++mi)
+	{
+		define_struct( out, descr, descr.structs[ mi]);
 	}
 	define_main( out, descr);
 }
