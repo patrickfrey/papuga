@@ -1014,7 +1014,8 @@ DLL_PUBLIC void papuga_python_destroy_struct( PyObject* selfobj)
 	papuga_python_StructObject* cobj = (papuga_python_StructObject*)selfobj;
 	if (cobj->checksum == calcStructObjectCheckSum( cobj))
 	{
-		for (int ii=0; ii<cobj->elemarsize; ++ii)
+		int ii;
+		for (ii=0; ii<cobj->elemarsize; ++ii)
 		{
 			Py_XDECREF( cobj->elemar[ii].pyobjref);
 		}

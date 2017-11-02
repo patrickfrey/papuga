@@ -139,7 +139,7 @@ static std::string getAnnotationText(
 			{
 				if ((unsigned int)*si <= 32)
 				{
-					if (!rt.empty() && rt.back() == ' ') continue;
+					if (!rt.empty() && rt[ rt.size()-1] == ' ') continue;
 					rt.push_back( ' ');
 				}
 				else
