@@ -12,6 +12,7 @@
 * @file valueVariant.h
 */
 #include "papuga/typedefs.h"
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -230,6 +231,14 @@ const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbufsize, cons
 * @return the corresponding string
 */
 const char* papuga_Type_name( papuga_Type type);
+
+/*
+* @brief Print a value variant (its .._tostring value) to a text file
+* @param[in,out] out file where to print the output to
+* @param[in] val value variant value
+* @return true on success, false if papuga_ValueVariant_tostring failed (out of memory)
+*/
+bool papuga_ValueVariant_print( FILE* out, const papuga_ValueVariant* val);
 
 #ifdef __cplusplus
 }

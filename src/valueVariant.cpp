@@ -431,7 +431,6 @@ static bool bufprint_number_variant( char* buf, std::size_t bufsize, std::size_t
 	return true;
 }
 
-
 extern "C" const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbufsize, const papuga_ValueVariant* val)
 {
 	if (val->valuetype == papuga_TypeString)
@@ -926,19 +925,4 @@ extern "C" papuga_ValueVariant* papuga_ValueVariant_tonumeric( const papuga_Valu
 	}
 }
 
-extern "C" const char* papuga_Type_name( papuga_Type type)
-{
-	switch (type)
-	{
-		case papuga_TypeVoid: return "Void";
-		case papuga_TypeDouble: return "Double";
-		case papuga_TypeInt: return "Int";
-		case papuga_TypeBool: return "Bool";
-		case papuga_TypeString: return "String";
-		case papuga_TypeHostObject: return "HostObject";
-		case papuga_TypeSerialization: return "Serialization";
-		case papuga_TypeIterator: return "Iterator";
-		default: return "unknown";
-	}
-}
 

@@ -27,7 +27,7 @@
 #include <Python.h>
 #include <structmember.h>
 
-#undef PAPUGA_LOWLEVEL_DEBUG
+#define PAPUGA_LOWLEVEL_DEBUG
 
 typedef struct papuga_python_IteratorObject {
 	PyObject_HEAD
@@ -39,43 +39,17 @@ typedef struct papuga_python_IteratorObject {
 
 static PyTypeObject* getTypeObject( const papuga_python_ClassEntryMap* cemap, int classid)
 {
-	if (classid <= 0 && classid > cemap->hoarsize) return 0;
+	if (classid <= 0 || classid > cemap->hoarsize) return NULL;
 	return cemap->hoar[ classid-1];
 }
 
 static PyTypeObject* getTypeStruct( const papuga_python_ClassEntryMap* cemap, int structid)
 {
-	if (structid <= 0 && structid > cemap->soarsize) return 0;
+	if (structid <= 0 || structid > cemap->soarsize) return NULL;
 	return cemap->soar[ structid-1];
 }
 
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-#if 0
-static void log_ValueVariant( const char* msg, const papuga_ValueVariant* val)
-{
-	char buf[ 256];
-	char const* str;
-	size_t len;
-	papuga_Allocator allocator;
-	papuga_ErrorCode errcode = papuga_Ok;
-	char allocbuf[ 1024];
-	papuga_init_Allocator( &allocator, allocbuf, sizeof(allocbuf));
-
-	str = papuga_ValueVariant_tostring( val, &allocator, &len, &errcode);
-	if (str)
-	{
-		if (len > sizeof(buf)) len = sizeof(buf)-1;
-		memcpy( buf, str, len);
-		buf[ len] = 0;
-		str = buf;
-	}
-	else
-	{
-		str = "<not printable>";
-	}
-	fprintf( stdout, "%s '%s'\n", msg, str);
-}
-#endif
 static bool checkCircular_rec( PyObject* pyobj, PyObject** pyobjlist, size_t pyobjlistsize, size_t pyobjlistpos)
 {
 	PyObject** pydictref = NULL;
@@ -131,6 +105,132 @@ static bool checkCircular( PyObject* pyobj)
 	size_t pyobjlistsize = sizeof(pyobjlist) / sizeof(pyobjlist[0]);
 	return checkCircular_rec( pyobj, pyobjlist, pyobjlistsize, 0);
 }
+
+static void printIndent( FILE* out, int indent)
+{
+	while (indent--) fputc( '\t',  out);
+}
+
+static void printPyObject_rec( FILE* out, int indent, PyObject* pyobj)
+{
+	PyObject** pydictref = NULL;
+	if (!pyobj) return;
+
+	if (pyobj == Py_None)
+	{
+		fprintf( out, "NULL");
+	}
+	else if (pyobj == Py_True)
+	{
+		fprintf( out, "true");
+	}
+	else if (pyobj == Py_False)
+	{
+		fprintf( out, "false");
+	}
+	else if (PyLong_Check( pyobj))
+	{
+		fprintf( out, "%d", (int)PyLong_AS_LONG( pyobj));
+	}
+	else if (PyFloat_Check( pyobj))
+	{
+		fprintf( out, "%f", PyFloat_AS_DOUBLE( pyobj));
+	}
+	else if (PyBytes_Check( pyobj))
+	{
+		char* str;
+		Py_ssize_t ii,strsize;
+		if (0==PyBytes_AsStringAndSize( pyobj, &str, &strsize))
+		{
+			if (str) for (ii=0; ii<strsize; ++ii)
+			{
+				fputc( str[ii], out);
+			}
+		}
+	}
+	else if (PyUnicode_Check( pyobj))
+	{
+		Py_ssize_t ii,utf8bytes;
+		char* utf8str;
+
+		if (0<=PyUnicode_READY( pyobj))
+		{
+			utf8str = PyUnicode_AsUTF8AndSize( pyobj, &utf8bytes);
+			if (utf8str) for (ii=0; ii<utf8bytes; ++ii)
+			{
+				fputc( utf8str[ii], out);
+			}
+		}
+	}
+	else if (indent >= 0 && PyDict_Check( pyobj))
+	{
+		PyObject* keyitem = NULL;
+		PyObject* valitem = NULL;
+		Py_ssize_t pos = 0;
+
+		fputs( "begin dict\n", out);
+		while (PyDict_Next( pyobj, &pos, &keyitem, &valitem))
+		{
+			printIndent( out, indent+1);
+			printPyObject_rec( out, -1, keyitem);
+			fputc( '=', out);
+			printPyObject_rec( out, indent+1, valitem);
+			fputc( '\n', out);
+			fflush( out);
+		}
+		printIndent( out, indent);
+		fputs( "end dict", out);
+	}
+	else if (indent >= 0 && PyTuple_Check( pyobj))
+	{
+		Py_ssize_t ii = 0, size = PyTuple_GET_SIZE( pyobj);
+		fputs( "begin tuple\n", out);
+		for (; ii < size; ++ii)
+		{
+			PyObject* item = PyTuple_GET_ITEM( pyobj, ii);
+			printIndent( out, indent+1);
+			fprintf( out, "%d:", (int)ii);
+			printPyObject_rec( out, indent+1, item);
+			fputc( '\n', out);
+			fflush( out);
+		}
+		printIndent( out, indent);
+		fputs( "end tuple", out);
+	}
+	else if (indent >= 0 && PyList_Check( pyobj))
+	{
+		Py_ssize_t ii = 0, size = PyList_GET_SIZE( pyobj);
+		fputs( "begin list\n", out);
+		for (; ii < size; ++ii)
+		{
+			PyObject* item = PyList_GET_ITEM( pyobj, ii);
+			printIndent( out, indent+1);
+			fprintf( out, "%d:", (int)ii);
+			printPyObject_rec( out, indent+1, item);
+			fputc( '\n', out);
+			fflush( out);
+		}
+		printIndent( out, indent);
+		fputs( "end list", out);
+	}
+	else if (NULL!=(pydictref = _PyObject_GetDictPtr( pyobj)))
+	{
+		fputs( " -> ", out);
+		printPyObject_rec( out, indent, *pydictref);
+	}
+	else
+	{
+		fputs( "<invalid>", out);
+	}
+}
+
+static void printPyObject( FILE* out, const char* msg, PyObject* pyobj)
+{
+	fprintf( out, "OBJECT %s:\n", msg);
+	printPyObject_rec( out, 0, pyobj);
+	fputc( '\n', out);
+	fflush( out);
+}
 #endif
 
 #define KNUTH_HASH 2654435761U
@@ -151,7 +251,7 @@ static papuga_python_ClassObject* getClassObject( PyObject* pyobj, const papuga_
 {
 	papuga_python_ClassObject* cobj;
 	PyTypeObject* pytype = pyobj->ob_type;
-	if (pytype->tp_basicsize != sizeof(papuga_python_ClassObject)) return NULL;
+	if ((int)pytype->tp_basicsize != (int)sizeof(papuga_python_ClassObject)) return NULL;
 	cobj = (papuga_python_ClassObject*)pyobj;
 	if (pytype != getTypeObject( cemap, cobj->classid)) return NULL;
 	if (cobj->checksum != calcClassObjectCheckSum( cobj)) return NULL;
@@ -160,6 +260,9 @@ static papuga_python_ClassObject* getClassObject( PyObject* pyobj, const papuga_
 
 static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	printPyObject( stderr, "init single value", pyobj);
+#endif
 	papuga_python_ClassObject* cobj;
 	if (pyobj == Py_None)
 	{
@@ -230,6 +333,9 @@ static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* alloc
 
 static bool serialize_members( papuga_Serialization* ser, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	printPyObject( stderr, "serialize members", pyobj);
+#endif
 #define GET_PYSTRUCT_MEMBER( Type, pyobj, offset) *(Type*)((unsigned char*)(void*)pyobj + offset)
 
 	PyMemberDef const* mi = pyobj->ob_type->tp_members;
@@ -332,6 +438,9 @@ ERROR_NOMEM:
 static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	PyObject** pydictref = NULL;
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	printPyObject( stderr, "serialize struct", pyobj);
+#endif
 	if (PyDict_Check( pyobj))
 	{
 		PyObject* keyitem = NULL;
@@ -348,6 +457,7 @@ static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* alloc
 				return false;
 			}
 			if (keyval.valuetype == papuga_TypeString && keyval.encoding == papuga_UTF8 && keyval.length > 0 && keyval.value.string[0] == '_') continue;
+			// ... do not serialize internal members (key string starting with '_')
 			if (!papuga_Serialization_pushName( ser, &keyval)) goto ERROR_NOMEM;
 
 			/* Serialize value: */
@@ -419,11 +529,11 @@ static bool init_ValueVariant_pyobj( papuga_ValueVariant* value, papuga_Allocato
 	}
 	else
 	{
-		papuga_Serialization* ser = 0;
+		papuga_Serialization* ser;
 		if (*errcode != papuga_Ok) return false;
 		ser = papuga_Allocator_alloc_Serialization( allocator);
 		if (!ser) goto ERROR_NOMEM;
-	
+
 		papuga_init_ValueVariant_serialization( value, ser);
 		if (!serialize_struct( ser, allocator, pyobj, cemap, errcode)) return false;
 
@@ -444,7 +554,7 @@ ERROR_NOMEM:
 
 static PyObject* papuga_Iterator_iter( PyObject *selfobj)
 {
-	Py_INCREF(selfobj);
+	Py_XINCREF(selfobj);
 	return selfobj;
 }
 
@@ -648,7 +758,7 @@ static PyObject* papuga_PyStruct_create_dict( papuga_PyStruct* pystruct, papuga_
 			if (!checkCircular( rt))
 			{
 				fprintf( stderr, "circular reference in list created from papuga_pyStruct");
-				PyDict_Clear( rt);
+				Py_DECREF( rt);
 				*errcode = papuga_LogicError;
 				return NULL;
 			}
@@ -656,15 +766,20 @@ static PyObject* papuga_PyStruct_create_dict( papuga_PyStruct* pystruct, papuga_
 		}
 		if (ei != ee)
 		{
-			PyDict_Clear( rt);
-			rt = NULL;
+			Py_DECREF( rt);
+			return NULL;
 		}
+	}
+	else
+	{
+		*errcode = papuga_NoMemError;
+		return NULL;
 	}
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	if (!checkCircular( rt))
 	{
 		fprintf( stderr, "circular reference in dictionary created from papuga_pyStruct");
-		PyDict_Clear( rt);
+		Py_DECREF( rt);
 		*errcode = papuga_LogicError;
 		return NULL;
 	}
@@ -681,22 +796,25 @@ static PyObject* papuga_PyStruct_create_list( papuga_PyStruct* pystruct, papuga_
 		for (; ei != ee; ++ei)
 		{
 			papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
-			if (0>PyList_SetItem( rt, ei, nd->valobj))
-			{
-				*errcode = papuga_NoMemError;
-				break;
-			}
+			if (0>PyList_SetItem( rt, ei, nd->valobj)) break;
 		}
 		if (ei != ee)
 		{
-			rt = NULL;
+			Py_DECREF( rt);
+			*errcode = papuga_NoMemError;
+			return NULL;
 		}
+	}
+	else
+	{
+		*errcode = papuga_NoMemError;
+		return NULL;
 	}
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	if (!checkCircular( rt))
 	{
 		fprintf( stderr, "circular reference in list created from papuga_pyStruct");
-		PyDict_Clear( rt);
+		Py_DECREF( rt);
 		*errcode = papuga_LogicError;
 		return NULL;
 	}
@@ -901,7 +1019,7 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 	if (!checkCircular( rt))
 	{
 		fprintf( stderr, "circular reference in created object");
-		PyDict_Clear( rt);
+		Py_XDECREF( rt);
 		*errcode = papuga_LogicError;
 		return NULL;
 	}
@@ -917,17 +1035,19 @@ static PyObject* papuga_python_create_tuple( PyObject** ar, size_t arsize, papug
 		size_t ei = 0, ee = arsize;
 		for (; ei != ee; ++ei)
 		{
-			if (0>PyTuple_SetItem( rt, ei, ar[ei]))
-			{
-				*errcode = papuga_NoMemError;
-				break;
-			}
+			if (0>PyTuple_SetItem( rt, ei, ar[ei])) break;
 		}
 		if (ei != ee)
 		{
-			_PyTuple_Resize( &rt, 0);
-			rt = NULL;
+			*errcode = papuga_NoMemError;
+			Py_XDECREF( rt);
+			return NULL;
 		}
+	}
+	else
+	{
+		*errcode = papuga_NoMemError;
+		return NULL;
 	}
 	return rt;
 }
@@ -1030,42 +1150,43 @@ DLL_PUBLIC void papuga_python_destroy_struct( PyObject* selfobj)
 DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_CallArgs* as, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap)
 {
 	papuga_init_CallArgs( as);
+	if (args == NULL) return NULL;
+
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	printPyObject( stderr, "call arguments", args);
+#endif
 
 	if (PyDict_Check( args))
 	{
-		int argi;
-		Py_ssize_t argcnt = 0;
+		Py_ssize_t ai = 0, ae = PyDict_Size( args);
 		PyObject* argitem;
 
-		for (argi=0; kwargnames[ argi]; ++argi)
+		if (ae > papuga_MAX_NOF_ARGUMENTS)
 		{
-			if (argi > papuga_MAX_NOF_ARGUMENTS)
+			as->errcode = papuga_NofArgsError;
+			goto ERROR;
+		}
+		for (; kwargnames[ ai]; ++ai)
+		{
+			if (as->argc >= papuga_MAX_NOF_ARGUMENTS)
 			{
-				papuga_destroy_CallArgs( as);
 				as->errcode = papuga_NofArgsError;
-				return false;
+				goto ERROR;
 			}
-			argitem = PyDict_GetItemString( args, kwargnames[argi]);
+			argitem = PyDict_GetItemString( args, kwargnames[ ai]);
 			if (argitem)
 			{
-				if (!init_ValueVariant_pyobj( &as->argv[ argi], &as->allocator, argitem, cemap, &as->errcode))
+				if (!init_ValueVariant_pyobj( &as->argv[ ai], &as->allocator, argitem, cemap, &as->errcode))
 				{
-					as->erridx = argi;
-					papuga_destroy_CallArgs( as);
-					return false;
+					as->erridx = ai;
+					goto ERROR;
 				}
-				++argcnt;
 			}
 			else
 			{
-				papuga_init_ValueVariant( &as->argv[ argi]);
+				papuga_init_ValueVariant( &as->argv[ ai]);
 			}
 			++as->argc;
-		}
-		if (argcnt != PyDict_Size( args))
-		{
-			as->errcode = papuga_NofArgsError;
-			return false;
 		}
 	}
 	else if (PyTuple_Check( args))
@@ -1073,18 +1194,23 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_CallArgs* as, PyObject* args
 		Py_ssize_t ai = 0, ae = PyTuple_GET_SIZE( args);
 		if (ae > papuga_MAX_NOF_ARGUMENTS)
 		{
-			papuga_destroy_CallArgs( as);
 			as->errcode = papuga_NofArgsError;
-			return false;
+			goto ERROR;
 		}
 		for (; ai < ae; ++ai)
 		{
-			PyObject* argitem = PyTuple_GET_ITEM( args, ai);
-			if (!init_ValueVariant_pyobj( &as->argv[ ai], &as->allocator, argitem, cemap, &as->errcode))
+			PyObject* argitem = PyTuple_GetItem( args, ai);
+			if (argitem)
 			{
-				as->erridx = ai;
-				papuga_destroy_CallArgs( as);
-				return false;
+				if (!init_ValueVariant_pyobj( &as->argv[ ai], &as->allocator, argitem, cemap, &as->errcode))
+				{
+					as->erridx = ai;
+					goto ERROR;
+				}
+			}
+			else
+			{
+				papuga_init_ValueVariant( &as->argv[ ai]);
 			}
 			++as->argc;
 		}
@@ -1092,9 +1218,12 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_CallArgs* as, PyObject* args
 	else
 	{
 		as->errcode = papuga_TypeError;
-		return false;
+		goto ERROR;
 	}
 	return true;
+ERROR:
+	papuga_destroy_CallArgs( as);
+	return false;
 }
 
 DLL_PUBLIC PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
@@ -1125,6 +1254,9 @@ DLL_PUBLIC PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, c
 		rt = Py_None;
 	}
 	papuga_destroy_CallResult( retval);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	printPyObject( stderr, "call result", rt);
+#endif
 	return rt;
 }
 
