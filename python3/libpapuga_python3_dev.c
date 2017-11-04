@@ -694,11 +694,13 @@ typedef struct papuga_PyStruct
 	papuga_Stack stk;
 	char stk_local_mem[ 2048];
 	int nofKeyValuePairs;
+	int structid;
 } papuga_PyStruct;
 
-static void papuga_init_PyStruct( papuga_PyStruct* pystruct)
+static void papuga_init_PyStruct( papuga_PyStruct* pystruct, int structid)
 {
 	pystruct->nofKeyValuePairs = 0;
+	pystruct->structid = structid;
 	papuga_init_Stack( &pystruct->stk, sizeof(papuga_PyStructNode), pystruct->stk_local_mem, sizeof(pystruct->stk_local_mem));
 }
 
@@ -836,10 +838,10 @@ static PyObject* papuga_PyStruct_create_object( papuga_PyStruct* pystruct, papug
 	return rt;
 }
 
-static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, papuga_Allocator* allocator, papuga_SerializationIter* seriter, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, int structid, papuga_Allocator* allocator, papuga_SerializationIter* seriter, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	papuga_PyStructNode nd;
-	papuga_init_PyStruct( pystruct);
+	papuga_init_PyStruct( pystruct, structid);
 	papuga_init_PyStructNode( &nd);
 
 	for (; papuga_SerializationIter_tag(seriter) != papuga_TagClose; papuga_SerializationIter_skip(seriter))
@@ -870,9 +872,16 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, papug
 		else if (papuga_SerializationIter_tag(seriter) == papuga_TagOpen)
 		{
 			papuga_PyStruct subpystruct;
+			int structid = 0;
+			const papuga_ValueVariant* openval = papuga_SerializationIter_value(seriter);
 
 			papuga_SerializationIter_skip(seriter);
-			if (!papuga_init_PyStruct_serialization( &subpystruct, allocator, seriter, cemap, errcode))
+			if (papuga_ValueVariant_defined( openval))
+			{
+				structid = papuga_ValueVariant_toint( openval, errcode);
+				if (!structid) goto ERROR;
+			}
+			if (!papuga_init_PyStruct_serialization( &subpystruct, structid, allocator, seriter, cemap, errcode))
 			{
 				goto ERROR;
 			}
@@ -947,14 +956,8 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 			{
 				size_t len;
 				const char* str = papuga_ValueVariant_tostring( value, allocator, &len, errcode);
-				if (!str)
-				{
-					return NULL;
-				}
-				else
-				{
-					rt = PyUnicode_FromStringAndSize( str, len);
-				}
+				if (!str) return NULL;
+				rt = PyUnicode_FromStringAndSize( str, len);
 			}
 			if (rt == NULL)
 			{
@@ -980,6 +983,8 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 		{
 			papuga_PyStruct pystruct;
 			papuga_SerializationIter seriter;
+			int structid = papuga_Serialization_structid( value->value.serialization);
+
 			papuga_init_SerializationIter( &seriter, value->value.serialization);
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 			{
@@ -991,7 +996,7 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 				}
 			}
 #endif
-			if (!papuga_init_PyStruct_serialization( &pystruct, allocator, &seriter, cemap, errcode))
+			if (!papuga_init_PyStruct_serialization( &pystruct, structid, allocator, &seriter, cemap, errcode))
 			{
 				papuga_destroy_PyStruct( &pystruct);
 				break;

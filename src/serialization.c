@@ -103,11 +103,11 @@ bool papuga_Serialization_pushOpen( papuga_Serialization* self)
 	return true;
 }
 
-bool papuga_Serialization_pushOpen_interface( papuga_Serialization* self, int interface)
+bool papuga_Serialization_pushOpen_struct( papuga_Serialization* self, int structid)
 {
 	papuga_Node* nd = alloc_node( self);
 	if (!nd) return false;
-	papuga_init_ValueVariant_int( &nd->content, interface);
+	papuga_init_ValueVariant_int( &nd->content, structid);
 	nd->content._tag = papuga_TagOpen;
 	return true;
 }

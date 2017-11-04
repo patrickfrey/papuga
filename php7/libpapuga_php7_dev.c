@@ -550,7 +550,7 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 		}
 		case papuga_TypeSerialization:
 		{
-			bool asStruct = value->value.serialization->interface > 0;
+			bool asStruct = papuga_Serialization_structid( value->value.serialization) > 0;
 			/* ... we just test, if a structure interface has been selected and build a std object in this case.
 			 * We do not check the correctness of the keys */
 #ifdef PAPUGA_LOWLEVEL_DEBUG

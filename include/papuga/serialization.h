@@ -22,15 +22,21 @@ extern "C" {
 * @brief Serialization constructor
 * @param[out] self pointer to structure 
 */
-#define papuga_init_Serialization(self_,allocator_)		{papuga_Serialization* s = (self_); s->head.next=NULL; s->head.size=0; s->allocator=(allocator_); s->current=&s->head; s->interface=0;}
+#define papuga_init_Serialization(self_,allocator_)		{papuga_Serialization* s = (self_); s->head.next=NULL; s->head.size=0; s->allocator=(allocator_); s->current=&s->head; s->structid=0;}
 
 /*
-* @brief Define the structure interface to used for serialization (default 0 for dictionary)
+* @brief Define the structure to be used for serialization (default 0 for dictionary)
 * @param[out] self pointer to structure
-* @param[in] interface index of the structure interface in the interface description or 0 in case of no structure interface selected
-* @note the selection of the interface is done with the argument of OPEN for substructures
+* @param[in] structid index of the structure interface in the interface description or 0 in case of no structure interface selected
+* @note the selection of the interface for substructures is done with the argument of Open
 */
-#define papuga_Serialization_set_interface(self_,allocator_)	{papuga_Serialization* s = (self_); s->head.next=NULL; s->head.size=0; s->allocator=(allocator_); s->current=&s->head; s->interface=0;}
+#define papuga_Serialization_set_structid(self_,structid_)	{papuga_Serialization* s = (self_); s->structid=structid_;}
+
+/*
+* @brief Get the toplevel structure to be used for serialization (default 0 for dictionary)
+* @param[out] self pointer to structure
+*/
+#define papuga_Serialization_structid(self_)			((self_)->structid)
 
 /*
 * @brief Add a node to the serialization
@@ -50,10 +56,10 @@ bool papuga_Serialization_pushOpen( papuga_Serialization* self);
 /*
 * @brief Add an 'open' element to the serialization
 * @param[in,out] self pointer to structure 
-* @param[in] interface index of the structure interface in the interface description
+* @param[in] structid index of the structure interface in the interface description
 * @return true on success, false on memory allocation error
 */
-bool papuga_Serialization_pushOpen_interface( papuga_Serialization* self, int interface);
+bool papuga_Serialization_pushOpen_struct( papuga_Serialization* self, int structid);
 
 /*
 * @brief Add a 'close' element to the serialization

@@ -11,9 +11,9 @@ set( source_files
 	errors.c
 	${CMAKE_CURRENT_BINARY_DIR}/internationalization.c
 	stack.c
-	valueVariant.c
 	errors.cpp
 	valueVariant.cpp
+	valueVariant.c
 	serialization.cpp
 )
 
