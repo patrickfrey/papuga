@@ -661,30 +661,70 @@ static PyObject* createPyObjectFromIterator( papuga_Iterator* iterator, const pa
 
 static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const papuga_ValueVariant* value, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
+/*
+* @brief Initialize an allocated host object in the Python context
+* @param[in] selfobj pointer to the allocated and zeroed python object
+* @param[in] structid type interface identifier of the object
+* @param[in] self pointer to host object representation
+*/
+static void papuga_python_init_struct( PyObject* selfobj, int structid)
+{
+	papuga_python_StructObject* cobj = (papuga_python_StructObject*)selfobj;
+	cobj->structid = structid;
+	cobj->elemarsize = (Py_TYPE(selfobj)->tp_basicsize - sizeof(papuga_python_StructObject)) / sizeof(papuga_python_StructObjectElement);
+	cobj->checksum = calcStructObjectCheckSum( cobj);
+}
+
+/*
+* @brief Create a structure (return value structure) representation in the Python context
+* @param[in] sructid struct interface identifier of the object
+* @param[in] cemap map of struct ids to python class descriptions
+* @param[in,out] errcode error code in case of NULL returned
+* @return object without reference increment, NULL on error
+*/
+static PyObject* papuga_python_create_struct( int structid, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+{
+	PyObject* selfobj;
+	PyTypeObject* typeobj = getTypeStruct( cemap, structid);
+	if (!typeobj)
+	{
+		*errcode = papuga_InvalidAccess;
+		return NULL;
+	}
+	selfobj = PyType_GenericAlloc( typeobj, 1);
+	if (!selfobj)
+	{
+		*errcode = papuga_NoMemError;
+		return NULL;
+	}
+	papuga_python_init_struct( selfobj, structid);
+	return selfobj;
+}
+
+
 typedef struct papuga_PyStructNode
 {
-	PyObject* keyobj;
+	papuga_ValueVariant keyval;
 	PyObject* valobj;
 } papuga_PyStructNode;
 
-void papuga_init_PyStructNode( papuga_PyStructNode* nd)
+static void papuga_init_PyStructNode( papuga_PyStructNode* nd)
 {
-	nd->keyobj = NULL;
+	papuga_init_ValueVariant( &nd->keyval);
 	nd->valobj = NULL;
 }
 
-void papuga_destroy_PyStructNode( papuga_PyStructNode* nd)
+static void papuga_destroy_PyStructNode( papuga_PyStructNode* nd)
 {
-	Py_XDECREF( nd->keyobj);
 	Py_XDECREF( nd->valobj);
 }
 
-void papuga_PyStructNode_set_key( papuga_PyStructNode* nd, PyObject* key)
+static void papuga_PyStructNode_set_key( papuga_PyStructNode* nd, const papuga_ValueVariant* keyval)
 {
-	Py_XINCREF( nd->keyobj = key);
+	papuga_init_ValueVariant_copy( &nd->keyval, keyval);
 }
 
-void papuga_PyStructNode_set_value( papuga_PyStructNode* nd, PyObject* val)
+static void papuga_PyStructNode_set_value( papuga_PyStructNode* nd, PyObject* val)
 {
 	Py_XINCREF( nd->valobj = val);
 }
@@ -722,7 +762,7 @@ static bool papuga_PyStruct_push_node( papuga_PyStruct* pystruct, papuga_PyStruc
 	return true;
 }
 
-static PyObject* papuga_PyStruct_create_dict( papuga_PyStruct* pystruct, papuga_ErrorCode* errcode)
+static PyObject* papuga_PyStruct_create_dict( const papuga_PyStruct* pystruct, papuga_Allocator* allocator, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	PyObject* rt = PyDict_New();
 	if (rt)
@@ -732,27 +772,41 @@ static PyObject* papuga_PyStruct_create_dict( papuga_PyStruct* pystruct, papuga_
 		for (; ei != ee; ++ei)
 		{
 			papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
+			PyObject* keyobj = NULL;
 			if (!nd) break;
-			if (!nd->keyobj)
+			if (!papuga_ValueVariant_defined( &nd->keyval))
 			{
-				nd->keyobj = PyLong_FromLong( currIndex++);
-				if (nd->keyobj == 0)
+				keyobj = PyLong_FromLong( currIndex++);
+				if (!keyobj)
 				{
 					*errcode = papuga_NoMemError;
 					break;
 				}
 			}
-			else if (PyLong_Check( nd->keyobj))
+			else if ((papuga_Type)nd->keyval.valuetype == papuga_TypeInt)
 			{
-				currIndex = PyLong_AsLong( nd->keyobj)+1;
+				currIndex = papuga_ValueVariant_toint( &nd->keyval, errcode);
+				keyobj = PyLong_FromLong( currIndex++);
+				if (!keyobj)
+				{
+					*errcode = papuga_NoMemError;
+					break;
+				}
 				if (currIndex == 0)
 				{
+					Py_DECREF( keyobj);
 					*errcode = papuga_OutOfRangeError;
 					break;
 				}
 			}
-			if (0>PyDict_SetItem( rt, nd->keyobj, nd->valobj))
+			else
 			{
+				keyobj = createPyObjectFromVariant( allocator, &nd->keyval, cemap, errcode);
+				if (!keyobj) break;
+			}
+			if (0>PyDict_SetItem( rt, keyobj, nd->valobj))
+			{
+				Py_DECREF( keyobj);
 				*errcode = papuga_NoMemError;
 				break;
 			}
@@ -760,9 +814,8 @@ static PyObject* papuga_PyStruct_create_dict( papuga_PyStruct* pystruct, papuga_
 			if (!checkCircular( rt))
 			{
 				fprintf( stderr, "circular reference in list created from papuga_pyStruct");
-				Py_DECREF( rt);
 				*errcode = papuga_LogicError;
-				return NULL;
+				break;
 			}
 #endif
 		}
@@ -824,12 +877,101 @@ static PyObject* papuga_PyStruct_create_list( papuga_PyStruct* pystruct, papuga_
 	return rt;
 }
 
-static PyObject* papuga_PyStruct_create_object( papuga_PyStruct* pystruct, papuga_ErrorCode* errcode)
+static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papuga_Allocator* allocator, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+{
+	const PyMemberDef* members;
+	PyObject* rt = papuga_python_create_struct( pystruct->structid, cemap, errcode);
+	if (!rt) return NULL;
+
+	members = rt->ob_type->tp_members;
+	if (!members)
+	{
+		*errcode = papuga_InvalidAccess;
+		Py_DECREF( rt);
+		return NULL;
+	}
+	papuga_python_StructObject* cobj = (papuga_python_StructObject*)rt;
+	int currIndex = 0;
+	unsigned int ei = 0, ee = papuga_Stack_size( &pystruct->stk);
+	for (; ei != ee; ++ei)
+	{
+		papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
+		if (!nd) break;
+		int memberidx;
+		if (papuga_ValueVariant_defined( &nd->keyval))
+		{
+			PyMemberDef const* mi;
+			char const* keystr;
+			size_t keylen;
+
+			if (papuga_ValueVariant_isstring( &nd->keyval))
+			{
+				keystr = papuga_ValueVariant_tostring( &nd->keyval, allocator, &keylen, errcode);
+				mi = members;
+				memberidx = 0;
+				for (; mi->name; ++mi,++memberidx)
+				{
+					size_t ki = 0;
+					for (; ki<keylen && keystr[ki] == mi->name[ki]; ++ki){}
+					if (ki == keylen && mi->name[ki] == '\0') break;
+				}
+				if (!mi->name)
+				{
+					*errcode = papuga_InvalidAccess;
+					break;
+				}
+				currIndex = memberidx+1;
+			}
+			else if ((papuga_Type)nd->keyval.valuetype == papuga_TypeInt)
+			{
+				memberidx = papuga_ValueVariant_toint( &nd->keyval, errcode);
+				if (!memberidx && *errcode != papuga_Ok)
+				{
+					*errcode = papuga_InvalidAccess;
+					break;
+				}
+				currIndex = memberidx+1;
+				if (!currIndex)
+				{
+					*errcode = papuga_InvalidAccess;
+					break;
+				}
+			}
+			else
+			{
+				*errcode = papuga_TypeError;
+				break;
+			}
+		}
+		else
+		{
+			memberidx = currIndex++;
+		}
+		if (memberidx >= (int)cobj->elemarsize)
+		{
+			*errcode = papuga_InvalidAccess;
+			break;
+		}
+		Py_INCREF( cobj->elemar[ memberidx].pyobj= nd->valobj);
+	}
+	if (ei != ee)
+	{
+		Py_DECREF( rt);
+		return NULL;
+	}
+	return rt;
+}
+
+static PyObject* papuga_PyStruct_create_object( papuga_PyStruct* pystruct, papuga_Allocator* allocator, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	PyObject* rt = NULL;
-	if (pystruct->nofKeyValuePairs > 0)
+	if (pystruct->structid)
 	{
-		rt = papuga_PyStruct_create_dict( pystruct, errcode);
+		rt = papuga_PyStruct_create_struct( pystruct, allocator, cemap, errcode);
+	}
+	else if (pystruct->nofKeyValuePairs > 0)
+	{
+		rt = papuga_PyStruct_create_dict( pystruct, allocator, cemap, errcode);
 	}
 	else
 	{
@@ -848,14 +990,13 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, int s
 	{
 		if (papuga_SerializationIter_tag(seriter) == papuga_TagName)
 		{
-			if (nd.keyobj || !papuga_ValueVariant_isatomic( papuga_SerializationIter_value(seriter)))
+			const papuga_ValueVariant* keyval = papuga_SerializationIter_value(seriter);
+			if (papuga_ValueVariant_defined( &nd.keyval) || !papuga_ValueVariant_isatomic( keyval))
 			{
 				*errcode = papuga_TypeError;
 				goto ERROR;
 			}
-			papuga_PyStructNode_set_key( &nd, createPyObjectFromVariant( allocator, papuga_SerializationIter_value(seriter), cemap, errcode));
-			if (!nd.keyobj) goto ERROR;
-
+			papuga_PyStructNode_set_key( &nd, keyval);
 			++pystruct->nofKeyValuePairs;
 		}
 		else if (papuga_SerializationIter_tag(seriter) == papuga_TagValue)
@@ -885,7 +1026,7 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, int s
 			{
 				goto ERROR;
 			}
-			papuga_PyStructNode_set_value( &nd, papuga_PyStruct_create_object( &subpystruct, errcode));
+			papuga_PyStructNode_set_value( &nd, papuga_PyStruct_create_object( &subpystruct, allocator, cemap, errcode));
 			if (!nd.valobj) goto ERROR;
 
 			if (!papuga_PyStruct_push_node( pystruct, &nd))
@@ -902,7 +1043,7 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, int s
 			}
 		}
 	}
-	if (nd.keyobj)
+	if (papuga_ValueVariant_defined( &nd.keyval))
 	{
 		*errcode = papuga_UnexpectedEof;
 		goto ERROR;
@@ -996,12 +1137,8 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 				}
 			}
 #endif
-			if (!papuga_init_PyStruct_serialization( &pystruct, structid, allocator, &seriter, cemap, errcode))
-			{
-				papuga_destroy_PyStruct( &pystruct);
-				break;
-			}
-			rt = papuga_PyStruct_create_object( &pystruct, errcode);
+			if (!papuga_init_PyStruct_serialization( &pystruct, structid, allocator, &seriter, cemap, errcode)) return NULL;
+			rt = papuga_PyStruct_create_object( &pystruct, allocator, cemap, errcode);
 			papuga_destroy_PyStruct( &pystruct);
 			break;
 		}
@@ -1073,14 +1210,6 @@ DLL_PUBLIC void papuga_python_init_object( PyObject* selfobj, void* self, int cl
 	cobj->checksum = calcClassObjectCheckSum( cobj);
 }
 
-DLL_PUBLIC void papuga_python_init_struct( PyObject* selfobj, int structid)
-{
-	papuga_python_StructObject* cobj = (papuga_python_StructObject*)selfobj;
-	cobj->structid = structid;
-	cobj->elemarsize = (Py_TYPE(selfobj)->tp_basicsize - sizeof(papuga_python_StructObject)) / sizeof(papuga_python_StructObjectElement);
-	cobj->checksum = calcStructObjectCheckSum( cobj);
-}
-
 DLL_PUBLIC PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	PyObject* selfobj;
@@ -1099,26 +1228,6 @@ DLL_PUBLIC PyObject* papuga_python_create_object( void* self, int classid, papug
 	papuga_python_init_object( selfobj, self, classid, destroy);
 	return selfobj;
 }
-
-DLL_PUBLIC PyObject* papuga_python_create_struct( int structid, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
-{
-	PyObject* selfobj;
-	PyTypeObject* typeobj = getTypeStruct( cemap, structid);
-	if (!typeobj)
-	{
-		*errcode = papuga_InvalidAccess;
-		return NULL;
-	}
-	selfobj = PyType_GenericAlloc( typeobj, 1);
-	if (!selfobj)
-	{
-		*errcode = papuga_NoMemError;
-		return NULL;
-	}
-	papuga_python_init_struct( selfobj, structid);
-	return selfobj;
-}
-
 
 DLL_PUBLIC void papuga_python_destroy_object( PyObject* selfobj)
 {
@@ -1142,7 +1251,7 @@ DLL_PUBLIC void papuga_python_destroy_struct( PyObject* selfobj)
 		int ii;
 		for (ii=0; ii<cobj->elemarsize; ++ii)
 		{
-			Py_XDECREF( cobj->elemar[ii].pyobjref);
+			Py_XDECREF( cobj->elemar[ii].pyobj);
 		}
 		Py_TYPE(selfobj)->tp_free( selfobj);
 	}

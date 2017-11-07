@@ -20,10 +20,10 @@
 */
 typedef struct papuga_python_ClassEntryMap
 {
-	size_t hoarsize;			/*< size of 'hostobjar' in elements */
-	PyTypeObject** hoar;			/*< pointers to Python object type structures for host object references */
-	size_t soarsize;			/*< size of 'soar' in elements */
-	PyTypeObject** soar;			/*< pointers to Python object type structures for structure objects (return value structures) */
+	size_t hoarsize;				/*< size of 'hostobjar' in elements */
+	PyTypeObject** hoar;				/*< pointers to Python object type structures for host object references */
+	size_t soarsize;				/*< size of 'soar' in elements */
+	PyTypeObject** soar;				/*< pointers to Python object type structures for structure objects (return value structures) */
 } papuga_python_ClassEntryMap;
 
 /*
@@ -31,11 +31,11 @@ typedef struct papuga_python_ClassEntryMap
 */
 typedef struct papuga_python_ClassObject
 {
-	PyObject_HEAD				/*< Python object header */
-	void* self;				/*< pointer to host object representation */
-	int classid;				/*< class identifier of the object */
-	papuga_Deleter destroy;			/*< destructor function */
-	int checksum;				/*< checksum for verification */
+	PyObject_HEAD					/*< Python object header */
+	void* self;					/*< pointer to host object representation */
+	int classid;					/*< class identifier of the object */
+	papuga_Deleter destroy;				/*< destructor function */
+	int checksum;					/*< checksum for verification */
 } papuga_python_ClassObject;
 
 /*
@@ -43,8 +43,7 @@ typedef struct papuga_python_ClassObject
 */
 typedef struct papuga_python_StructObjectElement
 {
-	PyObject* pyobjref;
-	PyObject pyobj;
+	PyObject* pyobj;				/*< pointer to member object */
 } papuga_python_StructObjectElement;
 
 /*
@@ -82,14 +81,6 @@ int papuga_python_init(void);
 void papuga_python_init_object( PyObject* selfobj, void* self, int classid, papuga_Deleter destroy);
 
 /*
-* @brief Initialize an allocated host object in the Python context
-* @param[in] selfobj pointer to the allocated and zeroed python object
-* @param[in] structid type interface identifier of the object
-* @param[in] self pointer to host object representation
-*/
-void papuga_python_init_struct( PyObject* selfobj, int structid);
-
-/*
 * @brief Create a host object representation in the Python context
 * @param[in] self pointer to host object data (pass with ownership, destroyed on error)
 * @param[in] classid class identifier of the object
@@ -99,15 +90,6 @@ void papuga_python_init_struct( PyObject* selfobj, int structid);
 * @return object without reference increment, NULL on error
 */
 PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
-
-/*
-* @brief Create a structure (return value structure) representation in the Python context
-* @param[in] sructid struct interface identifier of the object
-* @param[in] cemap map of struct ids to python class descriptions
-* @param[in,out] errcode error code in case of NULL returned
-* @return object without reference increment, NULL on error
-*/
-PyObject* papuga_python_create_struct( int structid, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
 /*
 * @brief Destroy a host object representation in the Python context created with papuga_python_create_object
