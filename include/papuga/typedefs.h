@@ -41,7 +41,9 @@ typedef enum papuga_ErrorCode
 	papuga_InvalidAccess=9,
 	papuga_UnexpectedEof=10,
 	papuga_NotImplemented=11,
-	papuga_ValueUndefined=12
+	papuga_ValueUndefined=12,
+	papuga_MixedConstruction=13,
+	papuga_DuplicateDefinition=14
 } papuga_ErrorCode;
 
 /*

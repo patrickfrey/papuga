@@ -952,7 +952,12 @@ static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papug
 			*errcode = papuga_InvalidAccess;
 			break;
 		}
-		Py_INCREF( cobj->elemar[ memberidx].pyobj= nd->valobj);
+		if (cobj->elemar[ memberidx].pyobj)
+		{
+			*errcode = papuga_DuplicateDefinition;
+			break;
+		}
+		Py_INCREF( cobj->elemar[ memberidx].pyobj = nd->valobj);
 	}
 	if (ei != ee)
 	{

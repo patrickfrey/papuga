@@ -26,8 +26,10 @@ typedef void papuga_zend_class_entry;	/* ... struct _zend_class_entry = zend_cla
 */
 typedef struct papuga_php_ClassEntryMap
 {
-	size_t size;				/*< size of map in elements */
-	papuga_zend_class_entry** ar;		/*< pointer to PHP Zend class entry structures */
+	size_t hoarsize;			/*< size of map in elements */
+	papuga_zend_class_entry** hoar;		/*< pointer to PHP Zend class entry structures */
+	size_t soarsize;			/*< size of 'soar' in elements */
+	const char*** soar;			/*< pointers to names of data members of structure objects (for return value structures defined positional) */
 } papuga_php_ClassEntryMap;
 
 /*
@@ -69,7 +71,7 @@ bool papuga_php_init_CallArgs( papuga_CallArgs* arg, void* selfzval, int argc, c
 * @param[in,out] errbuf buffer for error messages
 * @return true on success, false on failure
 */
-bool papuga_php_move_CallResult( void* zval_return_value, papuga_CallResult* retval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorBuffer* errbuf);
+bool papuga_php_move_CallResult( void* zval_return_value, papuga_CallResult* retval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
 #endif
 

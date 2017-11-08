@@ -20,11 +20,13 @@
 /*
 * @brief Map of class identifiers to class names (for accessing lua metatable by name)
 */
-typedef struct papuga_lua_ClassNameMap
+typedef struct papuga_lua_ClassEntryMap
 {
-	size_t size;			/*< size of map in elements */
-	const char** ar;		/*< pointer to names */
-} papuga_lua_ClassNameMap;
+	size_t hoarsize;			/*< number of host object names */
+	const char** hoar;			/*< pointer to host obect names */
+	size_t soarsize;			/*< number of defined structures for return values */
+	const char*** soar;			/*< names of structure members of all structures for return values */
+} papuga_lua_ClassEntryMap;
 
 typedef struct papuga_lua_UserData papuga_lua_UserData;
 
@@ -58,11 +60,11 @@ papuga_lua_UserData* papuga_lua_new_userdata( lua_State* ls, const char* classna
 * @param[in] classid identifier of the class
 * @param[in] objref pointer to user data object (class instance)
 * @param[in] destructor destructor of 'objref'
-* @param[in] classnamemap map class identifiers to class names
+* @param[in] cemap map class identifiers to class names
 */
 void papuga_lua_init_UserData( papuga_lua_UserData* udata,
 				int classid, void* objref, papuga_Deleter destructor,
-				const papuga_lua_ClassNameMap* classnamemap);
+				const papuga_lua_ClassEntryMap* cemap);
 
 /*
 * @brief Invokes a lua error exception on a papuga error
@@ -93,12 +95,12 @@ bool papuga_lua_init_CallArgs( papuga_CallArgs* arg, lua_State *ls, int argc, co
 * @brief Procedure that transfers the call result of a function into the lua context, freeing the call result structure
 * @param[in] ls lua state context
 * @param[out] callres result structure initialized
-* @param[in] classnamemap table of application class names
+* @param[in] cemap table of application class names
 * @param[out] errcode error code
 * @return the number of values returned
 */
 int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* callres,
-				const papuga_lua_ClassNameMap* classnamemap, papuga_ErrorCode* errcode);
+				const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
 #endif
 

@@ -27,7 +27,7 @@ static std::string namespace_classname( const std::string& modulename, const std
 	return modulename + '_' + classname;
 }
 
-static void define_classnamemap(
+static void define_classentrymap(
 		std::ostream& out,
 		const papuga_InterfaceDescription& descr)
 {
@@ -46,7 +46,29 @@ static void define_classnamemap(
 		out << "\"" << namespace_classname( modulename, ci->name) << "\", ";
 	}
 	out << "NULL };" << std::endl << std::endl;
-	out << "static const papuga_lua_ClassNameMap g_classnamemap = { " << cidx << ", g_classnamear };"
+
+	papuga_StructInterfaceDescription const* si = descr.structs;
+	int sidx = 0;
+	for (; si->name; ++si,++sidx)
+	{
+		out << "static const char* g_structmembers_" << si->name << "[] = {";
+		papuga_StructMemberDescription const* mi = si->members;
+		for (; mi->name; ++mi)
+		{
+			out << "\"" << mi->name << "\", ";
+		}
+		out << "NULL};" << std::endl;
+	}
+	out << "static const char** g_structmembers[ " << (sidx+1) << "] = {";
+	si = descr.structs;
+	sidx = 0;
+	for (; si->name; ++si,++sidx)
+	{
+		out << "g_structmembers_" << si->name << ", ";
+	}
+	out << "NULL};" << std::endl;
+
+	out << "static const papuga_lua_ClassEntryMap g_classentrymap = { " << cidx << ", g_classnamear, " << sidx << ", g_structmembers};"
 		<< std::endl << std::endl;
 }
 
@@ -72,7 +94,7 @@ static void define_method(
 		"papuga_init_CallResult( &retval, errbuf, sizeof(errbuf));",
 		"if (!{funcname}( arg.self, &retval, arg.argc, arg.argv)) goto ERROR_CALL;",
 		"papuga_destroy_CallArgs( &arg);",
-		"rt = papuga_lua_move_CallResult( ls, &retval, &g_classnamemap, &arg.errcode);",
+		"rt = papuga_lua_move_CallResult( ls, &retval, &g_classentrymap, &arg.errcode);",
 		"if (rt < 0) papuga_lua_error( ls, \"{nsclassname}.{methodname}\", arg.errcode);",
 		"return rt;",
 		"ERROR_CALL:",
@@ -111,7 +133,7 @@ static void define_constructor(
 		"void* objref = {constructor}( &errbufstruct, arg.argc, arg.argv);",
 		"if (!objref) goto ERROR_CALL;",
 		"papuga_destroy_CallArgs( &arg);",
-		"papuga_lua_init_UserData( udata, {classid}, objref, {destructor}, &g_classnamemap);",
+		"papuga_lua_init_UserData( udata, {classid}, objref, {destructor}, &g_classentrymap);",
 		"return 1;",
 		"ERROR_CALL:",
 		"papuga_destroy_CallArgs( &arg);",
@@ -237,7 +259,7 @@ void papuga::printLuaModSource(
 	out << "/* @remark GENERATED FILE (libpapuga_lua_gen) - DO NOT MODIFY */" << std::endl;
 	out << std::endl;
 
-	define_classnamemap( out, descr);
+	define_classentrymap( out, descr);
 
 	std::size_t ci;
 	for (ci=0; descr.classes[ci].name; ++ci)

@@ -35,14 +35,33 @@ static void define_classdefmap(
 
 	// Count number of classes and define zend class object global:
 	papuga_ClassDescription const* ci = descr.classes;
-	unsigned int cidx = 0;
+	int cidx = 0;
 	for (; ci->name; ++ci,++cidx)
 	{
-		out << "static zend_class_entry* g_" << ci->name << "_ce = NULL;" << std::endl;
+		out << "static zend_class_entry* g_classentry_" << ci->name << " = NULL;" << std::endl;
 	}
-
+	papuga_StructInterfaceDescription const* si = descr.structs;
+	int sidx = 0;
+	for (; si->name; ++si,++sidx)
+	{
+		out << "static const char* g_structmembers_" << si->name << "[] = {";
+		papuga_StructMemberDescription const* mi = si->members;
+		for (; mi->name; ++mi)
+		{
+			out << "\"" << mi->name << "\", ";
+		}
+		out << "NULL};" << std::endl;
+	}
+	out << "static const char** g_structmembers[ " << (sidx+1) << "] = {";
+	si = descr.structs;
+	sidx = 0;
+	for (; si->name; ++si,++sidx)
+	{
+		out << "g_structmembers_" << si->name << ", ";
+	}
+	out << "NULL};" << std::endl;
 	out << "static papuga_zend_class_entry* g_class_entry_list[ " << cidx << "];" << std::endl;
-	out << "static const papuga_php_ClassEntryMap g_class_entry_map = { " << cidx << ", g_class_entry_list };" << std::endl << std::endl;
+	out << "static const papuga_php_ClassEntryMap g_class_entry_map = { " << cidx << ", g_class_entry_list, " << sidx << ", g_structmembers};" << std::endl << std::endl;
 }
 
 static void define_method(
@@ -59,8 +78,8 @@ static void define_method(
 		"{",
 		"papuga_CallArgs argstruct;",
 		"papuga_CallResult retstruct;",
-		"papuga_ErrorBuffer errbuf;",
-		"char errstr[ 2048];",
+		"papuga_ErrorCode errcode = papuga_Ok;",
+		"char errstr[ 2048];"
 		"const char* msg;",
 		"int argc = ZEND_NUM_ARGS();",
 		"",
@@ -80,11 +99,9 @@ static void define_method(
 			"return;",
 		"}",
 		"papuga_destroy_CallArgs( &argstruct);",
-		"papuga_init_ErrorBuffer( &errbuf, errstr, sizeof(errstr));",
-		"papuga_php_move_CallResult( return_value, &retstruct, &g_class_entry_map, &errbuf);",
-		"if (papuga_ErrorBuffer_hasError( &errbuf))",
+		"if (!papuga_php_move_CallResult( return_value, &retstruct, &g_class_entry_map, &errcode))",
 		"{",
-			"PHP_FAIL( errbuf.ptr);",
+			"PHP_FAIL( papuga_ErrorCode_tostring( errcode));",
 			"return;",
 		"}",
 		"}",
@@ -193,9 +210,9 @@ static void define_main(
 	{
 		out << fmt::format( papuga::cppCodeSnippet( 1,
 			"INIT_CLASS_ENTRY(tmp_ce, \"{nsclassname}\", g_{classname}_methods);",
-			"g_{classname}_ce = zend_register_internal_class( &tmp_ce);",
-			"g_{classname}_ce->create_object = &create_zend_object_wrapper;",
-			"g_class_entry_list[ {cidx}] = g_{classname}_ce;",
+			"g_classentry_{classname} = zend_register_internal_class( &tmp_ce);",
+			"g_classentry_{classname}->create_object = &create_zend_object_wrapper;",
+			"g_class_entry_list[ {cidx}] = g_classentry_{classname};",
 			0),
 				fmt::arg("cidx", cidx),
 				fmt::arg("classname", ci->name),
