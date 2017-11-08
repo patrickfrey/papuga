@@ -27,7 +27,7 @@
 #include <Python.h>
 #include <structmember.h>
 
-#define PAPUGA_LOWLEVEL_DEBUG
+#undef PAPUGA_LOWLEVEL_DEBUG
 
 typedef struct papuga_python_IteratorObject {
 	PyObject_HEAD
@@ -402,7 +402,7 @@ static bool serialize_members( papuga_Serialization* ser, papuga_Allocator* allo
 			case T_OBJECT_EX:
 			{
 				PyObject* memobj = GET_PYSTRUCT_MEMBER( PyObject*, pyobj, mi->offset);
-				if (memobj)
+				if (memobj && memobj != Py_None)
 				{
 					papuga_ValueVariant singleval;
 					if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
@@ -892,7 +892,7 @@ static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papug
 	}
 	papuga_python_StructObject* cobj = (papuga_python_StructObject*)rt;
 	int currIndex = 0;
-	unsigned int ei = 0, ee = papuga_Stack_size( &pystruct->stk);
+	int ei = 0, ee = papuga_Stack_size( &pystruct->stk);
 	for (; ei != ee; ++ei)
 	{
 		papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
@@ -963,6 +963,13 @@ static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papug
 	{
 		Py_DECREF( rt);
 		return NULL;
+	}
+	for (ei=0; ei<cobj->elemarsize; ++ei)
+	{
+		if (!cobj->elemar[ ei].pyobj)
+		{
+			Py_INCREF( cobj->elemar[ ei].pyobj = Py_None);
+		}
 	}
 	return rt;
 }

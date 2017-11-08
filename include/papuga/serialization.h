@@ -39,6 +39,12 @@ extern "C" {
 #define papuga_Serialization_structid(self_)			((self_)->structid)
 
 /*
+* @brief Test if the serialization has no content yet
+* @param[out] self pointer to structure
+*/
+#define papuga_Serialization_empty(self_)			((self_)->head.size==0)
+
+/*
 * @brief Add a node to the serialization
 * @param[in,out] self pointer to structure 
 * @param[in] node pointer to the added node
