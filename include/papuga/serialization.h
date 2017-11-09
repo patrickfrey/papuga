@@ -236,7 +236,7 @@ bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, const
 * @param[in] self pointer to structure
 * @return NULL on memory allocation error, null terminated string with serialization printed, allocated with malloc, to free by the caller, on success
 */
-char* papuga_Serialization_tostring( const papuga_Serialization* self);
+const char* papuga_Serialization_tostring( const papuga_Serialization* self, papuga_Allocator* allocator);
 
 /*
 * @brief Print a node of a serialization as null terminated string in readable form

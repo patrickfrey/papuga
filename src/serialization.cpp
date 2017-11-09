@@ -8,6 +8,7 @@
 /// \brief Some functions on serialization using C++ features like STL
 /// \file serialization.cpp
 #include "papuga/serialization.h"
+#include "papuga/allocator.h"
 #include "papuga/serialization.hpp"
 #include "papuga/valueVariant.h"
 #include "papuga/valueVariant.hpp"
@@ -19,13 +20,9 @@
 
 using namespace papuga;
 
-static char* stringCopyAsCString( const std::string& str)
+static const char* stringCopyAsCString( const std::string& str, papuga_Allocator* allocator)
 {
-	char* rt = (char*)std::malloc( str.size()+1);
-	if (!rt) return 0;
-	std::memcpy( rt, str.c_str(), str.size());
-	rt[ str.size()] = 0;
-	return rt;
+	return papuga_Allocator_copy_string( allocator, str.c_str(), str.size());
 }
 
 static bool Serialization_print( std::ostream& out, std::string indent, const papuga_Serialization* serialization, papuga_ErrorCode& errcode)
@@ -104,7 +101,7 @@ static bool Serialization_print( std::ostream& out, std::string indent, const pa
 	return true;
 }
 
-extern "C" char* papuga_Serialization_tostring( const papuga_Serialization* self)
+extern "C" const char* papuga_Serialization_tostring( const papuga_Serialization* self, papuga_Allocator* allocator)
 {
 	try
 	{
@@ -113,7 +110,7 @@ extern "C" char* papuga_Serialization_tostring( const papuga_Serialization* self
 		std::string indent;
 		std::ostringstream out;
 		if (!Serialization_print( out, indent, self, errcode)) return NULL;
-		return stringCopyAsCString( out.str());
+		return stringCopyAsCString( out.str(), allocator);
 	}
 	catch (const std::bad_alloc&)
 	{

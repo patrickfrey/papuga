@@ -111,30 +111,37 @@ static void printIndent( FILE* out, int indent)
 	while (indent--) fputc( '\t',  out);
 }
 
-static void printPyObject_rec( FILE* out, int indent, PyObject* pyobj)
+static void printPyObject_rec( FILE* out, int indent, PyObject* pyobj, int depth)
 {
 	PyObject** pydictref = NULL;
 	if (!pyobj) return;
-
+	if (depth >= 0)
+	{
+		if (depth == 0)
+		{
+			fprintf( out, "[] #%d", (int)pyobj->ob_refcnt);
+			return;
+		}
+	}
 	if (pyobj == Py_None)
 	{
-		fprintf( out, "NULL");
+		fprintf( out, "NULL #%d", (int)pyobj->ob_refcnt);
 	}
 	else if (pyobj == Py_True)
 	{
-		fprintf( out, "true");
+		fprintf( out, "True #%d", (int)pyobj->ob_refcnt);
 	}
 	else if (pyobj == Py_False)
 	{
-		fprintf( out, "false");
+		fprintf( out, "False #%d", (int)pyobj->ob_refcnt);
 	}
 	else if (PyLong_Check( pyobj))
 	{
-		fprintf( out, "%d", (int)PyLong_AS_LONG( pyobj));
+		fprintf( out, "%d #%d", (int)PyLong_AS_LONG( pyobj), (int)pyobj->ob_refcnt);
 	}
 	else if (PyFloat_Check( pyobj))
 	{
-		fprintf( out, "%f", PyFloat_AS_DOUBLE( pyobj));
+		fprintf( out, "%f #%d", PyFloat_AS_DOUBLE( pyobj), (int)pyobj->ob_refcnt);
 	}
 	else if (PyBytes_Check( pyobj))
 	{
@@ -142,11 +149,17 @@ static void printPyObject_rec( FILE* out, int indent, PyObject* pyobj)
 		Py_ssize_t ii,strsize;
 		if (0==PyBytes_AsStringAndSize( pyobj, &str, &strsize))
 		{
+			if (strsize > 1024)
+			{
+				strsize = 1024;
+				while (str[strsize] < 0) ++strsize;
+			}
 			if (str) for (ii=0; ii<strsize; ++ii)
 			{
 				fputc( str[ii], out);
 			}
 		}
+		fprintf( out, "#%d", (int)pyobj->ob_refcnt);
 	}
 	else if (PyUnicode_Check( pyobj))
 	{
@@ -156,11 +169,13 @@ static void printPyObject_rec( FILE* out, int indent, PyObject* pyobj)
 		if (0<=PyUnicode_READY( pyobj))
 		{
 			utf8str = PyUnicode_AsUTF8AndSize( pyobj, &utf8bytes);
+			if (utf8bytes > 1024) utf8bytes = 1024;
 			if (utf8str) for (ii=0; ii<utf8bytes; ++ii)
 			{
 				fputc( utf8str[ii], out);
 			}
 		}
+		fprintf( out, "#%d", (int)pyobj->ob_refcnt);
 	}
 	else if (indent >= 0 && PyDict_Check( pyobj))
 	{
@@ -168,13 +183,13 @@ static void printPyObject_rec( FILE* out, int indent, PyObject* pyobj)
 		PyObject* valitem = NULL;
 		Py_ssize_t pos = 0;
 
-		fputs( "begin dict\n", out);
+		fprintf( out, "begin dict #%d\n", (int)pyobj->ob_refcnt);
 		while (PyDict_Next( pyobj, &pos, &keyitem, &valitem))
 		{
 			printIndent( out, indent+1);
-			printPyObject_rec( out, -1, keyitem);
+			printPyObject_rec( out, -1, keyitem, depth>0?(depth-1):depth);
 			fputc( '=', out);
-			printPyObject_rec( out, indent+1, valitem);
+			printPyObject_rec( out, indent+1, valitem, depth>0?(depth-1):depth);
 			fputc( '\n', out);
 			fflush( out);
 		}
@@ -184,13 +199,13 @@ static void printPyObject_rec( FILE* out, int indent, PyObject* pyobj)
 	else if (indent >= 0 && PyTuple_Check( pyobj))
 	{
 		Py_ssize_t ii = 0, size = PyTuple_GET_SIZE( pyobj);
-		fputs( "begin tuple\n", out);
+		fprintf( out, "begin tuple #%d\n", (int)pyobj->ob_refcnt);
 		for (; ii < size; ++ii)
 		{
 			PyObject* item = PyTuple_GET_ITEM( pyobj, ii);
 			printIndent( out, indent+1);
 			fprintf( out, "%d:", (int)ii);
-			printPyObject_rec( out, indent+1, item);
+			printPyObject_rec( out, indent+1, item, depth>0?(depth-1):depth);
 			fputc( '\n', out);
 			fflush( out);
 		}
@@ -200,13 +215,13 @@ static void printPyObject_rec( FILE* out, int indent, PyObject* pyobj)
 	else if (indent >= 0 && PyList_Check( pyobj))
 	{
 		Py_ssize_t ii = 0, size = PyList_GET_SIZE( pyobj);
-		fputs( "begin list\n", out);
+		fprintf( out, "begin list #%d\n", (int)pyobj->ob_refcnt);
 		for (; ii < size; ++ii)
 		{
 			PyObject* item = PyList_GET_ITEM( pyobj, ii);
 			printIndent( out, indent+1);
 			fprintf( out, "%d:", (int)ii);
-			printPyObject_rec( out, indent+1, item);
+			printPyObject_rec( out, indent+1, item, depth>0?(depth-1):depth);
 			fputc( '\n', out);
 			fflush( out);
 		}
@@ -216,7 +231,7 @@ static void printPyObject_rec( FILE* out, int indent, PyObject* pyobj)
 	else if (NULL!=(pydictref = _PyObject_GetDictPtr( pyobj)))
 	{
 		fputs( " -> ", out);
-		printPyObject_rec( out, indent, *pydictref);
+		printPyObject_rec( out, indent, *pydictref, depth>0?(depth-1):depth);
 	}
 	else
 	{
@@ -224,12 +239,110 @@ static void printPyObject_rec( FILE* out, int indent, PyObject* pyobj)
 	}
 }
 
-static void printPyObject( FILE* out, const char* msg, PyObject* pyobj)
+static void printPyObject( FILE* out, const char* msg, PyObject* pyobj, int depth)
 {
-	fprintf( out, "OBJECT %s:\n", msg);
-	printPyObject_rec( out, 0, pyobj);
+	fprintf( out, "PyObject %s:\n", msg);
+	printPyObject_rec( out, 0, pyobj, depth);
 	fputc( '\n', out);
 	fflush( out);
+}
+
+static void printValueVariant( FILE* out, const char* msg, const papuga_ValueVariant* val)
+{
+	papuga_Allocator allocator;
+	papuga_init_Allocator( &allocator, 0, 0);
+
+	if (papuga_ValueVariant_defined( val))
+	{
+		fprintf( out, "%s undefined\n", msg);
+	}
+	else if (val->valuetype == papuga_TypeSerialization)
+	{
+		const char* str = papuga_Serialization_tostring( val->value.serialization, &allocator);
+		if (str)
+		{
+			fprintf( out, "%s as serialization:\n%s\n", msg, str);
+		}
+		else
+		{
+			fprintf( out, "%s as serialization (too big)\n", msg);
+		}
+	}
+	else if (papuga_ValueVariant_isatomic( val))
+	{
+		size_t len;
+		papuga_ErrorCode errcode = papuga_Ok;
+		const char* str = papuga_ValueVariant_tostring( val, &allocator, &len, &errcode);
+		fprintf( out, "%s as atomic value:", msg);
+		if (errcode != papuga_Ok || len < fwrite( str, 1, len, out))
+		{
+			fprintf( out, "%s as atomic value: (error %s)\n", msg, papuga_ErrorCode_tostring( errcode));
+		}
+		else
+		{
+			fprintf( out, "\n");
+		}
+	}
+	else
+	{
+		fprintf( out, "%s as %s\n", msg, papuga_Type_name( val->valuetype));
+	}
+	papuga_destroy_Allocator( &allocator);
+}
+
+static bool checkReferenceCount_rec( PyObject* pyobj)
+{
+	PyObject** pydictref = NULL;
+
+	if (!pyobj) return true;
+	if (pyobj == Py_None || pyobj == Py_True || pyobj == Py_False) return true;
+
+	if (PyDict_Check( pyobj))
+	{
+		PyObject* keyitem = NULL;
+		PyObject* valitem = NULL;
+		Py_ssize_t pos = 0;
+
+		while (PyDict_Next( pyobj, &pos, &keyitem, &valitem))
+		{
+			if (!checkReferenceCount_rec( keyitem)) return false;
+			if (!checkReferenceCount_rec( valitem)) return false;
+		}
+	}
+	else if (PyTuple_Check( pyobj))
+	{
+		Py_ssize_t ii = 0, size = PyTuple_GET_SIZE( pyobj);
+		for (; ii < size; ++ii)
+		{
+			PyObject* item = PyTuple_GET_ITEM( pyobj, ii);
+			if (!checkReferenceCount_rec( item)) return false;
+		}
+	}
+	else if (PyList_Check( pyobj))
+	{
+		Py_ssize_t ii = 0, size = PyList_GET_SIZE( pyobj);
+		for (; ii < size; ++ii)
+		{
+			PyObject* item = PyList_GET_ITEM( pyobj, ii);
+			if (!checkReferenceCount_rec( item)) return false;
+		}
+	}
+	else if (NULL!=(pydictref = _PyObject_GetDictPtr( pyobj)))
+	{
+		if (!checkReferenceCount_rec( *pydictref)) return false;
+	}
+	else if (PyLong_Check( pyobj) || PyFloat_Check( pyobj) || PyBytes_Check( pyobj) || PyUnicode_Check( pyobj))
+	{
+		return true;
+	}
+	if (pyobj->ob_refcnt == 1) return true;
+	fprintf( stderr, "reference count of <%s> is %d\n", pyobj->ob_type->tp_name, (int)pyobj->ob_refcnt);
+	return false;
+}
+
+static bool checkReferenceCount( PyObject* pyobj)
+{
+	return checkReferenceCount_rec( pyobj);
 }
 #endif
 
@@ -260,9 +373,6 @@ static papuga_python_ClassObject* getClassObject( PyObject* pyobj, const papuga_
 
 static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	printPyObject( stderr, "init single value", pyobj);
-#endif
 	papuga_python_ClassObject* cobj;
 	if (pyobj == Py_None)
 	{
@@ -333,9 +443,6 @@ static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* alloc
 
 static bool serialize_members( papuga_Serialization* ser, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	printPyObject( stderr, "serialize members", pyobj);
-#endif
 #define GET_PYSTRUCT_MEMBER( Type, pyobj, offset) *(Type*)((unsigned char*)(void*)pyobj + offset)
 
 	PyMemberDef const* mi = pyobj->ob_type->tp_members;
@@ -438,9 +545,6 @@ ERROR_NOMEM:
 static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* allocator, PyObject* pyobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	PyObject** pydictref = NULL;
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	printPyObject( stderr, "serialize struct", pyobj);
-#endif
 	if (PyDict_Check( pyobj))
 	{
 		PyObject* keyitem = NULL;
@@ -536,15 +640,6 @@ static bool init_ValueVariant_pyobj( papuga_ValueVariant* value, papuga_Allocato
 
 		papuga_init_ValueVariant_serialization( value, ser);
 		if (!serialize_struct( ser, allocator, pyobj, cemap, errcode)) return false;
-
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-		char* str = papuga_Serialization_tostring( ser);
-		if (ser)
-		{
-			fprintf( stdout, "SERIALIZE STRUCT:\n%s\n", str);
-			free( str);
-		}
-#endif
 		return true;
 	}
 ERROR_NOMEM:
@@ -724,9 +819,9 @@ static void papuga_PyStructNode_set_key( papuga_PyStructNode* nd, const papuga_V
 	papuga_init_ValueVariant_copy( &nd->keyval, keyval);
 }
 
-static void papuga_PyStructNode_set_value( papuga_PyStructNode* nd, PyObject* val)
+static void papuga_PyStructNode_move_value( papuga_PyStructNode* nd, PyObject* val)
 {
-	Py_XINCREF( nd->valobj = val);
+	nd->valobj = val;
 }
 
 typedef struct papuga_PyStruct
@@ -810,14 +905,7 @@ static PyObject* papuga_PyStruct_create_dict( const papuga_PyStruct* pystruct, p
 				*errcode = papuga_NoMemError;
 				break;
 			}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			if (!checkCircular( rt))
-			{
-				fprintf( stderr, "circular reference in list created from papuga_pyStruct");
-				*errcode = papuga_LogicError;
-				break;
-			}
-#endif
+			Py_DECREF( keyobj);
 		}
 		if (ei != ee)
 		{
@@ -830,15 +918,6 @@ static PyObject* papuga_PyStruct_create_dict( const papuga_PyStruct* pystruct, p
 		*errcode = papuga_NoMemError;
 		return NULL;
 	}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	if (!checkCircular( rt))
-	{
-		fprintf( stderr, "circular reference in dictionary created from papuga_pyStruct");
-		Py_DECREF( rt);
-		*errcode = papuga_LogicError;
-		return NULL;
-	}
-#endif
 	return rt;
 }
 
@@ -852,6 +931,7 @@ static PyObject* papuga_PyStruct_create_list( papuga_PyStruct* pystruct, papuga_
 		{
 			papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
 			if (0>PyList_SetItem( rt, ei, nd->valobj)) break;
+			nd->valobj = NULL; /*... reference is stolen by .._SetItem, therefore we hide the old reference with its count as we do not need it anymore (INCREF would also be possible) */
 		}
 		if (ei != ee)
 		{
@@ -865,15 +945,6 @@ static PyObject* papuga_PyStruct_create_list( papuga_PyStruct* pystruct, papuga_
 		*errcode = papuga_NoMemError;
 		return NULL;
 	}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	if (!checkCircular( rt))
-	{
-		fprintf( stderr, "circular reference in list created from papuga_pyStruct");
-		Py_DECREF( rt);
-		*errcode = papuga_LogicError;
-		return NULL;
-	}
-#endif
 	return rt;
 }
 
@@ -957,7 +1028,8 @@ static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papug
 			*errcode = papuga_DuplicateDefinition;
 			break;
 		}
-		Py_INCREF( cobj->elemar[ memberidx].pyobj = nd->valobj);
+		cobj->elemar[ memberidx].pyobj = nd->valobj;
+		nd->valobj = NULL;
 	}
 	if (ei != ee)
 	{
@@ -1013,8 +1085,9 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, int s
 		}
 		else if (papuga_SerializationIter_tag(seriter) == papuga_TagValue)
 		{
-			papuga_PyStructNode_set_value( &nd, createPyObjectFromVariant( allocator, papuga_SerializationIter_value(seriter), cemap, errcode));
-			if (!nd.valobj) goto ERROR;
+			PyObject* val = createPyObjectFromVariant( allocator, papuga_SerializationIter_value(seriter), cemap, errcode);
+			if (!val) goto ERROR;
+			papuga_PyStructNode_move_value( &nd, val);
 
 			if (!papuga_PyStruct_push_node( pystruct, &nd))
 			{
@@ -1026,6 +1099,7 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, int s
 		{
 			papuga_PyStruct subpystruct;
 			int structid = 0;
+			PyObject* subval;
 			const papuga_ValueVariant* openval = papuga_SerializationIter_value(seriter);
 
 			papuga_SerializationIter_skip(seriter);
@@ -1038,16 +1112,15 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, int s
 			{
 				goto ERROR;
 			}
-			papuga_PyStructNode_set_value( &nd, papuga_PyStruct_create_object( &subpystruct, allocator, cemap, errcode));
-			if (!nd.valobj) goto ERROR;
-
+			subval = papuga_PyStruct_create_object( &subpystruct, allocator, cemap, errcode);
+			papuga_destroy_PyStruct( &subpystruct);
+			if (!subval) goto ERROR;
+			papuga_PyStructNode_move_value( &nd, subval);
 			if (!papuga_PyStruct_push_node( pystruct, &nd))
 			{
-				papuga_destroy_PyStruct( &subpystruct);
 				*errcode = papuga_NoMemError;
 				goto ERROR;
 			}
-			papuga_destroy_PyStruct( &subpystruct);
 			if (papuga_SerializationIter_eof(seriter))
 			{
 				*errcode = papuga_UnexpectedEof;
@@ -1139,17 +1212,11 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 			int structid = papuga_Serialization_structid( value->value.serialization);
 
 			papuga_init_SerializationIter( &seriter, value->value.serialization);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
+			if (!papuga_init_PyStruct_serialization( &pystruct, structid, allocator, &seriter, cemap, errcode))
 			{
-				char* serstr = papuga_Serialization_tostring( value->value.serialization);
-				if (serstr)
-				{
-					fprintf( stderr, "create structure from serialization:\n%s\n", serstr);
-					free( serstr);
-				}
+				papuga_destroy_PyStruct( &pystruct);
+				return NULL;
 			}
-#endif
-			if (!papuga_init_PyStruct_serialization( &pystruct, structid, allocator, &seriter, cemap, errcode)) return NULL;
 			rt = papuga_PyStruct_create_object( &pystruct, allocator, cemap, errcode);
 			papuga_destroy_PyStruct( &pystruct);
 			break;
@@ -1169,15 +1236,6 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 	{
 		*errcode = papuga_NoMemError;
 	}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	if (!checkCircular( rt))
-	{
-		fprintf( stderr, "circular reference in created object");
-		Py_XDECREF( rt);
-		*errcode = papuga_LogicError;
-		return NULL;
-	}
-#endif
 	return rt;
 }
 
@@ -1190,6 +1248,7 @@ static PyObject* papuga_python_create_tuple( PyObject** ar, size_t arsize, papug
 		for (; ei != ee; ++ei)
 		{
 			if (0>PyTuple_SetItem( rt, ei, ar[ei])) break;
+			ar[ei] = NULL; /*... reference is stolen by .._SetItem, therefore we hide the old reference with its count as we do not need it anymore (INCREF would also be possible) */
 		}
 		if (ei != ee)
 		{
@@ -1279,9 +1338,14 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_CallArgs* as, PyObject* args
 	if (args == NULL) return NULL;
 
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-	printPyObject( stderr, "call arguments", args);
+	if (!checkCircular( args))
+	{
+		fprintf( stderr, "circular reference in call arguments\n");
+		as->errcode = papuga_LogicError;
+		goto ERROR;
+	}
+	printPyObject( stderr, "call arguments", args, -1);
 #endif
-
 	if (PyDict_Check( args))
 	{
 		Py_ssize_t ai = 0, ae = PyDict_Size( args);
@@ -1312,6 +1376,9 @@ DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_CallArgs* as, PyObject* args
 			{
 				papuga_init_ValueVariant( &as->argv[ ai]);
 			}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			printValueVariant( stderr, "call argument", &as->argv[ ai]);
+#endif
 			++as->argc;
 		}
 	}
@@ -1356,21 +1423,39 @@ DLL_PUBLIC PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, c
 {
 	PyObject* rt = 0;
 	PyObject* ar[ papuga_MAX_NOF_RETURNS];
-	size_t ai = 0, ae = retval->nofvalues;
+	int ai = 0, ae = retval->nofvalues;
 	for (;ai != ae; ++ai)
 	{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		printValueVariant( stderr, "call result", &retval->valuear[ ai]);
+#endif
 		ar[ai] = createPyObjectFromVariant( &retval->allocator, &retval->valuear[ai], cemap, errcode);
 		if (!ar[ai])
 		{
-			papuga_destroy_CallResult( retval);
-			return NULL;
+			goto ERROR;
 		}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		fprintf( stderr, "call result %d:\n", (int)ai);
+		if (!checkCircular( ar[ai]))
+		{
+			fprintf( stderr, "circular reference in call result %d\n", (int)ai);
+			*errcode = papuga_LogicError;
+			goto ERROR;
+		}
+		if (!checkReferenceCount( ar[ai]))
+		{
+			fprintf( stderr, "reference counting bad in call result %d\n", (int)ai);
+			*errcode = papuga_LogicError;
+			goto ERROR;
+		}
+		printPyObject( stderr, "value", ar[ai], -1);
+#endif
 	}
-	if (ai > 1)
+	if (retval->nofvalues > 1)
 	{
-		rt = papuga_python_create_tuple( ar, ae, errcode);
+		rt = papuga_python_create_tuple( ar, retval->nofvalues, errcode);
 	}
-	else if (ai == 1)
+	else if (retval->nofvalues == 1)
 	{
 		rt = ar[ 0];
 	}
@@ -1380,10 +1465,11 @@ DLL_PUBLIC PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, c
 		rt = Py_None;
 	}
 	papuga_destroy_CallResult( retval);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	printPyObject( stderr, "call result", rt);
-#endif
 	return rt;
+ERROR:
+	papuga_destroy_CallResult( retval);
+	while (ai>=0) Py_XDECREF( ar[ai--]);
+	return NULL;
 }
 
 DLL_PUBLIC void papuga_python_error( const char* msg, ...)
