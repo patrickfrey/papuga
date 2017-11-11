@@ -405,7 +405,7 @@ static void define_class_entrymap(
 		out << "0};" << std::endl;
 	}{
 		unsigned int mi = 0;
-		out << "static PyTypeObject* g_typestructar[ " << (nofClasses+1) << "] = {";
+		out << "static PyTypeObject* g_typestructar[ " << (nofStructs+1) << "] = {";
 		for (; mi < nofStructs; ++mi) out << "0,";
 		out << "0};" << std::endl;
 	}

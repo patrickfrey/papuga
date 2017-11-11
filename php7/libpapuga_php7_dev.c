@@ -73,6 +73,7 @@ static ClassObject* getClassObjectVerified( zend_object* object, const papuga_ph
 
 typedef struct IteratorObject {
 	papuga_Iterator iterator;
+	const papuga_php_ClassEntryMap* cemap;
 	zval resultval;
 	int checksum;
 	bool eof;
@@ -82,7 +83,7 @@ typedef struct IteratorObject {
 
 static int calcIteratorCheckSum( const IteratorObject* iobj)
 {
-	return (((uintptr_t)iobj->iterator.data+107) * KNUTH_HASH) ^ (uintptr_t)iobj->iterator.destroy ^ ((uintptr_t)iobj->iterator.getNext << 6);
+	return (((uintptr_t)iobj->iterator.data+107) * KNUTH_HASH) ^ (uintptr_t)iobj->iterator.destroy ^ ((uintptr_t)iobj->iterator.getNext << 6) ^ ((uintptr_t)iobj->cemap << 11);
 }
 
 static IteratorObject* getIteratorObject( zend_object* object)
@@ -462,7 +463,7 @@ static bool initValue( papuga_ValueVariant* hostval, papuga_Allocator* allocator
 
 static bool deserialize( zval* return_value, int structid, papuga_Allocator* allocator, const papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
-static bool iteratorToZval( zval* return_value, papuga_Iterator* iterator, papuga_ErrorCode* errcode);
+static bool iteratorToZval( zval* return_value, papuga_Iterator* iterator, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
 static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator, const papuga_ValueVariant* value, const papuga_php_ClassEntryMap* cemap, const char* context, papuga_ErrorCode* errcode)
 {
@@ -574,7 +575,7 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 		case papuga_TypeIterator:
 		{
 			papuga_Iterator* itr = value->value.iterator;
-			if (iteratorToZval( return_value, itr, errcode))
+			if (iteratorToZval( return_value, itr, cemap, errcode))
 			{
 				papuga_release_Iterator( itr);
 			}
@@ -993,7 +994,7 @@ static bool iteratorFetchNext( IteratorObject* iobj, papuga_ErrorBuffer* errbuf)
 	{
 		papuga_ErrorCode errcode = papuga_Ok;
 		zval_dtor( &iobj->resultval);
-		if (papuga_php_move_CallResult( &iobj->resultval, &retstruct, 0/*classentry map*/, &errcode))
+		if (papuga_php_move_CallResult( &iobj->resultval, &retstruct, iobj->cemap, &errcode))
 		{
 			iobj->eof = false;
 			iobj->idx += 1;
@@ -1023,7 +1024,7 @@ static bool iteratorFetchNext( IteratorObject* iobj, papuga_ErrorBuffer* errbuf)
 	}
 }
 
-static bool iteratorToZval( zval* return_value, papuga_Iterator* iterator, papuga_ErrorCode* errcode)
+static bool iteratorToZval( zval* return_value, papuga_Iterator* iterator, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	IteratorObject* iobj = (IteratorObject*)ecalloc(1, sizeof(IteratorObject) + zend_object_properties_size(g_zend_class_entry_iterator));
 	if (!iobj)
@@ -1033,6 +1034,7 @@ static bool iteratorToZval( zval* return_value, papuga_Iterator* iterator, papug
 		return false;
 	}
 	papuga_init_Iterator( &iobj->iterator, iterator->data, iterator->destroy, iterator->getNext);
+	iobj->cemap = cemap;
 	iobj->checksum = calcIteratorCheckSum( iobj);
 	zend_object_std_init( &iobj->zobj, g_zend_class_entry_iterator);
 	object_properties_init( &iobj->zobj, g_zend_class_entry_iterator);
