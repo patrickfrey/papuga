@@ -752,10 +752,11 @@ public:
 	{
 		std::set<std::string> referencedVariables;
 		std::set<std::string> definedVariables;
-		std::map<std::string,std::string>::const_iterator
-			vi = m_varmap.begin(), ve = m_varmap.end();
-		for (; vi != ve; ++vi) definedVariables.insert( vi->first);
-
+		{
+			std::map<std::string,std::string>::const_iterator
+				vi = m_varmap.begin(), ve = m_varmap.end();
+			for (; vi != ve; ++vi) definedVariables.insert( vi->first);
+		}
 		const char* start = src.c_str();
 		char const* si = src.c_str();
 		const char* se = si + src.size();
@@ -849,12 +850,12 @@ public:
 							{
 								if (isAlpha(*si))
 								{
-									std::string id = parseIdentifier( si, se);
-									if (m_groupmap.find( id) != m_groupmap.end())
+									std::string groupid = parseIdentifier( si, se);
+									if (m_groupmap.find( groupid) != m_groupmap.end())
 									{
 										throw EXCEPTION("overlapping group definitions");
 									}
-									m_groupmap[ id] = (m_groupcnt+1);
+									m_groupmap[ groupid] = (m_groupcnt+1);
 								}
 								else
 								{
@@ -869,8 +870,8 @@ public:
 							{
 								if (isAlpha(*si))
 								{
-									std::string id = parseIdentifier( si, se);
-									m_ignoreset.insert( id);
+									std::string ignoreid = parseIdentifier( si, se);
+									m_ignoreset.insert( ignoreid);
 								}
 								else
 								{
@@ -1698,8 +1699,7 @@ private:
 	{
 		bool rt = false;
 		std::vector<IndexDeclaration>::const_iterator di = m_indices.begin(), de = m_indices.end();
-		std::size_t didx = 0;
-		for (; di != de; ++di,++didx)
+		for (std::size_t didx = 0; di != de; ++di,++didx)
 		{
 			std::size_t tidx = 0;
 			IndexDeclaration::TagHierarchy::const_iterator

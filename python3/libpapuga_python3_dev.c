@@ -561,7 +561,7 @@ static bool serialize_struct( papuga_Serialization* ser, papuga_Allocator* alloc
 				return false;
 			}
 			if (keyval.valuetype == papuga_TypeString && keyval.encoding == papuga_UTF8 && keyval.length > 0 && keyval.value.string[0] == '_') continue;
-			// ... do not serialize internal members (key string starting with '_')
+			/* ... do not serialize internal members (key string starting with '_') */
 			if (!papuga_Serialization_pushName( ser, &keyval)) goto ERROR_NOMEM;
 
 			/* Serialize value: */
@@ -952,6 +952,9 @@ static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papug
 {
 	const PyMemberDef* members;
 	PyObject* rt = papuga_python_create_struct( pystruct->structid, cemap, errcode);
+	papuga_python_StructObject* cobj = (papuga_python_StructObject*)rt;
+	int currIndex = 0;
+	int ei, ee;
 	if (!rt) return NULL;
 
 	members = rt->ob_type->tp_members;
@@ -961,14 +964,12 @@ static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papug
 		Py_DECREF( rt);
 		return NULL;
 	}
-	papuga_python_StructObject* cobj = (papuga_python_StructObject*)rt;
-	int currIndex = 0;
-	int ei = 0, ee = papuga_Stack_size( &pystruct->stk);
-	for (; ei != ee; ++ei)
+	for (ei = 0, ee = papuga_Stack_size( &pystruct->stk); ei != ee; ++ei)
 	{
 		papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
-		if (!nd) break;
 		int memberidx;
+
+		if (!nd) break;
 		if (papuga_ValueVariant_defined( &nd->keyval))
 		{
 			PyMemberDef const* mi;
@@ -1098,17 +1099,17 @@ static bool papuga_init_PyStruct_serialization( papuga_PyStruct* pystruct, int s
 		else if (papuga_SerializationIter_tag(seriter) == papuga_TagOpen)
 		{
 			papuga_PyStruct subpystruct;
-			int structid = 0;
+			int substructid = 0;
 			PyObject* subval;
 			const papuga_ValueVariant* openval = papuga_SerializationIter_value(seriter);
 
 			papuga_SerializationIter_skip(seriter);
 			if (papuga_ValueVariant_defined( openval))
 			{
-				structid = papuga_ValueVariant_toint( openval, errcode);
-				if (!structid) goto ERROR;
+				substructid = papuga_ValueVariant_toint( openval, errcode);
+				if (!substructid) goto ERROR;
 			}
-			if (!papuga_init_PyStruct_serialization( &subpystruct, structid, allocator, seriter, cemap, errcode))
+			if (!papuga_init_PyStruct_serialization( &subpystruct, substructid, allocator, seriter, cemap, errcode))
 			{
 				goto ERROR;
 			}
