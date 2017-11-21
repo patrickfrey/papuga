@@ -20,7 +20,7 @@ extern "C" {
 * @brief Constructor of a CallArgs
 * @param[out] self pointer to structure initialized by constructor
 */
-void papuga_init_CallArgs( papuga_CallArgs* self);
+void papuga_init_CallArgs( papuga_CallArgs* self, char* membuf, size_t membufsize);
 
 /*
 * @brief Destructor of a CallArgs

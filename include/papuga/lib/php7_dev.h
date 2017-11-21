@@ -57,11 +57,13 @@ bool papuga_php_init_object( void* selfzval, void* self, int classid, papuga_Del
 /*
 * @brief Fills a structure with the arguments passed in a PHP binding function/method call
 * @param[out] arg argument structure initialized
+* @param[in] membuf pointer to local memory to use first
+* @param[in] membufsize allocation size of membuf in bytes
 * @param[in] selfzval the zend zval pointer of the self parameter of the object called
 * @param[in] argc number of function arguments
 * @return true on success, false on error, see error code in argstruct to determine the error
 */
-bool papuga_php_init_CallArgs( papuga_CallArgs* arg, void* selfzval, int argc, const papuga_php_ClassEntryMap* cemap);
+bool papuga_php_set_CallArgs( papuga_CallArgs* arg, void* selfzval, int argc, const papuga_php_ClassEntryMap* cemap);
 
 /*
 * @brief Transfers the call result of a binding function into the PHP context, freeing the call result structure

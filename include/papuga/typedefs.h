@@ -43,7 +43,10 @@ typedef enum papuga_ErrorCode
 	papuga_NotImplemented=11,
 	papuga_ValueUndefined=12,
 	papuga_MixedConstruction=13,
-	papuga_DuplicateDefinition=14
+	papuga_DuplicateDefinition=14,
+	papuga_SyntaxError=15,
+	papuga_UncaughtException=16,
+	papuga_ExecutionOrder=17
 } papuga_ErrorCode;
 
 /*
@@ -260,7 +263,6 @@ struct papuga_CallResult
 	papuga_Allocator allocator;				/*< allocator for values that had to be copied */
 	papuga_ErrorBuffer errorbuf;				/*< static buffer for error messages */
 	int nofvalues;						/*< number of values in valuear */
-	int allocbuf[ 2048];					/*< static buffer for allocator */
 };
 
 /*
@@ -280,7 +282,6 @@ typedef struct papuga_CallArgs
 	size_t argc;						/*< number of arguments passed to call */
 	papuga_Allocator allocator;				/*< allocator used for deep copies */
 	papuga_ValueVariant argv[ papuga_MAX_NOF_ARGUMENTS];	/*< argument list */
-	int allocbuf[ 2048];					/*< static buffer for allocator to start with (to avoid early malloc) */
 } papuga_CallArgs;
 
 #ifdef __cplusplus

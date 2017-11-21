@@ -84,12 +84,12 @@ void papuga_lua_error_str( lua_State* ls, const char* function, const char* erro
 
 /*
 * @brief Function that fills a structure with the arguments passed in the lua context for papuga
+* @param[out] arg argument structure initialized
 * @param[in] ls lua state context
 * @param[in] argc number of function arguments
-* @param[out] arg argument structure initialized
 * @param[in] classname name of the class of the called method
 */
-bool papuga_lua_init_CallArgs( papuga_CallArgs* arg, lua_State *ls, int argc, const char* classname);
+bool papuga_lua_set_CallArgs( papuga_CallArgs* arg, lua_State *ls, int argc, const char* classname);
 
 /*
 * @brief Procedure that transfers the call result of a function into the lua context, freeing the call result structure

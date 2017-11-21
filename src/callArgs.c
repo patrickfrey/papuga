@@ -21,13 +21,13 @@
 #include <stdio.h>
 #include <string.h>
 
-void papuga_init_CallArgs( papuga_CallArgs* self)
+void papuga_init_CallArgs( papuga_CallArgs* self, char* membuf, size_t membufsize)
 {
 	self->erridx = -1;
 	self->errcode = 0;
 	self->self = 0;
 	self->argc = 0;
-	papuga_init_Allocator( &self->allocator, self->allocbuf, sizeof( self->allocbuf));
+	papuga_init_Allocator( &self->allocator, membuf, membufsize);
 }
 
 void papuga_destroy_CallArgs( papuga_CallArgs* self)

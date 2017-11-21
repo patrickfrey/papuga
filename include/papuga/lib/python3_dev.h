@@ -105,13 +105,13 @@ void papuga_python_destroy_struct( PyObject* selfobj);
 
 /*
 * @brief Fills a structure with the arguments passed in a Python binding function/method call
-* @param[out] argstruct argument structure initialized
+* @param[out] argstruct argument structure filled
 * @param[in] args positional arguments or NULL
 * @param[in] kwargnames NULL terminated list of argument names in their order of definition
 * @param[in] cemap map of class ids to python class descriptions
 * @return true on success, false on error, see error code in argstruct to determine the error
 */
-bool papuga_python_init_CallArgs( papuga_CallArgs* argstruct, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap);
+bool papuga_python_set_CallArgs( papuga_CallArgs* argstruct, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap);
 
 /*
 * @brief Transfers the call result of a binding function into the Python context, freeing the call result structure

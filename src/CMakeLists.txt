@@ -15,6 +15,7 @@ set( source_files
 	valueVariant.cpp
 	valueVariant.c
 	serialization.cpp
+	request.cpp
 )
 
 include_directories(

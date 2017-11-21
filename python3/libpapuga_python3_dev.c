@@ -674,7 +674,7 @@ static PyObject* papuga_Iterator_next( PyObject *selfobj_)
 {
 	papuga_CallResult result;
 	papuga_ErrorCode errcode;
-	char errbuf[ 2048];
+	char membuf[ 4096];
 
 	papuga_python_IteratorObject* selfobj = (papuga_python_IteratorObject*)selfobj_;
 	if (selfobj->checksum != calcIteratorCheckSum( selfobj))
@@ -687,7 +687,7 @@ static PyObject* papuga_Iterator_next( PyObject *selfobj_)
 		PyErr_SetNone( PyExc_StopIteration);
 		return NULL;
 	}
-	papuga_init_CallResult( &result, errbuf, sizeof( errbuf));
+	papuga_init_CallResult( &result, membuf, sizeof( membuf));
 	if (selfobj->impl.getNext( selfobj->impl.data, &result))
 	{
 		PyObject* rt = papuga_python_move_CallResult( &result, selfobj->cemap, &errcode);
@@ -1333,10 +1333,9 @@ DLL_PUBLIC void papuga_python_destroy_struct( PyObject* selfobj)
 	}
 }
 
-DLL_PUBLIC bool papuga_python_init_CallArgs( papuga_CallArgs* as, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap)
+DLL_PUBLIC bool papuga_python_set_CallArgs( papuga_CallArgs* as, PyObject* args, const char** kwargnames, const papuga_python_ClassEntryMap* cemap)
 {
-	papuga_init_CallArgs( as);
-	if (args == NULL) return NULL;
+	if (args == NULL) return true;
 
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	if (!checkCircular( args))
