@@ -112,7 +112,7 @@ public:
 	AutomatonDescription()
 		:m_calldefs(),m_structdefs(),m_valuedefs(),m_atm(),m_maxitemid(0),m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
 	{
-		papuga_init_Allocator( &m_allocator, 0, 0);
+		papuga_init_Allocator( &m_allocator, m_allocatorbuf, sizeof(m_allocatorbuf));
 	}
 
 	/* @param[in] expression selector of the call scope */
@@ -398,6 +398,7 @@ private:
 	papuga_ErrorCode m_errcode;
 	int m_groupid;
 	bool m_done;
+	char m_allocatorbuf[ 4096];
 };
 
 
@@ -429,6 +430,14 @@ struct Scope
 		{
 			return (from < o.from);
 		}
+	}
+	bool operator==( const Scope& o) const
+	{
+		return from == o.from && to == o.to;
+	}
+	bool operator!=( const Scope& o) const
+	{
+		return from != o.from || to != o.to;
 	}
 	bool inside( const Scope& o) const
 	{
@@ -632,15 +641,21 @@ public:
 			}
 			
 		}
-		CATCH_LOCAL_EXCEPTION(m_errcode,false)
+		CATCH_LOCAL_EXCEPTION(m_errcode,NULL)
 	}
 
 private:
-	ObjectRef resolveNearItemBackwards( const Scope& scope, int itemid)
+	ObjectRef resolveNearItemCoveringScope( const Scope& scope, int itemid)
 	{
 		// Seek backwards for scope overlapping search scope: 
 		ScopeObjResolver& resolver = m_resolvers[ itemid];
 		ScopeObjMap::const_iterator it = resolver.current;
+
+		if (it == resolver.map.end())
+		{
+			if (resolver.map.empty()) return 0;
+			--it;
+		}
 		while (it->first.from > scope.from)
 		{
 			if (it == resolver.map.begin()) return 0;
@@ -666,16 +681,13 @@ private:
 		return 0;
 	}
 
-	ObjectRef resolveNearItemForwards( const Scope& scope, int itemid)
+	ObjectRef resolveNearItemInsideScope( const Scope& scope, int itemid)
 	{
 		// Seek forwards for scope overlapped by search scope:
 		ScopeObjResolver& resolver = m_resolvers[ itemid];
 		ScopeObjMap::const_iterator it = resolver.current;
-		while (it->first.from < scope.from)
-		{
-			++it;
-			if (it == resolver.map.end()) return 0;
-		}
+		if (it == resolver.map.end()) return 0;
+
 		if (it->first.from >= scope.from)
 		{
 			if (it->first.to <= scope.to)
@@ -698,7 +710,7 @@ private:
 		return 0;
 	}
 
-	void adjustResolver( const Scope& scope, int itemid)
+	void setResolverUpperBound( const Scope& scope, int itemid)
 	{
 		ScopeObjResolver& resolver = m_resolvers[ itemid];
 		if (resolver.current == resolver.map.end())
@@ -710,14 +722,14 @@ private:
 			while (resolver.current->first.from < scope.from)
 			{
 				++resolver.current;
-				if (resolver.current == resolver.map.end()) break;
+				if (resolver.current == resolver.map.end()) return;
 			}
 		}
-		else if (resolver.current->first.from > scope.from)
+		else
 		{
-			while (resolver.current->first.from > scope.from)
+			while (resolver.current->first.from >= scope.from)
 			{
-				if (resolver.current == resolver.map.begin()) break;
+				if (resolver.current == resolver.map.begin()) return;
 				--resolver.current;
 			}
 			++resolver.current;
@@ -787,21 +799,22 @@ private:
 		{
 			int itemid = stdef->members[ mi].itemid;
 			ScopeObjResolver& resolver = m_resolvers[ itemid];
-			adjustResolver( scope, itemid);
+			setResolverUpperBound( scope, itemid);
 
-			ObjectRef objref = resolveNearItemForwards( scope, itemid);
+			ObjectRef objref = resolveNearItemInsideScope( scope, itemid);
 			if (objref) while (objref)
 			{
-				Scope subscope( resolver.current->first);
-				if (ObjectRef_is_struct(objref)) --subscope.to;
-
-				rt &= add_structure_member( ser, subscope, stdef->members[ mi].name, objref);
+				const Scope& subscope( resolver.current->first);
+				if (subscope != scope)
+				{
+					rt &= add_structure_member( ser, subscope, stdef->members[ mi].name, objref);
+				}
 				objref = resolveNextItem( scope, itemid);
 			}
 			else
 			{
-				objref = resolveNearItemBackwards( scope, itemid);
-				if (objref)
+				objref = resolveNearItemCoveringScope( scope, itemid);
+				if (objref && ObjectRef_is_value(objref))
 				{
 					rt &= add_structure_member( ser,  scope, stdef->members[ mi].name, objref);
 				}
@@ -830,10 +843,10 @@ private:
 			}
 			else
 			{
-				adjustResolver( mcnode.scope, argdef.itemid);
+				setResolverUpperBound( mcnode.scope, argdef.itemid);
 
-				ObjectRef objref = resolveNearItemForwards( mcnode.scope, argdef.itemid);
-				if (!objref) objref = resolveNearItemBackwards( mcnode.scope, argdef.itemid);
+				ObjectRef objref = resolveNearItemInsideScope( mcnode.scope, argdef.itemid);
+				if (!objref) objref = resolveNearItemCoveringScope( mcnode.scope, argdef.itemid);
 				if (ObjectRef_is_value( objref))
 				{
 					int valueidx = ObjectRef_value_id( objref);
