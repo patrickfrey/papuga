@@ -9,7 +9,7 @@ find_program( PYTHON3_EXECUTABLE NAMES  "${PYPREFIX}" )
 if ( PYTHON3_CONFIG_EXECUTABLE )
 break()
 endif ( PYTHON3_CONFIG_EXECUTABLE )
-endforeach( PYCONFIG)
+endforeach( PYPREFIX )
 MESSAGE( "Python-config executable:  ${PYTHON3_CONFIG_EXECUTABLE}" )
 MESSAGE( "Python3 executable: ${PYTHON3_EXECUTABLE}" )
 
