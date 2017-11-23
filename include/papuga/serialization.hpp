@@ -21,6 +21,14 @@ namespace papuga {
 /// \note does not throw
 std::string Serialization_tostring( const papuga_Serialization& value, papuga_ErrorCode& errcode);
 
+/// \brief Print serialization as human readable string in a deterministic form
+/// \note less performant but nice for testing
+/// \param[in] value serialization to print to string
+/// \param[out] error code returned in case of error
+/// \return result string of empty string in case of error
+/// \note does not throw
+std::string Serialization_tostring_deterministic( const papuga_Serialization& value, papuga_ErrorCode& errcode);
+
 }//namespace
 #endif
 
