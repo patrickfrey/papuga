@@ -184,7 +184,6 @@ static bool Serialization_print_deterministic( std::ostream& out, std::string in
 					errcode = papuga_UnexpectedEof;
 					return false;
 				}
-				papuga_SerializationIter_skip(&seriter);
 				indent.resize( indent.size()-2);
 				valueout << indent << "close" << std::endl;
 
