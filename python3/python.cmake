@@ -3,7 +3,7 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 # PYTHON
 # --------------------------------------
-foreach( PYPREFIX "python3" "python3*" "python" )
+foreach( PYPREFIX "python3" "python3.6" "python3.5" "python3.4" "python3.3" "python3.2" "python3.1" "python" )
 find_program( PYTHON3_CONFIG_EXECUTABLE NAMES  "${PYPREFIX}-config" )
 find_program( PYTHON3_EXECUTABLE NAMES  "${PYPREFIX}" )
 if ( PYTHON3_CONFIG_EXECUTABLE )
