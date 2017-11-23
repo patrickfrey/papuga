@@ -92,7 +92,8 @@ bool papuga_RequestAutomaton_set_call_arg_var(
 bool papuga_RequestAutomaton_set_call_arg_item(
 		papuga_RequestAutomaton* self,
 		int idx,
-		int itemid);
+		int itemid,
+		bool inherited);
 
 /*
  * \brief Add a structure built from elements or structures in the document processed
@@ -119,7 +120,8 @@ bool papuga_RequestAutomaton_set_structure_element(
 		papuga_RequestAutomaton* self,
 		int idx,
 		const char* name,
-		int itemid);
+		int itemid,
+		bool inherited);
 
 /*
  * \brief Define an atomic value in the document processed
