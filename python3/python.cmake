@@ -3,15 +3,14 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 # PYTHON
 # --------------------------------------
-foreach( PYCONFIG  "python3-config" "python3*-config" "python-config" )
-find_program( PYTHON3_CONFIG_EXECUTABLE NAMES  ${PYCONFIG} )
-if (PYTHON3_CONFIG_EXECUTABLE)
+foreach( PYPREFIX "python3" "python3*" "python" )
+find_program( PYTHON3_CONFIG_EXECUTABLE NAMES  "${PYPREFIX}-config" )
+find_program( PYTHON3_EXECUTABLE NAMES  "${PYPREFIX}" )
+if ( PYTHON3_CONFIG_EXECUTABLE )
 break()
-endif (PYTHON3_CONFIG_EXECUTABLE)
+endif ( PYTHON3_CONFIG_EXECUTABLE )
 endforeach( PYCONFIG)
 MESSAGE( "Python-config executable:  ${PYTHON3_CONFIG_EXECUTABLE}" )
-
-find_program( PYTHON3_EXECUTABLE NAMES  python3 "python3*" python)
 MESSAGE( "Python3 executable: ${PYTHON3_EXECUTABLE}" )
 
 execute_process( COMMAND  ${PYTHON3_CONFIG_EXECUTABLE} --includes  OUTPUT_VARIABLE  PYTHON3_INCLUDES )
