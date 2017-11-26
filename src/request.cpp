@@ -1163,7 +1163,7 @@ extern "C" papuga_ErrorCode papuga_Request_last_error( const papuga_Request* sel
 	return self->ctx.lastError();
 }
 
-extern "C" papuga_RequestMethodCall* papuga_Request_next( papuga_Request* self)
+extern "C" papuga_RequestMethodCall* papuga_Request_next_call( papuga_Request* self)
 {
 	return self->ctx.nextMethodCall();
 }

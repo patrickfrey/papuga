@@ -87,6 +87,7 @@ bool papuga_RequestAutomaton_set_call_arg_var(
  * \param[in,out] self automaton manipulated
  * \param[in] idx index of the argument to set, starting with 0
  * \param[in] itemid identifier of the item
+ * \param[in] inherited true, if the scope of the addressed element is covering the scope of the method call addressing it, false if the method call scope is covering the scope of the addressed element
  * \return true on success, false on failure (index out of range or memory allocation error)
  */
 bool papuga_RequestAutomaton_set_call_arg_item(
@@ -114,6 +115,7 @@ bool papuga_RequestAutomaton_add_structure(
  * \param[in] idx index of the element to set, starting with 0
  * \param[in] name identifier naming the structure element added or NULL if the element does not get a name (for arrays)
  * \param[in] itemid identifier of the structure or value associated with the element added
+ * \param[in] inherited true, if the scope of the addressed element is covering the scope of the structure addressing it, false if the structure scope is covering the scope of the addressed element
  * \return true on success, false on failure (index out of range or memory allocation error)
  */
 bool papuga_RequestAutomaton_set_structure_element(
@@ -241,7 +243,7 @@ typedef struct papuga_RequestMethodCall
  * \param[in] self request to get the next method call from
  * \return pointer to the method call description (temporary, only valid until the next one is fetched)
  */
-papuga_RequestMethodCall* papuga_Request_next( papuga_Request* self);
+papuga_RequestMethodCall* papuga_Request_next_call( papuga_Request* self);
 
 #ifdef __cplusplus
 }

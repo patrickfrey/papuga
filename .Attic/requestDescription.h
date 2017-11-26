@@ -13,28 +13,6 @@
 #define _PAPUGA_REQUEST_SCHEME_DESCRIPTION_H_INCLUDED
 #include <stdbool.h>
 
-struct papuga_RequestAtom
-{
-	int id;						/*< id of the element */
-	const char* selectexpr;				/*< expression selecting the element */
-} papuga_RequestAtom;
-
-typedef struct papuga_RequestElementRef
-{
-	int id;						/*< id of the element */
-	bool single;					/*< true, if the element is expected to appear only once if it exists (not an array) */
-	const char* name;				/*< name given to the element */
-} papuga_RequestElementRef;
-
-typedef struct papuga_RequestElementGroup
-{
-	int id;						/*< id of the group */
-	const int* subids;				
-	const char* selectexpr;				/*< expression selecting the group */
-} papuga_RequestElementGroup;
-
-
-
 /*
 * @brief Structure collecting all calls to perform for a request and how to build the result of the request
 */

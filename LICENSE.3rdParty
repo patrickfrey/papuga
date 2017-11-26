@@ -9,11 +9,17 @@ Table of Contents
 	Lua
 	Zend framework (PHP7)
 	Python (v3)
+	cJSON
 
 textwolf
 ----------
 	MPL v2.0
 	Copyright (c) 2010 Patrick P. Frey
+
+cJSON
+--------
+	MIT
+	Copyright (c) 2009-2017 Dave Gamble
 
 boost
 -------
