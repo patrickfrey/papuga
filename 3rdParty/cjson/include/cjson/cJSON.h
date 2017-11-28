@@ -28,6 +28,16 @@ extern "C"
 {
 #endif
 
+#define PF_PATCH_THREADSAFE
+/* PF:PATCH: This patch passes a context to the parser avoiding global variables for error reporting, making the JSON parser thread safe. */
+
+#ifdef PF_PATCH_THREADSAFE
+typedef struct cJSON_Context {
+	const unsigned char *json;
+	size_t position;
+} cJSON_Context;
+#endif
+
 /* project version */
 #define CJSON_VERSION_MAJOR 1
 #define CJSON_VERSION_MINOR 6
@@ -137,10 +147,18 @@ CJSON_PUBLIC(void) cJSON_InitHooks(cJSON_Hooks* hooks);
 
 /* Memory Management: the caller is always responsible to free the results from all variants of cJSON_Parse (with cJSON_Delete) and cJSON_Print (with stdlib free, cJSON_Hooks.free_fn, or cJSON_free as appropriate). The exception is cJSON_PrintPreallocated, where the caller has full responsibility of the buffer. */
 /* Supply a block of JSON, and this returns a cJSON object you can interrogate. */
+#ifdef PF_PATCH_THREADSAFE
+CJSON_PUBLIC(cJSON *) cJSON_Parse( const char *value, cJSON_Context* ctx);
+#else
 CJSON_PUBLIC(cJSON *) cJSON_Parse(const char *value);
+#endif
 /* ParseWithOpts allows you to require (and check) that the JSON is null terminated, and to retrieve the pointer to the final byte parsed. */
 /* If you supply a ptr in return_parse_end and parsing fails, then return_parse_end will contain a pointer to the error so will match cJSON_GetErrorPtr(). */
+#ifdef PF_PATCH_THREADSAFE
+CJSON_PUBLIC(cJSON *) cJSON_ParseWithOpts( const char *value, cJSON_Context* ctx, const char **return_parse_end, cJSON_bool require_null_terminated);
+#else
 CJSON_PUBLIC(cJSON *) cJSON_ParseWithOpts(const char *value, const char **return_parse_end, cJSON_bool require_null_terminated);
+#endif
 
 /* Render a cJSON entity to text for transfer/storage. */
 CJSON_PUBLIC(char *) cJSON_Print(const cJSON *item);
@@ -163,7 +181,11 @@ CJSON_PUBLIC(cJSON *) cJSON_GetObjectItem(const cJSON * const object, const char
 CJSON_PUBLIC(cJSON *) cJSON_GetObjectItemCaseSensitive(const cJSON * const object, const char * const string);
 CJSON_PUBLIC(cJSON_bool) cJSON_HasObjectItem(const cJSON *object, const char *string);
 /* For analysing failed parses. This returns a pointer to the parse error. You'll probably need to look a few chars back to make sense of it. Defined when cJSON_Parse() returns 0. 0 when cJSON_Parse() succeeds. */
+#ifdef PF_PATCH_THREADSAFE
+CJSON_PUBLIC(const char *) cJSON_GetErrorPtr(const cJSON_Context* ctx);
+#else
 CJSON_PUBLIC(const char *) cJSON_GetErrorPtr(void);
+#endif
 
 /* These functions check the type of an item */
 CJSON_PUBLIC(cJSON_bool) cJSON_IsInvalid(const cJSON * const item);

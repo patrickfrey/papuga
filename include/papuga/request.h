@@ -176,11 +176,10 @@ bool papuga_Request_set_variable_value( papuga_Request* self, const char* varnam
  * \brief Feed an open tag event to the request structure
  * \param[in,out] self the request structure to feed
  * \param[in] tagname name of the tag
- * \param[in] tagsize size of tagname in bytes
  * \return true on success, false on failure
  * \note the error code in case of failure can be fetched with papuga_Request_last_error
  */
-bool papuga_Request_feed_open_tag( papuga_Request* self, const char* tagname, size_t tagnamesize);
+bool papuga_Request_feed_open_tag( papuga_Request* self, const papuga_ValueVariant* tagname);
 
 /*
  * \brief Feed a close tag event to the request structure
@@ -194,31 +193,28 @@ bool papuga_Request_feed_close_tag( papuga_Request* self);
  * \brief Feed an attribute name event to the request structure
  * \param[in,out] self the request structure to feed
  * \param[in] attrname name of the attribute
- * \param[in] attrsize size of attrname in bytes
  * \return true on success, false on failure
  * \note the error code in case of failure can be fetched with papuga_Request_last_error
  */
-bool papuga_Request_feed_attribute_name( papuga_Request* self, const char* attrname, size_t attrnamesize);
+bool papuga_Request_feed_attribute_name( papuga_Request* self, const papuga_ValueVariant* attrname);
 
 /*
  * \brief Feed an attribute value event to the request structure
  * \param[in,out] self the request structure to feed
- * \param[in] valueptr content of the value
- * \param[in] valuesize size of valueptr in bytes
+ * \param[in] value content of the value
  * \return true on success, false on failure
  * \note the error code in case of failure can be fetched with papuga_Request_last_error
  */
-bool papuga_Request_feed_attribute_value( papuga_Request* self, const char* valueptr, size_t valuesize);
+bool papuga_Request_feed_attribute_value( papuga_Request* self, const papuga_ValueVariant* value);
 
 /*
  * \brief Feed an content value event to the request structure
  * \param[in,out] self the request structure to feed
- * \param[in] valueptr content of the value
- * \param[in] valuesize size of valueptr in bytes
+ * \param[in] value content of the value
  * \return true on success, false on failure
  * \note the error code in case of failure can be fetched with papuga_Request_last_error
  */
-bool papuga_Request_feed_content_value( papuga_Request* self, const char* valueptr, size_t valuesize);
+bool papuga_Request_feed_content_value( papuga_Request* self, const papuga_ValueVariant* value);
 
 /*
  * \brief Get the last processing error of the request

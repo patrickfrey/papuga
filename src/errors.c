@@ -38,6 +38,7 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)
 		case papuga_SyntaxError: return _TXT("syntax error");
 		case papuga_UncaughtException: return _TXT("uncaught exception");
 		case papuga_ExecutionOrder: return _TXT("violated a required order of execution");
+		case papuga_AtomicValueExpected: return _TXT("atomic value expected");
 		default: return _TXT("unknown error");
 	}
 }

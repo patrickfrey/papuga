@@ -16,12 +16,16 @@ set( source_files
 	valueVariant.c
 	serialization.cpp
 	request.cpp
+	document.c
+	document_json.cpp
+	document_xml.cpp
 )
 
 include_directories(
 	"${Intl_INCLUDE_DIRS}"
 	"${PROJECT_SOURCE_DIR}/src"
 	"${PROJECT_SOURCE_DIR}/3rdParty/textwolf/include"
+	"${PROJECT_SOURCE_DIR}/3rdParty/cjson/include"
 	"${CMAKE_BINARY_DIR}/include"
 	"${PROJECT_SOURCE_DIR}/include"
 )

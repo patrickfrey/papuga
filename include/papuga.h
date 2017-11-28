@@ -24,6 +24,8 @@
 #include "papuga/valueVariant.h"
 #include "papuga/stack.h"
 #include "papuga/interfaceDescription.h"
+#include "papuga/request.h"
+#include "papuga/document.h"
 
 #endif
 

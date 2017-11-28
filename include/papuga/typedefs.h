@@ -46,7 +46,8 @@ typedef enum papuga_ErrorCode
 	papuga_DuplicateDefinition=14,
 	papuga_SyntaxError=15,
 	papuga_UncaughtException=16,
-	papuga_ExecutionOrder=17
+	papuga_ExecutionOrder=17,
+	papuga_AtomicValueExpected=18
 } papuga_ErrorCode;
 
 /*

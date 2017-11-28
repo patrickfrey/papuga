@@ -561,45 +561,98 @@ public:
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 	}
 
-	bool processOpenTag( const char* namestr, std::size_t namesize)
+	struct LocalBuffer
+	{
+		char numbuf[ 128];
+		const char* valuestr;
+		std::size_t valuesize;
+		papuga_ValueVariant value;
+		bool deepcopy;
+
+		LocalBuffer( const papuga_ValueVariant* value_, papuga_Allocator& allocator, papuga_ErrorCode& errcode)
+			:deepcopy(true)
+		{
+			if (!papuga_ValueVariant_isatomic( value_))
+			{
+				papuga_init_ValueVariant( &value);
+				valuestr = NULL;
+				valuesize = 0;
+				errcode = papuga_AtomicValueExpected;
+			}
+			else if (papuga_ValueVariant_isstring( value_))
+			{
+				valuestr = papuga_ValueVariant_tostring( value_, &allocator, &valuesize, &errcode);
+				if (!valuestr)
+				{
+					valuesize = 0;
+					return;
+				}
+				papuga_init_ValueVariant_string( &value, valuestr, valuesize);
+				deepcopy = (value.value.string == value_->value.string);
+			}
+			else
+			{
+				valuestr = papuga_ValueVariant_toascii( numbuf, sizeof(numbuf), value_);
+				if (!valuestr)
+				{
+					papuga_init_ValueVariant( &value);
+					valuesize = 0;
+					errcode = papuga_BufferOverflowError;
+					return;
+				}
+				valuesize = strlen(valuestr);
+				papuga_init_ValueVariant_copy( &value, value_);
+			}
+		}
+	};
+
+	bool processOpenTag( const papuga_ValueVariant* tagname)
 	{
 		try
 		{
-			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::OpenTag, namestr, namesize);
-			for (; *itr; ++itr) processEvent( *itr, namestr, namesize);
+			LocalBuffer localbuf( tagname, m_allocator, m_errcode);
+			if (!localbuf.valuestr) return false;
+			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::OpenTag, localbuf.valuestr, localbuf.valuesize);
+			for (; *itr; ++itr) processEvent( *itr, &localbuf.value, localbuf.deepcopy);
 			m_scopestack.push_back( scopecnt);
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 	}
 
-	bool processAttributeName( const char* namestr, std::size_t namesize)
+	bool processAttributeName( const papuga_ValueVariant* attrname)
 	{
 		try
 		{
-			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::TagAttribName, namestr, namesize);
-			for (; *itr; ++itr) processEvent( *itr, namestr, namesize);
+			LocalBuffer localbuf( attrname, m_allocator, m_errcode);
+			if (!localbuf.valuestr) return false;
+			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::TagAttribName, localbuf.valuestr, localbuf.valuesize);
+			for (; *itr; ++itr) processEvent( *itr, &localbuf.value, localbuf.deepcopy);
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 	}
-	bool processAttributeValue( const char* valuestr, std::size_t valuesize)
+	bool processAttributeValue( const papuga_ValueVariant* value)
 	{
 		try
 		{
-			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::TagAttribValue, valuestr, valuesize);
-			for (; *itr; ++itr) processEvent( *itr, valuestr, valuesize);
+			LocalBuffer localbuf( value, m_allocator, m_errcode);
+			if (!localbuf.valuestr) return false;
+			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::TagAttribValue, localbuf.valuestr, localbuf.valuesize);
+			for (; *itr; ++itr) processEvent( *itr, &localbuf.value, localbuf.deepcopy);
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 	}
 
-	bool processValue( const char* valuestr, std::size_t valuesize)
+	bool processValue( const papuga_ValueVariant* value)
 	{
 		try
 		{
-			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::Content, valuestr, valuesize);
-			for (; *itr; ++itr) processEvent( *itr, valuestr, valuesize);
+			LocalBuffer localbuf( value, m_allocator, m_errcode);
+			if (!localbuf.valuestr) return false;
+			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::Content, localbuf.valuestr, localbuf.valuesize);
+			for (; *itr; ++itr) processEvent( *itr, &localbuf.value, localbuf.deepcopy);
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -609,8 +662,9 @@ public:
 	{
 		try
 		{
+			static Value empty;
 			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::CloseTag, "", 0);
-			for (; *itr; ++itr) processEvent( *itr, "", 0);
+			for (; *itr; ++itr) processEvent( *itr, &empty.content, true);
 			m_scopestack.pop_back();
 			return true;
 		}
@@ -893,7 +947,7 @@ private:
 		return true;
 	}
 
-	bool processEvent( int ev, const char* valuestr, std::size_t valuesize)
+	bool processEvent( int ev, const papuga_ValueVariant* evalue, bool deepcopy)
 	{
 		int evidx = AtmRef_index( ev);
 		++scopecnt;
@@ -901,8 +955,21 @@ private:
 		{
 			case InstantiateValue:
 			{
-				char* valuestrcopy = papuga_Allocator_copy_string( &m_allocator, valuestr, valuesize);
-				m_valuenodes.push_back( ValueNode( m_atm->valuedefs()[ evidx].itemid, Value( valuestrcopy, valuesize)));
+				if (!deepcopy)
+				{
+					m_valuenodes.push_back( ValueNode( m_atm->valuedefs()[ evidx].itemid, Value( evalue)));
+				}
+				else if (papuga_ValueVariant_isstring( evalue) && (evalue->encoding == papuga_UTF8 || evalue->encoding == papuga_Binary))
+				{
+					char* valuestrcopy = papuga_Allocator_copy_string( &m_allocator, evalue->value.string, evalue->length);
+					m_valuenodes.push_back( ValueNode( m_atm->valuedefs()[ evidx].itemid, Value( valuestrcopy, evalue->length)));
+				}
+				else
+				{
+					m_errcode = papuga_LogicError;
+					//... conversion to 'UTF8' happens earlier in LocalBuffer (papuga_ValueVariant_tostring), 'Binary' is untouched
+					return false;
+				}
 				break;
 			}
 			case CollectValue:
@@ -1133,9 +1200,9 @@ extern "C" bool papuga_Request_set_variable_value( papuga_Request* self, const c
 	return self->ctx.setVariableValue( varname, value);
 }
 
-extern "C" bool papuga_Request_feed_open_tag( papuga_Request* self, const char* tagname, size_t tagnamesize)
+extern "C" bool papuga_Request_feed_open_tag( papuga_Request* self, const papuga_ValueVariant* tagname)
 {
-	return self->ctx.processOpenTag( tagname, tagnamesize);
+	return self->ctx.processOpenTag( tagname);
 }
 
 extern "C" bool papuga_Request_feed_close_tag( papuga_Request* self)
@@ -1143,19 +1210,19 @@ extern "C" bool papuga_Request_feed_close_tag( papuga_Request* self)
 	return self->ctx.processCloseTag();
 }
 
-extern "C" bool papuga_Request_feed_attribute_name( papuga_Request* self, const char* attrname, size_t attrnamesize)
+extern "C" bool papuga_Request_feed_attribute_name( papuga_Request* self, const papuga_ValueVariant* attrname)
 {
-	return self->ctx.processAttributeName( attrname, attrnamesize);
+	return self->ctx.processAttributeName( attrname);
 }
 
-extern "C" bool papuga_Request_feed_attribute_value( papuga_Request* self, const char* valueptr, size_t valuesize)
+extern "C" bool papuga_Request_feed_attribute_value( papuga_Request* self, const papuga_ValueVariant* value)
 {
-	return self->ctx.processAttributeValue( valueptr, valuesize);
+	return self->ctx.processAttributeValue( value);
 }
 
-extern "C" bool papuga_Request_feed_content_value( papuga_Request* self, const char* valueptr, size_t valuesize)
+extern "C" bool papuga_Request_feed_content_value( papuga_Request* self, const papuga_ValueVariant* value)
 {
-	return self->ctx.processValue( valueptr, valuesize);
+	return self->ctx.processValue( value);
 }
 
 extern "C" papuga_ErrorCode papuga_Request_last_error( const papuga_Request* self)

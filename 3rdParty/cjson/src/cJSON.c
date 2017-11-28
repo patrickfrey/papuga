@@ -65,16 +65,25 @@
 #define true ((cJSON_bool)1)
 #define false ((cJSON_bool)0)
 
+#ifndef PF_PATCH_THREADSAFE
 typedef struct {
     const unsigned char *json;
     size_t position;
 } error;
 static error global_error = { NULL, 0 };
+#endif
 
+#ifdef PF_PATCH_THREADSAFE
+CJSON_PUBLIC(const char *) cJSON_GetErrorPtr(const cJSON_Context* ctx)
+{
+    return (const char*) (ctx->json + ctx->position);
+}
+#else
 CJSON_PUBLIC(const char *) cJSON_GetErrorPtr(void)
 {
     return (const char*) (global_error.json + global_error.position);
 }
+#endif
 
 /* This is a safeguard to prevent copy-pasters from using incompatible C and header files */
 #if (CJSON_VERSION_MAJOR != 1) || (CJSON_VERSION_MINOR != 6) || (CJSON_VERSION_PATCH != 0)
@@ -1064,15 +1073,23 @@ static parse_buffer *skip_utf8_bom(parse_buffer * const buffer)
 }
 
 /* Parse an object - create a new root, and populate. */
+#ifdef PF_PATCH_THREADSAFE
+CJSON_PUBLIC(cJSON *) cJSON_ParseWithOpts(const char *value, cJSON_Context* ctx, const char **return_parse_end, cJSON_bool require_null_terminated)
+#else
 CJSON_PUBLIC(cJSON *) cJSON_ParseWithOpts(const char *value, const char **return_parse_end, cJSON_bool require_null_terminated)
+#endif
 {
     parse_buffer buffer = { 0, 0, 0, 0, { 0, 0, 0 } };
     cJSON *item = NULL;
 
     /* reset error position */
+#ifdef PF_PATCH_THREADSAFE
+    ctx->json = NULL;
+    ctx->position = 0;
+#else
     global_error.json = NULL;
     global_error.position = 0;
-
+#endif
     if (value == NULL)
     {
         goto fail;
@@ -1119,10 +1136,27 @@ fail:
 
     if (value != NULL)
     {
+#ifdef PF_PATCH_THREADSAFE
+        ctx->json = (const unsigned char*)value;
+        ctx->position = 0;
+
+        if (buffer.offset < buffer.length)
+        {
+            ctx->position = buffer.offset;
+        }
+        else if (buffer.length > 0)
+        {
+            ctx->position = buffer.length - 1;
+        }
+
+        if (return_parse_end != NULL)
+        {
+            *return_parse_end = (const char*)ctx->json + ctx->position;
+        }
+#else
         error local_error;
         local_error.json = (const unsigned char*)value;
         local_error.position = 0;
-
         if (buffer.offset < buffer.length)
         {
             local_error.position = buffer.offset;
@@ -1138,16 +1172,25 @@ fail:
         }
 
         global_error = local_error;
+#endif
     }
 
     return NULL;
 }
 
 /* Default options for cJSON_Parse */
+#ifdef PF_PATCH_THREADSAFE
+CJSON_PUBLIC(cJSON *) cJSON_Parse(const char *value, cJSON_Context* ctx)
+{
+    return cJSON_ParseWithOpts(value, ctx, 0, 0);
+}
+#else
 CJSON_PUBLIC(cJSON *) cJSON_Parse(const char *value)
 {
     return cJSON_ParseWithOpts(value, 0, 0);
 }
+#endif
+
 
 #define cjson_min(a, b) ((a < b) ? a : b)
 
