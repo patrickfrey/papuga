@@ -6,23 +6,23 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 /// \brief Structures and functions for scanning papuga XML and JSON documents for further processing
-/// \file document.c
-#include "papuga/document.h"
+/// \file requestParser.c
+#include "papuga/requestParser.h"
 #include <string.h>
 
-void papuga_destroy_DocumentParser( papuga_DocumentParser* self)
+void papuga_destroy_RequestParser( papuga_RequestParser* self)
 {
-	((papuga_DocumentParserHeader*)self)->destroy( self);
+	((papuga_RequestParserHeader*)self)->destroy( self);
 }
 
-papuga_ErrorCode papuga_DocumentParser_last_error( const papuga_DocumentParser* self)
+papuga_ErrorCode papuga_RequestParser_last_error( const papuga_RequestParser* self)
 {
-	return ((papuga_DocumentParserHeader*)self)->errcode;
+	return ((papuga_RequestParserHeader*)self)->errcode;
 }
 
-int papuga_DocumentParser_last_error_pos( const papuga_DocumentParser* self)
+int papuga_RequestParser_last_error_pos( const papuga_RequestParser* self)
 {
-	return ((papuga_DocumentParserHeader*)self)->errpos;
+	return ((papuga_RequestParserHeader*)self)->errpos;
 }
 
 static bool parse_xml_header( char* hdrbuf, size_t hdrbufsize, const char* src, size_t srcsize)
@@ -88,7 +88,7 @@ static papuga_StringEncoding detectBOM( const char* src, size_t srcsize, size_t*
 	return papuga_Binary;
 }
 
-papuga_DocumentType papuga_guess_DocumentType( const char* src_, size_t srcsize)
+papuga_ContentType papuga_guess_ContentType( const char* src_, size_t srcsize)
 {
 	char const* src = src_;
 	size_t si;
@@ -98,13 +98,13 @@ papuga_DocumentType papuga_guess_DocumentType( const char* src_, size_t srcsize)
 	(void)detectBOM( src, srcsize, &BOM_size);
 	src += BOM_size;
 	srcsize -= BOM_size;
-	if (parse_xml_header( hdrbuf, sizeof(hdrbuf), src, srcsize)) return papuga_DocumentType_XML;
+	if (parse_xml_header( hdrbuf, sizeof(hdrbuf), src, srcsize)) return papuga_ContentType_XML;
 	for (si=0; si<srcsize; ++si)
 	{
-		if (src[si] == '\'' || src[si] == '\"' || src[si] == '{') return papuga_DocumentType_JSON;
+		if (src[si] == '\'' || src[si] == '\"' || src[si] == '{') return papuga_ContentType_JSON;
 		if ((unsigned char)src[si]>32) break;
 	}
-	return papuga_DocumentType_Unknown;
+	return papuga_ContentType_Unknown;
 }
 
 static papuga_StringEncoding detectCharsetFromXmlHeader( const char* hdrbuf, size_t hdrbufsize)
@@ -197,9 +197,9 @@ papuga_StringEncoding papuga_guess_StringEncoding( const char* src, size_t srcsi
 	return papuga_Binary;
 }
 
-papuga_DocumentElementType papuga_DocumentParser_next( papuga_DocumentParser* self, papuga_ValueVariant* value)
+papuga_RequestElementType papuga_RequestParser_next( papuga_RequestParser* self, papuga_ValueVariant* value)
 {
-	papuga_DocumentParserHeader* header = (papuga_DocumentParserHeader*)self;
+	papuga_RequestParserHeader* header = (papuga_RequestParserHeader*)self;
 	return header->next( self, value);
 }
 

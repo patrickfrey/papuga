@@ -5,9 +5,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Structures and functions for scanning papuga JSON documents for further processing
-/// \file document_json.cpp
-#include "papuga/document.h"
+/// \brief Structures and functions for scanning papuga JSON request bodies for further processing
+/// \file requestParser_json.cpp
+#include "papuga/requestParser.h"
 #include "papuga/valueVariant.h"
 #include "cjson/cJSON.h"
 #include "textwolf/xmlscanner.hpp"
@@ -27,39 +27,39 @@ struct TextwolfItem
 		:type(type_),value(value_){}
 };
 
-static void papuga_destroy_DocumentParser_json( papuga_DocumentParser* self);
-static papuga_DocumentElementType papuga_DocumentParser_json_next( papuga_DocumentParser* self, papuga_ValueVariant* value);
+static void papuga_destroy_RequestParser_json( papuga_RequestParser* self);
+static papuga_RequestElementType papuga_RequestParser_json_next( papuga_RequestParser* self, papuga_ValueVariant* value);
 static std::vector<TextwolfItem> parseJsonTree( const char* content, papuga_ErrorCode* errcode, int* errpos);
 
-struct papuga_DocumentParser
+struct papuga_RequestParser
 {
-	papuga_DocumentParserHeader header;
+	papuga_RequestParserHeader header;
 	std::string elembuf;
 	const char* content;
 	size_t contentsize;
 	std::vector<TextwolfItem> items;
 	std::vector<TextwolfItem>::const_iterator iter;
 
-	papuga_DocumentParser( const char* content_, size_t contentsize_)
+	papuga_RequestParser( const char* content_, size_t contentsize_)
 		:elembuf(),content(content_),contentsize(contentsize_)
 	{
-		header.type = papuga_DocumentType_JSON;
+		header.type = papuga_ContentType_JSON;
 		header.errcode = papuga_Ok;
 		header.errpos = -1;
 		header.libname = "cjson";
-		header.destroy = &papuga_destroy_DocumentParser_json;
-		header.next = &papuga_DocumentParser_json_next;
+		header.destroy = &papuga_destroy_RequestParser_json;
+		header.next = &papuga_RequestParser_json_next;
 		items = parseJsonTree( content_, &header.errcode, &header.errpos);
 		iter = items.begin();
 	}
 
-	papuga_DocumentElementType getNext( papuga_ValueVariant* value)
+	papuga_RequestElementType getNext( papuga_ValueVariant* value)
 	{
 		typedef textwolf::XMLScannerBase tx;
 		if (iter == items.end())
 		{
 			papuga_init_ValueVariant( value);
-			return papuga_DocumentElementType_None;
+			return papuga_RequestElementType_None;
 		}
 		else
 		{
@@ -82,22 +82,22 @@ struct papuga_DocumentParser
 				case tx::HeaderEnd:
 				case tx::DocAttribEnd:
 				case tx::DocAttribValue:
-					return papuga_DocumentElementType_None;
+					return papuga_RequestElementType_None;
 				case tx::TagAttribName:
-					return papuga_DocumentElementType_AttributeName;
+					return papuga_RequestElementType_AttributeName;
 				case tx::TagAttribValue:
-					return papuga_DocumentElementType_AttributeValue;
+					return papuga_RequestElementType_AttributeValue;
 				case tx::OpenTag:
-					return papuga_DocumentElementType_Open;
+					return papuga_RequestElementType_Open;
 				case tx::CloseTag:
 				case tx::CloseTagIm:
-					return papuga_DocumentElementType_Close;
+					return papuga_RequestElementType_Close;
 				case tx::Content:
-					return papuga_DocumentElementType_Value;
+					return papuga_RequestElementType_Value;
 			}
 		}
 		header.errcode = papuga_LogicError;
-		return papuga_DocumentElementType_None;
+		return papuga_RequestElementType_None;
 	}
 };
 
@@ -249,26 +249,26 @@ static std::vector<TextwolfItem> parseJsonTree( const char* content, papuga_Erro
 	return std::vector<TextwolfItem>();
 }
 
-extern "C" papuga_DocumentParser* papuga_create_DocumentParser_json( papuga_StringEncoding encoding, const char* content, size_t size)
+extern "C" papuga_RequestParser* papuga_create_RequestParser_json( papuga_StringEncoding encoding, const char* content, size_t size)
 {
-	papuga_DocumentParser* rt = (papuga_DocumentParser*)std::calloc( 1, sizeof(papuga_DocumentParser));
+	papuga_RequestParser* rt = (papuga_RequestParser*)std::calloc( 1, sizeof(papuga_RequestParser));
 	if (!rt) return NULL;
-	new (&rt) papuga_DocumentParser( content, size);
+	new (&rt) papuga_RequestParser( content, size);
 	if (rt->header.errcode != papuga_Ok)
 	{
-		papuga_destroy_DocumentParser_json( rt);
+		papuga_destroy_RequestParser_json( rt);
 		return NULL;
 	}
 	return rt;
 }
 
-static void papuga_destroy_DocumentParser_json( papuga_DocumentParser* self)
+static void papuga_destroy_RequestParser_json( papuga_RequestParser* self)
 {
-	self->~papuga_DocumentParser();
+	self->~papuga_RequestParser();
 	std::free( self);
 }
 
-static papuga_DocumentElementType papuga_DocumentParser_json_next( papuga_DocumentParser* self, papuga_ValueVariant* value)
+static papuga_RequestElementType papuga_RequestParser_json_next( papuga_RequestParser* self, papuga_ValueVariant* value)
 {
 	return self->getNext( value);
 }

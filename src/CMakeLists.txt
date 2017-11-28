@@ -16,9 +16,9 @@ set( source_files
 	valueVariant.c
 	serialization.cpp
 	request.cpp
-	document.c
-	document_json.cpp
-	document_xml.cpp
+	requestParser.c
+	requestParser_json.cpp
+	requestParser_xml.cpp
 )
 
 include_directories(

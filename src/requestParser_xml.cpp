@@ -5,21 +5,21 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Structures and functions for scanning papuga XML documents for further processing
-/// \file document_xml.cpp
-#include "papuga/document.h"
+/// \brief Structures and functions for scanning papuga XML request bodies for further processing
+/// \file requestParser_xml.cpp
+#include "papuga/requestParser.h"
 #include "papuga/valueVariant.h"
 #include "textwolf/xmlscanner.hpp"
 #include "textwolf/charset.hpp"
 #include <cstdlib>
 #include <string>
 
-static void papuga_destroy_DocumentParser_xml( papuga_DocumentParser* self);
-static papuga_DocumentElementType papuga_DocumentParser_xml_next( papuga_DocumentParser* self, papuga_ValueVariant* value);
+static void papuga_destroy_RequestParser_xml( papuga_RequestParser* self);
+static papuga_RequestElementType papuga_RequestParser_xml_next( papuga_RequestParser* self, papuga_ValueVariant* value);
 
-struct papuga_DocumentParser
+struct papuga_RequestParser
 {
-	papuga_DocumentParserHeader header;
+	papuga_RequestParserHeader header;
 	std::string elembuf;
 	const char* content;
 	size_t contentsize;
@@ -37,15 +37,15 @@ struct papuga_DocumentParser
 	typename XMLScanner::iterator end;
 	jmp_buf eom;
 
-	papuga_DocumentParser( const char* content_, size_t contentsize_)
+	papuga_RequestParser( const char* content_, size_t contentsize_)
 		:elembuf(),content(content_),contentsize(contentsize_)
 	{
-		header.type = papuga_DocumentType_XML;
+		header.type = papuga_ContentType_XML;
 		header.errcode = papuga_Ok;
 		header.errpos = -1;
 		header.libname = "textwolf";
-		header.destroy = &papuga_destroy_DocumentParser_xml;
-		header.next = &papuga_DocumentParser_xml_next;
+		header.destroy = &papuga_destroy_RequestParser_xml;
+		header.next = &papuga_RequestParser_xml_next;
 
 		srciter.putInput( content_, contentsize_, &eom);
 		scanner.setSource( srciter);
@@ -53,14 +53,14 @@ struct papuga_DocumentParser
 		end = scanner.end();
 	}
 
-	papuga_DocumentElementType getNext( papuga_ValueVariant* value)
+	papuga_RequestElementType getNext( papuga_ValueVariant* value)
 	{
 		typedef textwolf::XMLScannerBase tx;
 		if (setjmp(eom) != 0)
 		{
 			header.errcode = papuga_UnexpectedEof;
 			header.errpos = contentsize;
-			return papuga_DocumentElementType_None;
+			return papuga_RequestElementType_None;
 		}
 		for (;;)
 		{
@@ -70,13 +70,13 @@ struct papuga_DocumentParser
 				case tx::None:
 					header.errpos = scanner.getTokenPosition();
 					header.errcode = papuga_ValueUndefined;
-					return papuga_DocumentElementType_None;
+					return papuga_RequestElementType_None;
 				case tx::Exit:
-					return papuga_DocumentElementType_None;
+					return papuga_RequestElementType_None;
 				case tx::ErrorOccurred:
 					header.errpos = scanner.getTokenPosition();
 					header.errcode = papuga_SyntaxError;
-					return papuga_DocumentElementType_None;
+					return papuga_RequestElementType_None;
 	
 				case tx::HeaderStart:
 				case tx::HeaderAttribName:
@@ -87,40 +87,40 @@ struct papuga_DocumentParser
 					continue;
 				case tx::TagAttribName:
 					papuga_init_ValueVariant_string( value, itr->content(), itr->size());
-					return papuga_DocumentElementType_AttributeName;
+					return papuga_RequestElementType_AttributeName;
 				case tx::TagAttribValue:
 					papuga_init_ValueVariant_string( value, itr->content(), itr->size());
-					return papuga_DocumentElementType_AttributeValue;
+					return papuga_RequestElementType_AttributeValue;
 				case tx::OpenTag:
 					papuga_init_ValueVariant_string( value, itr->content(), itr->size());
-					return papuga_DocumentElementType_Open;
+					return papuga_RequestElementType_Open;
 				case tx::CloseTag:
 				case tx::CloseTagIm:
 					papuga_init_ValueVariant( value);
-					return papuga_DocumentElementType_Close;
+					return papuga_RequestElementType_Close;
 				case tx::Content:
 					papuga_init_ValueVariant_string( value, itr->content(), itr->size());
-					return papuga_DocumentElementType_Value;
+					return papuga_RequestElementType_Value;
 			}
 		}
 	}
 };
 
-extern "C" papuga_DocumentParser* papuga_create_DocumentParser_xml( papuga_StringEncoding encoding, const char* content, size_t size)
+extern "C" papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringEncoding encoding, const char* content, size_t size)
 {
-	papuga_DocumentParser* rt = (papuga_DocumentParser*)std::calloc( 1, sizeof(papuga_DocumentParser));
+	papuga_RequestParser* rt = (papuga_RequestParser*)std::calloc( 1, sizeof(papuga_RequestParser));
 	if (!rt) return NULL;
-	new (&rt) papuga_DocumentParser( content, size);
+	new (&rt) papuga_RequestParser( content, size);
 	return rt;
 }
 
-static void papuga_destroy_DocumentParser_xml( papuga_DocumentParser* self)
+static void papuga_destroy_RequestParser_xml( papuga_RequestParser* self)
 {
-	self->~papuga_DocumentParser();
+	self->~papuga_RequestParser();
 	std::free( self);
 }
 
-static papuga_DocumentElementType papuga_DocumentParser_xml_next( papuga_DocumentParser* self, papuga_ValueVariant* value)
+static papuga_RequestElementType papuga_RequestParser_xml_next( papuga_RequestParser* self, papuga_ValueVariant* value)
 {
 	return self->getNext( value);
 }
