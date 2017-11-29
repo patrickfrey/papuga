@@ -253,7 +253,7 @@ extern "C" papuga_RequestParser* papuga_create_RequestParser_json( papuga_String
 {
 	papuga_RequestParser* rt = (papuga_RequestParser*)std::calloc( 1, sizeof(papuga_RequestParser));
 	if (!rt) return NULL;
-	new (&rt) papuga_RequestParser( content, size);
+	new (rt) papuga_RequestParser( content, size);
 	if (rt->header.errcode != papuga_Ok)
 	{
 		papuga_destroy_RequestParser_json( rt);

@@ -110,7 +110,7 @@ extern "C" papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringE
 {
 	papuga_RequestParser* rt = (papuga_RequestParser*)std::calloc( 1, sizeof(papuga_RequestParser));
 	if (!rt) return NULL;
-	new (&rt) papuga_RequestParser( content, size);
+	new (rt) papuga_RequestParser( content, size);
 	return rt;
 }
 
