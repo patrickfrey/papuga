@@ -19,6 +19,7 @@ set( source_files
 	requestParser.c
 	requestParser_json.cpp
 	requestParser_xml.cpp
+	requestParser_utils.c
 )
 
 include_directories(
@@ -31,12 +32,14 @@ include_directories(
 )
 
 link_directories(
+	"${PROJECT_SOURCE_DIR}/3rdParty/cjson/src"
 )
 
 # ------------------------------
 # LIBRARIES
 # ------------------------------
 add_library( papuga_devel STATIC ${source_files} )
+target_link_libraries( papuga_devel cjson )
 
 add_library( papuga_doc_gen SHARED libpapuga_doc_gen.cpp )
 target_link_libraries( papuga_doc_gen papuga_gen_utils )

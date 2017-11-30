@@ -20,9 +20,9 @@ papuga_ErrorCode papuga_RequestParser_last_error( const papuga_RequestParser* se
 	return ((papuga_RequestParserHeader*)self)->errcode;
 }
 
-int papuga_RequestParser_last_error_pos( const papuga_RequestParser* self)
+int papuga_RequestParser_get_position( const papuga_RequestParser* self, char* locbuf, size_t locbufsize)
 {
-	return ((papuga_RequestParserHeader*)self)->errpos;
+	return ((papuga_RequestParserHeader*)self)->position( self, locbuf, locbufsize);
 }
 
 static bool parse_xml_header( char* hdrbuf, size_t hdrbufsize, const char* src, size_t srcsize)
@@ -61,10 +61,6 @@ static bool parse_xml_header( char* hdrbuf, size_t hdrbufsize, const char* src, 
 				{
 					state = 3;
 				}
-				else
-				{
-					return false;
-				}
 				break;
 			case 3:
 				hdrbuf[hi] = 0;
@@ -94,11 +90,12 @@ papuga_ContentType papuga_guess_ContentType( const char* src_, size_t srcsize)
 	size_t si;
 	char hdrbuf[ 256];
 	size_t BOM_size;
+	size_t xmlhdrsize = srcsize > 512 ? 512 : srcsize;
 
 	(void)detectBOM( src, srcsize, &BOM_size);
 	src += BOM_size;
 	srcsize -= BOM_size;
-	if (parse_xml_header( hdrbuf, sizeof(hdrbuf), src, srcsize)) return papuga_ContentType_XML;
+	if (parse_xml_header( hdrbuf, sizeof(hdrbuf), src, xmlhdrsize)) return papuga_ContentType_XML;
 	for (si=0; si<srcsize; ++si)
 	{
 		if (src[si] == '\'' || src[si] == '\"' || src[si] == '{') return papuga_ContentType_JSON;

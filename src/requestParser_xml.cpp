@@ -9,20 +9,25 @@
 /// \file requestParser_xml.cpp
 #include "papuga/requestParser.h"
 #include "papuga/valueVariant.h"
+#include "papuga/valueVariant.hpp"
 #include "textwolf/xmlscanner.hpp"
 #include "textwolf/charset.hpp"
+#include "requestParser_utils.h"
 #include <cstdlib>
 #include <string>
 
+using namespace papuga;
+
 static void papuga_destroy_RequestParser_xml( papuga_RequestParser* self);
 static papuga_RequestElementType papuga_RequestParser_xml_next( papuga_RequestParser* self, papuga_ValueVariant* value);
+static int papuga_RequestParser_xml_position( const papuga_RequestParser* self, char* locbuf, size_t locbufsize);
 
-struct papuga_RequestParser
+namespace {
+struct RequestParser_xml
 {
 	papuga_RequestParserHeader header;
 	std::string elembuf;
-	const char* content;
-	size_t contentsize;
+	std::string content;
 
 	typedef textwolf::XMLScanner<
 			textwolf::SrcIterator,
@@ -36,9 +41,11 @@ struct papuga_RequestParser
 	typename XMLScanner::iterator itr;
 	typename XMLScanner::iterator end;
 	jmp_buf eom;
+	int taglevel;
+	int tagcnt;
 
-	papuga_RequestParser( const char* content_, size_t contentsize_)
-		:elembuf(),content(content_),contentsize(contentsize_)
+	explicit RequestParser_xml( const std::string& content_)
+		:elembuf(),content(content_),taglevel(0),tagcnt(0)
 	{
 		header.type = papuga_ContentType_XML;
 		header.errcode = papuga_Ok;
@@ -46,8 +53,9 @@ struct papuga_RequestParser
 		header.libname = "textwolf";
 		header.destroy = &papuga_destroy_RequestParser_xml;
 		header.next = &papuga_RequestParser_xml_next;
+		header.position = &papuga_RequestParser_xml_position;
 
-		srciter.putInput( content_, contentsize_, &eom);
+		srciter.putInput( content.c_str(), content.size(), &eom);
 		scanner.setSource( srciter);
 		itr = scanner.begin( false);
 		end = scanner.end();
@@ -58,8 +66,11 @@ struct papuga_RequestParser
 		typedef textwolf::XMLScannerBase tx;
 		if (setjmp(eom) != 0)
 		{
-			header.errcode = papuga_UnexpectedEof;
-			header.errpos = contentsize;
+			if (taglevel != 0 || tagcnt == 0)
+			{
+				header.errcode = papuga_UnexpectedEof;
+				header.errpos = content.size();
+			}
 			return papuga_RequestElementType_None;
 		}
 		for (;;)
@@ -92,10 +103,12 @@ struct papuga_RequestParser
 					papuga_init_ValueVariant_string( value, itr->content(), itr->size());
 					return papuga_RequestElementType_AttributeValue;
 				case tx::OpenTag:
+					++taglevel;++tagcnt;
 					papuga_init_ValueVariant_string( value, itr->content(), itr->size());
 					return papuga_RequestElementType_Open;
 				case tx::CloseTag:
 				case tx::CloseTagIm:
+					--taglevel;
 					papuga_init_ValueVariant( value);
 					return papuga_RequestElementType_Close;
 				case tx::Content:
@@ -105,25 +118,55 @@ struct papuga_RequestParser
 		}
 	}
 };
+}//anonymous namespace
 
-extern "C" papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringEncoding encoding, const char* content, size_t size)
+struct papuga_RequestParser
+{
+	RequestParser_xml impl;
+};
+
+extern "C" papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode)
 {
 	papuga_RequestParser* rt = (papuga_RequestParser*)std::calloc( 1, sizeof(papuga_RequestParser));
 	if (!rt) return NULL;
-	new (rt) papuga_RequestParser( content, size);
+	try
+	{
+		std::string contentUTF8;
+		if (encoding == papuga_UTF8)
+		{
+			contentUTF8.append( content, size);
+		}
+		else
+		{
+			papuga_ValueVariant input;
+			papuga_init_ValueVariant_string_enc( &input, encoding, content, size);
+			contentUTF8 = ValueVariant_tostring( input, *errcode);
+		}
+		new (&rt->impl) RequestParser_xml( contentUTF8);
+	}
+	catch (const std::bad_alloc&)
+	{
+		*errcode = papuga_NoMemError;
+		if (rt) std::free( rt);
+		return NULL;
+	}
 	return rt;
 }
 
 static void papuga_destroy_RequestParser_xml( papuga_RequestParser* self)
 {
-	self->~papuga_RequestParser();
+	self->impl.~RequestParser_xml();
 	std::free( self);
 }
 
 static papuga_RequestElementType papuga_RequestParser_xml_next( papuga_RequestParser* self, papuga_ValueVariant* value)
 {
-	return self->getNext( value);
+	return self->impl.getNext( value);
 }
 
-
+static int papuga_RequestParser_xml_position( const papuga_RequestParser* self, char* locbuf, size_t locbufsize)
+{
+	fillErrorLocation( locbuf, locbufsize, self->impl.content.c_str(), self->impl.header.errpos, "!$!");
+	return self->impl.header.errpos;
+}
 

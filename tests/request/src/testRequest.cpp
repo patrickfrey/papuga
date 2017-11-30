@@ -6,250 +6,84 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #include "papuga.hpp"
-#include <iostream>
-#include <stdexcept>
+#include "document.hpp"
+#include <string>
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
 #include <cmath>
 #include <vector>
-#include <string>
 #include <sstream>
 #include <iostream>
+#include <stdexcept>
 
 #undef PAPUGA_LOWLEVEL_DEBUG
 
-static std::string encodeString( const papuga_StringEncoding& encoding, const std::string& str)
+using namespace papuga;
+
+struct Test
 {
-	if (encoding == papuga_UTF8)
-	{
-		return str;
-	}
-	else
-	{
-		papuga_ValueVariant outvalue;
-		papuga_init_ValueVariant_string( &outvalue, str.c_str(), str.size());
-		std::size_t bufallocsize = str.size() * 5;
-		std::size_t bufsize = 0;
-		char* buf = (char*)std::malloc( bufsize);
-		if (!buf) throw std::bad_alloc();
-		papuga_ErrorCode errcode = papuga_Ok;
-		const void* encbuf = papuga_ValueVariant_tostring_enc( &outvalue, encoding, buf, bufallocsize, &bufsize, &errcode);
-		if (!encbuf)
-		{
-			std::free( buf);
-			throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
-		}
-		else try
-		{
-			std::string rt( buf, bufsize);
-			std::free( buf);
-			return rt;
-		}
-		catch (const std::bad_alloc&)
-		{
-			std::free( buf);
-			throw std::bad_alloc();
-		}
-	}
+	const char* description;
+	const test::Document* doc;
+};
+
+#if __cplusplus >= 201103L
+static const test::Document g_testDocument1 = {"doc", { {"person", {{"name","Hugo"},{"id","1"}}, {{"Bla bla"}} } } };
+static const Test g_tests[] = {{"simple document", &g_testDocument1},{0,0}};
+#endif
+
+
+static void executeTest( int tidx, const Test& test)
+{
+	std::cerr << "Executing test (" << tidx << ") '" << test.description << "'..." << std::endl;
+	std::cout << test.description << ":" << std::endl;
+	std::cout << "TXT:\n" << test.doc->totext() << std::endl;
+	std::string doc_xml = test.doc->toxml( papuga_UTF8, false);
+	std::string doc_json = test.doc->tojson( papuga_UTF8);
+	std::cout << "XML " << test::encodingName( papuga_UTF8) << ":\n" << test.doc->toxml( papuga_UTF8, true) << std::endl;
+	std::cout << "JSON " << test::encodingName( papuga_UTF8) << ":\n" << doc_json << std::endl;
+	std::cout << "DUMP XML REQUEST:\n" << test::dumpRequest( papuga_ContentType_XML, papuga_UTF8, doc_xml);
+	std::cout << "DUMP JSON REQUEST:\n" << test::dumpRequest( papuga_ContentType_JSON, papuga_UTF8, doc_json);
 }
-
-class DocumentNode
-{
-public:
-	DocumentNode( const std::string& value_)
-		:m_name(),m_value(value_),m_attr(0),m_next(0),m_child(0){}
-	DocumentNode( const std::string& name_, const std::string& value_)
-		:m_name(name_),m_value(value_),m_attr(0),m_next(0),m_child(0){}
-	DocumentNode( const std::string& name_, const DocumentNode& content)
-		:m_name(name_),m_value(content.m_value),m_attr(0),m_next(0),m_child( content.m_child ? new DocumentNode( *content.m_child) : 0){}
-	DocumentNode( const DocumentNode& o)
-		:m_name(o.m_name),m_value(o.m_value)
-		,m_attr(o.m_attr ? new DocumentNode( *o.m_attr) : 0)
-		,m_next(o.m_next ? new DocumentNode( *o.m_next) : 0)
-		,m_child(o.m_child ? new DocumentNode( *o.m_child) : 0){}
-
-	~DocumentNode()
-	{
-		if (m_next) delete m_next;
-		if (m_child) delete m_child;
-	}
-
-	void addChild( const DocumentNode& o)
-	{
-		if (m_child)
-		{
-			DocumentNode* nd = m_child;
-			for (; nd->m_next; nd = nd->m_next){}
-			nd->m_next = new DocumentNode( o);
-		}
-		else
-		{
-			m_child = new DocumentNode( o);
-		}
-	}
-
-	std::string toxml( const papuga_StringEncoding& encoding, bool with_indent) const
-	{
-		std::ostringstream out;
-
-		out << "<?xml version=\"1.0\" encoding=\"" << encodingName( encoding) << "\" standalone=\"yes\"?>";
-		if (m_next)
-		{
-			throw std::runtime_error("cannot print document with multiple roots as XML");
-		}
-		else if (m_name.empty())
-		{
-			throw std::runtime_error("cannot print document without root node name as XML");
-		}
-		else if (with_indent)
-		{
-			printNodeXml( out, "\n");
-		}
-		else
-		{
-			out << "\n";
-			printNodeXml( out, "");
-		}
-		out << "\n";
-		return encodeString( encoding, out.str());
-	}
-
-	std::string tojson( const papuga_StringEncoding& encoding) const
-	{
-		std::ostringstream out;
-		printNodeListJson( out, "");
-		out << "\n";
-		return encodeString( encoding, out.str());
-	}
-
-private:
-	static const char* encodingName( const papuga_StringEncoding& encoding)
-	{
-		switch (encoding)
-		{
-			case papuga_UTF8: return "UTF-8";
-			case papuga_UTF16BE: return "UTF-16BE";
-			case papuga_UTF16LE: return "UTF-16LE";
-			case papuga_UTF16: return "UTF-16";
-			case papuga_UTF32BE: return "UTF-32BE";
-			case papuga_UTF32LE: return "UTF-32LE";
-			case papuga_UTF32: return "UTF-32";
-			case papuga_Binary:
-			default:
-				throw std::runtime_error("illegal encoding for XML");
-		}
-	}
-
-	void printNodeValueXml( std::ostream& out, const std::string& indent) const
-	{
-		out << m_value;
-		DocumentNode const* ci = m_child;
-		for (; ci; ci = ci->m_next)
-		{
-			ci->printNodeXml( out, indent.empty() ? indent: (indent+"  "));
-		}
-	}
-	void printNodeXml( std::ostream& out, const std::string& indent) const
-	{
-		if (!m_name.empty())
-		{
-			out << indent << "<" << m_name;
-			DocumentNode const* ai = m_attr;
-			for (; ai; ai = ai->m_next)
-			{
-				out << " " << ai->m_name << "=\"" << ai->m_value << "\"";
-			}
-			out << ">";
-			printNodeValueXml( out, indent);
-			out << indent << "</" << m_name << ">";
-		}
-		else
-		{
-			printNodeValueXml( out, indent);
-		}
-	}
-
-	void printNodeValueJson( std::ostream& out, const std::string& indent) const
-	{
-		if (!m_attr && !m_child)
-		{
-			out << "\"" << m_value << "\"";
-		}
-		else
-		{
-			int cnt = 0;
-			bool isarray = (m_attr || (m_child && m_child->m_name.empty()));
-			out << (isarray ? "[":"{");
-			DocumentNode const* ai = m_attr;
-			for (; ai; ai = ai->m_next,++cnt)
-			{
-				if (cnt) out << ",";
-				out << indent << "-" << ai->m_name << "=\"" << ai->m_value << "\"";
-			}
-			DocumentNode const* ci = m_child;
-			for (; ci; ci = ci->m_next,++cnt)
-			{
-				if (cnt) out << ",";
-				if (isarray && !ci->m_name.empty()) throw std::runtime_error( "miximg array with dictonary in JSON");
-				ci->printNodeJson( out, indent + "  ");
-			}
-			out << indent << (isarray ? "]":"}");
-		}
-	}
-
-	void printNodeJson( std::ostream& out, const std::string& indent) const
-	{
-		if (!m_name.empty())
-		{
-			out << indent << m_name << "=";
-			printNodeValueJson( out, indent);
-		}
-		else
-		{
-			printNodeValueJson( out, indent);
-		}
-	}
-
-	void printNodeListJson( std::ostream& out, const std::string& indent) const
-	{
-		int cnt = 0;
-		bool isarray = m_name.empty();
-		out << indent << (isarray ? "[":"{");
-		DocumentNode const* ci = this;
-		for (; ci; ci = ci->m_next,++cnt)
-		{
-			if (cnt) out << ",";
-			if (isarray && !ci->m_name.empty()) throw std::runtime_error( "miximg array with dictonary in JSON");
-			ci->printNodeJson( out, indent + "  ");
-		}
-		out << indent << (isarray ? "]":"}");
-	}
-
-private:
-	std::string m_name;
-	std::string m_value;
-	DocumentNode* m_attr;
-	DocumentNode* m_next;
-	DocumentNode* m_child;
-};
-
-class Document
-{
-public:
-private:
-};
 
 int main( int argc, const char* argv[])
 {
-	if (argc <= 1 || std::strcmp( argv[1], "-h") == 0 || std::strcmp( argv[1], "--help") == 0)
+	int testno = -1;
+	int testcnt = 0;
+	while (g_tests[testcnt].description) ++testcnt;
+
+	if (argc > 1)
 	{
-		std::cerr << "testRequest <testno>" << std::endl
-				<< "\t<testno>     :Index of test to execute (default all)" << std::endl;
-		return 0;
+		if (std::strcmp( argv[1], "-h") == 0 || std::strcmp( argv[1], "--help") == 0)
+		{
+			std::cerr << "testRequest <testno>\n"
+					<< "\t<testno>     :Index of test to execute (default all)" << std::endl;
+			return 0;
+		}
+		else
+		{
+			testno = atoi( argv[1]);
+			if (testno <= 0 || testno > testcnt)
+			{
+				std::cerr << "test program argument must be a positive number between 1 and " << testcnt << std::endl;
+				return -1;
+			}
+		}
 	}
 	try
 	{
+#if __cplusplus >= 201103L
+		if (testno >= 1)
+		{
+			executeTest( testno, g_tests[ testno-1]);
+		}
+		for (int testidx = 1; testidx <= testcnt; ++testidx)
+		{
+			executeTest( testidx, g_tests[ testidx-1]);
+		}
+#else
+		std::cerr << "This test needs C++11 as it uses std initializer_list" << std::endl;
+#endif
 		std::cerr << "OK" << std::endl;
 		return 0;
 	}

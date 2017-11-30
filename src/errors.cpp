@@ -10,6 +10,7 @@
 #include "papuga/errors.hpp"
 #include "papuga/errors.h"
 #include <cstdio>
+#include <cstdarg>
 
 /// \note Internationalization support still missing
 #define _TXT(str) str
@@ -24,4 +25,15 @@ std::runtime_error papuga::error_exception( const papuga_ErrorCode& ec, const ch
 	return std::runtime_error( buf);
 }
 
+std::runtime_error papuga::runtime_error( const char* format, ...)
+{
+	char buffer[ 1024];
+	va_list args;
+	va_start( args, format);
+	int buffersize = vsnprintf( buffer, sizeof(buffer), format, args);
+	buffer[ sizeof(buffer)-1] = 0;
+	std::runtime_error rt( std::string( buffer, buffersize));
+	va_end (args);
+	return rt;
+}
 

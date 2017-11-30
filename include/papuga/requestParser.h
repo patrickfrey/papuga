@@ -44,11 +44,11 @@ papuga_StringEncoding papuga_guess_StringEncoding( const char* src, size_t srcsi
  * \brief Request parser element type enumeration
  */
 typedef enum {
-	papuga_RequestElementType_None,					/*< unknown element type of EOF */
+	papuga_RequestElementType_None,					/*< unknown element type (in case of error set) or EOF (in case of no error) */
 	papuga_RequestElementType_Open,					/*< open tag */
-	papuga_RequestElementType_Close,					/*< close tag */
-	papuga_RequestElementType_AttributeName,				/*< attribute name */
-	papuga_RequestElementType_AttributeValue,				/*< attribute value */
+	papuga_RequestElementType_Close,				/*< close tag */
+	papuga_RequestElementType_AttributeName,			/*< attribute name */
+	papuga_RequestElementType_AttributeValue,			/*< attribute value */
 	papuga_RequestElementType_Value					/*< content value */
 } papuga_RequestElementType;
 
@@ -70,23 +70,27 @@ typedef struct papuga_RequestParserHeader {
 		papuga_RequestParser* self);					/*< methodtable: destructor */
 	papuga_RequestElementType (*next)(
 		papuga_RequestParser* self, papuga_ValueVariant* value);	/*< methodtable: method fetching the next element */
+	int (*position)(
+		const papuga_RequestParser* self, char* buf, size_t size);	/*< methodtable: method getting the current position with a location hint as string */
 } papuga_RequestParserHeader;
 
 /*
  * \brief Create a document parser for an XML document
  * \param[in] src pointer to source
  * \param[in] srcsize size of src in bytes
- * \return The document parser structure
+ * \param[out] error code set in case of failure
+ * \return The document parser structure or NULL in case of failure
  */
-papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringEncoding encoding, const char* content, size_t size);
+papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
 
 /*
  * \brief Create a document parser for a JSON document
  * \param[in] src pointer to source
  * \param[in] srcsize size of src in bytes
- * \return The document parser structure
+ * \param[out] error code set in case of failure
+ * \return The document parser structure or NULL in case of failure
  */
-papuga_RequestParser* papuga_create_RequestParser_json( papuga_StringEncoding encoding, const char* content, size_t size);
+papuga_RequestParser* papuga_create_RequestParser_json( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
 
 /*
  * \brief Destroy a document parser
@@ -109,13 +113,13 @@ papuga_RequestElementType papuga_RequestParser_next( papuga_RequestParser* self,
 papuga_ErrorCode papuga_RequestParser_last_error( const papuga_RequestParser* self);
 
 /*
- * \brief Get the position of the last error of the document parser if available
+ * \brief Get the current position with a hint about the location as string
  * \param[in] self document parser to get the last error position from
- * \return error position or -1 if not available
+ * \param[out] locbuf where to write the location info to
+ * \param[in] locbufsize allocation size of locbuf in bytes
+ * \return position or -1 if not available
  */
-int papuga_RequestParser_last_error_pos( const papuga_RequestParser* self);
-
-
+int papuga_RequestParser_get_position( const papuga_RequestParser* self, char* locbuf, size_t locbufsize);
 
 #ifdef __cplusplus
 }
