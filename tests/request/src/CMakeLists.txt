@@ -11,5 +11,5 @@ link_directories(
 )
 
 add_executable( testRequest testRequest.cpp document.cpp )
-target_link_libraries( testRequest papuga_devel ${Boost_LIBRARIES} ${Intl_LIBRARIES})
+target_link_libraries( testRequest papuga_devel papuga_request_devel ${Boost_LIBRARIES} ${Intl_LIBRARIES})
 

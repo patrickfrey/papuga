@@ -15,6 +15,9 @@ set( source_files
 	valueVariant.cpp
 	valueVariant.c
 	serialization.cpp
+)
+
+set( source_files_request
 	request.cpp
 	requestParser.c
 	requestParser_json.cpp
@@ -39,7 +42,9 @@ link_directories(
 # LIBRARIES
 # ------------------------------
 add_library( papuga_devel STATIC ${source_files} )
-target_link_libraries( papuga_devel cjson )
+
+add_library( papuga_request_devel STATIC ${source_files_request} )
+target_link_libraries( papuga_request_devel papuga_devel papuga_cjson )
 
 add_library( papuga_doc_gen SHARED libpapuga_doc_gen.cpp )
 target_link_libraries( papuga_doc_gen papuga_gen_utils )
