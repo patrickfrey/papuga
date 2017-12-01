@@ -46,8 +46,8 @@ static void executeTest( int tidx, const Test& test)
 		papuga_StringEncoding enc = encodings[ ei];
 		std::string doc_xml = test.doc->toxml( enc, false);
 		std::string doc_json = test.doc->tojson( enc);
-		std::cout << "XML " << test::encodingName( enc) << ":\n" << test.doc->toxml( enc, true) << std::endl;
-		std::cout << "JSON " << test::encodingName( enc) << ":\n" << doc_json << std::endl;
+		std::cout << "XML " << papuga_StringEncoding_name( enc) << ":\n" << test.doc->toxml( enc, true) << std::endl;
+		std::cout << "JSON " << papuga_StringEncoding_name( enc) << ":\n" << doc_json << std::endl;
 		std::cout << "DUMP XML REQUEST:\n" << test::dumpRequest( papuga_ContentType_XML, enc, doc_xml);
 		std::cout << "DUMP JSON REQUEST:\n" << test::dumpRequest( papuga_ContentType_JSON, enc, doc_json);
 	}

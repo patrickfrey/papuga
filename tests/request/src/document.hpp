@@ -17,7 +17,6 @@ namespace papuga {
 namespace test {
 
 std::string encodeString( const papuga_StringEncoding& encoding, const std::string& str);
-const char* encodingName( const papuga_StringEncoding& encoding);
 
 class DocumentNode
 {

@@ -86,7 +86,7 @@ extern "C" {
 * @param[out] self_ pointer to structure 
 * @param[in] enc_ string character set encoding
 * @param[in] val_ value to initialize structure with
-* @param[in] sz_ size of val_ in bytes
+* @param[in] sz_ size of val_ in units (bytes for UTF8 and int16 for UTF16)
 */
 #define papuga_init_ValueVariant_string_enc(self_,enc_,val_,sz_){papuga_ValueVariant* s = self_; s->valuetype = (unsigned char)papuga_TypeString; s->encoding=(enc_); s->_tag=0; s->length=(sz_); s->value.string=(const char*)(val_);}
 
@@ -150,7 +150,7 @@ extern "C" {
 * @brief Convert a value variant to an UTF-8 string with its length specified (not necessarily null terminated)
 * @param[in] self pointer to structure
 * @param[in,out] allocator allocator to use for deep copy of string
-* @param[out] len length of the string copied
+* @param[out] len length of the string copied in bytes
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the pointer to the first character of the result string
 */
@@ -162,7 +162,7 @@ const char* papuga_ValueVariant_tostring( const papuga_ValueVariant* self, papug
 * @param[in] enc encoding of the result string
 * @param[out] buf pointer to character buffer to use for deep copies
 * @param[in] bufsize allocation size of 'buf' in bytes
-* @param[out] len length of the string copied
+* @param[out] len length of the string copied in units (bytes for UTF8 and int16 for UTF16)
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the pointer to the result string or NULL in case of an error (conversion error or the result buffer allocation size is too small)
 */
@@ -233,6 +233,20 @@ const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbufsize, cons
 * @return the corresponding string
 */
 const char* papuga_Type_name( papuga_Type type);
+
+/*
+* @brief Get the value of a string encoding enum as string
+* @param[in] encoding the type string encoding value
+* @return the corresponding string
+*/
+const char* papuga_StringEncoding_name( papuga_StringEncoding encoding);
+
+/*
+* @brief Get the size of one character unit (not a unicode characer) in bytes
+* @param[in] encoding the type string encoding value
+* @return the corresponding string
+*/
+int papuga_StringEncoding_unit_size( papuga_StringEncoding encoding);
 
 /*
 * @brief Print a value variant (its .._tostring value) to a text file

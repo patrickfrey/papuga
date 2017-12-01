@@ -29,7 +29,7 @@ std::string test::encodeString( const papuga_StringEncoding& encoding, const std
 		papuga_init_ValueVariant_string( &outvalue, str.c_str(), str.size());
 		std::size_t bufallocsize = str.size() * 6;
 		std::size_t bufsize = 0;
-		char* buf = (char*)std::malloc( bufsize);
+		char* buf = (char*)std::malloc( bufallocsize);
 		if (!buf) throw std::bad_alloc();
 		papuga_ErrorCode errcode = papuga_Ok;
 		const void* encbuf = papuga_ValueVariant_tostring_enc( &outvalue, encoding, buf, bufallocsize, &bufsize, &errcode);
@@ -40,7 +40,7 @@ std::string test::encodeString( const papuga_StringEncoding& encoding, const std
 		}
 		else try
 		{
-			std::string rt( buf, bufsize);
+			std::string rt( buf, bufsize * papuga_StringEncoding_unit_size( encoding));
 			std::free( buf);
 			return rt;
 		}
@@ -49,23 +49,6 @@ std::string test::encodeString( const papuga_StringEncoding& encoding, const std
 			std::free( buf);
 			throw std::bad_alloc();
 		}
-	}
-}
-
-const char* test::encodingName( const papuga_StringEncoding& encoding)
-{
-	switch (encoding)
-	{
-		case papuga_UTF8: return "UTF-8";
-		case papuga_UTF16BE: return "UTF-16BE";
-		case papuga_UTF16LE: return "UTF-16LE";
-		case papuga_UTF16: return "UTF-16";
-		case papuga_UTF32BE: return "UTF-32BE";
-		case papuga_UTF32LE: return "UTF-32LE";
-		case papuga_UTF32: return "UTF-32";
-		case papuga_Binary:
-		default:
-			throw std::runtime_error("illegal encoding for XML");
 	}
 }
 
@@ -132,7 +115,7 @@ std::string DocumentNode::toxml( const papuga_StringEncoding& encoding, bool wit
 {
 	std::ostringstream out;
 
-	out << "<?xml version=\"1.0\" encoding=\"" << encodingName( encoding) << "\" standalone=\"yes\"?>";
+	out << "<?xml version=\"1.0\" encoding=\"" << papuga_StringEncoding_name( encoding) << "\" standalone=\"yes\"?>";
 	if (m_next)
 	{
 		throw std::runtime_error("cannot print document with multiple roots as XML");

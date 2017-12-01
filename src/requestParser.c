@@ -33,6 +33,7 @@ static bool parse_xml_header( char* hdrbuf, size_t hdrbufsize, const char* src, 
 	for (; si < srcsize && hi < hdrbufsize; ++si)
 	{
 		if (src[si] == '\0') continue;
+		if ((unsigned char)src[si] >= 128) return false;
 		switch (state)
 		{
 			case 0:
@@ -90,7 +91,7 @@ papuga_ContentType papuga_guess_ContentType( const char* src_, size_t srcsize)
 	size_t si;
 	char hdrbuf[ 256];
 	size_t BOM_size;
-	size_t xmlhdrsize = srcsize > 512 ? 512 : srcsize;
+	size_t xmlhdrsize = srcsize > 1024 ? 1024 : srcsize;
 
 	(void)detectBOM( src, srcsize, &BOM_size);
 	src += BOM_size;
@@ -128,13 +129,13 @@ static papuga_StringEncoding detectCharsetFromXmlHeader( const char* hdrbuf, siz
 	}
 	encbuf[ encsize] = 0;
 	if (*ee != be) return papuga_Binary;
-	if (strcmp( encbuf, "UTF8")) return papuga_UTF8;
-	if (strcmp( encbuf, "UTF16")) return papuga_UTF16BE;
-	if (strcmp( encbuf, "UTF32")) return papuga_UTF32BE;
-	if (strcmp( encbuf, "UTF16BE")) return papuga_UTF16BE;
-	if (strcmp( encbuf, "UTF32BE")) return papuga_UTF32BE;
-	if (strcmp( encbuf, "UTF16LE")) return papuga_UTF16LE;
-	if (strcmp( encbuf, "UTF32LE")) return papuga_UTF32LE;
+	if (0==strcmp( encbuf, "utf8")) return papuga_UTF8;
+	if (0==strcmp( encbuf, "utf16")) return papuga_UTF16BE;
+	if (0==strcmp( encbuf, "utf32")) return papuga_UTF32BE;
+	if (0==strcmp( encbuf, "utf16be")) return papuga_UTF16BE;
+	if (0==strcmp( encbuf, "utf32be")) return papuga_UTF32BE;
+	if (0==strcmp( encbuf, "utf16le")) return papuga_UTF16LE;
+	if (0==strcmp( encbuf, "utf32le")) return papuga_UTF32LE;
 	return papuga_Binary;
 }
 
@@ -145,7 +146,7 @@ papuga_StringEncoding papuga_guess_StringEncoding( const char* src, size_t srcsi
 	const char* ce = (chunksize > srcsize) ? (ci + srcsize) : (ci + chunksize);
 	unsigned int zcnt = 0;
 	unsigned int max_zcnt = 0;
-	unsigned int mcnt[ 4];
+	unsigned int mcnt[ 4] = {0,0,0,0};
 	size_t BOM_size;
 	char hdrbuf[ 256];
 
@@ -175,19 +176,19 @@ papuga_StringEncoding papuga_guess_StringEncoding( const char* src, size_t srcsi
 	{
 		return papuga_UTF8;
 	}
-	if (mcnt[0] > mcnt[1] && mcnt[1] > mcnt[2] && mcnt[2] > mcnt[3] && mcnt[3] == 0)
+	if (mcnt[0] >= mcnt[1] && mcnt[1] >= mcnt[2] && mcnt[2] >= mcnt[3] && mcnt[3] == 0)
 	{
 		return papuga_UTF32BE;
 	}
-	if (mcnt[0] == 0 && mcnt[0] < mcnt[1] && mcnt[1] < mcnt[2] && mcnt[2] < mcnt[3])
+	if (mcnt[0] == 0 && mcnt[0] <= mcnt[1] && mcnt[1] <= mcnt[2] && mcnt[2] <= mcnt[3])
 	{
 		return papuga_UTF32LE;
 	}
-	if (mcnt[0] > mcnt[1] && mcnt[2] > mcnt[3] && mcnt[1] == 0 && mcnt[3] == 0)
+	if (mcnt[0] >= mcnt[1] && mcnt[2] >= mcnt[3] && mcnt[1] == 0 && mcnt[3] == 0)
 	{
 		return papuga_UTF16BE;
 	}
-	if (mcnt[0] == 0 && mcnt[2] == 0 && mcnt[0] < mcnt[1] && mcnt[2] < mcnt[3])
+	if (mcnt[0] == 0 && mcnt[2] == 0 && mcnt[0] <= mcnt[1] && mcnt[2] <= mcnt[3])
 	{
 		return papuga_UTF16LE;
 	}
