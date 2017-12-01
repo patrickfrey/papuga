@@ -11,6 +11,7 @@
 #include "papuga/errors.h"
 #include <cstdio>
 #include <cstdarg>
+#include <string>
 
 /// \note Internationalization support still missing
 #define _TXT(str) str
