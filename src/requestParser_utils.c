@@ -5,8 +5,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Utilities for XML/JSON request parsers
-/// \file requestParser_utils.c
+/* \brief Utilities for XML/JSON request parsers
+ * \file requestParser_utils.c
+ */
 #include "requestParser_utils.h"
 #include <stdbool.h>
 

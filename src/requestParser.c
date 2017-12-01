@@ -5,8 +5,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Structures and functions for scanning papuga XML and JSON documents for further processing
-/// \file requestParser.c
+/* \brief Structures and functions for scanning papuga XML and JSON documents for further processing
+ * \file requestParser.c
+ */
 #include "papuga/requestParser.h"
 #include <string.h>
 
@@ -74,9 +75,9 @@ static bool parse_xml_header( char* hdrbuf, size_t hdrbufsize, const char* src, 
 
 static papuga_StringEncoding detectBOM( const char* src, size_t srcsize, size_t* BOM_size)
 {
+	const unsigned char* bom = (const unsigned char*)src;
 	*BOM_size = 0;
 	if (srcsize < 4) return papuga_Binary;
-	const unsigned char* bom = (const unsigned char*)src;
 	if (bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF) {*BOM_size = 3; return papuga_UTF8;}
 	if (bom[0] == 0x00 && bom[1] == 0x00 && bom[2] == 0xFE && bom[3] == 0xFF) {*BOM_size = 4; return papuga_UTF32BE;}
 	if (bom[0] == 0xFF && bom[1] == 0xFE && bom[2] == 0x00 && bom[3] == 0x00) {*BOM_size = 4; return papuga_UTF32LE;}
@@ -147,6 +148,7 @@ papuga_StringEncoding papuga_guess_StringEncoding( const char* src, size_t srcsi
 	unsigned int zcnt = 0;
 	unsigned int max_zcnt = 0;
 	unsigned int mcnt[ 4] = {0,0,0,0};
+	int cidx = 0;
 	size_t BOM_size;
 	char hdrbuf[ 256];
 
@@ -159,7 +161,7 @@ papuga_StringEncoding papuga_guess_StringEncoding( const char* src, size_t srcsi
 		if (encoding != papuga_Binary) return encoding;
 	}
 
-	for (int cidx=0; ci != ce; ++ci,++cidx)
+	for (cidx=0; ci != ce; ++ci,++cidx)
 	{
 		if (*ci == 0x00)
 		{

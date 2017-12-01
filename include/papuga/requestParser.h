@@ -5,8 +5,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Structures and functions for parsing papuga XML and JSON requests for further processing
-/// \file requestParser.h
+/* \brief Structures and functions for parsing papuga XML and JSON requests for further processing
+ * \file requestParser.h
+ */
 #ifndef _PAPUGA_REQUEST_PARSER_H_INCLUDED
 #define _PAPUGA_REQUEST_PARSER_H_INCLUDED
 #include "papuga/typedefs.h"

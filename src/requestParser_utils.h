@@ -5,8 +5,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Utilities for XML/JSON request parsers
-/// \file requestParser_utils.h
+/* \brief Utilities for XML/JSON request parsers
+ * \file requestParser_utils.h
+ */
 #ifndef _PAPUGA_REQUEST_PARSER_UTILS_H_INCLUDED
 #define _PAPUGA_REQUEST_PARSER_UTILS_H_INCLUDED
 #include <stddef.h>
