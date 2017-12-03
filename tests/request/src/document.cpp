@@ -13,6 +13,7 @@
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <cstdlib>
 
 using namespace papuga;
 using namespace papuga::test;
@@ -270,12 +271,24 @@ void DocumentNode::printNodeListJson( std::ostream& out, const std::string& inde
 	out << indent << (isarray ? "]":"}");
 }
 
+struct RequestParserRef
+{
+	RequestParserRef( papuga_RequestParser* ptr_=0)	:m_ptr(ptr_){}
+	~RequestParserRef()	{if (m_ptr) papuga_destroy_RequestParser( m_ptr);}
+
+	void operator=( papuga_RequestParser* ptr_)	{if (m_ptr) papuga_destroy_RequestParser( m_ptr); m_ptr = ptr_;}
+	operator papuga_RequestParser*()		{return m_ptr;}
+
+private:
+	papuga_RequestParser* m_ptr;
+};
+
 std::string test::dumpRequest( papuga_ContentType contentType, papuga_StringEncoding encoding, const std::string& content)
 {
 	std::ostringstream out;
 	papuga_ContentType contentType_guessed = papuga_guess_ContentType( content.c_str(), content.size());
 	papuga_StringEncoding encoding_guessed = papuga_guess_StringEncoding( content.c_str(), content.size());
-	papuga_RequestParser* parser = 0;
+	RequestParserRef parser;
 	papuga_ErrorCode errcode = papuga_Ok;
 	papuga_ValueVariant elemval;
 	papuga_RequestElementType elemtype;

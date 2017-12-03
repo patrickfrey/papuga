@@ -328,10 +328,22 @@ static std::vector<TextwolfItem> getTextwolfItems( const cJSON* tree, papuga_Err
 	return rt;
 }
 
+struct JsonTreeRef
+{
+	JsonTreeRef( cJSON* ptr_=0)	:m_ptr(ptr_){}
+	~JsonTreeRef()	{if (m_ptr) cJSON_Delete( m_ptr);}
+
+	void operator=( cJSON* ptr_)	{if (m_ptr) cJSON_Delete( m_ptr); m_ptr = ptr_;}
+	operator cJSON*()		{return m_ptr;}
+
+private:
+	cJSON* m_ptr;
+};
+
 static std::vector<TextwolfItem> parseJsonTree( const char* content, papuga_ErrorCode* errcode, int* errpos)
 {
 	cJSON_Context ctx;
-	cJSON* tree = cJSON_Parse( content, &ctx);
+	JsonTreeRef tree = cJSON_Parse( content, &ctx);
 	if (!tree)
 	{
 		if (!ctx.position)

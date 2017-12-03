@@ -33,6 +33,7 @@ static const Test g_tests[] = {{"simple document", &g_testDocument1},{0,0}};
 #endif
 
 
+#if __cplusplus >= 201103L
 static void executeTest( int tidx, const Test& test)
 {
 	std::cerr << "Executing test (" << tidx << ") '" << test.description << "'..." << std::endl;
@@ -52,13 +53,15 @@ static void executeTest( int tidx, const Test& test)
 		std::cout << "DUMP JSON REQUEST:\n" << test::dumpRequest( papuga_ContentType_JSON, enc, doc_json);
 	}
 }
+#endif
 
 int main( int argc, const char* argv[])
 {
 	int testno = -1;
 	int testcnt = 0;
+#if __cplusplus >= 201103L
 	while (g_tests[testcnt].description) ++testcnt;
-
+#endif
 	if (argc > 1)
 	{
 		if (std::strcmp( argv[1], "-h") == 0 || std::strcmp( argv[1], "--help") == 0)
