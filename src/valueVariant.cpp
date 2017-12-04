@@ -744,7 +744,7 @@ extern "C" int64_t papuga_ValueVariant_toint( const papuga_ValueVariant* value, 
 	}
 	else if (papuga_ValueVariant_defined( value))
 	{
-		*err = papuga_TypeError;
+		*err = papuga_AtomicValueExpected;
 		return 0;
 	}
 	else
@@ -802,7 +802,7 @@ extern "C" double papuga_ValueVariant_todouble( const papuga_ValueVariant* value
 	}
 	else if (papuga_ValueVariant_defined( value))
 	{
-		*err = papuga_TypeError;
+		*err = papuga_AtomicValueExpected;
 		return 0;
 	}
 	else
@@ -857,7 +857,7 @@ extern "C" bool papuga_ValueVariant_tobool( const papuga_ValueVariant* value, pa
 	}
 	else if (papuga_ValueVariant_defined( value))
 	{
-		*err = papuga_TypeError;
+		*err = papuga_AtomicValueExpected;
 		return 0;
 	}
 	else
@@ -915,7 +915,7 @@ extern "C" papuga_ValueVariant* papuga_ValueVariant_tonumeric( const papuga_Valu
 	}
 	else if (papuga_ValueVariant_defined( value))
 	{
-		*err = papuga_TypeError;
+		*err = papuga_AtomicValueExpected;
 		return 0;
 	}
 	else
