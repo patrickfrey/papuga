@@ -36,14 +36,27 @@ struct TextwolfItem
 static void papuga_destroy_RequestParser_json( papuga_RequestParser* self);
 static papuga_RequestElementType papuga_RequestParser_json_next( papuga_RequestParser* self, papuga_ValueVariant* value);
 static int papuga_RequestParser_json_position( const papuga_RequestParser* self, char* locbuf, size_t locbufsize);
-static std::vector<TextwolfItem> parseJsonTree( const char* content, papuga_ErrorCode* errcode, int* errpos);
+static std::vector<TextwolfItem> getTextwolfItems( const cJSON* tree, papuga_ErrorCode* errcode);
 
 namespace {
+struct JsonTreeRef
+{
+	JsonTreeRef( cJSON* ptr_=0)	:m_ptr(ptr_){}
+	~JsonTreeRef()	{if (m_ptr) cJSON_Delete( m_ptr);}
+
+	void operator=( cJSON* ptr_)	{if (m_ptr) cJSON_Delete( m_ptr); m_ptr = ptr_;}
+	operator cJSON*()		{return m_ptr;}
+
+private:
+	cJSON* m_ptr;
+};
+
 struct RequestParser_json
 {
 	papuga_RequestParserHeader header;
 	std::string elembuf;
 	std::string content;
+	JsonTreeRef tree;
 	std::vector<TextwolfItem> items;
 	std::vector<TextwolfItem>::const_iterator iter;
 
@@ -57,7 +70,25 @@ struct RequestParser_json
 		header.destroy = &papuga_destroy_RequestParser_json;
 		header.next = &papuga_RequestParser_json_next;
 		header.position = &papuga_RequestParser_json_position;
-		items = parseJsonTree( content.c_str(), &header.errcode, &header.errpos);
+
+		cJSON_Context ctx;
+		tree = cJSON_Parse( content.c_str(), &ctx);
+		if (!tree)
+		{
+			if (!ctx.position)
+			{
+				header.errcode = papuga_NoMemError;
+			}
+			else
+			{
+				header.errcode = papuga_SyntaxError;
+				header.errpos = ctx.position-1;
+			}
+		}
+		else
+		{
+			items = getTextwolfItems( tree, &header.errcode);
+		}
 		iter = items.begin();
 	}
 
@@ -324,41 +355,9 @@ static bool getTextwolfItems_( std::vector<TextwolfItem>& itemar, cJSON const* n
 static std::vector<TextwolfItem> getTextwolfItems( const cJSON* tree, papuga_ErrorCode* errcode)
 {
 	std::vector<TextwolfItem> rt;
-	getTextwolfItems_( rt, tree, errcode);
-	return rt;
-}
-
-struct JsonTreeRef
-{
-	JsonTreeRef( cJSON* ptr_=0)	:m_ptr(ptr_){}
-	~JsonTreeRef()	{if (m_ptr) cJSON_Delete( m_ptr);}
-
-	void operator=( cJSON* ptr_)	{if (m_ptr) cJSON_Delete( m_ptr); m_ptr = ptr_;}
-	operator cJSON*()		{return m_ptr;}
-
-private:
-	cJSON* m_ptr;
-};
-
-static std::vector<TextwolfItem> parseJsonTree( const char* content, papuga_ErrorCode* errcode, int* errpos)
-{
-	cJSON_Context ctx;
-	JsonTreeRef tree = cJSON_Parse( content, &ctx);
-	if (!tree)
+	try
 	{
-		if (!ctx.position)
-		{
-			*errcode = papuga_NoMemError;
-		}
-		else
-		{
-			*errcode = papuga_SyntaxError;
-			*errpos = ctx.position-1;
-		}
-	}
-	else try
-	{
-		return getTextwolfItems( tree, errcode);
+		if (!getTextwolfItems_( rt, tree, errcode)) return std::vector<TextwolfItem>();
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -368,7 +367,7 @@ static std::vector<TextwolfItem> parseJsonTree( const char* content, papuga_Erro
 	{
 		*errcode = papuga_UncaughtException;
 	}
-	return std::vector<TextwolfItem>();
+	return rt;
 }
 
 extern "C" papuga_RequestParser* papuga_create_RequestParser_json( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode)
