@@ -31,7 +31,7 @@ extern "C" {
 * @param[in] buf_ pointer to preallocated (local) buffer
 * @param[in] bufsize_ allocation size of buf in bytes
 */
-#define papuga_init_Allocator(self_,buf_,bufsize_)	{papuga_Allocator* s = self_; s->root.allocsize=bufsize_;s->root.arsize=0;s->root.allocated=((buf_)==NULL);s->root.ar=(char*)buf_;s->root.next=0;s->reflist=0;}
+#define papuga_init_Allocator(self_,buf_,bufsize_)	{papuga_Allocator* s = self_; s->root.allocsize=bufsize_;s->root.arsize=0;s->root.allocated=((const void*)(buf_)==NULL);s->root.ar=(char*)buf_;s->root.next=0;s->reflist=0;}
 
 /*
 * @brief Destructor of Allocator

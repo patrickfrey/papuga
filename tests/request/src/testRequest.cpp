@@ -194,10 +194,47 @@ private:
 	int m_itemid;
 };
 
+#if __cplusplus >= 201103L
+struct RequestAutomaton_FunctionDef
+{
+	struct Arg
+	{
+		const char* varname;
+		int itemid;
+		bool inherited;
+
+		Arg( const char* varname_)
+			:varname(varname_),itemid(-1),inherited(false){}
+		Arg( int itemid_, bool inherited_)
+			:varname(0),itemid(itemid_),inherited(inherited_){}
+		Arg( const Arg& o)
+			:varname(o.varname),itemid(o.itemid),inherited(o.inherited){}
+	};
+
+	const char* expression;
+	const char* classname;
+	const char* methodname;
+	const char* selfvarname;
+	const char* resultvarname;
+	std::vector<Arg> args;
+
+	RequestAutomaton_FunctionDef( const RequestAutomaton_FunctionDef& o)
+		:expression(o.expression),classname(o.classname),methodname(o.methodname),selfvarname(o.selfvarname),resultvarname(o.resultvarname),args(o.args){}
+	RequestAutomaton_FunctionDef( const char* expression_, const char* classname_, const char* methodname_, const char* selfvarname_, const char* resultvarname_, const std::initializer_list<Arg>& args_)
+		:expression(expression_),classname(classname_),methodname(methodname_),selfvarname(selfvarname_),resultvarname(resultvarname_)
+	{
+		args.insert( args.end(), args_.begin(), args_.end());
+	}
+};
+
+struct RequestAutomaton_StructDef
+{
+};
+#endif
+
 
 #if __cplusplus >= 201103L
 static const test::Document g_testDocument1 = {"doc", { {"person", {{"name","Hugo"},{"id","1"}}, {{"Bla bla"}} } } };
-
 static const Test g_tests[] = {{"simple document", &g_testDocument1},{0,0}};
 #endif
 
