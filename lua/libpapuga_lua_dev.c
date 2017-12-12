@@ -789,11 +789,14 @@ static void deserialize_root( papuga_CallResult* retval, papuga_Serialization* s
 	papuga_SerializationIter seriter;
 	int structid = papuga_Serialization_structid( ser);
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-	char* str = papuga_Serialization_tostring( ser);
+	papuga_Allocator allocator;
+	const char* str;
+
+	papuga_init_Allocator( &allocator, 0, 0);
+	str = papuga_Serialization_tostring( ser, &allocator);
 	if (ser)
 	{
 		fprintf( stderr, "DESERIALIZE STRUCT:\n%s\n", str);
-		free( str);
 	}
 #endif
 	papuga_init_SerializationIter( &seriter, ser);
