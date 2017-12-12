@@ -27,10 +27,6 @@ static void initValue( papuga_ValueVariant& value, const double& input)
 {
 	papuga_init_ValueVariant_double( &value, input);
 }
-static void initValue( papuga_ValueVariant& value, const bool& input)
-{
-	papuga_init_ValueVariant_bool( &value, input);
-}
 static void convString( int64_t& output, const papuga_ValueVariant& value)
 {
 	papuga_ErrorCode errcode = papuga_Ok;
@@ -43,12 +39,6 @@ static void convString( double& output, const papuga_ValueVariant& value)
 	output = papuga_ValueVariant_todouble( &value, &errcode);
 	if (errcode != papuga_Ok) throw papuga::error_exception( errcode, "convert string to double");
 }
-static void convString( bool& output, const papuga_ValueVariant& value)
-{
-	papuga_ErrorCode errcode = papuga_Ok;
-	output = papuga_ValueVariant_tobool( &value, &errcode);
-	if (errcode != papuga_Ok) throw papuga::error_exception( errcode, "convert string to bool");
-}
 template <typename TYPE>
 bool compareValue( const TYPE& a, const TYPE& b)
 {
@@ -57,9 +47,19 @@ bool compareValue( const TYPE& a, const TYPE& b)
 template <>
 bool compareValue<double>( const double& a, const double& b)
 {
-	double diff = (a > b) ? (a - b) : (b - a);
-	return (diff < std::numeric_limits<double>::epsilon()*2);
+	double diff;
+	if (a > 1000.0)
+	{
+		diff = 1.0 - a/b;
+		if (diff < 0.0) diff = -diff;
+	}
+	else
+	{
+		diff = a > b ? (a - b) : (b - a);
+	}
+	return (diff < std::numeric_limits<double>::epsilon()*100);
 }
+
 static void checkVariantValue( const int64_t& vv, const papuga_ValueVariant& value)
 {
 	if (value.valuetype != papuga_TypeInt) throw std::runtime_error( "numeric type does not as expected (int)");
@@ -69,11 +69,6 @@ static void checkVariantValue( const double& vv, const papuga_ValueVariant& valu
 {
 	if (value.valuetype != papuga_TypeDouble) throw std::runtime_error( "numeric type does not as expected (double)");
 	if (!compareValue( vv, value.value.Double)) throw std::runtime_error( "numeric value does not as expected (double)");
-}
-static void checkVariantValue( const bool& vv, const papuga_ValueVariant& value)
-{
-	if (value.valuetype != papuga_TypeBool) throw std::runtime_error( "numeric type does not as expected (bool)");
-	if (!compareValue( vv, value.value.Bool)) throw std::runtime_error( "numeric value does not as expected (bool)");
 }
 
 
@@ -94,7 +89,7 @@ bool testToString( int idx, const INPUT& input)
 	papuga_ValueVariant strvalue;
 	papuga_ValueVariant numvalue;
 	papuga_init_ValueVariant_string( &strvalue, str, len);
-	papuga_ValueVariant* numeric = papuga_ValueVariant_tonumeric( &value, &numvalue, &err);
+	papuga_ValueVariant* numeric = papuga_ValueVariant_tonumeric( &strvalue, &numvalue, &err);
 	if (!numeric) throw papuga::error_exception( err, "convert to numeric");
 	checkVariantValue( input, *numeric);
 	std::cerr << " back to '" << res << "'";
@@ -140,8 +135,6 @@ int main( int argc, const char* argv[])
 		errcnt += (int)!testToString<int64_t>( ++testidx, std::numeric_limits<int>::min());
 		errcnt += (int)!testToString<int64_t>( ++testidx, std::numeric_limits<int64_t>::min());
 		errcnt += (int)!testToString<int64_t>( ++testidx, std::numeric_limits<int64_t>::max());
-		errcnt += (int)!testToString<bool>( ++testidx, true);
-		errcnt += (int)!testToString<bool>( ++testidx, false);
 		errcnt += (int)!testToString<double>( ++testidx, PI);
 		errcnt += (int)!testToString<double>( ++testidx, std::numeric_limits<float>::min());
 		errcnt += (int)!testToString<double>( ++testidx, std::numeric_limits<float>::max());

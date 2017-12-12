@@ -326,7 +326,7 @@ static NumericType string_enc_tonumstr( char* destbuf, size_t destbufsize, const
 		destbuf[ destpos++] = chr;
 		++itr;
 		chr = itr.ascii();
-		if (destpos < destbufsize && chr == '-')
+		if (destpos < destbufsize && (chr == '-' || chr == '+'))
 		{
 			destbuf[ destpos++] = chr;
 			++itr;
@@ -414,7 +414,7 @@ static bool bufprint_number_variant( char* buf, std::size_t bufsize, std::size_t
 		len = 1;
 		if (bufsize >= 2)
 		{
-			buf[0] = value->value.Bool?'1':'0';
+			buf[0] = value->value.Bool?'T':'F';
 			buf[1] = 0;
 		}
 	}
