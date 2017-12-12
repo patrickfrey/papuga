@@ -14,7 +14,7 @@
 #include "papuga/typedefs.h"
 #include <stdlib.h>
 
-const char* papuga_Type_name( papuga_Type type)
+const char* papuga_Type_name( int/*papuga_Type*/ type)
 {
 	switch (type)
 	{

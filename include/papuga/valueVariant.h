@@ -232,7 +232,7 @@ const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbufsize, cons
 * @param[in] type the type enum value
 * @return the corresponding string
 */
-const char* papuga_Type_name( papuga_Type type);
+const char* papuga_Type_name( int/*papuga_Type*/ type);
 
 /*
 * @brief Get the value of a string encoding enum as string
