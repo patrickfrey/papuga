@@ -1468,7 +1468,7 @@ DLL_PUBLIC PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, c
 	return rt;
 ERROR:
 	papuga_destroy_CallResult( retval);
-	while (ai>=0) Py_XDECREF( ar[ai--]);
+	for (; ai>=0; --ai) Py_XDECREF( ar[ai]);
 	return NULL;
 }
 
