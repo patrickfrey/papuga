@@ -5,7 +5,8 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 
 set(Python_ADDITIONAL_VERSIONS 3.3 3.4 3.5 3.6)
-find_package(PythonLibs 3 REQUIRED)
+find_package( PythonInterp 3 REQUIRED)
+find_package( PythonLibs 3 REQUIRED)
 if (${PYTHONLIBS_FOUND})
 Message( STATUS "Python 3.x package found" )
 MESSAGE( "Python 3.x executable: ${PYTHON_EXECUTABLE}" )
