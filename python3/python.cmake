@@ -14,7 +14,7 @@ endif( PYTHON_EXECUTABLE_ROOT )
 endif( NOT PYTHON_EXECUTABLE_ROOT ) 
 
 if (PYTHON_EXECUTABLE_ROOT)
-foreach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" "3" )
+foreach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" "3" "")
 execute_process( COMMAND  ${PYTHON_EXECUTABLE_ROOT}${PYVERSION}  --version
 			   RESULT_VARIABLE  RET_PYVERSION 
 			   ERROR_VARIABLE  STDERR_PYVERSION
@@ -40,7 +40,7 @@ endif( PYTHONLIBS_FOUND )
 endif( ${PYVERSIONSTR}  STREQUAL  "Python 3" )
 endif( ${RET_PYVERSION} STREQUAL "" OR ${RET_PYVERSION} STREQUAL "0")
 
-endforeach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" "3" )
+endforeach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" "3" "" )
 endif( PYTHON_EXECUTABLE_ROOT )
 
 if( PYTHON3_VERSION )
