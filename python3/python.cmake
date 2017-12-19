@@ -5,7 +5,7 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python" )
 if (PYTHON_EXECUTABLE_ROOT)
-foreach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" )
+foreach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" "3" )
 execute_process( COMMAND  ${PYTHON_EXECUTABLE_ROOT}${PYVERSION}  --version
 			   RESULT_VARIABLE  RET_PYVERSION 
 			   ERROR_VARIABLE  STDERR_PYVERSION
@@ -15,8 +15,8 @@ execute_process( COMMAND  ${PYTHON_EXECUTABLE_ROOT}${PYVERSION}  --version
 set( OUT_PYVERSION "${STDERR_PYVERSION}${STDOUT_PYVERSION}" )
 if( ${RET_PYVERSION} STREQUAL "" OR ${RET_PYVERSION} STREQUAL "0" )
 MESSAGE( STATUS "Call '${PYTHON_EXECUTABLE_ROOT}${PYVERSION}  --version'  returns ${RET_PYVERSION} result ${OUT_PYVERSION}" )
-string( SUBSTRING  "${OUT_PYVERSION}"  0  10  PYVERSIONSTR )
-if( ${PYVERSIONSTR}  STREQUAL  "Python ${PYVERSION}" ) 
+string( SUBSTRING  "${OUT_PYVERSION}"  0  8  PYVERSIONSTR )
+if( ${PYVERSIONSTR}  STREQUAL  "Python 3" ) 
 find_package( PythonLibs "${PYVERSION}" QUIET )
 if( PYTHONLIBS_FOUND )
 set( PYTHON3_EXECUTABLE  "${PYTHON_EXECUTABLE_ROOT}${PYVERSION}" )
@@ -28,7 +28,7 @@ break()
 else( PYTHONLIBS_FOUND )
 MESSAGE( STATUS "Found Python ${PYVERSION} executable ${PYTHON_EXECUTABLE_ROOT}${PYVERSION} but no libraries" )
 endif( PYTHONLIBS_FOUND )
-endif( ${PYVERSIONSTR}  STREQUAL  "Python ${PYVERSION}" )
+endif( ${PYVERSIONSTR}  STREQUAL  "Python 3" )
 endif( ${RET_PYVERSION} STREQUAL "" OR ${RET_PYVERSION} STREQUAL "0")
 
 endforeach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" )
