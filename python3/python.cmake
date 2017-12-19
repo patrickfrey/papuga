@@ -4,8 +4,18 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # PYTHON
 # --------------------------------------
 
-set(Python_ADDITIONAL_VERSIONS 3.3 3.4 3.5 3.6)
+foreach( EXECNAME "python3.6" "python3.5" "python3.4" "python3.3" "python3.2" "python3.1" "python3" )
+find_program( PYTHON_EXECUTABLE  NAMES  "${EXECNAME}" )
+if ( PYTHON_EXECUTABLE )
+break()
+endif ( PYTHON_EXECUTABLE )		
+endforeach( EXECNAME )
+ 
+set(Python_ADDITIONAL_VERSIONS 3.6 3.5 3.4 3.3 3.2 3.1)
+if (NOT PYTHON_EXECUTABLE)
 find_package( PythonInterp 3 REQUIRED)
+endif (NOT PYTHON_EXECUTABLE)
+
 find_package( PythonLibs 3 REQUIRED)
 if (${PYTHONLIBS_FOUND})
 Message( STATUS "Python 3.x package found" )
