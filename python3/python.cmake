@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # PYTHON
 # --------------------------------------
 
-foreach( EXECNAME "python3.6" "python3.5" "python3.4" "python3.3" "python3.2" "python3.1" "python3" )
+foreach( EXECNAME "python3" "python3.6" "python3.5" "python3.4" "python3.3" "python3.2" "python3.1" "python3" )
 find_program( PYTHON_EXECUTABLE  NAMES  "${EXECNAME}" )
 if ( PYTHON_EXECUTABLE )
 break()
