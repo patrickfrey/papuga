@@ -3,36 +3,63 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 # PYTHON
 # --------------------------------------
-
-foreach( EXECNAME "python3" "python3.6" "python3.5" "python3.4" "python3.3" "python3.2" "python3.1" )
-find_program( PYTHON_EXECUTABLE  NAMES  "${EXECNAME}" )
-if (PYTHON_EXECUTABLE)
-Message( STATUS "Python 3.x executable identified by find_program: ${PYTHON_EXECUTABLE}" )
-break()
-endif ( PYTHON_EXECUTABLE )		
-endforeach( EXECNAME )
- 
-set(Python_ADDITIONAL_VERSIONS 3.6 3.5 3.4 3.3 3.2 3.1)
-if (NOT PYTHON_EXECUTABLE)
-find_package( PythonInterp 3 REQUIRED)
-endif (NOT PYTHON_EXECUTABLE)
-
-find_package( PythonLibs 3 REQUIRED)
-if (${PYTHONLIBS_FOUND})
-Message( STATUS "Python 3.x package found" )
-MESSAGE( "Python 3.x executable: ${PYTHON_EXECUTABLE}" )
-MESSAGE( "Python 3.x library: ${PYTHON_LIBRARY}" )
-MESSAGE( "Python 3.x includes: ${PYTHON_INCLUDE_DIRS}" )
-else  (${PYTHONLIBS_FOUND})
-Message( FATAL_ERROR "Python 3.x package not found" )
-endif (${PYTHONLIBS_FOUND})
-
-set( PYTHON3_EXECUTABLE ${PYTHON_EXECUTABLE} )
-set( PYTHON3_INCLUDE_DIRS ${PYTHON_INCLUDE_DIRS} )
-set( PYTHON3_LIBRARIES  ${PYTHON_LIBRARY} )
+find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python" )
+if (PYTHON_EXECUTABLE_ROOT)
+foreach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" )
+execute_process( COMMAND  ${PYTHON_EXECUTABLE_ROOT}${PYVERSION}  --version
+			   RESULT_VARIABLE  RET_PYVERSION 
+			   ERROR_VARIABLE  STDERR_PYVERSION
+			   OUTPUT_VARIABLE  STDOUT_PYVERSION 
+	                   ERROR_STRIP_TRAILING_WHITESPACE
+			   OUTPUT_STRIP_TRAILING_WHITESPACE )
+set( OUT_PYVERSION "${STDERR_PYVERSION}${STDOUT_PYVERSION}" )
+if( ${RET_PYVERSION} STREQUAL "" OR ${RET_PYVERSION} STREQUAL "0" )
+MESSAGE( STATUS "Call '${PYTHON_EXECUTABLE_ROOT}${PYVERSION}  --version'  returns ${RET_PYVERSION} result ${OUT_PYVERSION}" )
+string( SUBSTRING  "${OUT_PYVERSION}"  0  10  PYVERSIONSTR )
+if( ${PYVERSIONSTR}  STREQUAL  "Python ${PYVERSION}" ) 
+find_package( PythonLibs "${PYVERSION}" QUIET )
+if( PYTHONLIBS_FOUND )
+set( PYTHON3_EXECUTABLE  "${PYTHON_EXECUTABLE_ROOT}${PYVERSION}" )
+set( PYTHON3_INCLUDE_DIRS  "${PYTHON_INCLUDE_DIRS}" )
+set( PYTHON3_LIBRARIES  "${PYTHON_LIBRARY}" )
 set( PYTHON3_LIBRARY_DIRS "" )
+set( PYTHON3_VERSION  "${OUT_PYVERSION}" )
+break()
+else( PYTHONLIBS_FOUND )
+MESSAGE( STATUS "Found Python ${PYVERSION} executable ${PYTHON_EXECUTABLE_ROOT}${PYVERSION} but no libraries" )
+endif( PYTHONLIBS_FOUND )
+endif( ${PYVERSIONSTR}  STREQUAL  "Python ${PYVERSION}" )
+endif( ${RET_PYVERSION} STREQUAL "" OR ${RET_PYVERSION} STREQUAL "0")
+
+endforeach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" )
+endif( PYTHON_EXECUTABLE_ROOT )
+
+if( PYTHON3_VERSION )
+MESSAGE( STATUS "Python 3.x version ${PYTHON3_VERSION}" )
+else( PYTHON3_VERSION )
+MESSAGE( STATUS "No python 3.x package found" )
+endif( PYTHON3_VERSION )
+
+if( PYTHON3_EXECUTABLE )
+MESSAGE( STATUS "Python 3.x executable: ${PYTHON3_EXECUTABLE}" )
 execute_process( COMMAND  ${PYTHON3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/sitepackages.py OUTPUT_VARIABLE PYTHON3_SITE_PACKAGES )
 string( STRIP  ${PYTHON3_SITE_PACKAGES}  PYTHON3_SITE_PACKAGES )
-MESSAGE( "Python3 site packages: ${PYTHON3_SITE_PACKAGES}" )
+MESSAGE( STATUS "Python 3.x site packages: ${PYTHON3_SITE_PACKAGES}" )
+else( PYTHON3_EXECUTABLE )
+MESSAGE( STATUS "No python 3.x executable found" )
+endif( PYTHON3_EXECUTABLE )
+
+if( PYTHON3_INCLUDE_DIRS )
+MESSAGE( STATUS "Python 3.x include directories: ${PYTHON3_INCLUDE_DIRS}" )
+else( PYTHON3_INCLUDE_DIRS )
+MESSAGE( STATUS "No python 3.x include directories found" )
+endif( PYTHON3_INCLUDE_DIRS )
+
+if( PYTHON3_LIBRARIES )
+MESSAGE( STATUS  "Python 3.x libraries: ${PYTHON3_LIBRARIES}" )
+else( PYTHON3_LIBRARIES )
+MESSAGE( STATUS  "No python 3.x library found" )
+endif( PYTHON3_LIBRARIES )
+
 
 
