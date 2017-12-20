@@ -5,8 +5,10 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python3" "python" )
 if (PYTHON_EXECUTABLE_ROOT)
+MESSAGE( STATUS "found Python executable '${PHP_EXECUTABLE_ROOT}'" )
 string( REGEX REPLACE "[0-9\\.]+$" "" PYTHON_EXECUTABLE_ROOT ${PYTHON_EXECUTABLE_ROOT} )
 endif( PYTHON_EXECUTABLE_ROOT ) 
+MESSAGE( STATUS "stripped Python executable '${PHP_EXECUTABLE_ROOT}'" )
 
 if (PYTHON_EXECUTABLE_ROOT)
 foreach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" "3" "")
