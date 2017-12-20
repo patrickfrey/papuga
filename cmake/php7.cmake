@@ -3,13 +3,29 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 # PHP
 # --------------------------------------
-foreach( py "php7.0" "php7.1" "php7" "php" )
-find_program( PHP_EXECUTABLE_ROOT NAMES  ${py} )
+find_program( PHP_EXECUTABLE_ROOT NAMES  "php7" )
+if( PHP_EXECUTABLE_ROOT )
+MESSAGE( STATUS "Found php7 ${PHP_EXECUTABLE_ROOT}" )
+endif( PHP_EXECUTABLE_ROOT ) 
+
+if (NOT PHP_EXECUTABLE_ROOT)
+foreach( PHPVERSION "7.9" "7.8" "7.7" "7.6" "7.5" "7.4" "7.3" "7.2" "7.1" "7.0" )
+find_program( PHP_EXECUTABLE_ROOT NAMES  "php${PHPVERSION}" )
 if (PHP_EXECUTABLE_ROOT)
-string( REGEX REPLACE "[0-9\\.]+$" "" PHP_EXECUTABLE_ROOT ${PHP_EXECUTABLE_ROOT} )
+MESSAGE( STATUS "Found php7.x ${PYTHON_EXECUTABLE_ROOT}" )
 break()
 endif (PHP_EXECUTABLE_ROOT)
-endforeach( py "php7.0" "php7.1" "php7" "php" )
+endforeach( PHPVERSION "7.9" "7.8" "7.7" "7.6" "7.5" "7.4" "7.3" "7.2" "7.1" "7.0" )
+endif (NOT PHP_EXECUTABLE_ROOT)
+
+if( NOT PHP_EXECUTABLE_ROOT )
+find_program( PHP_EXECUTABLE_ROOT NAMES  "php" )
+MESSAGE( STATUS "Found php ${PYTHON_EXECUTABLE_ROOT}" )
+endif( NOT PHP_EXECUTABLE_ROOT ) 
+
+if( PHP_EXECUTABLE_ROOT )
+string( REGEX REPLACE "[0-9\\.]+$" "" PHP_EXECUTABLE_ROOT ${PHP_EXECUTABLE_ROOT} )
+endif( PHP_EXECUTABLE_ROOT )
 
 if (PHP_EXECUTABLE_ROOT)
 foreach( PHPVERSION "7.9" "7.8" "7.7" "7.6" "7.5" "7.4" "7.3" "7.2" "7.1" "7.0" "7" "")
