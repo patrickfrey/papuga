@@ -3,13 +3,17 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 # PYTHON 3.x
 # --------------------------------------
-foreach( py "python3" "python" )
-find_program( PYTHON_EXECUTABLE_ROOT NAMES  ${py} )
+find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python3" )
 if (PYTHON_EXECUTABLE_ROOT)
-string( REGEX REPLACE "[0-9\\.]+$" "" PYTHON_EXECUTABLE_ROOT ${PYTHON_EXECUTABLE_ROOT} )
-break()
+MESSAGE( "Found ${PYTHON_EXECUTABLE_ROOT}" )
+string( LENGTH "${PYTHON_EXECUTABLE_ROOT}"  len )
+math( EXPR len1 "${len} - 1" )
+math( EXPR len2 "${len} - 2" )
+string( SUBSTRING  "${PYTHON_EXECUTABLE_ROOT}"  ${len2} 1 sfx )
+if (sfx STREQUAL "3" )
+string( SUBSTRING  "${PYTHON_EXECUTABLE_ROOT}"  0  ${len1}  PYTHON_EXECUTABLE_ROOT )
+endif (sfx STREQUAL "3" )
 endif( PYTHON_EXECUTABLE_ROOT ) 
-endforeach( py "python3" "python" )
 
 if (PYTHON_EXECUTABLE_ROOT)
 foreach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" "3" "")
