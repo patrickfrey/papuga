@@ -91,5 +91,5 @@ setup_env() {
 setup_env
 
 # build the package itself
-build_project "-DWITH_PYTHON=YES -DWITH_PHP=NO"
+build_project "-DWITH_PYTHON=YES -DWITH_PHP=YES"
 
