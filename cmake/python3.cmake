@@ -3,14 +3,20 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 # PYTHON 3.x
 # --------------------------------------
-find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python" )
-if (NOT PYTHON_EXECUTABLE_ROOT)
 find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python3" )
 if (PYTHON_EXECUTABLE_ROOT)
-string( LENGTH "${PYTHON_EXECUTABLE_ROOT}"  PYTHON_EXECUTABLE_ROOT_LEN )
-math( EXPR PYTHON_EXECUTABLE_ROOT_LEN "${PYTHON_EXECUTABLE_ROOT_LEN} - 1")
-string( SUBSTRING  "${PYTHON_EXECUTABLE_ROOT}"  0  ${PYTHON_EXECUTABLE_ROOT_LEN}  PYTHON_EXECUTABLE_ROOT )
+MESSAGE( "Found ${PYTHON_EXECUTABLE_ROOT}" )
+string( LENGTH "${PYTHON_EXECUTABLE_ROOT}"  len )
+math( EXPR len1 "${len} - 1" )
+math( EXPR len2 "${len} - 2" )
+string( SUBSTRING  "${PYTHON_EXECUTABLE_ROOT}"  ${len2} 1 sfx )
+if (sfx STREQUAL "3" )
+string( SUBSTRING  "${PYTHON_EXECUTABLE_ROOT}"  0  ${len1}  PYTHON_EXECUTABLE_ROOT )
+endif (sfx STREQUAL "3" )
 endif( PYTHON_EXECUTABLE_ROOT ) 
+
+if (NOT PYTHON_EXECUTABLE_ROOT)
+find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python" )
 endif( NOT PYTHON_EXECUTABLE_ROOT ) 
 
 if (PYTHON_EXECUTABLE_ROOT)
