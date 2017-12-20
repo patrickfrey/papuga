@@ -3,12 +3,13 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 # PYTHON 3.x
 # --------------------------------------
-find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python3" "python" )
+foreach( py "python3" "python" )
+find_program( PYTHON_EXECUTABLE_ROOT NAMES  ${py} )
 if (PYTHON_EXECUTABLE_ROOT)
-MESSAGE( STATUS "found Python executable '${PHP_EXECUTABLE_ROOT}'" )
 string( REGEX REPLACE "[0-9\\.]+$" "" PYTHON_EXECUTABLE_ROOT ${PYTHON_EXECUTABLE_ROOT} )
+break()
 endif( PYTHON_EXECUTABLE_ROOT ) 
-MESSAGE( STATUS "stripped Python executable '${PHP_EXECUTABLE_ROOT}'" )
+endforeach( py "python3" "python" )
 
 if (PYTHON_EXECUTABLE_ROOT)
 foreach( PYVERSION "3.9" "3.8" "3.7" "3.6" "3.5" "3.4" "3.3" "3.2" "3.1" "3.0" "3" "")
@@ -19,7 +20,6 @@ execute_process( COMMAND  ${PYTHON_EXECUTABLE_ROOT}${PYVERSION}  ${CMAKE_CURRENT
 	                   ERROR_STRIP_TRAILING_WHITESPACE
 			   OUTPUT_STRIP_TRAILING_WHITESPACE )
 set( OUT_PYVERSION "${STDERR_PYVERSION}${STDOUT_PYVERSION}" )
-MESSAGE( "Call '${PYTHON_EXECUTABLE_ROOT}${PYVERSION}  ${CMAKE_CURRENT_LIST_DIR}/version.py'  error '${RET_PYVERSION}' result '${OUT_PYVERSION}'" )
 if( ${RET_PYVERSION} STREQUAL "" OR ${RET_PYVERSION} STREQUAL "0" )
 string( SUBSTRING  "${OUT_PYVERSION}"  0  8  PYVERSIONSTR )
 if( ${PYVERSIONSTR}  STREQUAL  "Python 3" )

@@ -3,12 +3,13 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 # PHP
 # --------------------------------------
-find_program( PHP_EXECUTABLE_ROOT NAMES  "php7.0" "php7.1" "php7" "php" )
+foreach( py "php7.0" "php7.1" "php7" "php" )
+find_program( PHP_EXECUTABLE_ROOT NAMES  ${py} )
 if (PHP_EXECUTABLE_ROOT)
-MESSAGE( STATUS "found PHP executable '${PHP_EXECUTABLE_ROOT}'" )
 string( REGEX REPLACE "[0-9\\.]+$" "" PHP_EXECUTABLE_ROOT ${PHP_EXECUTABLE_ROOT} )
+break()
 endif (PHP_EXECUTABLE_ROOT)
-MESSAGE( STATUS "stripped PHP executable '${PHP_EXECUTABLE_ROOT}'" )
+endforeach( py "php7.0" "php7.1" "php7" "php" )
 
 if (PHP_EXECUTABLE_ROOT)
 foreach( PHPVERSION "7.9" "7.8" "7.7" "7.6" "7.5" "7.4" "7.3" "7.2" "7.1" "7.0" "7" "")
@@ -19,7 +20,6 @@ execute_process( COMMAND  ${PHP_EXECUTABLE_ROOT}${PHPVERSION}  ${CMAKE_CURRENT_L
 	                   ERROR_STRIP_TRAILING_WHITESPACE
 			   OUTPUT_STRIP_TRAILING_WHITESPACE )
 set( OUT_PHPVERSION "${STDERR_PHPVERSION}${STDOUT_PHPVERSION}" )
-MESSAGE( STATUS "Call '${PHP_EXECUTABLE_ROOT}${PHPVERSION}  ${CMAKE_CURRENT_LIST_DIR}/version.php'  error '${RET_PHPVERSION}' result '${OUT_PHPVERSION}'" )
 if( ${RET_PHPVERSION} STREQUAL "" OR ${RET_PHPVERSION} STREQUAL "0" )
 string( SUBSTRING  "${OUT_PHPVERSION}"  0  1  PHPVERSIONSTR )
 if( ${PHPVERSIONSTR}  STREQUAL  "7" )
