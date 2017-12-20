@@ -1,11 +1,6 @@
 cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 
 # --------------------------------------
-# PYTHON
-# --------------------------------------
-include( ./python.cmake )
-
-# --------------------------------------
 # SOURCES AND INCLUDES
 # --------------------------------------
 set( python3_dev_source_files
