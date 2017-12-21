@@ -44,13 +44,19 @@ add_library( papuga_php7_dev SHARED ${php7_dev_source_files} )
 target_link_libraries( papuga_php7_dev papuga_gen_utils papuga_devel ${PHP7_LIBRARIES} )
 
 set_target_properties(
-    papuga_php7_dev
-    PROPERTIES
-    DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}"
-    SOVERSION "${PAPUGA_MAJOR_VERSION}.${PAPUGA_MINOR_VERSION}"
+	papuga_php7_dev
+	PROPERTIES
+	DEBUG_POSTFIX "${CMAKE_DEBUG_POSTFIX}"
+	SOVERSION "${PAPUGA_MAJOR_VERSION}.${PAPUGA_MINOR_VERSION}"
     VERSION ${PAPUGA_VERSION}
 )
 
+if(APPLE)
+set_target_properties(
+	papuga_php7_dev
+	PROPERTIES
+	LINK_FLAGS "-undefined dynamic_lookup" )
+endif(APPLE)
 
 # ------------------------------
 # INSTALLATION
