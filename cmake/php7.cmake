@@ -4,15 +4,18 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # PHP
 # --------------------------------------
 if (APPLE)
-execute_process( COMMAND  brew  --prefix  php7
+execute_process( COMMAND  brew  --prefix  php70
 			   RESULT_VARIABLE  RET_PHP_PATH
 			   OUTPUT_VARIABLE  PHP_INSTALL_PATH
 			   OUTPUT_STRIP_TRAILING_WHITESPACE )
 if( ${RET_PHP_PATH} STREQUAL "" OR ${RET_PHP_PATH} STREQUAL "0" )
 MESSAGE( STATUS "Installation path of php7: '${PHP_INSTALL_PATH}' " )
 find_program( PHP_EXECUTABLE_ROOT NAMES  "php7"  HINTS ${PHP_INSTALL_PATH} )
+if( NOT PHP_EXECUTABLE_ROOT )
+find_program( PHP_EXECUTABLE_ROOT NAMES  "php"  HINTS ${PHP_INSTALL_PATH} )
+endif( NOT PHP_EXECUTABLE_ROOT )
 else( ${RET_PHP_PATH} STREQUAL "" OR ${RET_PHP_PATH} STREQUAL "0" )
-MESSAGE( STATUS "Call 'brew  --prefix  php7' returns '${RET_PHP_PATH}' result '${PHP_INSTALL_PATH}' " )
+MESSAGE( STATUS "Call 'brew  --prefix  php70' returns '${RET_PHP_PATH}' result '${PHP_INSTALL_PATH}' " )
 find_program( PHP_EXECUTABLE_ROOT NAMES  "php7" )
 endif( ${RET_PHP_PATH} STREQUAL "" OR ${RET_PHP_PATH} STREQUAL "0" )
 else (APPLE)
