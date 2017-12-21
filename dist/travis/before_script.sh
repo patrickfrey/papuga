@@ -20,10 +20,10 @@ case $OS in
 
 	Darwin)
 		brew update
-		if test "X$CC" = "Xgcc"; then
-			brew install gcc48 --enable-all-languages || true
-			brew link --force gcc48 || true
-		fi
+		brew tap homebrew/dupes
+		brew tap homebrew/versions
+		brew tap homebrew/homebrew-php
+		brew unlink php56 || true
 		brew install cmake gettext boost php70 python3 || true
 		# make sure cmake finds the brew version of gettext
 		brew link --force gettext || true
