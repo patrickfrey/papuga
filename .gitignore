@@ -45,6 +45,7 @@ CPackSourceConfig.cmake
 
 # Suggested build directory
 build
+build_clang
 
 # Generated test data
 tests/lua/exec
