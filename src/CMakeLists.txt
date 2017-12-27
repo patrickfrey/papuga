@@ -36,6 +36,7 @@ include_directories(
 
 link_directories(
 	"${PROJECT_SOURCE_DIR}/3rdParty/cjson/src"
+	 ${Intl_LIBRARIES}
 )
 
 # ------------------------------

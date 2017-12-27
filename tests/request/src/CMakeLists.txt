@@ -8,8 +8,9 @@ include_directories(
 )
 link_directories(
 	"${CMAKE_CURRENT_BINARY_DIR}/../../../src"
+	 ${Intl_LIBRARIES}
 )
 
-add_executable( testRequest testRequest.cpp document.cpp )
+add_executable( testRequest testRequest.cpp document.cpp request.cpp )
 target_link_libraries( testRequest papuga_devel papuga_request_devel ${Boost_LIBRARIES} ${Intl_LIBRARIES})
 

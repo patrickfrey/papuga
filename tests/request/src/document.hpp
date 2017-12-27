@@ -7,7 +7,7 @@
  */
 #ifndef _PAPUGA_TEST_DOCUMENT_HPP_INCLUDED
 #define _PAPUGA_TEST_DOCUMENT_HPP_INCLUDED
-/// \brief Some classes and function for building test documents in a convenient way
+/// \brief Some classes and functions for building test documents in a convenient way
 /// \file document.hpp
 
 #include "papuga.h"
