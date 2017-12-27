@@ -36,7 +36,6 @@ include_directories(
 
 link_directories(
 	"${PROJECT_SOURCE_DIR}/3rdParty/cjson/src"
-	 ${Intl_LIBRARIES}
 )
 
 # ------------------------------
@@ -45,10 +44,10 @@ link_directories(
 add_library( papuga_devel STATIC ${source_files} )
 
 add_library( papuga_request_devel STATIC ${source_files_request} )
-target_link_libraries( papuga_request_devel papuga_devel papuga_cjson )
+target_link_libraries( papuga_request_devel papuga_devel papuga_cjson ${Intl_LIBRARIES} )
 
 add_library( papuga_doc_gen SHARED libpapuga_doc_gen.cpp )
-target_link_libraries( papuga_doc_gen papuga_gen_utils )
+target_link_libraries( papuga_doc_gen papuga_gen_utils ${Intl_LIBRARIES} )
 
 set_target_properties(
     papuga_doc_gen

@@ -8,7 +8,6 @@ include_directories(
 )
 link_directories(
 	"${CMAKE_CURRENT_BINARY_DIR}/../../../src"
-	 ${Intl_LIBRARIES}
 )
 
 add_executable( testSerialization testSerialization.cpp)
