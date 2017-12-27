@@ -5,8 +5,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/// \brief Automaton to describe and build papuga XML and JSON requests
-/// \file request.h
+/*
+* \brief Automaton to describe and build papuga XML and JSON requests
+* \file request.h
+*/
 #ifndef _PAPUGA_REQUEST_H_INCLUDED
 #define _PAPUGA_REQUEST_H_INCLUDED
 #include "papuga/typedefs.h"
