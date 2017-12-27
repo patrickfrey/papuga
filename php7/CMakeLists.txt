@@ -58,6 +58,14 @@ set_target_properties(
 	LINK_FLAGS "-undefined dynamic_lookup" )
 endif(APPLE)
 
+# Copy php7 devel library into a created directory easy relocatable by tests:
+add_custom_command( TARGET papuga_php7_dev POST_BUILD
+					  COMMAND ${CMAKE_COMMAND} -E make_directory  ${CMAKE_BINARY_DIR}/lib
+					  COMMENT "Create local library directory '${CMAKE_BINARY_DIR}/lib/' " )
+add_custom_command( TARGET papuga_php7_dev POST_BUILD
+					  COMMAND ${CMAKE_COMMAND} -E copy_if_different  $<TARGET_FILE:papuga_php7_dev>  ${CMAKE_BINARY_DIR}/lib/
+					  COMMENT "Copy Php7 devel library built to library directory" )
+
 # ------------------------------
 # INSTALLATION
 # ------------------------------
