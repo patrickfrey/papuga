@@ -20,7 +20,6 @@ case $OS in
 
 	Darwin)
 		brew update
-		brew tap homebrew/dupes
 		brew tap homebrew/versions
 		brew upgrade cmake
 		brew upgrade boost
