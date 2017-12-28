@@ -54,11 +54,10 @@ set_target_properties(
 
 # Copy python3 devel library into a created directory easy relocatable by tests:
 add_custom_command( TARGET papuga_python3_dev POST_BUILD
-					  COMMAND ${CMAKE_COMMAND} -E make_directory  ${CMAKE_BINARY_DIR}/lib
-					  COMMENT "Create local library directory '${CMAKE_BINARY_DIR}/lib/' " )
+					  COMMAND ${CMAKE_COMMAND} -E make_directory  ${CMAKE_BINARY_DIR}/lib )
 add_custom_command( TARGET papuga_python3_dev POST_BUILD
 					  COMMAND ${CMAKE_COMMAND} -E copy_if_different  $<TARGET_FILE:papuga_python3_dev>  ${CMAKE_BINARY_DIR}/lib/
-					  COMMENT "Copy Python3 devel library built to library directory" )
+					  COMMENT "Copy Python3 devel library built to ${CMAKE_BINARY_DIR}/lib/" )
 
 # ------------------------------
 # INSTALLATION

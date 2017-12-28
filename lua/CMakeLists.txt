@@ -54,11 +54,10 @@ set_target_properties(
 
 # Copy Lua devel library into a created directory easy relocatable by tests:
 add_custom_command( TARGET papuga_lua_dev POST_BUILD
-					  COMMAND ${CMAKE_COMMAND} -E make_directory  ${CMAKE_BINARY_DIR}/lib
-					  COMMENT "Create local library directory '${CMAKE_BINARY_DIR}/lib/' " )
+					  COMMAND ${CMAKE_COMMAND} -E make_directory  ${CMAKE_BINARY_DIR}/lib )
 add_custom_command( TARGET papuga_lua_dev POST_BUILD
 					  COMMAND ${CMAKE_COMMAND} -E copy_if_different  $<TARGET_FILE:papuga_lua_dev>  ${CMAKE_BINARY_DIR}/lib/
-					  COMMENT "Copy Lua devel library built to local library directory" )
+					  COMMENT "Copy Lua devel library built to ${CMAKE_BINARY_DIR}/lib/" )
 
 # ------------------------------
 # INSTALLATION
