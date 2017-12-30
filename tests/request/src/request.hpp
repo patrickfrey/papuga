@@ -235,10 +235,26 @@ public:
 		std::initializer_list< std::initializer_list<RequestAutomaton_Node> >::const_iterator lni = nodes.begin(), lne = nodes.end();
 		for (; lni != lne; ++lni)
 		{
+			if (lni->size() > 2)
+			{
+				if (!papuga_RequestAutomaton_open_group( m_atm))
+				{
+					papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
+					if (errcode != papuga_Ok) error_exception( errcode, "request automaton open group");
+				}
+			}
 			std::initializer_list<RequestAutomaton_Node>::const_iterator ni = lni->begin(), ne = lni->end();
 			for (; ni != ne; ++ni)
 			{
 				ni->addToAutomaton( m_atm);
+			}
+			if (lni->size() > 2)
+			{
+				if (!papuga_RequestAutomaton_close_group( m_atm))
+				{
+					papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
+					if (errcode != papuga_Ok) error_exception( errcode, "request automaton close group");
+				}
 			}
 		}
 		papuga_RequestAutomaton_done( m_atm);
