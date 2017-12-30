@@ -153,5 +153,5 @@ endif( ${RET_CFG} STREQUAL "" OR ${RET_CFG} STREQUAL "0" )
 MESSAGE( STATUS "PHP 7.x  version: ${PHP7_VERSION}" )
 
 else( PHP7_EXECUTABLE AND PHP7_CONFIG_EXECUTABLE )
-MESSAGE( STATUS "Unable to relocate PHP 7.x interpreter" )
+MESSAGE( FATAL_ERROR "Unable to relocate PHP 7.x interpreter" )
 endif( PHP7_EXECUTABLE AND PHP7_CONFIG_EXECUTABLE )

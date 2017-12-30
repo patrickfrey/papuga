@@ -139,6 +139,6 @@ MESSAGE( STATUS "No python 3.x package found" )
 endif( PYTHON3_VERSION )
 
 else( PYTHON3_EXECUTABLE )
-MESSAGE( STATUS "Unable to relocate Python 3.x interpreter" )
+MESSAGE( FATAL_ERROR "Unable to relocate Python 3.x interpreter" )
 endif( PYTHON3_EXECUTABLE )
 
