@@ -17,7 +17,6 @@
 namespace papuga {
 namespace test {
 
-#if __cplusplus >= 201103L
 struct RequestAutomaton_FunctionDef
 {
 	struct Arg
@@ -43,7 +42,26 @@ struct RequestAutomaton_FunctionDef
 
 	RequestAutomaton_FunctionDef( const RequestAutomaton_FunctionDef& o)
 		:expression(o.expression),classname(o.classname),methodname(o.methodname),selfvarname(o.selfvarname),resultvarname(o.resultvarname),args(o.args){}
-	RequestAutomaton_FunctionDef( const char* expression_, const char* call, const std::initializer_list<Arg>& args_);
+#if __cplusplus >= 201103L
+	RequestAutomaton_FunctionDef( const char* expression_, const char* call, const std::initializer_list<Arg>& args_)
+		:expression(expression_),classname(),methodname(),selfvarname(),resultvarname()
+	{
+		args.insert( args.end(), args_.begin(), args_.end());
+		parseCall( call);
+	}
+#endif
+	RequestAutomaton_FunctionDef( const char* expression_, const char* call, const Arg* args_)
+		:expression(expression_),classname(),methodname(),selfvarname(),resultvarname()
+	{
+		for (Arg const* ai=args_; ai->varname != 0 || ai->itemid >= 0; ++ai)
+		{
+			args.push_back( *ai);
+		}
+		parseCall( call);
+	}
+
+private:
+	void parseCall( const char* call);
 };
 
 struct RequestAutomaton_StructDef
@@ -66,7 +84,21 @@ struct RequestAutomaton_StructDef
 
 	RequestAutomaton_StructDef( const RequestAutomaton_StructDef& o)
 		:expression(o.expression),itemid(o.itemid),elems(o.elems){}
-	RequestAutomaton_StructDef( const char* expression_, int itemid_, const std::initializer_list<Element>& elems_);
+#if __cplusplus >= 201103L
+	RequestAutomaton_StructDef( const char* expression_, int itemid_, const std::initializer_list<Element>& elems_)
+		:expression(expression_),itemid(itemid_)
+	{
+		elems.insert( elems.end(), elems_.begin(), elems_.end());
+	}
+#endif
+	RequestAutomaton_StructDef( const char* expression_, int itemid_, const Element* elems_)
+		:expression(expression_),itemid(itemid_)
+	{
+		for (Element const* ei=elems_; ei->name != 0; ++ei)
+		{
+			elems.push_back( *ei);
+		}
+	}
 };
 
 struct RequestAutomaton_ValueDef
@@ -77,7 +109,7 @@ struct RequestAutomaton_ValueDef
 
 	RequestAutomaton_ValueDef( const RequestAutomaton_ValueDef& o)
 		:scope_expression(o.scope_expression),select_expression(o.select_expression),itemid(o.itemid){}
-	RequestAutomaton_ValueDef( const std::string& scope_expression_, const std::string& select_expression_, int itemid_)
+	RequestAutomaton_ValueDef( const char* scope_expression_, const char* select_expression_, int itemid_)
 		:scope_expression(scope_expression_),select_expression(select_expression_),itemid(itemid_){}
 };
 
@@ -202,7 +234,6 @@ struct RequestAutomaton_Node
 		}
 	}
 };
-#endif
 
 class RequestAutomaton
 {
@@ -266,16 +297,50 @@ public:
 		papuga_destroy_RequestAutomaton( m_atm);
 	}
 
-	void check_error()
+	void addFunction( const char* expression, const char* call, const RequestAutomaton_FunctionDef::Arg* args)
 	{
-		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
-		if (errcode != papuga_Ok) error_exception( errcode, "request automaton");
+		RequestAutomaton_Node nd( RequestAutomaton_FunctionDef( expression, call, args));
+		nd.addToAutomaton( m_atm);
+	}
+
+	void addStruct( const char* expression, int itemid, const RequestAutomaton_StructDef::Element* elems)
+	{
+		RequestAutomaton_Node nd( RequestAutomaton_StructDef( expression, itemid, elems));
+		nd.addToAutomaton( m_atm);
+	}
+
+	void addValue( const char* scope_expression, const char* select_expression, int itemid)
+	{
+		RequestAutomaton_Node nd( RequestAutomaton_ValueDef( scope_expression, select_expression, itemid));
+		nd.addToAutomaton( m_atm);
+	}
+
+	void openGroup()
+	{
+		if (!papuga_RequestAutomaton_open_group( m_atm))
+		{
+			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
+			if (errcode != papuga_Ok) error_exception( errcode, "request automaton open group");
+		}
+	}
+
+	void closeGroup()
+	{
+		if (!papuga_RequestAutomaton_close_group( m_atm))
+		{
+			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
+			if (errcode != papuga_Ok) error_exception( errcode, "request automaton close group");
+		}
+	}
+
+	void done()
+	{
+		papuga_RequestAutomaton_done( m_atm);
 	}
 
 private:
 	papuga_RequestAutomaton* m_atm;
 };
-
 
 
 }}//namespace

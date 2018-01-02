@@ -14,7 +14,6 @@
 using namespace papuga;
 using namespace papuga::test;
 
-#if __cplusplus >= 201103L
 static bool skipSpaces( char const*& si)
 {
 	while (*si && (unsigned char)*si <= 32) ++si;
@@ -50,14 +49,11 @@ static std::string parse_identifier( char const*& si)
 	return rt;
 }
 
-RequestAutomaton_FunctionDef::RequestAutomaton_FunctionDef( const char* expression_, const char* call, const std::initializer_list<Arg>& args_)
-	:expression(expression_),classname(),methodname(),selfvarname(),resultvarname()
+void RequestAutomaton_FunctionDef::parseCall( const char* call)
 {
 	char const* si = 0;
 	try
 	{
-		args.insert( args.end(), args_.begin(), args_.end());
-	
 		si = call;
 		if (!skipSpaces(si)) throw std::runtime_error("call is empty");
 		std::string name = parse_identifier( si);
@@ -85,9 +81,9 @@ RequestAutomaton_FunctionDef::RequestAutomaton_FunctionDef( const char* expressi
 	catch (const std::runtime_error& err)
 	{
 		char errbuf[ 2048];
-		std::snprintf( errbuf, sizeof( errbuf), "error in call expression '%s' at position %u: %s", expression_, (int)(si-expression_), err.what());
+		std::snprintf( errbuf, sizeof( errbuf), "error in call call '%s' at position %u: %s", call, (int)(si-call), err.what());
 		throw std::runtime_error( errbuf);
 	}
 }
-#endif
+
 
