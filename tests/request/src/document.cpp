@@ -18,7 +18,7 @@
 using namespace papuga;
 using namespace papuga::test;
 
-std::string test::encodeString( const papuga_StringEncoding& encoding, const std::string& str)
+static std::string encodeString( const papuga_StringEncoding& encoding, const std::string& str)
 {
 	if (encoding == papuga_UTF8)
 	{
