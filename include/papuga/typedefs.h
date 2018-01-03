@@ -141,6 +141,7 @@ typedef struct papuga_ValueVariant
 		papuga_HostObject* hostObject;			/*< reference of an object represented in the host environment */
 		papuga_Serialization* serialization;		/*< reference of an object serialization */
 		papuga_Iterator* iterator;			/*< reference of an iterator closure */
+		int64_t DATA;					/*< data type for copies and initialization, ensuring everything is transfered or zeroed */
 	} value;
 } papuga_ValueVariant;
 

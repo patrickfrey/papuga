@@ -37,7 +37,7 @@ extern "C" {
 * @brief Variant value initializer as a NULL value
 * @param[out] self_ pointer to structure 
 */
-#define papuga_init_ValueVariant(self_)				{papuga_ValueVariant* s = self_; s->valuetype = (unsigned char)papuga_TypeVoid; s->encoding=0; s->_tag=0; s->length=0; s->value.string=0;}
+#define papuga_init_ValueVariant(self_)				{papuga_ValueVariant* s = self_; s->valuetype = (unsigned char)papuga_TypeVoid; s->encoding=0; s->_tag=0; s->length=0; s->value.DATA=0;}
 
 /*
 * @brief Variant value initializer as a double precision floating point value
@@ -116,7 +116,7 @@ extern "C" {
 * @param[out] self_ pointer to structure 
 * @param[in] o_ pointer to value variant to initialize structure with
 */
-#define papuga_init_ValueVariant_copy(self_,o_)			{papuga_ValueVariant* s = self_; const papuga_ValueVariant* v = o_; s->valuetype=v->valuetype;s->encoding=v->encoding;s->_tag=v->_tag;s->length=v->length;s->value.string=v->value.string;}
+#define papuga_init_ValueVariant_copy(self_,o_)			{papuga_ValueVariant* s = self_; const papuga_ValueVariant* v = o_; s->valuetype=v->valuetype;s->encoding=v->encoding;s->_tag=v->_tag;s->length=v->length;s->value.DATA=v->value.DATA;}
 
 /*
 * @brief Test if the variant value is not NULL
