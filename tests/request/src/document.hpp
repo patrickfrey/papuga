@@ -56,9 +56,9 @@ private:
 
 	void printNodeValueJson( std::ostream& out, const std::string& indent) const;
 
-	void printNodeJson( std::ostream& out, const std::string& indent) const;
+	void printNodeListJson( std::ostream& out, const std::string& indent, int cnt) const;
 
-	void printNodeListJson( std::ostream& out, const std::string& indent) const;
+	static const DocumentNode* getNodeNextDiffName( const DocumentNode* ci);
 
 private:
 	std::string m_name;

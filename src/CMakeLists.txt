@@ -15,6 +15,7 @@ set( source_files
 	valueVariant.cpp
 	valueVariant.c
 	serialization.cpp
+	requestAutomaton.cpp
 )
 
 set( source_files_request

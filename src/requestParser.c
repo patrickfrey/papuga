@@ -9,7 +9,17 @@
  * \file requestParser.c
  */
 #include "papuga/requestParser.h"
+#include "papuga/request.h"
 #include <string.h>
+#include <stdio.h>
+
+#undef PAPUGA_LOWLEVEL_DEBUG
+
+const char* papuga_requestElementTypeName( papuga_RequestElementType tp)
+{
+	static const char* ar[] = {"None","Open","Close","AttibuteName","AttibuteValue","Value",0};
+	return ar[ (int)tp];
+}
 
 void papuga_destroy_RequestParser( papuga_RequestParser* self)
 {
@@ -203,4 +213,68 @@ papuga_RequestElementType papuga_RequestParser_next( papuga_RequestParser* self,
 	return header->next( self, value);
 }
 
+bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Request* request, papuga_ErrorCode* errcode)
+{
+	papuga_ValueVariant value;
+	bool done = false;
+
+	while (!done)
+	{
+		papuga_RequestElementType elemtype = papuga_RequestParser_next( parser, &value);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		{
+			char buf[ 1024];
+			size_t len;
+			papuga_ErrorCode err2 = papuga_Ok;
+			papuga_ValueVariant_tostring_enc( value, papuga_UTF8, buf, sizeof(buf), &len, &err2);
+			if (err2 != papuga_Ok) snprintf( buf, sizeof(buf), "...");
+			fprintf( stderr, "parser feed %s '%s'\n", papuga_requestElementTypeName( elemtype), buf);
+		}
+#endif
+		switch (elemtype)
+		{
+			case papuga_RequestElementType_None:
+				*errcode = papuga_RequestParser_last_error( parser);
+				if (*errcode != papuga_Ok) return false;
+				done = true;
+				break;
+			case papuga_RequestElementType_Open:
+				if (!papuga_Request_feed_open_tag( request, &value))
+				{
+					*errcode = papuga_Request_last_error( request);
+					return false;
+				}
+				break;
+			case papuga_RequestElementType_Close:
+				if (!papuga_Request_feed_close_tag( request))
+				{
+					*errcode = papuga_Request_last_error( request);
+					return false;
+				}
+				break;
+			case papuga_RequestElementType_AttributeName:
+				if (!papuga_Request_feed_attribute_name( request, &value))
+				{
+					*errcode = papuga_Request_last_error( request);
+					return false;
+				}
+				break;
+			case papuga_RequestElementType_AttributeValue:
+				if (!papuga_Request_feed_attribute_value( request, &value))
+				{
+					*errcode = papuga_Request_last_error( request);
+					return false;
+				}
+				break;
+			case papuga_RequestElementType_Value:
+				if (!papuga_Request_feed_content_value( request, &value))
+				{
+					*errcode = papuga_Request_last_error( request);
+					return false;
+				}
+				break;
+		}
+	}
+	return true;
+}
 

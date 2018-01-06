@@ -14,5 +14,6 @@
 #include "papuga/errors.hpp"
 #include "papuga/valueVariant.hpp"
 #include "papuga/serialization.hpp"
+#include "papuga/requestAutomaton.hpp"
 
 #endif

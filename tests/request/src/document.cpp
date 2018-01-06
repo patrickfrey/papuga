@@ -141,8 +141,10 @@ std::string DocumentNode::toxml( const papuga_StringEncoding& encoding, bool wit
 std::string DocumentNode::tojson( const papuga_StringEncoding& encoding) const
 {
 	std::ostringstream out;
-	printNodeListJson( out, "\n");
-	out << "\n";
+	out << "{";
+	printNodeListJson( out, std::string("\n") + indentTab(), 0);
+	out << "\n}";
+	out << std::endl;
 	return encodeString( encoding, out.str());
 }
 
@@ -157,12 +159,15 @@ std::string DocumentNode::totext() const
 void DocumentNode::printNodeText( std::ostream& out, const std::string& indent) const
 {
 	out << indent << "NAME [" << m_name << "]";
-	out << indent << "VALUE [" << m_value << "]";
 	if (m_attr)
 	{
 		out << indent << "ATTR [";
 		m_attr->printNodeText( out, indent + indentTab());
 		out << "]";
+	}
+	if (!m_value.empty())
+	{
+		out << indent << "VALUE [" << m_value << "]";
 	}
 	if (m_child)
 	{
@@ -206,6 +211,13 @@ void DocumentNode::printNodeXml( std::ostream& out, const std::string& indent) c
 	}
 }
 
+const DocumentNode* DocumentNode::getNodeNextDiffName( const DocumentNode* ci)
+{
+	DocumentNode const* cn = ci->m_next;
+	for (;cn && cn->m_name == ci->m_name; cn = cn->m_next){}
+	return cn;
+}
+
 void DocumentNode::printNodeValueJson( std::ostream& out, const std::string& indent) const
 {
 	if (!m_attr && !m_child)
@@ -215,60 +227,66 @@ void DocumentNode::printNodeValueJson( std::ostream& out, const std::string& ind
 	else
 	{
 		int cnt = 0;
-		bool ismap = m_attr || (m_child && !m_child->m_name.empty());
-		bool isarray = !ismap;
-		out << (isarray ? "[":"{");
+		out << "{";
 		DocumentNode const* ai = m_attr;
 		for (; ai; ai = ai->m_next,++cnt)
 		{
 			if (cnt) out << ",";
 			out << indent << indentTab() << "\"-" << ai->m_name << "\":\"" << ai->m_value << "\"";
 		}
-		DocumentNode const* ci = m_child;
-		for (; ci; ci = ci->m_next,++cnt)
+		if (m_child)
 		{
-			if (cnt) out << ",";
-			if (isarray && !ci->m_name.empty()) throw std::runtime_error( "miximg array with dictonary in JSON");
-			if (ismap && ci->m_name.empty()) throw std::runtime_error( "miximg array with dictonary in JSON");
-			ci->printNodeJson( out, indent + indentTab());
+			m_child->printNodeListJson( out, indent + indentTab(), cnt++);
 		}
 		if (!m_value.empty())
 		{
 			if (cnt) out << ",";
 			out << indent << indentTab() << "\"#text\":\"" << m_value << "\"";
 		}
-		out << indent << (isarray ? "]":"}");
+		out << "}";
 	}
 }
 
-void DocumentNode::printNodeJson( std::ostream& out, const std::string& indent) const
+void DocumentNode::printNodeListJson( std::ostream& out, const std::string& indent, int cnt) const
 {
-	if (!m_name.empty())
-	{
-		out << indent << "\"" << m_name << "\":";
-		printNodeValueJson( out, indent);
-	}
-	else
-	{
-		printNodeValueJson( out, indent);
-	}
-}
-
-void DocumentNode::printNodeListJson( std::ostream& out, const std::string& indent) const
-{
-	int cnt = 0;
-	bool isarray = m_name.empty();
-	bool ismap = !isarray;
-	out << indent << (isarray ? "[":"{");
 	DocumentNode const* ci = this;
-	for (; ci; ci = ci->m_next,++cnt)
+	while (ci)
 	{
 		if (cnt) out << ",";
-		if (isarray && !ci->m_name.empty()) throw std::runtime_error( "miximg array with dictonary in JSON");
-		if (ismap && ci->m_name.empty()) throw std::runtime_error( "miximg array with dictonary in JSON");
-		ci->printNodeJson( out, indent + indentTab());
+		const DocumentNode* cn = getNodeNextDiffName( ci);
+		if (cn == ci->m_next)
+		{
+			if (!m_name.empty())
+			{
+				out << indent << "\"" << m_name << "\": ";
+				ci->printNodeValueJson( out, indent);
+			}
+			else
+			{
+				ci->printNodeValueJson( out, indent);
+			}
+			++cnt;
+			ci = ci->m_next;
+		}
+		else
+		{
+			if (ci->m_name.empty())
+			{
+				out << indent << "[";
+			}
+			else
+			{
+				out << indent << "\"" << ci->m_name << "\": [";
+			}
+			for (int acnt=0; ci != cn; ci = ci->m_next,++acnt)
+			{
+				if (acnt) out << ",";
+				ci->printNodeValueJson( out, indent);
+			}
+			out << "]";
+			++cnt;
+		}
 	}
-	out << indent << (isarray ? "]":"}");
 }
 
 struct RequestParserRef

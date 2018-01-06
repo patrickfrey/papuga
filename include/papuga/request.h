@@ -21,6 +21,16 @@ typedef struct papuga_RequestAutomaton papuga_RequestAutomaton;
 typedef struct papuga_Request papuga_Request;
 
 /*
+ * \brief Defines an identifier for a method
+ */
+typedef struct papuga_RequestMethodId
+{
+	int classid;					/*< index of object class starting with 1 */
+	int functionid ;				/*< index of method function in class starting with 1 */
+} papuga_RequestMethodId;
+
+
+/*
  * \brief Create an automaton to configure
  * \return The automaton structure
  */
@@ -42,8 +52,7 @@ papuga_ErrorCode papuga_RequestAutomaton_last_error( const papuga_RequestAutomat
  * \brief Add a method call
  * \param[in,out] self automaton manipulated
  * \param[in] expression xpath expression (abbreviated syntax of xpath) bound to the method to call
- * \param[in] classname class name of method to call
- * \param[in] methodname name of method to call, NULL if constructor to be called
+ * \param[in] method identifier of the method to call
  * \param[in] selfvarname identifier of the owner object for the method to call
  * \param[in] resultvarname identifier to use for the result
  * \param[in] nofargs number of arguments of the call
@@ -51,26 +60,10 @@ papuga_ErrorCode papuga_RequestAutomaton_last_error( const papuga_RequestAutomat
 bool papuga_RequestAutomaton_add_call(
 		papuga_RequestAutomaton* self,
 		const char* expression,
-		const char* classname,
-		const char* methodname,
+		const papuga_RequestMethodId* method,
 		const char* selfvarname,
 		const char* resultvarname,
 		int nofargs);
-
-/*
- * \brief Define the start of a call group. Calls inside a group are executed in sequential order for their context. 
- * \note Groups define the first order criterion for call execution. The three criterions are (groupid,position,elementid), single elements are implicitely assigned to a group with one element. Calls without grouping are executed in order of their definition.
- * \remark Only one level of grouping allowed
- * \return true on success, false if already a group defined
- */
-bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self);
-
-/*
- * \brief Define the end of a call group. Calls inside a group are executed in sequential order for their context
- * \remark Only one level of grouping allowed
- * \return true on success, false if no group defined yet
- */
-bool papuga_RequestAutomaton_close_group( papuga_RequestAutomaton* self);
 
 /*
  * \brief Define a variable reference as argument to the last method call added
@@ -97,6 +90,21 @@ bool papuga_RequestAutomaton_set_call_arg_item(
 		int idx,
 		int itemid,
 		bool inherited);
+
+/*
+ * \brief Define the start of a call group. Calls inside a group are executed in sequential order for their context. 
+ * \note Groups define the first order criterion for call execution. The three criterions are (groupid,position,elementid), single elements are implicitely assigned to a group with one element. Calls without grouping are executed in order of their definition.
+ * \remark Only one level of grouping allowed
+ * \return true on success, false if already a group defined
+ */
+bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self);
+
+/*
+ * \brief Define the end of a call group. Calls inside a group are executed in sequential order for their context
+ * \remark Only one level of grouping allowed
+ * \return true on success, false if no group defined yet
+ */
+bool papuga_RequestAutomaton_close_group( papuga_RequestAutomaton* self);
 
 /*
  * \brief Add a structure built from elements or structures in the document processed
@@ -230,8 +238,7 @@ papuga_ErrorCode papuga_Request_last_error( const papuga_Request* self);
  */
 typedef struct papuga_RequestMethodCall
 {
-	const char* classname;				/*< method class name */
-	const char* methodname;				/*< method name */
+	papuga_RequestMethodId methodid;		/*< method identifier */
 	papuga_CallArgs args;				/*< arguments of the call */
 	char membuf[ 4096];				/*< local memory buffer for allocator */
 } papuga_RequestMethodCall;

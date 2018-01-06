@@ -53,6 +53,8 @@ typedef enum {
 	papuga_RequestElementType_Value					/*< content value */
 } papuga_RequestElementType;
 
+const char* papuga_requestElementTypeName( papuga_RequestElementType tp);
+
 /*
  * Document parser interface
  */
@@ -121,6 +123,21 @@ papuga_ErrorCode papuga_RequestParser_last_error( const papuga_RequestParser* se
  * \return position or -1 if not available
  */
 int papuga_RequestParser_get_position( const papuga_RequestParser* self, char* locbuf, size_t locbufsize);
+
+/*
+ * Forward declaration
+ */
+typedef struct papuga_Request papuga_Request;
+
+/*
+ * \brief Feed a request iterating with a request parser on some content
+ * \param[in,out] parser the iterator on content
+ * \param[in,out] request the request to feed
+ * \param[out] errcode the error code in case of an error
+ * \return true on success, error on failure
+ * \note to get the error position in case of an error with a hint on the location call 'papuga_RequestParser_get_position'
+ */
+bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Request* request, papuga_ErrorCode* errcode);
 
 #ifdef __cplusplus
 }

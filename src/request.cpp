@@ -11,6 +11,7 @@
 #include "papuga/serialization.h"
 #include "papuga/allocator.h"
 #include "papuga/valueVariant.h"
+#include "papuga/valueVariant.hpp"
 #include "papuga/callArgs.h"
 #include "textwolf/xmlpathautomatonparse.hpp"
 #include "textwolf/xmlpathselect.hpp"
@@ -20,8 +21,13 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <cstdio>
 #include <cmath>
 #include <algorithm>
+
+#define PAPUGA_LOWLEVEL_DEBUG
+
+using namespace papuga;
 
 namespace {
 struct ValueDef
@@ -72,25 +78,57 @@ struct CallArgDef
 
 struct CallDef
 {
-	const char* classname;
-	const char* methodname;
+	papuga_RequestMethodId methodid;
 	const char* selfvarname;
 	const char* resultvarname;
 	CallArgDef* args;
 	int nofargs;
 	int groupid;
 
-	CallDef( const char* classname_, const char* methodname_, const char* selfvarname_, const char* resultvarname_, CallArgDef* args_, int nofargs_, int groupid_)
-		:classname(classname_),methodname(methodname_),selfvarname(selfvarname_),resultvarname(resultvarname_),args(args_),nofargs(nofargs_),groupid(groupid_){}
+	CallDef( const papuga_RequestMethodId* methodid_, const char* selfvarname_, const char* resultvarname_, CallArgDef* args_, int nofargs_, int groupid_)
+		:selfvarname(selfvarname_),resultvarname(resultvarname_),args(args_),nofargs(nofargs_),groupid(groupid_)
+	{
+		methodid.classid = methodid_->classid;
+		methodid.functionid  = methodid_->functionid ;
+	}
 	CallDef( const CallDef& o)
-		:classname(o.classname),methodname(o.methodname),selfvarname(o.selfvarname),resultvarname(o.resultvarname),args(o.args),nofargs(o.nofargs),groupid(o.groupid){}
+		:selfvarname(o.selfvarname),resultvarname(o.resultvarname),args(o.args),nofargs(o.nofargs),groupid(o.groupid)
+	{
+		methodid.classid = o.methodid.classid;
+		methodid.functionid = o.methodid.functionid;
+	}
+
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	std::string tostring() const
+	{
+		std::ostringstream out;
+		if (resultvarname) out << resultvarname << " = ";
+		if (selfvarname) out << selfvarname << "->";
+		out << "[" << methodid.classid << "," << methodid.functionid << "] (";
+		int ai = 0, ae = nofargs;
+		for (; ai != ae; ++ai)
+		{
+			out << (ai ? ", " : " ");
+			if (args[ai].varname)
+			{
+				out << "?" << args[ai].varname;
+			}
+			else
+			{
+				out << args[ai].itemid << (args[ai].inherited?" inherited":"");
+			}
+		}
+		out << ");";
+		return out.str();
+	}
+#endif
 };
 
 typedef int AtmRef;
 enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall};
-static AtmRef AtmRef_get( AtmRefType type, int idx)	{return (AtmRef)(((int)type<<28) | idx);}
+static AtmRef AtmRef_get( AtmRefType type, int idx)	{return (AtmRef)(((int)type<<28) | (idx+1));}
 static AtmRefType AtmRef_type( AtmRef atmref)		{return (AtmRefType)((atmref>>28) & 0x7);}
-static int AtmRef_index( AtmRef atmref)			{return ((int)atmref & (((int)atmref<<28)-1));}
+static int AtmRef_index( AtmRef atmref)			{return ((int)atmref & 0x0fFFffFF)-1;}
 
 #define CATCH_LOCAL_EXCEPTION(ERRCODE,RETVAL)\
 	catch (const std::bad_alloc&)\
@@ -118,11 +156,15 @@ public:
 	}
 
 	/* @param[in] expression selector of the call scope */
-	/* @param[in] args {0,NULL} terminated list of arguments */
-	bool addCall( const char* expression, const char* classname_, const char* methodname_, const char* selfvarname_, const char* resultvarname_, int nofargs)
+	/* @param[in] nofargs number of arguments */
+	bool addCall( const char* expression, const papuga_RequestMethodId* method_, const char* selfvarname_, const char* resultvarname_, int nofargs)
 	{
 		try
 		{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton add call expression='%s', class=%d, method=%d, self='%s', result='%s', nofargs=%d\n",
+					expression, method_->classid, method_->functionid , selfvarname_, resultvarname_, nofargs);
+#endif
 			if (m_done)
 			{
 				m_errcode = papuga_ExecutionOrder;
@@ -136,19 +178,20 @@ public:
 			std::string open_expression( cut_trailing_slashes( expression));
 			std::string close_expression( open_expression + "~");
 			int mm = nofargs * sizeof(CallArgDef);
-			CallArgDef* car = (CallArgDef*)papuga_Allocator_alloc( &m_allocator, mm, sizeof(CallArgDef));
-			const char* classname = papuga_Allocator_copy_charp( &m_allocator, classname_);
-			const char* methodname = papuga_Allocator_copy_charp( &m_allocator, methodname_);
+			CallArgDef* car = (CallArgDef*)papuga_Allocator_alloc( &m_allocator, mm, 0);
 			const char* selfvarname = papuga_Allocator_copy_charp( &m_allocator, selfvarname_);
 			const char* resultvarname = papuga_Allocator_copy_charp( &m_allocator, resultvarname_);
-			if (!car || !classname || !methodname || !selfvarname || !resultvarname)
+			if (!car || !selfvarname || !resultvarname)
 			{
 				m_errcode = papuga_NoMemError;
 				return false;
 			}
 			std::memset( car, 0, mm);
 			m_atm.addExpression( AtmRef_get( MethodCall, m_calldefs.size()), close_expression.c_str(), close_expression.size());
-			m_calldefs.push_back( CallDef( classname, methodname, selfvarname, resultvarname, car, nofargs, m_groupid < 0 ? m_calldefs.size():m_groupid));
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton add event call expression='%s' [%d,%d]\n", close_expression.c_str(), (int)MethodCall, (int)m_calldefs.size());
+#endif
+			m_calldefs.push_back( CallDef( method_, selfvarname, resultvarname, car, nofargs, m_groupid < 0 ? m_calldefs.size():m_groupid));
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 		return true;
@@ -161,61 +204,85 @@ public:
 
 	bool setCallArg( int idx, const CallArgDef& adef_)
 	{
-		if (m_done)
+		try
 		{
-			m_errcode = papuga_InvalidAccess;
-			return false;
+			if (m_done)
+			{
+				m_errcode = papuga_InvalidAccess;
+				return false;
+			}
+			if (m_calldefs.empty() || idx < 0 || idx >= m_calldefs.back().nofargs)
+			{
+				m_errcode = papuga_InvalidAccess;
+				return false;
+			}
+			CallArgDef& adef = m_calldefs.back().args[ idx];
+			if (adef.varname || adef.itemid)
+			{
+				m_errcode = papuga_DuplicateDefinition;
+				return false;
+			}
+			adef.itemid = adef_.itemid;
+			adef.varname = adef_.varname;
+			return true;
 		}
-		if (m_calldefs.empty() || idx < 0 || idx >= m_calldefs.back().nofargs)
-		{
-			m_errcode = papuga_InvalidAccess;
-			return false;
-		}
-		CallArgDef& adef = m_calldefs.back().args[ idx];
-		if (adef.varname || adef.itemid)
-		{
-			m_errcode = papuga_DuplicateDefinition;
-			return false;
-		}
-		adef.itemid = adef_.itemid;
-		adef.varname = adef_.varname;
+		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 		return true;
 	}
 
 	bool setCallArgVar( int idx, const char* argvar)
 	{
-		if (!argvar)
+		try
 		{
-			m_errcode = papuga_TypeError;
-			return false;
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton set call argument variable=%s\n", argvar);
+#endif
+			if (!argvar)
+			{
+				m_errcode = papuga_TypeError;
+				return false;
+			}
+			CallArgDef adef( papuga_Allocator_copy_charp( &m_allocator, argvar), 0, false);
+			if (!adef.varname)
+			{
+				m_errcode = papuga_NoMemError;
+				return false;
+			}
+			return setCallArg( idx, adef);
 		}
-		CallArgDef adef( papuga_Allocator_copy_charp( &m_allocator, argvar), 0, false);
-		if (!adef.varname)
-		{
-			m_errcode = papuga_NoMemError;
-			return false;
-		}
-		return setCallArg( idx, adef);
+		CATCH_LOCAL_EXCEPTION(m_errcode,false)
+		return true;
 	}
 
 	bool setCallArgItem( int idx, int itemid, bool inherited)
 	{
-		if (itemid <= 0)
+		try
 		{
-			m_errcode = papuga_TypeError;
-			return false;
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton set call argument itemid=%d%s\n", itemid, inherited ? ", inherited":"");
+#endif
+			if (itemid <= 0)
+			{
+				m_errcode = papuga_TypeError;
+				return false;
+			}
+			CallArgDef adef( 0, itemid, inherited);
+			return setCallArg( idx, adef);
 		}
-		CallArgDef adef( 0, itemid, inherited);
-		return setCallArg( idx, adef);
+		CATCH_LOCAL_EXCEPTION(m_errcode,false)
+		return true;
 	}
 
 	/* @param[in] expression selector of the structure (tag) */
 	/* @param[in] itemid identifier for the item associated with this structure */
-	/* @param[in] members {NULL,0} terminated list of members */
+	/* @param[in] nofmembers number of members */
 	bool addStructure( const char* expression, int itemid, int nofmembers)
 	{
 		try
 		{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton add structure expression='%s', itemid=%d, nofmembers=%d\n", expression, itemid, nofmembers);
+#endif
 			if (!checkItemId( itemid))
 			{
 				return false;
@@ -236,6 +303,9 @@ public:
 			}
 			std::memset( mar, 0, mm);
 			m_atm.addExpression( AtmRef_get( CloseStruct, m_structdefs.size()), close_expression.c_str(), close_expression.size());
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton add event structure close expression='%s' [%d,%d]\n", close_expression.c_str(), (int)CloseStruct, (int)m_structdefs.size());
+#endif
 			m_structdefs.push_back( StructDef( itemid, mar, nofmembers));
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -244,46 +314,54 @@ public:
 
 	bool setMember( int idx, const char* name, int itemid, bool inherited)
 	{
-		if (!checkItemId( itemid))
+		try
 		{
-			return false;
-		}
-		if (m_done)
-		{
-			m_errcode = papuga_ExecutionOrder;
-			return false;
-		}
-		if (m_structdefs.empty() || idx < 0 || idx >= m_structdefs.back().nofmembers)
-		{
-			m_errcode = papuga_InvalidAccess;
-			return false;
-		}
-		if (itemid <= 0)
-		{
-			m_errcode = papuga_TypeError;
-			return false;
-		}
-		StructMemberDef& mdef = m_structdefs.back().members[ idx];
-		if (mdef.itemid)
-		{
-			m_errcode = papuga_DuplicateDefinition;
-			return false;
-		}
-		mdef.itemid = itemid;
-		mdef.inherited = inherited;
-		if (name)
-		{
-			mdef.name = papuga_Allocator_copy_charp( &m_allocator, name);
-			if (!mdef.name)
+	#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton set structure member name='%s', itemid=%d%s\n", name, itemid, inherited ? ", inherited":"");
+	#endif
+			if (!checkItemId( itemid))
 			{
-				m_errcode = papuga_NoMemError;
 				return false;
 			}
+			if (m_done)
+			{
+				m_errcode = papuga_ExecutionOrder;
+				return false;
+			}
+			if (m_structdefs.empty() || idx < 0 || idx >= m_structdefs.back().nofmembers)
+			{
+				m_errcode = papuga_InvalidAccess;
+				return false;
+			}
+			if (itemid <= 0)
+			{
+				m_errcode = papuga_TypeError;
+				return false;
+			}
+			StructMemberDef& mdef = m_structdefs.back().members[ idx];
+			if (mdef.itemid)
+			{
+				m_errcode = papuga_DuplicateDefinition;
+				return false;
+			}
+			mdef.itemid = itemid;
+			mdef.inherited = inherited;
+			if (name)
+			{
+				mdef.name = papuga_Allocator_copy_charp( &m_allocator, name);
+				if (!mdef.name)
+				{
+					m_errcode = papuga_NoMemError;
+					return false;
+				}
+			}
+			else
+			{
+				mdef.name = 0;
+			}
+			return true;
 		}
-		else
-		{
-			mdef.name = 0;
-		}
+		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 		return true;
 	}
 
@@ -294,6 +372,9 @@ public:
 	{
 		try
 		{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton add value scope='%s', select='%s', itemid=%d\n", scope_expression, select_expression, itemid);
+#endif
 			if (!checkItemId( itemid))
 			{
 				return false;
@@ -318,12 +399,20 @@ public:
 					return false;
 				}
 			}
+			else if (select_expression[0] == '@' || select_expression[0] == '(')
+			{
+				value_expression.append( open_expression + select_expression);
+			}
 			else
 			{
 				value_expression.append( open_expression + "/" + select_expression);
 			}
 			m_atm.addExpression( AtmRef_get( InstantiateValue, m_valuedefs.size()), value_expression.c_str(), value_expression.size());
 			m_atm.addExpression( AtmRef_get( CollectValue, m_valuedefs.size()), close_expression.c_str(), close_expression.size());
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton add event instantiate value expression='%s' [%d,%d]\n", value_expression.c_str(), (int)InstantiateValue, (int)m_valuedefs.size());
+			fprintf( stderr, "automaton add event collect value expression='%s' [%d,%d]\n", close_expression.c_str(), (int)CollectValue, (int)m_valuedefs.size());
+#endif
 			m_valuedefs.push_back( ValueDef( itemid));
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -332,6 +421,9 @@ public:
 
 	bool openGroup()
 	{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		fprintf( stderr, "automaton open group\n");
+#endif
 		if (m_groupid >= 0)
 		{
 			m_errcode = papuga_LogicError;
@@ -343,6 +435,9 @@ public:
 
 	bool closeGroup()
 	{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		fprintf( stderr, "automaton close group\n");
+#endif
 		if (m_groupid < 0)
 		{
 			m_errcode = papuga_LogicError;
@@ -354,6 +449,10 @@ public:
 
 	bool done()
 	{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		fprintf( stderr, "automaton done\n");
+		fflush( stderr);
+#endif
 		if (m_done)
 		{
 			m_errcode = papuga_LogicError;
@@ -524,8 +623,8 @@ struct MethodCallNode
 
 static void papuga_init_RequestMethodCall( papuga_RequestMethodCall* self)
 {
-	self->classname = 0;
-	self->methodname = 0;
+	self->methodid.classid = -1;
+	self->methodid.functionid  = -1;
 	papuga_init_CallArgs( &self->args, self->membuf, sizeof(self->membuf));
 }
 
@@ -610,6 +709,11 @@ public:
 	{
 		try
 		{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			papuga_ErrorCode errcode = papuga_Ok;
+			std::string tagnamestr = ValueVariant_tostring( *tagname, errcode);
+			fprintf( stderr, "process open tag '%s'\n", tagnamestr.c_str());
+#endif
 			LocalBuffer localbuf( tagname, m_allocator, m_errcode);
 			if (!localbuf.valuestr) return false;
 			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::OpenTag, localbuf.valuestr, localbuf.valuesize);
@@ -624,6 +728,11 @@ public:
 	{
 		try
 		{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			papuga_ErrorCode errcode = papuga_Ok;
+			std::string attrnamestr = ValueVariant_tostring( *attrname, errcode);
+			fprintf( stderr, "process attribute name '%s'\n", attrnamestr.c_str());
+#endif
 			LocalBuffer localbuf( attrname, m_allocator, m_errcode);
 			if (!localbuf.valuestr) return false;
 			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::TagAttribName, localbuf.valuestr, localbuf.valuesize);
@@ -636,6 +745,11 @@ public:
 	{
 		try
 		{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			papuga_ErrorCode errcode = papuga_Ok;
+			std::string valuestr = ValueVariant_tostring( *value, errcode);
+			fprintf( stderr, "process attribute value '%s'\n", valuestr.c_str());
+#endif
 			LocalBuffer localbuf( value, m_allocator, m_errcode);
 			if (!localbuf.valuestr) return false;
 			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::TagAttribValue, localbuf.valuestr, localbuf.valuesize);
@@ -649,6 +763,11 @@ public:
 	{
 		try
 		{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			papuga_ErrorCode errcode = papuga_Ok;
+			std::string valuestr = ValueVariant_tostring( *value, errcode);
+			fprintf( stderr, "process value '%s'\n", valuestr.c_str());
+#endif
 			LocalBuffer localbuf( value, m_allocator, m_errcode);
 			if (!localbuf.valuestr) return false;
 			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::Content, localbuf.valuestr, localbuf.valuesize);
@@ -662,6 +781,9 @@ public:
 	{
 		try
 		{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "process close tag\n");
+#endif
 			static Value empty;
 			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::CloseTag, "", 0);
 			for (; *itr; ++itr) processEvent( *itr, &empty.content, true);
@@ -684,8 +806,8 @@ public:
 				std::sort( m_methodcalls.begin(), m_methodcalls.end());
 			}
 			const MethodCallNode& mcnode = m_methodcalls[ m_curr_methodidx++];
-			m_curr_methodcall.classname = mcnode.def->classname;
-			m_curr_methodcall.methodname = mcnode.def->methodname;
+			m_curr_methodcall.methodid.classid = mcnode.def->methodid.classid;
+			m_curr_methodcall.methodid.functionid = mcnode.def->methodid.functionid;
 			papuga_init_CallArgs( &m_curr_methodcall.args, m_curr_methodcall.membuf, sizeof(m_curr_methodcall.membuf));
 			if (set_callArgs( &m_curr_methodcall.args, mcnode))
 			{
@@ -693,7 +815,6 @@ public:
 			}
 			else
 			{
-				m_errcode = m_curr_methodcall.args.errcode;
 				return NULL;
 			}
 			
@@ -772,7 +893,8 @@ private:
 		ScopeObjResolver& resolver = m_resolvers[ itemid];
 		if (resolver.current == resolver.map.end())
 		{
-			resolver.current = resolver.map.lower_bound( scope);
+			Scope searchScope( scope.from, 0);
+			resolver.current = resolver.map.lower_bound( searchScope);
 		}
 		else if (resolver.current->first.from < scope.from)
 		{
@@ -944,6 +1066,7 @@ private:
 				}
 			}
 		}
+		args->argc = mcdef->nofargs;
 		return true;
 	}
 
@@ -955,6 +1078,11 @@ private:
 		{
 			case InstantiateValue:
 			{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+				papuga_ErrorCode errcode = papuga_Ok;
+				std::string evaluestr = ValueVariant_tostring( *evalue, errcode);
+				fprintf( stderr, "process event [%d,%d] instantiate value='%s', itemid=%d\n", (int)InstantiateValue, evidx, evaluestr.c_str(), m_atm->valuedefs()[ evidx].itemid);
+#endif
 				if (!deepcopy)
 				{
 					m_valuenodes.push_back( ValueNode( m_atm->valuedefs()[ evidx].itemid, Value( evalue)));
@@ -975,20 +1103,26 @@ private:
 			case CollectValue:
 			{
 				int itemid = m_atm->valuedefs()[ evidx].itemid;
-				std::vector<ValueNode>::iterator vi = m_valuenodes.begin(), ve = m_valuenodes.end();
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+				fprintf( stderr, "process event [%d,%d] collect item id=%d\n", (int)CollectValue, evidx, itemid);
+#endif
+				std::vector<ValueNode>::iterator vi = m_valuenodes.begin();
 				int valuecnt = 0;
-				while (vi != ve)
+				int vidx = 0;
+				while (vidx != m_valuenodes.size())
 				{
 					if (vi->itemid == itemid)
 					{
 						m_resolvers[ itemid].insert( m_scopestack.back(), scopecnt, ObjectRef_value( m_values.size()));
 						m_values.push_back( vi->value);
 						m_valuenodes.erase( vi);
+						vi = m_valuenodes.begin() + vidx;
 						++valuecnt;
 					}
 					else
 					{
 						++vi;
+						++vidx;
 					}
 				}
 				if (valuecnt == 0)
@@ -1005,6 +1139,9 @@ private:
 			}
 			case CloseStruct:
 			{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+				fprintf( stderr, "process event [%d,%d] close struct itemid=%d\n", (int)CloseStruct, evidx, m_atm->valuedefs()[ evidx].itemid);
+#endif
 				const StructDef* stdef = &m_atm->structdefs()[ evidx];
 				int itemid = stdef->itemid;
 				m_resolvers[ itemid].insert( m_scopestack.back(), scopecnt, ObjectRef_struct( m_structs.size()));
@@ -1012,6 +1149,10 @@ private:
 			}
 			case MethodCall:
 			{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+				std::string calldefstr = m_atm->calldefs()[ evidx].tostring();
+				fprintf( stderr, "process event [%d,%d] method call: %s\n", (int)MethodCall, evidx, calldefstr.c_str());
+#endif
 				const CallDef* calldef = &m_atm->calldefs()[ evidx];
 				MethodCallKey key( calldef->groupid, scopecnt, evidx);
 				Scope scope( m_scopestack.back(), scopecnt);
@@ -1106,13 +1247,12 @@ extern "C" papuga_ErrorCode papuga_RequestAutomaton_last_error( const papuga_Req
 extern "C" bool papuga_RequestAutomaton_add_call(
 		papuga_RequestAutomaton* self,
 		const char* expression,
-		const char* classname,
-		const char* methodname,
+		const papuga_RequestMethodId* method,
 		const char* selfvarname,
 		const char* resultvarname,
 		int nargs)
 {
-	return self->atm.addCall( expression, classname, methodname, selfvarname, resultvarname, nargs);
+	return self->atm.addCall( expression, method, selfvarname, resultvarname, nargs);
 }
 
 extern "C" bool papuga_RequestAutomaton_set_call_arg_var( papuga_RequestAutomaton* self, int idx, const char* varname)
