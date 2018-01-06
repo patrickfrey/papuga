@@ -10,10 +10,13 @@
 /// \brief Main C++ include file of the papuga library
 /// \file papuga.hpp
 
+/* Implemented in library papuga_devel: */
 #include "papuga.h"
 #include "papuga/errors.hpp"
 #include "papuga/valueVariant.hpp"
 #include "papuga/serialization.hpp"
+
+/* Implemented in library papuga_request_devel: */
 #include "papuga/requestAutomaton.hpp"
 
 #endif

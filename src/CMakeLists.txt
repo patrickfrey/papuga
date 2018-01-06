@@ -15,12 +15,12 @@ set( source_files
 	valueVariant.cpp
 	valueVariant.c
 	serialization.cpp
-	requestAutomaton.cpp
 )
 
 set( source_files_request
 	request.cpp
 	requestParser.c
+	requestAutomaton.cpp
 	requestParser_json.cpp
 	requestParser_xml.cpp
 	requestParser_utils.c

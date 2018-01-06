@@ -11,6 +11,7 @@
 * @brief Main C include file of the papuga library
 * @file papuga.h
 */ 
+/* Implemented in library papuga_devel: */
 #include "papuga/typedefs.h"
 #include "papuga/version.h"
 #include "papuga/languages.h"
@@ -24,6 +25,8 @@
 #include "papuga/valueVariant.h"
 #include "papuga/stack.h"
 #include "papuga/interfaceDescription.h"
+
+/* Implemented in library papuga_request_devel: */
 #include "papuga/request.h"
 #include "papuga/requestParser.h"
 

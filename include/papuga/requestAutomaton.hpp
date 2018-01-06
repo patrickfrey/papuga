@@ -7,7 +7,7 @@
  */
 #ifndef _PAPUGA_REQUEST_AUTOMATON_HPP_INCLUDED
 #define _PAPUGA_REQUEST_AUTOMATON_HPP_INCLUDED
-/// \brief Structure to define an automaton mapping a request to function calls in C++ in a convenient way
+/// \brief Structure to define an automaton mapping a request to function calls in C++ in a convenient way (using initializer lists in C++11)
 /// \file requestAutomaton.hpp
 #include "papuga.hpp"
 #include <string>
@@ -208,6 +208,7 @@ public:
 	/// \param[in] methodid identifier of the method to call
 	/// \param[in] args list of references addressing the arguments of the method call
 	/// \remark Only available if this automaton has been constructed as empty
+	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
 	void addFunction( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const RequestAutomaton_FunctionDef::Arg* args);
 
 	/// \brief Add a structure definition
@@ -215,6 +216,7 @@ public:
 	/// \param[in] expression select expression addressing the scope of this structure definition
 	/// \param[in] itemid item identifier unique in its scope (referencing a value or a structure)
 	/// \param[in] elems list of references to the elements of this structure
+	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
 	void addStruct( const char* expression, int itemid, const RequestAutomaton_StructDef::Element* elems);
 
 	/// \brief Add an atomic value definition
@@ -222,21 +224,26 @@ public:
 	/// \param[in] scope_expression selecting expression addressing the scope of this value definition
 	/// \param[in] select_expression selecting expression addressing the value itself
 	/// \param[in] itemid identifier given to the item to make it uniquely addressable in the context of its scope
+	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
 	void addValue( const char* scope_expression, const char* select_expression, int itemid);
 
 	/// \brief Open a method call group definition
 	/// \remark Only available if this automaton has been constructed as empty
+	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
 	void openGroup();
 
 	/// \brief Close a method call group definition
 	/// \remark Only available if this automaton has been constructed as empty
+	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
 	void closeGroup();
 
 	/// \brief Finish the automaton definition
 	/// \remark Only available if this automaton has been constructed as empty
+	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
 	void done();
 
 	/// \brief Get the pointer to the defined automaton for handling requests
+	/// \return the automaton definition
 	const papuga_RequestAutomaton* impl() const	{return m_atm;}
 
 private:
