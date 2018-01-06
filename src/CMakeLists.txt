@@ -31,8 +31,7 @@ include_directories(
 	"${PROJECT_SOURCE_DIR}/src"
 	"${PROJECT_SOURCE_DIR}/3rdParty/textwolf/include"
 	"${PROJECT_SOURCE_DIR}/3rdParty/cjson/include"
-	"${CMAKE_BINARY_DIR}/include"
-	"${PROJECT_SOURCE_DIR}/include"
+	"${PAPUGA_INCLUDE_DIRS}"
 )
 
 link_directories(
