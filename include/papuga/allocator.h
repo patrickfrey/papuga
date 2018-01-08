@@ -65,10 +65,20 @@ void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned
 * @brief Allocate a string copy
 * @param[in,out] self pointer to structure 
 * @param[in] str pointer to string to copy
-* @param[in] len length of string to copy in bytes without 0 termination
+* @param[in] len length of string to copy in bytes without 0 termination (that does not have to be provided)
 * @return the pointer to the string copy
 */
 char* papuga_Allocator_copy_string( papuga_Allocator* self, const char* str, size_t len);
+
+/*
+* @brief Allocate a string copy with encoding
+* @param[in,out] self pointer to structure 
+* @param[in] str pointer to string to copy
+* @param[in] len length of string to copy in units without 0 termination (that does not have to be provided)
+* @param[in] enc character set encoding of the string to copy
+* @return the pointer to the string copy
+*/
+char* papuga_Allocator_copy_string_enc( papuga_Allocator* self, const char* str, size_t len, papuga_StringEncoding enc);
 
 /*
 * @brief Allocate a string copy
@@ -110,6 +120,18 @@ papuga_Iterator* papuga_Allocator_alloc_Iterator( papuga_Allocator* self, void* 
 * @return the pointer to the allocated allocator object
 */
 papuga_Allocator* papuga_Allocator_alloc_Allocator( papuga_Allocator* self);
+
+/*
+* @brief Make a deep copy of a variant value in this allocator, with ownership of of unshareable objects kept in source or moved to dest, depending on a parameter flag
+* @param[in] self pointer to allocator structure where to allocate the deep copy
+* @param[in] dest where to write result of deep copy
+* @param[in] orig value to copy
+* @param[in] moveobj parameter flag deciding who of dest or orig keeps the ownership of host object references, true => ownership moved to dest, false owner ship remains in orig
+* @param[out] errcode error code in case of error, untouched on success
+* @return the pointer to the deep value copy object
+* @note iterators cannot be copied as such, they are expanded as serialization
+*/
+bool papuga_Allocator_deepcopy_value( papuga_Allocator* self, papuga_ValueVariant* dest, papuga_ValueVariant* orig, bool moveobj, papuga_ErrorCode* errcode);
 
 #ifdef __cplusplus
 }

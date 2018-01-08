@@ -275,6 +275,6 @@ bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Req
 				break;
 		}
 	}
-	return true;
+	return papuga_Request_done( request);
 }
 

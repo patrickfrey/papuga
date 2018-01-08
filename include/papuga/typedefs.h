@@ -47,7 +47,10 @@ typedef enum papuga_ErrorCode
 	papuga_SyntaxError=15,
 	papuga_UncaughtException=16,
 	papuga_ExecutionOrder=17,
-	papuga_AtomicValueExpected=18
+	papuga_AtomicValueExpected=18,
+	papuga_NotAllowed=19,
+	papuga_IteratorFailed=20,
+	papuga_AddressedItemNotFound=21
 } papuga_ErrorCode;
 
 /*
@@ -249,10 +252,10 @@ struct papuga_Serialization
 */
 typedef struct papuga_SerializationIter
 {
-	papuga_NodeChunk const* chunk;				/*< current chunk */
+	papuga_NodeChunk* chunk;				/*< current chunk */
 	papuga_Tag tag;						/*< current tag */
 	int chunkpos;						/*< current position in current chunk */
-	const papuga_ValueVariant* value;			/*< pointer to current value */
+	papuga_ValueVariant* value;				/*< pointer to current value */
 } papuga_SerializationIter;
 
 #define papuga_MAX_NOF_RETURNS 8

@@ -393,7 +393,7 @@ ERROR:
 	return false;
 }
 
-void papuga_init_SerializationIter( papuga_SerializationIter* self, const papuga_Serialization* ser)
+void papuga_init_SerializationIter( papuga_SerializationIter* self, papuga_Serialization* ser)
 {
 	self->chunk = &ser->head;
 	self->chunkpos = 0;

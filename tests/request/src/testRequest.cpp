@@ -19,14 +19,134 @@
 
 #define PAPUGA_LOWLEVEL_DEBUG
 
-using namespace papuga;
-
 struct Test
 {
 	const char* description;
-	const test::Document* doc;
-	const test::RequestAutomaton* atm;
+	const papuga::test::Document* doc;
+	const papuga::test::RequestAutomaton* atm;
 };
+
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+static void LOG_METHOD_CALL( const char* classname, const char* methodname, size_t argc, const papuga_ValueVariant* argv)
+{
+	papuga_ErrorCode errcode = papuga_Ok;
+	std::cerr << "executing method " << classname << "::" << methodname << "(";
+	size_t ai=0, ae=argc;
+	for (; ai != ae; ++ai)
+	{
+		std::cerr << (ai?", ":" ");
+		if (papuga_ValueVariant_isatomic( argv+ai))
+		{
+			std::cerr << "'" << papuga::ValueVariant_tostring( argv[ai], errcode) << "'";
+		}
+		else
+		{
+			std::cerr << "<" << papuga_Type_name( argv[ai].valuetype) << ">";
+		}
+	}
+	std::cerr << ");" << std::endl;
+}
+#else
+#define LOG_METHOD_CALL( classname, methodname, argc, argv)
+#endif
+
+class ObjectC1
+{
+public:
+	ObjectC1(){}
+};
+class ObjectC2
+{
+public:
+	ObjectC2(){}
+};
+
+static void* constructor_C1( papuga_ErrorBuffer* errbuf, size_t argc, const papuga_ValueVariant* argv)
+{
+	LOG_METHOD_CALL( "C1", "new", argc, argv);
+	return new ObjectC1();
+}
+static void destructor_C1( void* self)
+{
+	LOG_METHOD_CALL( "C1", "delete", 0, 0);
+	delete (ObjectC1*)self;
+}
+static bool method_C1M1( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
+{
+	LOG_METHOD_CALL( "C1", "m1", argc, argv);
+	return true;
+}
+static bool method_C1M2( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
+{
+	LOG_METHOD_CALL( "C1", "m2", argc, argv);
+	return true;
+}
+static bool method_C1M3( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
+{
+	LOG_METHOD_CALL( "C1", "m3", argc, argv);
+	return true;
+}
+enum {methodtable_size_C1=3};
+static papuga_ClassMethod methodtable_C1[ methodtable_size_C1] = {
+	&method_C1M1,
+	&method_C1M2,
+	&method_C1M3
+};
+static const char* methodnames_C1[ methodtable_size_C1] = {
+	"M1","M2","M3"
+};
+static void destructor_C2( void* self)
+{
+	LOG_METHOD_CALL( "C2", "delete", 0, 0);
+	delete (ObjectC1*)self;
+}
+static bool method_C2M1( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
+{
+	LOG_METHOD_CALL( "C2", "m1", argc, argv);
+	return true;
+}
+static bool method_C2M2( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
+{
+	LOG_METHOD_CALL( "C2", "m2", argc, argv);
+	return true;
+}
+static bool method_C2M3( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
+{
+	LOG_METHOD_CALL( "C2", "m3", argc, argv);
+	return true;
+}
+enum {methodtable_size_C2=3};
+static papuga_ClassMethod methodtable_C2[ methodtable_size_C2] = {
+	&method_C2M1,
+	&method_C2M2,
+	&method_C2M3
+};
+static const char* methodnames_C2[ methodtable_size_C2] = {
+	"M1","M2","M3"
+};
+
+enum {nof_classdefs=2};
+static const papuga_ClassDef g_classdefs[ nof_classdefs+1] = {
+	{"C1",constructor_C1,destructor_C1,methodtable_C1,methodnames_C1,methodtable_size_C1},
+	{"C2",		NULL,destructor_C2,methodtable_C2,methodnames_C2,methodtable_size_C2},
+	{NULL,NULL,NULL,NULL,NULL,0}
+};
+
+struct C1
+{
+	static papuga_RequestMethodId constructor() {papuga_RequestMethodId rt = {1,0}; return rt;}
+	static papuga_RequestMethodId m1() {papuga_RequestMethodId rt = {1,1}; return rt;}
+	static papuga_RequestMethodId m2() {papuga_RequestMethodId rt = {1,2}; return rt;}
+	static papuga_RequestMethodId m3() {papuga_RequestMethodId rt = {1,3}; return rt;}
+};
+struct C2
+{
+	static papuga_RequestMethodId m1() {papuga_RequestMethodId rt = {2,1}; return rt;}
+	static papuga_RequestMethodId m2() {papuga_RequestMethodId rt = {2,2}; return rt;}
+	static papuga_RequestMethodId m3() {papuga_RequestMethodId rt = {2,3}; return rt;}
+};
+
+
 
 class Request
 {
@@ -52,34 +172,7 @@ private:
 	papuga_RequestParser* m_this;
 };
 
-static std::string getRequestMethodsString( papuga_Request* request)
-{
-	papuga_ErrorCode errcode = papuga_Ok;
-	std::ostringstream out;
-	papuga_RequestMethodCall* call = 0;
-	while (0 != (call = papuga_Request_next_call( request)))
-	{
-		out << "[" << call->methodid.classid << "," << call->methodid.functionid << "] (";
-		int ai = 0, ae = call->args.argc;
-		for (; ai != ae; ++ai)
-		{
-			out << (ai ? ", ":" ");
-			out << "'" << papuga::ValueVariant_tostring( call->args.argv[ai], errcode) << "'";
-		}
-		out << ")" << std::endl;
-	}
-	if (errcode == papuga_Ok)
-	{
-		errcode = papuga_Request_last_error( request);
-	}
-	if (errcode != papuga_Ok)
-	{
-		throw papuga::error_exception( errcode, "print request");
-	}
-	return out.str();
-}
-
-static std::string executeRequestXml( const test::RequestAutomaton* atm, papuga_StringEncoding enc, const std::string& doc)
+static std::string executeRequestXml( const papuga::test::RequestAutomaton* atm, papuga_StringEncoding enc, const std::string& doc)
 {
 	Request request( papuga_create_Request( atm->impl()));
 	if (!request) throw std::bad_alloc();
@@ -92,10 +185,19 @@ static std::string executeRequestXml( const test::RequestAutomaton* atm, papuga_
 		int pos = papuga_RequestParser_get_position( parser.impl(), buf, sizeof(buf));
 		throw papuga::runtime_error( "error at position %d: %s, feeding request, location: %s", pos, papuga_ErrorCode_tostring( errcode), buf);
 	}
-	return getRequestMethodsString( request.impl());
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	{
+		papuga_Allocator allocator;
+		papuga_init_Allocator( &allocator, 0, 0);
+		const char* requestdump = papuga_Request_tostring( request.impl(), &allocator, g_classdefs, &errcode);
+		if (!requestdump) throw papuga::error_exception( errcode, "dumping request");
+		std::cerr << "ITEMS XML REQUEST:\n" << requestdump << std::endl;
+	}
+#endif
+	return std::string();
 }
 
-static std::string executeRequestJson( const test::RequestAutomaton* atm, papuga_StringEncoding enc, const std::string& doc)
+static std::string executeRequestJson( const papuga::test::RequestAutomaton* atm, papuga_StringEncoding enc, const std::string& doc)
 {
 	Request request( papuga_create_Request( atm->impl()));
 	if (!request) throw std::bad_alloc();
@@ -108,7 +210,16 @@ static std::string executeRequestJson( const test::RequestAutomaton* atm, papuga
 		int pos = papuga_RequestParser_get_position( parser.impl(), buf, sizeof(buf));
 		throw papuga::runtime_error( "error at position %d: %s, feeding request, location: %s", pos, papuga_ErrorCode_tostring( errcode), buf);
 	}
-	return getRequestMethodsString( request.impl());
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	{
+		papuga_Allocator allocator;
+		papuga_init_Allocator( &allocator, 0, 0);
+		const char* requestdump = papuga_Request_tostring( request.impl(), &allocator, g_classdefs, &errcode);
+		if (!requestdump) throw papuga::error_exception( errcode, "dumping request");
+		std::cerr << "ITEMS JSON REQUEST:\n" << requestdump << std::endl;
+	}
+#endif
+	return std::string();
 }
 
 #if __cplusplus >= 201103L
@@ -118,14 +229,14 @@ enum
 	PersonName,
 	PersonContent
 };
-static const test::Document g_testDocument1 = {"doc", { {"person", {{"name","Hugo"},{"id","1"}}, {{"Bla bla"}} } } };
-static const test::RequestAutomaton g_testRequest1 = {
+static const papuga::test::Document g_testDocument1 = {"doc", { {"person", {{"name","Hugo"},{"id","1"}}, {{"Bla bla"}} } } };
+static const papuga::test::RequestAutomaton g_testRequest1 = {
 							{"/doc/person", "@name", (int)PersonName},
 							{"/doc/person", "()", (int)PersonContent},
-							{"/doc", "var", "obj", {1,1}, {{(int)PersonName}} } 
+							{"/doc", "var", "obj", C1::m1(), {{(int)PersonName}} } 
 						};
-static const test::Document g_testDocument2 = {"doc", { {"cities", {}, {{"Bern"}}}, {"cities", {}, {{"Luzern"}}}, {"cities", {}, {{"Biel"}}} } };
-static const test::RequestAutomaton g_testRequest2 = {};
+static const papuga::test::Document g_testDocument2 = {"doc", { {"cities", {}, {{"Bern"}}}, {"cities", {}, {{"Luzern"}}}, {"cities", {}, {{"Biel"}}} } };
+static const papuga::test::RequestAutomaton g_testRequest2 = {};
 
 static const Test g_tests[] = {
 				{"simple document", &g_testDocument1, &g_testRequest1},
@@ -149,12 +260,12 @@ static void executeTest( int tidx, const Test& test)
 		{
 			std::string content = test.doc->toxml( enc, false);
 			std::cout << "XML " << papuga_StringEncoding_name( enc) << ":\n" << test.doc->toxml( enc, true) << std::endl;
-			//[+] std::cout << "DUMP XML REQUEST:\n" << test::dumpRequest( papuga_ContentType_XML, enc, content);
+			std::cout << "DUMP XML REQUEST:\n" << papuga::test::dumpRequest( papuga_ContentType_XML, enc, content);
 			std::cout << "ITEMS XML REQUEST:\n" << executeRequestXml( test.atm, enc, content);
 		}{
 			std::string content = test.doc->tojson( enc);
 			std::cout << "JSON " << papuga_StringEncoding_name( enc) << ":\n" << content << std::endl;
-			std::cout << "DUMP JSON REQUEST:\n" << test::dumpRequest( papuga_ContentType_JSON, enc, content);
+			std::cout << "DUMP JSON REQUEST:\n" << papuga::test::dumpRequest( papuga_ContentType_JSON, enc, content);
 			std::cout << "ITEMS JSON REQUEST:\n" << executeRequestJson( test.atm, enc, content);
 		}
 	}

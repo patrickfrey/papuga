@@ -39,6 +39,9 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)
 		case papuga_UncaughtException: return _TXT("uncaught exception");
 		case papuga_ExecutionOrder: return _TXT("violated a required order of execution");
 		case papuga_AtomicValueExpected: return _TXT("atomic value expected");
+		case papuga_NotAllowed: return _TXT("operation not permitted");
+		case papuga_IteratorFailed: return _TXT("call of iterator failed, details not available");
+		case papuga_AddressedItemNotFound: return _TXT("the addressed item was not found");
 		default: return _TXT("unknown error");
 	}
 }

@@ -29,7 +29,7 @@ static const char* stringCopyAsCString( const std::string& str, papuga_Allocator
 static bool Serialization_print( std::ostream& out, std::string indent, const papuga_Serialization* serialization, papuga_ErrorCode& errcode)
 {
 	papuga_SerializationIter seriter;
-	papuga_init_SerializationIter( &seriter, serialization);
+	papuga_init_SerializationIter( &seriter, const_cast<papuga_Serialization*>( serialization));
 
 	for (; !papuga_SerializationIter_eof(&seriter); papuga_SerializationIter_skip(&seriter))
 	{
@@ -315,12 +315,12 @@ extern "C" const char* papuga_Serialization_print_node( const papuga_Node* nd, c
 	}
 }
 
-std::string papuga::Serialization_tostring( const papuga_Serialization& value, papuga_ErrorCode& errcode)
+std::string papuga::Serialization_tostring( const papuga_Serialization& value, const std::string& indent, papuga_ErrorCode& errcode)
 {
 	try
 	{
 		std::ostringstream out;
-		if (!Serialization_print( out, std::string(), &value, errcode))
+		if (!Serialization_print( out, indent, &value, errcode))
 		{
 			return std::string();
 		}
@@ -333,15 +333,15 @@ std::string papuga::Serialization_tostring( const papuga_Serialization& value, p
 	}
 }
 
-std::string papuga::Serialization_tostring_deterministic( const papuga_Serialization& value, papuga_ErrorCode& errcode)
+std::string papuga::Serialization_tostring_deterministic( const papuga_Serialization& value, const std::string& indent, papuga_ErrorCode& errcode)
 {
 	try
 	{
 		std::ostringstream out;
 		papuga_SerializationIter seriter;
-		papuga_init_SerializationIter( &seriter, &value);
+		papuga_init_SerializationIter( &seriter, const_cast<papuga_Serialization*>( &value));
 
-		if (!Serialization_print_deterministic( out, std::string(), seriter, errcode))
+		if (!Serialization_print_deterministic( out, indent, seriter, errcode))
 		{
 			return std::string();
 		}

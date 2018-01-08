@@ -71,12 +71,17 @@ struct RequestAutomaton_StructDef
 	/// \brief Structure element definition
 	struct Element
 	{
-		const char* name;
-		int itemid;
-		bool inherited;
+		const char* name;	///< name of the element or NULL in case of an array element
+		int itemid;		///< identifier of the item addressing the element value
+		bool inherited;		///< true if the element is defined in the enclosing scope, false if in the enclosed scope
 
+		///\brief Constructor (named dictionary element)
 		Element( const char* name_, int itemid_, bool inherited_)
 			:name(name_),itemid(itemid_),inherited(inherited_){}
+		///\brief Constructor (array elements)
+		Element( int itemid_)
+			:name(0),itemid(itemid_),inherited(false){}
+		///\brief Copy constructor
 		Element( const Element& o)
 			:name(o.name),itemid(o.itemid),inherited(o.inherited){}
 	};

@@ -555,9 +555,10 @@ extern "C" const void* papuga_ValueVariant_tostring_enc( const papuga_ValueVaria
 		}
 		else if (enc == value->encoding)
 		{
-			if (value->length <= bufsize)
+			size_t mm = papuga_StringEncoding_unit_size( enc) * value->length;
+			if (mm >= value->length && mm <= bufsize)
 			{
-				std::memcpy( buf, value->value.string, value->length);
+				std::memcpy( buf, value->value.string, mm);
 				return buf;
 			}
 			else

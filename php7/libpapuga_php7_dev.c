@@ -461,7 +461,7 @@ static bool initValue( papuga_ValueVariant* hostval, papuga_Allocator* allocator
 	}
 }
 
-static bool deserialize( zval* return_value, int structid, papuga_Allocator* allocator, const papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+static bool deserialize( zval* return_value, int structid, papuga_Allocator* allocator, papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
 static bool iteratorToZval( zval* return_value, papuga_Iterator* iterator, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
@@ -877,7 +877,7 @@ static bool deserialize_nodes( zval* return_value, int structid, papuga_Allocato
 	return true;
 }
 
-static bool deserialize( zval* return_value, int structid, papuga_Allocator* allocator, const papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+static bool deserialize( zval* return_value, int structid, papuga_Allocator* allocator, papuga_Serialization* serialization, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	papuga_SerializationIter seriter;
 	papuga_init_SerializationIter( &seriter, serialization);

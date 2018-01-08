@@ -227,6 +227,14 @@ bool papuga_Request_feed_attribute_value( papuga_Request* self, const papuga_Val
 bool papuga_Request_feed_content_value( papuga_Request* self, const papuga_ValueVariant* value);
 
 /*
+ * \brief Terminate feeding to the request
+ * \param[in,out] self the request structure to close
+ * \return true on success, false on failure
+ * \note the error code in case of failure can be fetched with papuga_Request_last_error
+ */
+bool papuga_Request_done( papuga_Request* self);
+
+/*
  * \brief Get the last processing error of the request
  * \param[in] self request to get the last error from
  * \return the error code
@@ -238,17 +246,39 @@ papuga_ErrorCode papuga_Request_last_error( const papuga_Request* self);
  */
 typedef struct papuga_RequestMethodCall
 {
+	const char* selfvarname;			/*< variable referencing the object for the method call */
+	const char* resultvarname;			/*< variable where to write the result to */
 	papuga_RequestMethodId methodid;		/*< method identifier */
 	papuga_CallArgs args;				/*< arguments of the call */
 	char membuf[ 4096];				/*< local memory buffer for allocator */
 } papuga_RequestMethodCall;
 
+typedef struct papuga_RequestIterator papuga_RequestIterator;
+
 /*
- * \brief Get the next method call of the request
- * \param[in] self request to get the next method call from
+ * \brief Create an iterator on the method calls of a closed request
+ * \param[in] request request object to get the iterator on the request method calls
+ * \return the iterator in case of success, or NULL in case of a memory allocation error
+ */
+papuga_RequestIterator* papuga_create_RequestIterator( const papuga_Request* request);
+
+
+/*
+ * \brief Get the next method call of a request
+ * \param[in] self request iterator to get the next method call from
  * \return pointer to the method call description (temporary, only valid until the next one is fetched)
  */
-papuga_RequestMethodCall* papuga_Request_next_call( papuga_Request* self);
+papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self);
+
+/*
+ * \brief Map a request to a readable string of method calls for debugging
+ * \param[in] self request iterator to get the next method call from
+ * \param[in] allocator allocator to use for the result
+ * \param[in] classdefs class definitions to identify the methods
+ * \param[out] errcode error code in case of an error
+ * \return pointer to the string built
+ */
+const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, const papuga_ClassDef* classdefs, papuga_ErrorCode* errcode);
 
 #ifdef __cplusplus
 }
