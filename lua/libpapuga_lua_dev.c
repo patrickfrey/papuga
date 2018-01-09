@@ -190,7 +190,8 @@ static int iteratorGetNext( lua_State* ls)
 	papuga_GetNext getNext;
 	papuga_CallResult retval;
 	papuga_ErrorCode errcode = papuga_Ok;
-	char errbuf[ 2048];
+	char membuf[ 4096];
+	char errbuf[ 128];
 	const papuga_lua_UserData* udata;
 
 	void* objref = lua_touserdata( ls, lua_upvalueindex( 1));
@@ -200,7 +201,7 @@ static int iteratorGetNext( lua_State* ls)
 	udata = get_IteratorUserData( ls, lua_upvalueindex( 3));
 	if (!udata) papuga_lua_error( ls, "iterator get next", papuga_InvalidAccess);
 
-	papuga_init_CallResult( &retval, errbuf, sizeof(errbuf));
+	papuga_init_CallResult( &retval, membuf, sizeof(membuf), errbuf, sizeof(errbuf));
 	if (!(*getNext)( objref, &retval))
 	{
 		bool haserr = papuga_CallResult_hasError( &retval);

@@ -8,6 +8,7 @@
 /// \brief Structure to define an automaton mapping a request to function calls in C++ in a convenient way
 /// \file requestAutomaton.cpp
 #include "papuga/requestAutomaton.hpp"
+#include "papuga/request.h"
 #include <stdexcept>
 #include <cstdio>
 
@@ -39,7 +40,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm)
 		}
 		else
 		{
-			if (!papuga_RequestAutomaton_set_call_arg_item( atm, aidx, ai->itemid, ai->inherited))
+			if (!papuga_RequestAutomaton_set_call_arg_item( atm, aidx, ai->itemid, ai->inherited, ai->defaultvalue))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 				if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add item call arg");

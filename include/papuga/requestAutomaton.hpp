@@ -26,13 +26,14 @@ struct RequestAutomaton_FunctionDef
 		const char* varname;		///< name of the variable referencing the argument in case of a variable
 		int itemid;			///< item identifier unique in its scope, in case of an item reference (a value or a structure)
 		bool inherited;			///< tells wheter the item is in a enclosing scope (true) or in an enclosed scope (false), in case of an item reference (a value or a structure)
+		const char* defaultvalue;	///< default value in case not defined
 
 		Arg( const char* varname_)
 			:varname(varname_),itemid(-1),inherited(false){}
-		Arg( int itemid_, bool inherited_=false)
-			:varname(0),itemid(itemid_),inherited(inherited_){}
+		Arg( int itemid_, bool inherited_=false, const char* defaultvalue_=0)
+			:varname(0),itemid(itemid_),inherited(inherited_),defaultvalue(defaultvalue_){}
 		Arg( const Arg& o)
-			:varname(o.varname),itemid(o.itemid),inherited(o.inherited){}
+			:varname(o.varname),itemid(o.itemid),inherited(o.inherited),defaultvalue(o.defaultvalue){}
 	};
 
 	std::string expression;			///< selecting expression addressing the scope of the request

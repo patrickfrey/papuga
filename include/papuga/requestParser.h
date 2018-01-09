@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 /* \brief Structures and functions for parsing papuga XML and JSON requests for further processing
- * \file requestParser.h
+ * @file requestParser.h
  */
 #ifndef _PAPUGA_REQUEST_PARSER_H_INCLUDED
 #define _PAPUGA_REQUEST_PARSER_H_INCLUDED
@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 /*
- * \brief Request content type enumeration
+ * @brief Request content type enumeration
  */
 typedef enum {
 	papuga_ContentType_Unknown,						/*< Content type is not known */
@@ -26,23 +26,23 @@ typedef enum {
 } papuga_ContentType;
 
 /*
- * \brief Guess content type
- * \param[in] src pointer to source
- * \param[in] srcsize size of src in bytes
- * \return content type, special content type for none
+ * @brief Guess content type
+ * @param[in] src pointer to source
+ * @param[in] srcsize size of src in bytes
+ * @return content type, special content type for none
  */
 papuga_ContentType papuga_guess_ContentType( const char* src, size_t srcsize);
 
 /*
- * \brief Guess character set encoding from content
- * \param[in] src pointer to source
- * \param[in] srcsize size of src in bytes
- * \return encoding, binary for unknown
+ * @brief Guess character set encoding from content
+ * @param[in] src pointer to source
+ * @param[in] srcsize size of src in bytes
+ * @return encoding, binary for unknown
  */
 papuga_StringEncoding papuga_guess_StringEncoding( const char* src, size_t srcsize);
 
 /*
- * \brief Request parser element type enumeration
+ * @brief Request parser element type enumeration
  */
 typedef enum {
 	papuga_RequestElementType_None,					/*< unknown element type (in case of error set) or EOF (in case of no error) */
@@ -61,7 +61,7 @@ const char* papuga_requestElementTypeName( papuga_RequestElementType tp);
 typedef struct papuga_RequestParser papuga_RequestParser;
 
 /*
- * \brief Header structure of every papuga_RequestParser implementation
+ * @brief Header structure of every papuga_RequestParser implementation
 */
 typedef struct papuga_RequestParserHeader {
 	papuga_ContentType type;						/*< document type of this document parser */
@@ -78,49 +78,49 @@ typedef struct papuga_RequestParserHeader {
 } papuga_RequestParserHeader;
 
 /*
- * \brief Create a document parser for an XML document
- * \param[in] src pointer to source
- * \param[in] srcsize size of src in bytes
- * \param[out] error code set in case of failure
- * \return The document parser structure or NULL in case of failure
+ * @brief Create a document parser for an XML document
+ * @param[in] src pointer to source
+ * @param[in] srcsize size of src in bytes
+ * @param[out] error code set in case of failure
+ * @return The document parser structure or NULL in case of failure
  */
 papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
 
 /*
- * \brief Create a document parser for a JSON document
- * \param[in] src pointer to source
- * \param[in] srcsize size of src in bytes
- * \param[out] error code set in case of failure
- * \return The document parser structure or NULL in case of failure
+ * @brief Create a document parser for a JSON document
+ * @param[in] src pointer to source
+ * @param[in] srcsize size of src in bytes
+ * @param[out] error code set in case of failure
+ * @return The document parser structure or NULL in case of failure
  */
 papuga_RequestParser* papuga_create_RequestParser_json( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
 
 /*
- * \brief Destroy a document parser
- * \param[in] self the document parser structure to free
+ * @brief Destroy a document parser
+ * @param[in] self the document parser structure to free
  */
 void papuga_destroy_RequestParser( papuga_RequestParser* self);
 
 /*
- * \brief Fetch the next element from the document
- * \param[in] self the document parser structure to fetch the next element from
- * \param[out] value value of the element fetched
+ * @brief Fetch the next element from the document
+ * @param[in] self the document parser structure to fetch the next element from
+ * @param[out] value value of the element fetched
  */
 papuga_RequestElementType papuga_RequestParser_next( papuga_RequestParser* self, papuga_ValueVariant* value);
 
 /*
- * \brief Get the last error of the document parser
- * \param[in] self document parser to get the last error from
- * \return error code
+ * @brief Get the last error of the document parser
+ * @param[in] self document parser to get the last error from
+ * @return error code
  */
 papuga_ErrorCode papuga_RequestParser_last_error( const papuga_RequestParser* self);
 
 /*
- * \brief Get the current position with a hint about the location as string
- * \param[in] self document parser to get the last error position from
- * \param[out] locbuf where to write the location info to
- * \param[in] locbufsize allocation size of locbuf in bytes
- * \return position or -1 if not available
+ * @brief Get the current position with a hint about the location as string
+ * @param[in] self document parser to get the last error position from
+ * @param[out] locbuf where to write the location info to
+ * @param[in] locbufsize allocation size of locbuf in bytes
+ * @return position or -1 if not available
  */
 int papuga_RequestParser_get_position( const papuga_RequestParser* self, char* locbuf, size_t locbufsize);
 
@@ -130,12 +130,12 @@ int papuga_RequestParser_get_position( const papuga_RequestParser* self, char* l
 typedef struct papuga_Request papuga_Request;
 
 /*
- * \brief Feed a request iterating with a request parser on some content
- * \param[in,out] parser the iterator on content
- * \param[in,out] request the request to feed
- * \param[out] errcode the error code in case of an error
- * \return true on success, error on failure
- * \note to get the error position in case of an error with a hint on the location call 'papuga_RequestParser_get_position'
+ * @brief Feed a request iterating with a request parser on some content
+ * @param[in,out] parser the iterator on content
+ * @param[in,out] request the request to feed
+ * @param[out] errcode the error code in case of an error
+ * @return true on success, error on failure
+ * @note to get the error position in case of an error with a hint on the location call 'papuga_RequestParser_get_position'
  */
 bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Request* request, papuga_ErrorCode* errcode);
 

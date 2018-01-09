@@ -675,6 +675,7 @@ static PyObject* papuga_Iterator_next( PyObject *selfobj_)
 	papuga_CallResult result;
 	papuga_ErrorCode errcode;
 	char membuf[ 4096];
+	char errbuf[ 128];
 
 	papuga_python_IteratorObject* selfobj = (papuga_python_IteratorObject*)selfobj_;
 	if (selfobj->checksum != calcIteratorCheckSum( selfobj))
@@ -687,7 +688,7 @@ static PyObject* papuga_Iterator_next( PyObject *selfobj_)
 		PyErr_SetNone( PyExc_StopIteration);
 		return NULL;
 	}
-	papuga_init_CallResult( &result, membuf, sizeof( membuf));
+	papuga_init_CallResult( &result, membuf, sizeof(membuf), errbuf, sizeof(errbuf));
 	if (selfobj->impl.getNext( selfobj->impl.data, &result))
 	{
 		PyObject* rt = papuga_python_move_CallResult( &result, selfobj->cemap, &errcode);

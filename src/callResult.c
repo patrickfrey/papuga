@@ -21,30 +21,16 @@
 #include <stdio.h>
 #include <string.h>
 
-static void init_CallResult_structures( papuga_CallResult* self, char* allocbuf, size_t allocbufsize)
-{
-	self->nofvalues = 0;
-	papuga_init_Allocator( &self->allocator, allocbuf, allocbufsize);
-}
-
 void papuga_destroy_CallResult( papuga_CallResult* self)
 {
 	papuga_destroy_Allocator( &self->allocator);
 }
 
-#define ERROR_BUFFER_SIZE 256
-void papuga_init_CallResult( papuga_CallResult* self, char* allocbuf, size_t allocbufsize)
+void papuga_init_CallResult( papuga_CallResult* self, char* allocbuf, size_t allocbufsize, char* errbuf, size_t errbufsize)
 {
-	if (allocbufsize > ERROR_BUFFER_SIZE)
-	{
-		init_CallResult_structures( self, allocbuf + ERROR_BUFFER_SIZE, allocbufsize - ERROR_BUFFER_SIZE);
-		papuga_init_ErrorBuffer( &self->errorbuf, allocbuf, ERROR_BUFFER_SIZE);
-	}
-	else
-	{
-		init_CallResult_structures( self, 0, 0);
-		papuga_init_ErrorBuffer( &self->errorbuf, allocbuf, allocbufsize);
-	}
+	papuga_init_Allocator( &self->allocator, allocbuf, allocbufsize);
+	papuga_init_ErrorBuffer( &self->errorbuf, errbuf, errbufsize);
+	self->nofvalues = 0;
 }
 
 bool papuga_add_CallResult_int( papuga_CallResult* self, papuga_Int val)

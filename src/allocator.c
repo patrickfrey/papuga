@@ -101,7 +101,7 @@ static int isPowerOfTwo (unsigned int x)
 }
 struct MaxAlignStruct {int _;};
 #define MAXALIGN	(sizeof(struct MaxAlignStruct))
-#define STDBLOCKSIZE	2048
+#define STDBLOCKSIZE	4096
 #define MAXBLOCKSIZE	(1<<31)
 
 void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned int alignment)
@@ -260,9 +260,10 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 		{
 			papuga_CallResult result;
 			char result_buf[ 1024];
+			char error_buf[ 128];
 			papuga_Iterator* iterator = orig->value.iterator;
 
-			papuga_init_CallResult( &result, result_buf, sizeof(result_buf));
+			papuga_init_CallResult( &result, result_buf, sizeof(result_buf), error_buf, sizeof(error_buf));
 			while (iterator->getNext( iterator->data, &result))
 			{
 				if (!papuga_Serialization_pushOpen( dest)) goto ERROR;
@@ -274,7 +275,7 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 				if (!papuga_Serialization_pushClose( dest)) goto ERROR;
 
 				papuga_destroy_CallResult( &result);
-				papuga_init_CallResult( &result, result_buf, sizeof(result_buf));
+				papuga_init_CallResult( &result, result_buf, sizeof(result_buf), error_buf, sizeof(error_buf));
 			}
 			if (papuga_CallResult_hasError( &result))
 			{
@@ -342,4 +343,42 @@ bool papuga_Allocator_deepcopy_value( papuga_Allocator* self, papuga_ValueVarian
 	return copy_ValueVariant( dest, orig, self, moveobj, errcode);
 }
 
+bool papuga_Allocator_used( papuga_Allocator* self)
+{
+	return (!!self->reflist || !!self->root.next || !!self->root.arsize);
+}
+
+bool papuga_Allocator_takeover( papuga_Allocator* dest, papuga_Allocator* oth)
+{
+	papuga_AllocatorNode* pv;
+	papuga_AllocatorNode* nd;
+
+	if (!papuga_Allocator_used( oth)) return true;
+
+	pv = &oth->root;
+	if (!pv->allocated) return false;
+	nd = pv->next;
+	while (nd)
+	{
+		if (!nd->allocated) return false;
+		pv = nd;
+		nd = nd->next;
+	}
+	nd = (papuga_AllocatorNode*)malloc( sizeof( papuga_AllocatorNode));
+	if (nd == NULL) return false;
+
+	memcpy( nd, &dest->root, sizeof(dest->root));
+	memcpy( &dest->root, &oth->root, sizeof(dest->root));
+	pv->next = nd;
+
+	papuga_ReferenceHeader* pl = oth->reflist;
+	if (pl != NULL)
+	{
+		for (; pl->next; pl = pl->next){}
+		pl->next = dest->reflist;
+		dest->reflist = oth->reflist;
+	}
+	papuga_init_Allocator( oth, 0, 0);
+	return true;
+}
 

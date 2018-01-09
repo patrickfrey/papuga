@@ -40,6 +40,13 @@ extern "C" {
 #define papuga_destroy_Allocator(self_)			{papuga_Allocator* s = self_; if (s->reflist != NULL) papuga_destroy_ReferenceHeader( s->reflist); if ((s->root.ar != NULL && s->root.allocated) || s->root.next != NULL) papuga_destroy_AllocatorNode( &s->root);}
 
 /*
+* @brief Check if allocator has allocated anything
+* @param[in] self pointer to allocator structure checked
+* @return true if yes
+*/
+bool papuga_Allocator_used( papuga_Allocator* self);
+
+/*
 * @brief Destructor of linked list of AllocatorNode
 * @param[in] nd pointer to node
 */
@@ -132,6 +139,14 @@ papuga_Allocator* papuga_Allocator_alloc_Allocator( papuga_Allocator* self);
 * @note iterators cannot be copied as such, they are expanded as serialization
 */
 bool papuga_Allocator_deepcopy_value( papuga_Allocator* self, papuga_ValueVariant* dest, papuga_ValueVariant* orig, bool moveobj, papuga_ErrorCode* errcode);
+
+/*
+* @brief Move contents from allocator 
+* @param[in] dest pointer to allocator where contents of other allocator are moved to
+* @param[in] oth other allocator that is emptied and all contents are added to dest
+* @return true on success, false in case of memory allocation error or if other iterator has a static buffer. In this case the takeover does not work
+*/
+bool papuga_Allocator_takeover( papuga_Allocator* dest, papuga_Allocator* oth);
 
 #ifdef __cplusplus
 }

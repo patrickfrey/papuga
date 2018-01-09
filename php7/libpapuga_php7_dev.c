@@ -983,12 +983,13 @@ DLL_PUBLIC bool papuga_php_move_CallResult( void* zval_return_value, papuga_Call
 static bool iteratorFetchNext( IteratorObject* iobj, papuga_ErrorBuffer* errbuf)
 {
 	papuga_CallResult retstruct;
-	char errstr[ 2048];
+	char membuf[ 4096];
+	char msgbuf[ 128];
 	const char* msg;
 
-	papuga_init_CallResult( &retstruct, errstr, sizeof(errstr));
-	if (iobj->eof && iobj->idx) return false;
+	papuga_init_CallResult( &retstruct, membuf, sizeof(membuf), msgbuf, sizeof(msgbuf));
 
+	if (iobj->eof && iobj->idx) return false;
 	if (iobj->iterator.getNext( iobj->iterator.data, &retstruct))
 	{
 		papuga_ErrorCode errcode = papuga_Ok;

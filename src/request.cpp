@@ -70,11 +70,12 @@ struct CallArgDef
 	const char* varname;
 	int itemid;
 	bool inherited;
+	const char* defaultvalue;
 
-	CallArgDef( const char* varname_, int itemid_, bool inherited_)
-		:varname(varname_),itemid(itemid_),inherited(inherited_){}
+	CallArgDef( const char* varname_, int itemid_, bool inherited_, const char* defaultvalue_)
+		:varname(varname_),itemid(itemid_),inherited(inherited_),defaultvalue(defaultvalue_){}
 	CallArgDef( const CallArgDef& o)
-		:varname(o.varname),itemid(o.itemid),inherited(o.inherited){}
+		:varname(o.varname),itemid(o.itemid),inherited(o.inherited),defaultvalue(o.defaultvalue){}
 };
 
 struct CallDef
@@ -258,6 +259,7 @@ public:
 			}
 			adef.itemid = adef_.itemid;
 			adef.varname = adef_.varname;
+			adef.defaultvalue =adef_.defaultvalue;
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -276,7 +278,7 @@ public:
 				m_errcode = papuga_TypeError;
 				return false;
 			}
-			CallArgDef adef( papuga_Allocator_copy_charp( &m_allocator, argvar), 0, false);
+			CallArgDef adef( papuga_Allocator_copy_charp( &m_allocator, argvar), 0, false, NULL);
 			if (!adef.varname)
 			{
 				m_errcode = papuga_NoMemError;
@@ -288,7 +290,7 @@ public:
 		return true;
 	}
 
-	bool setCallArgItem( int idx, int itemid, bool inherited)
+	bool setCallArgItem( int idx, int itemid, bool inherited, const char* defaultvalue)
 	{
 		try
 		{
@@ -300,7 +302,7 @@ public:
 				m_errcode = papuga_TypeError;
 				return false;
 			}
-			CallArgDef adef( 0, itemid, inherited);
+			CallArgDef adef( 0, itemid, inherited, defaultvalue ? papuga_Allocator_copy_charp( &m_allocator, defaultvalue) : NULL);
 			return setCallArg( idx, adef);
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -663,6 +665,7 @@ static void papuga_init_RequestMethodCall( papuga_RequestMethodCall* self)
 	self->resultvarname = 0;
 	self->methodid.classid = -1;
 	self->methodid.functionid  = -1;
+	self->eventcnt = 0;
 	papuga_init_CallArgs( &self->args, self->membuf, sizeof(self->membuf));
 }
 
@@ -671,7 +674,7 @@ class AutomatonContext
 public:
 	explicit AutomatonContext( const AutomatonDescription* atm_)
 		:m_atm(atm_),m_atmstate(&atm_->atm()),scopecnt(0),m_scopestack()
-		,m_valuenodes(),m_values(),m_structs(),m_scopeobjmap( atm_->maxitemid()+1, ScopeObjMap()),m_methodcalls(),m_variablemap()
+		,m_valuenodes(),m_values(),m_structs(),m_scopeobjmap( atm_->maxitemid()+1, ScopeObjMap()),m_methodcalls()
 		,m_done(false),m_errcode(papuga_Ok)
 	{
 		papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
@@ -685,16 +688,6 @@ public:
 	papuga_ErrorCode lastError() const
 	{
 		return m_errcode;
-	}
-
-	bool setVariableValue( const char* name, const papuga_ValueVariant* value)
-	{
-		try
-		{
-			m_variablemap[ name] = Value( value);
-			return true;
-		}
-		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 	}
 
 	struct LocalBuffer
@@ -841,7 +834,6 @@ public:
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 	}
 
-	typedef std::map<std::string,Value> VariableMap;
 	typedef std::pair<Scope,ObjectRef> ScopeObjElem;
 	typedef std::map<Scope,ObjectRef> ScopeObjMap;
 	typedef ScopeObjMap::const_iterator ScopeObjItr;
@@ -857,10 +849,6 @@ public:
 	const std::vector<const StructDef*>& structs() const
 	{
 		return m_structs;
-	}
-	const VariableMap& variablemap() const
-	{
-		return m_variablemap;
 	}
 	const std::vector<ScopeObjMap>& scopeobjmap() const
 	{
@@ -905,7 +893,7 @@ public:
 			papuga_destroy_Allocator( &m_allocator);
 		}
 
-		papuga_RequestMethodCall* next()
+		papuga_RequestMethodCall* next( const papuga_RequestVariable* varlist)
 		{
 			if (!m_ctx) return NULL;
 			const MethodCallNode* mcnode = m_ctx->methodCallNode( m_curr_methodidx);
@@ -914,8 +902,9 @@ public:
 			m_curr_methodcall.resultvarname = mcnode->def->resultvarname;
 			m_curr_methodcall.methodid.classid = mcnode->def->methodid.classid;
 			m_curr_methodcall.methodid.functionid = mcnode->def->methodid.functionid;
+			m_curr_methodcall.eventcnt = mcnode->scope.from;
 			papuga_init_CallArgs( &m_curr_methodcall.args, m_curr_methodcall.membuf, sizeof(m_curr_methodcall.membuf));
-			if (set_callArgs( &m_curr_methodcall.args, *mcnode))
+			if (setCallArgs( &m_curr_methodcall.args, *mcnode, varlist))
 			{
 				++m_curr_methodidx;
 				return &m_curr_methodcall;
@@ -926,6 +915,67 @@ public:
 			}
 		}
 
+		const MethodCallNode* nextNode()
+		{
+			if (!m_ctx) return NULL;
+			const MethodCallNode* mcnode = m_ctx->methodCallNode( m_curr_methodidx);
+			if (!mcnode) return NULL;
+			++m_curr_methodidx;
+			return mcnode;
+		}
+
+		bool printMethodCallNode( std::ostream& out, const MethodCallNode* mcnode)
+		{
+			const CallDef* mcdef = mcnode->def;
+			int cidx = mcdef->methodid.classid-1;
+			int midx = mcdef->methodid.functionid-1;
+			if (mcdef->resultvarname)
+			{
+				out << "RES " << mcdef->resultvarname << std::endl;
+			}
+			if (mcdef->selfvarname)
+			{
+				out << "OBJ " << mcdef->selfvarname << std::endl;
+			}
+			if (midx == -1)
+			{
+				out << "NEW " << m_ctx->classdefs()[cidx].name << std::endl;
+			}
+			else
+			{
+				out << "CALL " << m_ctx->classdefs()[cidx].name << "::" << m_ctx->classdefs()[cidx].methodnames[ midx] << std::endl;
+			}
+			int ai = 0, ae = mcdef->nofargs;
+			for (; ai != ae; ++ai)
+			{
+				out << "ARG " << (ai+1) << std::endl;
+				papuga_ValueVariant argval;
+				const CallArgDef& argdef = mcdef->args[ai];
+				if (argdef.varname)
+				{
+					out << "\t$" << argdef.varname << std::endl;
+				}
+				else
+				{
+					if (!initResolvedItemValue( argval, &m_allocator, argdef.itemid, argdef.inherited, mcnode->scope, argdef.defaultvalue))
+					{
+						return false;
+					}
+					switch (argval.valuetype)
+					{
+						case papuga_TypeVoid:		out << "\tNULL" << std::endl; break;
+						case papuga_TypeDouble:
+						case papuga_TypeInt:
+						case papuga_TypeBool:
+						case papuga_TypeString:		out << "\t'" << papuga::ValueVariant_tostring( argval, m_errcode) << "'"<< std::endl; break;
+						case papuga_TypeHostObject:	out << "\t[Object " << argval.value.hostObject->classid << "]" << std::endl; break;
+						case papuga_TypeSerialization:	out << papuga::Serialization_tostring( *argval.value.serialization, "\t", m_errcode) << std::endl; break;
+						case papuga_TypeIterator:	out << "\t[Iterator]" << std::endl; break;
+					}
+				}
+			}
+			return true;
+		}
 		papuga_ErrorCode lastError() const
 		{
 			return m_errcode;
@@ -1145,48 +1195,64 @@ public:
 			return rt;
 		}
 	
-		bool set_callArgs( papuga_CallArgs* args, const MethodCallNode& mcnode)
+		bool initResolvedItemValue( papuga_ValueVariant& arg, papuga_Allocator* allocator, int itemid, bool inherited, const Scope& scope, const char* defaultvalue)
+		{
+			setResolverUpperBound( scope, itemid);
+			ObjectRef objref = (inherited) ? resolveNearItemCoveringScope( scope, itemid) : resolveNearItemInsideScope( scope, itemid);
+			if (ObjectRef_is_value( objref))
+			{
+				int valueidx = ObjectRef_value_id( objref);
+				papuga_init_ValueVariant_copy( &arg, &m_ctx->values()[ valueidx].content);
+			}
+			else if (ObjectRef_is_struct( objref))
+			{
+				int structidx = ObjectRef_struct_id( objref);
+				papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( allocator);
+				papuga_init_ValueVariant_serialization( &arg, ser);
+				if (!build_structure( ser, scope, structidx)) return false;
+			}
+			else if (defaultvalue)
+			{
+				papuga_init_ValueVariant_charp( &arg, defaultvalue);
+			}
+			else
+			{
+				m_errcode = papuga_ValueUndefined;
+				return false;
+			}
+			return true;
+		}
+
+		bool setCallArgValue( papuga_ValueVariant& arg, const CallArgDef& argdef, const Scope& scope, const papuga_RequestVariable* varlist)
+		{
+			if (argdef.varname)
+			{
+				papuga_RequestVariable const* vl = varlist;
+				while (vl && 0!=std::strcmp(vl->name, argdef.varname)) vl=vl->next;
+				if (!vl)
+				{
+					m_errcode = papuga_ValueUndefined;
+					return false;
+				}
+				papuga_init_ValueVariant_copy( &arg, &vl->value);
+			}
+			else
+			{
+				if (!initResolvedItemValue( arg, &m_allocator, argdef.itemid, argdef.inherited, scope, argdef.defaultvalue))
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+		bool setCallArgs( papuga_CallArgs* args, const MethodCallNode& mcnode, const papuga_RequestVariable* varlist)
 		{
 			const CallDef* mcdef = mcnode.def;
 			int ai = 0, ae = mcdef->nofargs;
 			for (; ai != ae; ++ai)
 			{
-				const CallArgDef& argdef = mcdef->args[ai];
-				papuga_ValueVariant& arg = args->argv[ai];
-				if (argdef.varname)
-				{
-					VariableMap::const_iterator vi = m_ctx->variablemap().find( argdef.varname);
-					if (vi == m_ctx->variablemap().end())
-					{
-						m_errcode = papuga_ValueUndefined;
-						return false;
-					}
-					papuga_init_ValueVariant_copy( &arg, &vi->second.content);
-				}
-				else
-				{
-					setResolverUpperBound( mcnode.scope, argdef.itemid);
-					ObjectRef objref = (argdef.inherited)
-							? resolveNearItemCoveringScope( mcnode.scope, argdef.itemid)
-							: resolveNearItemInsideScope( mcnode.scope, argdef.itemid);
-					if (ObjectRef_is_value( objref))
-					{
-						int valueidx = ObjectRef_value_id( objref);
-						papuga_init_ValueVariant_copy( &arg, &m_ctx->values()[ valueidx].content);
-					}
-					else if (ObjectRef_is_struct( objref))
-					{
-						int structidx = ObjectRef_struct_id( objref);
-						papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( &args->allocator);
-						papuga_init_ValueVariant_serialization( &arg, ser);
-						if (!build_structure( ser, mcnode.scope, structidx)) return false;
-					}
-					else
-					{
-						m_errcode = papuga_ValueUndefined;
-						return false;
-					}
-				}
+				if (!setCallArgValue( args->argv[ai], mcdef->args[ai], mcnode.scope, varlist)) return false;
 			}
 			args->argc = mcdef->nofargs;
 			return true;
@@ -1314,7 +1380,6 @@ private:
 	std::vector<const StructDef*> m_structs;
 	std::vector<ScopeObjMap> m_scopeobjmap;
 	std::vector<MethodCallNode> m_methodcalls;
-	VariableMap m_variablemap;
 	bool m_done;
 	papuga_ErrorCode m_errcode;
 };
@@ -1364,6 +1429,7 @@ extern "C" bool papuga_RequestAutomaton_add_call(
 		const char* resultvarname,
 		int nargs)
 {
+	if (method->functionid && !selfvarname) return false;
 	return self->atm.addCall( expression, method, selfvarname, resultvarname, nargs);
 }
 
@@ -1372,9 +1438,9 @@ extern "C" bool papuga_RequestAutomaton_set_call_arg_var( papuga_RequestAutomato
 	return self->atm.setCallArgVar( idx, varname);
 }
 
-extern "C" bool papuga_RequestAutomaton_set_call_arg_item( papuga_RequestAutomaton* self, int idx, int itemid, bool inherited)
+extern "C" bool papuga_RequestAutomaton_set_call_arg_item( papuga_RequestAutomaton* self, int idx, int itemid, bool inherited, const char* defaultvalue)
 {
-	return self->atm.setCallArgItem( idx, itemid, inherited);
+	return self->atm.setCallArgItem( idx, itemid, inherited, defaultvalue);
 }
 
 extern "C" bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self)
@@ -1452,11 +1518,6 @@ extern "C" const papuga_ClassDef* papuga_Request_classdefs( const papuga_Request
 	return self->ctx.classdefs();
 }
 
-extern "C" bool papuga_Request_set_variable_value( papuga_Request* self, const char* varname, const papuga_ValueVariant* value)
-{
-	return self->ctx.setVariableValue( varname, value);
-}
-
 extern "C" bool papuga_Request_feed_open_tag( papuga_Request* self, const papuga_ValueVariant* tagname)
 {
 	return self->ctx.processOpenTag( tagname);
@@ -1519,54 +1580,21 @@ extern "C" papuga_RequestIterator* papuga_create_RequestIterator( papuga_Allocat
 	}
 }
 
-extern "C" papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self)
+extern "C" const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestVariable* varlist)
 {
-	return self->itr.next();
+	return self->itr.next( varlist);
 }
 
 extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_ErrorCode* errcode)
 {
 	try
 	{
-		const papuga_ClassDef* classdefs = self->ctx.classdefs();
-		int classcnt = self->ctx.nof_classdefs();
-
 		AutomatonContext::Iterator itr( &self->ctx);
 		std::ostringstream out;
-		papuga_RequestMethodCall* call = 0;
-		while (0 != (call = itr.next()))
+		const MethodCallNode* callnode = 0;
+		while (0 != (callnode = itr.nextNode()))
 		{
-			int cidx = call->methodid.classid-1;
-			int midx = call->methodid.functionid-1;
-			if (cidx < 0 || call->methodid.classid >= classcnt || midx < -1 || midx >= classdefs[cidx].methodtablesize)
-			{
-				*errcode = papuga_InvalidAccess;
-				return NULL;
-			}
-			if (midx == -1)
-			{
-				out << "NEW " << classdefs[cidx].name << std::endl;
-			}
-			else
-			{
-				out << "CALL " << classdefs[cidx].name << "::" << classdefs[cidx].methodnames[ midx] << std::endl;
-			}
-			int ai = 0, ae = call->args.argc;
-			for (; ai != ae; ++ai)
-			{
-				out << "ARG " << (ai+1) << std::endl;
-				switch (call->args.argv[ai].valuetype)
-				{
-					case papuga_TypeVoid:		out << "\tNULL" << std::endl; break;
-					case papuga_TypeDouble:
-					case papuga_TypeInt:
-					case papuga_TypeBool:
-					case papuga_TypeString:		out << "\t'" << papuga::ValueVariant_tostring( call->args.argv[ai], *errcode) << "'"<< std::endl; break;
-					case papuga_TypeHostObject:	out << "\t[Object " << call->args.argv[ai].value.hostObject->classid << "]" << std::endl; break;
-					case papuga_TypeSerialization:	out << papuga::Serialization_tostring( *call->args.argv[ai].value.serialization, "\t", *errcode) << std::endl; break;
-					case papuga_TypeIterator:	out << "\t[Iterator]" << std::endl; break;
-				}
-			}
+			if (!itr.printMethodCallNode( out, callnode)) break;
 			out << std::endl;
 		}
 		if (*errcode == papuga_Ok)
