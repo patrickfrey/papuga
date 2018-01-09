@@ -17,26 +17,24 @@
 extern "C" {
 #endif
 
-typedef struct papuga_RequestHandler papuga_RequestHandler;
-
 /*
- * \brief Defines a variable of the request in the list of variables
+ * \brief Request handler
  */
-typedef struct papuga_RequestVariable
-{
-	struct papuga_RequestVariable* next;		/*< next variable */
-	const char* name;				/*< name of variable associated with this value */
-	papuga_ValueVariant value;			/*< variable value associated with this name */
-} papuga_RequestVariable;
+typedef struct papuga_RequestHandler papuga_RequestHandler;
 
 /*
  * \brief Access control list
  */
-typedef struct papuga_RequestAcl
-{
-	struct papuga_RequestAcl* next;			/*< next role allowed */
-	const char* allowed_role;			/*< role allowed for accessing this item */
-} papuga_RequestAcl;
+typedef struct papuga_RequestAcl papuga_RequestAcl;
+
+/*
+ * \brief Defines a variable of the request in the list of variables
+ */
+typedef struct papuga_RequestVariable papuga_RequestVariable;
+
+/* External declarations in request.h */
+typedef struct papuga_RequestVariable papuga_RequestAutomaton;
+typedef struct papuga_Request papuga_Request;
 
 /*
  * \brief Defines the context of a request
@@ -88,6 +86,7 @@ bool papuga_RequestContext_allow_access( papuga_RequestContext* self, const char
 
 /*
  * \brief Creates a request handler
+ * \param[in] classdefs class definitions referred to in host object references
  * \return pointer to request handler
  */
 papuga_RequestHandler* papuga_create_RequestHandler();
@@ -118,6 +117,44 @@ bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char*
  * \return true on success, false on failure
  */
 bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* parent, const char* role, papuga_ErrorCode* errcode);
+
+/*
+ * \brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials
+ * \param[in] self this pointer to request handler
+ * \param[in] name name given to the schema
+ * \param[in] automaton automaton of the schema (ownership passed)
+ * \return true on success, false on memory allocation error
+ */ 
+bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* name, papuga_RequestAutomaton* automaton);
+
+/*
+ * \brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials
+ * \param[in] self this pointer to request handler
+ * \param[in] name name of the schema
+ * \param[in] role name of role to grant access to this schema
+ * \param[out] errcode error code in case of error, untouched in case of success
+ * \return true on success, false on memory allocation error
+ */
+bool papuga_RequestHandler_schema_allow_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
+
+/*
+ * \brief Retrieve a schema for execution with validation of access rights
+ * \param[in] self this pointer to request handler
+ * \param[in] name name of the schema
+ * \param[in] role name of role to grant access to this schema
+ * \param[out] errcode error code in case of error, untouched in case of success
+ * \return pointer to automaton on success, NULL on failure
+ */
+const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
+
+/*
+ * \brief Execute a request
+ * \param[in,out] context context of the request
+ * \param[in] request content of the request
+ * \return true on success, false on failure
+ * \note execution error codes are attached to the context (call papuga_RequestContext_last_error to retrieve it)
+ */
+bool papuga_RequestContext_execute_request( papuga_RequestContext* context, papuga_Request* request);
 
 #ifdef __cplusplus
 }

@@ -182,15 +182,15 @@ void RequestAutomaton_Node::addToAutomaton( papuga_RequestAutomaton* atm) const
 }
 #endif
 
-RequestAutomaton::RequestAutomaton()
-	:m_atm(papuga_create_RequestAutomaton())
+RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs)
+	:m_atm(papuga_create_RequestAutomaton( classdefs))
 {
 	if (!m_atm) throw std::bad_alloc();
 }
 
 #if __cplusplus >= 201103L
-RequestAutomaton::RequestAutomaton( const std::initializer_list<RequestAutomaton_Node>& nodes)
-	:m_atm(papuga_create_RequestAutomaton())
+RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const std::initializer_list<RequestAutomaton_Node>& nodes)
+	:m_atm(papuga_create_RequestAutomaton( classdefs))
 {
 	if (!m_atm) throw std::bad_alloc();
 	std::initializer_list<RequestAutomaton_Node>::const_iterator ni = nodes.begin(), ne = nodes.end();

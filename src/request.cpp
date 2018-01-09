@@ -143,17 +143,35 @@ static int AtmRef_index( AtmRef atmref)			{return ((int)atmref & 0x0fFFffFF)-1;}
 		return RETVAL;\
 	}
 
-		
+static int nofClassDefs( const papuga_ClassDef* classdefs)
+{
+	papuga_ClassDef const* ci = classdefs;
+	int classcnt = 0;
+	for (; ci->name; ++ci,++classcnt){}
+	return classcnt;
+}
+
 /// @brief Description of the automaton
 class AutomatonDescription
 {
 public:
 	typedef textwolf::XMLPathSelectAutomatonParser<> XMLPathSelectAutomaton;
 
-	AutomatonDescription()
-		:m_calldefs(),m_structdefs(),m_valuedefs(),m_atm(),m_maxitemid(0),m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
+	explicit AutomatonDescription( const papuga_ClassDef* classdefs_)
+		:m_classdefs(classdefs_),m_nof_classdefs(nofClassDefs(classdefs_))
+		,m_calldefs(),m_structdefs(),m_valuedefs(),m_atm(),m_maxitemid(0)
+		,m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
 	{
 		papuga_init_Allocator( &m_allocator, m_allocatorbuf, sizeof(m_allocatorbuf));
+	}
+
+	const papuga_ClassDef* classdefs() const
+	{
+		return m_classdefs;
+	}
+	int nof_classdefs() const
+	{
+		return m_nof_classdefs;
 	}
 
 	/* @param[in] expression selector of the call scope */
@@ -162,10 +180,8 @@ public:
 	{
 		try
 		{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add call expression='%s', class=%d, method=%d, self='%s', result='%s', nofargs=%d\n",
-					expression, method_->classid, method_->functionid , selfvarname_, resultvarname_, nofargs);
-#endif
+			const char* methodname;
+			const char* classname;
 			if (m_done)
 			{
 				m_errcode = papuga_ExecutionOrder;
@@ -176,6 +192,23 @@ public:
 				m_errcode = papuga_NofArgsError;
 				return false;
 			}
+			if (method_->classid == 0 || method_->classid > m_nof_classdefs)
+			{
+				m_errcode = papuga_AddressedItemNotFound;
+				return false;
+			}
+			const papuga_ClassDef* cdef = &m_classdefs[ method_->classid-1];
+			if (method_->functionid > cdef->methodtablesize)
+			{
+				m_errcode = papuga_AddressedItemNotFound;
+				return false;
+			}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			classname = cdef->name;
+			methodname = method_->functionid == 0 ? "new" : cdef->methodnames[ method_->functionid-1];
+			fprintf( stderr, "automaton add call expression='%s', class=%s, method=%s, self='%s', result='%s', nofargs=%d\n",
+					expression, classname, methodname, selfvarname_, resultvarname_, nofargs);
+#endif
 			std::string open_expression( cut_trailing_slashes( expression));
 			std::string close_expression( open_expression + "~");
 			int mm = nofargs * sizeof(CallArgDef);
@@ -492,6 +525,8 @@ private:
 	}
 
 private:
+	const papuga_ClassDef* m_classdefs;			//< array of classes
+	int m_nof_classdefs;					//< number of classes defined in m_classdefs
 	std::vector<CallDef> m_calldefs;
 	std::vector<StructDef> m_structdefs;
 	std::vector<ValueDef> m_valuedefs;
@@ -834,6 +869,14 @@ public:
 	bool isDone() const
 	{
 		return m_done;
+	}
+	const papuga_ClassDef* classdefs() const
+	{
+		return m_atm->classdefs();
+	}
+	int nof_classdefs() const
+	{
+		return m_atm->nof_classdefs();
 	}
 
 	class Iterator
@@ -1285,13 +1328,13 @@ struct papuga_RequestAutomaton
 	AutomatonDescription atm;
 };
 
-extern "C" papuga_RequestAutomaton* papuga_create_RequestAutomaton()
+extern "C" papuga_RequestAutomaton* papuga_create_RequestAutomaton( const papuga_ClassDef* classdefs)
 {
 	papuga_RequestAutomaton* rt = (papuga_RequestAutomaton*)std::calloc( 1, sizeof(*rt));
 	if (!rt) return NULL;
 	try
 	{
-		new (&rt->atm) AutomatonDescription();
+		new (&rt->atm) AutomatonDescription( classdefs);
 		return rt;
 	}
 	catch (...)
@@ -1404,6 +1447,11 @@ extern "C" void papuga_destroy_Request( papuga_Request* self)
 	std::free( self);
 }
 
+extern "C" const papuga_ClassDef* papuga_Request_classdefs( const papuga_Request* self)
+{
+	return self->ctx.classdefs();
+}
+
 extern "C" bool papuga_Request_set_variable_value( papuga_Request* self, const char* varname, const papuga_ValueVariant* value)
 {
 	return self->ctx.setVariableValue( varname, value);
@@ -1449,9 +1497,9 @@ struct papuga_RequestIterator
 	AutomatonContext::Iterator itr;
 };
 
-extern "C" papuga_RequestIterator* papuga_create_RequestIterator( const papuga_Request* request)
+extern "C" papuga_RequestIterator* papuga_create_RequestIterator( papuga_Allocator* allocator, const papuga_Request* request)
 {
-	papuga_RequestIterator* rt = (papuga_RequestIterator*)std::calloc( 1, sizeof(*rt));
+	papuga_RequestIterator* rt = (papuga_RequestIterator*)papuga_Allocator_alloc( allocator, sizeof(*rt), 0);
 	if (!rt) return NULL;
 	try
 	{
@@ -1467,7 +1515,6 @@ extern "C" papuga_RequestIterator* papuga_create_RequestIterator( const papuga_R
 	}
 	catch (...)
 	{
-		std::free( rt);
 		return NULL;
 	}
 }
@@ -1477,13 +1524,12 @@ extern "C" papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_Re
 	return self->itr.next();
 }
 
-extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, const papuga_ClassDef* classdefs, papuga_ErrorCode* errcode)
+extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_ErrorCode* errcode)
 {
 	try
 	{
-		papuga_ClassDef const* ci = classdefs;
-		int classcnt = 0;
-		for (; ci->name; ++ci,++classcnt){}
+		const papuga_ClassDef* classdefs = self->ctx.classdefs();
+		int classcnt = self->ctx.nof_classdefs();
 
 		AutomatonContext::Iterator itr( &self->ctx);
 		std::ostringstream out;

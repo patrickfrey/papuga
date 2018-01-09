@@ -29,12 +29,12 @@ typedef struct papuga_RequestMethodId
 	int functionid ;				/*< index of method function in class starting with 1 */
 } papuga_RequestMethodId;
 
-
 /*
  * \brief Create an automaton to configure
+* \param[in] classdefs class definitions referred to in host object references
  * \return The automaton structure
  */
-papuga_RequestAutomaton* papuga_create_RequestAutomaton();
+papuga_RequestAutomaton* papuga_create_RequestAutomaton( const papuga_ClassDef* classdefs);
 
 /*
  * \brief Destroy an automaton
@@ -242,6 +242,13 @@ bool papuga_Request_done( papuga_Request* self);
 papuga_ErrorCode papuga_Request_last_error( const papuga_Request* self);
 
 /*
+ * \brief Get the class definitions of a request for refering to the method calls
+ * \param[in] self request to get the last error from
+ * \return the {NULL,..} terminated array of class definitions
+ */
+const papuga_ClassDef* papuga_Request_classdefs( const papuga_Request* self);
+
+/*
  * \brief Describes one method call provided by the request
  */
 typedef struct papuga_RequestMethodCall
@@ -257,10 +264,11 @@ typedef struct papuga_RequestIterator papuga_RequestIterator;
 
 /*
  * \brief Create an iterator on the method calls of a closed request
+ * \param[in] allocator for memory allocation for the iterator
  * \param[in] request request object to get the iterator on the request method calls
  * \return the iterator in case of success, or NULL in case of a memory allocation error
  */
-papuga_RequestIterator* papuga_create_RequestIterator( const papuga_Request* request);
+papuga_RequestIterator* papuga_create_RequestIterator( papuga_Allocator* allocator, const papuga_Request* request);
 
 
 /*
@@ -274,11 +282,10 @@ papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterat
  * \brief Map a request to a readable string of method calls for debugging
  * \param[in] self request iterator to get the next method call from
  * \param[in] allocator allocator to use for the result
- * \param[in] classdefs class definitions to identify the methods
  * \param[out] errcode error code in case of an error
  * \return pointer to the string built
  */
-const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, const papuga_ClassDef* classdefs, papuga_ErrorCode* errcode);
+const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_ErrorCode* errcode);
 
 #ifdef __cplusplus
 }

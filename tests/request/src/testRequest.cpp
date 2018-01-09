@@ -189,7 +189,7 @@ static std::string executeRequestXml( const papuga::test::RequestAutomaton* atm,
 	{
 		papuga_Allocator allocator;
 		papuga_init_Allocator( &allocator, 0, 0);
-		const char* requestdump = papuga_Request_tostring( request.impl(), &allocator, g_classdefs, &errcode);
+		const char* requestdump = papuga_Request_tostring( request.impl(), &allocator, &errcode);
 		if (!requestdump) throw papuga::error_exception( errcode, "dumping request");
 		std::cerr << "ITEMS XML REQUEST:\n" << requestdump << std::endl;
 	}
@@ -214,7 +214,7 @@ static std::string executeRequestJson( const papuga::test::RequestAutomaton* atm
 	{
 		papuga_Allocator allocator;
 		papuga_init_Allocator( &allocator, 0, 0);
-		const char* requestdump = papuga_Request_tostring( request.impl(), &allocator, g_classdefs, &errcode);
+		const char* requestdump = papuga_Request_tostring( request.impl(), &allocator, &errcode);
 		if (!requestdump) throw papuga::error_exception( errcode, "dumping request");
 		std::cerr << "ITEMS JSON REQUEST:\n" << requestdump << std::endl;
 	}
@@ -229,22 +229,35 @@ enum
 	PersonName,
 	PersonContent
 };
-static const papuga::test::Document g_testDocument1 = {"doc", { {"person", {{"name","Hugo"},{"id","1"}}, {{"Bla bla"}} } } };
+static const papuga::test::Document g_testDocument1 = {
+	"doc", {
+		{"person", {{"name","Hugo"},{"id","1"}}, {{"Bla bla"}} }
+		}
+	};
 static const papuga::test::RequestAutomaton g_testRequest1 = {
-							{"/doc/person", "@name", (int)PersonName},
-							{"/doc/person", "()", (int)PersonContent},
-							{"/doc", "var", "obj", C1::m1(), {{(int)PersonName}} } 
-						};
-static const papuga::test::Document g_testDocument2 = {"doc", { {"cities", {}, {{"Bern"}}}, {"cities", {}, {{"Luzern"}}}, {"cities", {}, {{"Biel"}}} } };
-static const papuga::test::RequestAutomaton g_testRequest2 = {};
+	g_classdefs,
+	{
+		{"/doc/person", "@name", (int)PersonName},
+		{"/doc/person", "()", (int)PersonContent},
+		{"/doc", "var", "obj", C1::m1(), {{(int)PersonName}} } 
+	}};
+static const papuga::test::Document g_testDocument2 = {
+	"doc", {
+		{"cities", {}, {{"Bern"}}},
+		{"cities", {}, {{"Luzern"}}},
+		{"cities", {}, {{"Biel"}}}
+		}
+	};
+
+static const papuga::test::RequestAutomaton g_testRequest2 = {
+	g_classdefs,
+	{}};
 
 static const Test g_tests[] = {
-				{"simple document", &g_testDocument1, &g_testRequest1},
-				{"arrays", &g_testDocument2, &g_testRequest2},
-				{0,0,0}};
-#endif
+	{"simple document", &g_testDocument1, &g_testRequest1},
+	{"arrays", &g_testDocument2, &g_testRequest2},
+	{0,0,0}};
 
-#if __cplusplus >= 201103L
 static void executeTest( int tidx, const Test& test)
 {
 	std::cerr << "Executing test (" << tidx << ") '" << test.description << "'..." << std::endl;
@@ -305,7 +318,7 @@ int main( int argc, const char* argv[])
 		{
 			executeTest( testno, g_tests[ testno-1]);
 		}
-		for (int testidx = 1; testidx <= testcnt; ++testidx)
+		else for (int testidx = 1; testidx <= testcnt; ++testidx)
 		{
 			executeTest( testidx, g_tests[ testidx-1]);
 		}

@@ -191,17 +191,17 @@ class RequestAutomaton
 {
 private:
 	RequestAutomaton( const RequestAutomaton&)
-		:m_atm(papuga_create_RequestAutomaton()){}
+		:m_atm(0){}
 	void operator=( const RequestAutomaton&) {}
 	//... non copyable
 
 public:
 	/// \brief Constructor defining an empty automaton to be filled with further method calls
-	RequestAutomaton();
+	explicit RequestAutomaton( const papuga_ClassDef* classdefs);
 
 #if __cplusplus >= 201103L
 	/// \brief Constructor defining the whole automaton from an initializer list
-	RequestAutomaton( const std::initializer_list<RequestAutomaton_Node>& nodes);
+	RequestAutomaton( const papuga_ClassDef* classdefs, const std::initializer_list<RequestAutomaton_Node>& nodes);
 #endif
 	/// \brief Destructor
 	~RequestAutomaton();
