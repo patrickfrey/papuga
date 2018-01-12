@@ -15,6 +15,7 @@
 #include "papuga/iterator.h"
 #include "papuga/valueVariant.h"
 #include "papuga/callResult.h"
+#include "papuga/constants.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -143,6 +144,17 @@ void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned
 	return self->root.ar;
 }
 
+bool papuga_Allocator_shrink_last_alloc( papuga_Allocator* self, void* ptr, size_t oldsize, size_t newsize)
+{
+	if ((char*)ptr == (self->root.ar + self->root.arsize - oldsize) && newsize <= oldsize)
+	{
+		self->root.arsize -= oldsize;
+		self->root.arsize += newsize;
+		return true;
+	}
+	return false;
+}
+
 char* papuga_Allocator_copy_string( papuga_Allocator* self, const char* str, size_t len)
 {
 	char* rt = (char*)papuga_Allocator_alloc( self, len+1, 1);
@@ -262,19 +274,21 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 			char result_buf[ 1024];
 			char error_buf[ 128];
 			papuga_Iterator* iterator = orig->value.iterator;
+			int itercnt = 0;
 
 			papuga_init_CallResult( &result, result_buf, sizeof(result_buf), error_buf, sizeof(error_buf));
-			while (iterator->getNext( iterator->data, &result))
+			while (itercnt++ < PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH && iterator->getNext( iterator->data, &result))
 			{
-				if (!papuga_Serialization_pushOpen( dest)) goto ERROR;
+				bool sc = true;
+				sc &= papuga_Serialization_pushOpen( dest);
 				int ri = 0, re = result.nofvalues;
 				for (; ri != re; ++ri)
 				{
-					if (!serializeValueVariant( dest, result.valuear + ri, allocator, moveobj, errcode)) goto ERROR;
+					sc &= serializeValueVariant( dest, result.valuear + ri, allocator, moveobj, errcode);
 				}
-				if (!papuga_Serialization_pushClose( dest)) goto ERROR;
-
+				sc &= papuga_Serialization_pushClose( dest);
 				papuga_destroy_CallResult( &result);
+				if (!sc) goto ERROR;
 				papuga_init_CallResult( &result, result_buf, sizeof(result_buf), error_buf, sizeof(error_buf));
 			}
 			if (papuga_CallResult_hasError( &result))

@@ -20,6 +20,11 @@ extern "C" {
 typedef struct papuga_RequestAutomaton papuga_RequestAutomaton;
 typedef struct papuga_Request papuga_Request;
 
+/* Forward declaration interfaceDescription.h */
+typedef struct papuga_StructInterfaceDescription papuga_StructInterfaceDescription;
+/* Forward declaration classdef.h */
+typedef struct papuga_ClassDef papuga_ClassDef;
+
 /*
  * @brief Defines an identifier for a method
  */
@@ -38,6 +43,7 @@ typedef struct papuga_RequestVariable
 	struct papuga_RequestVariable* next;		/*< next variable */
 	const char* name;				/*< name of variable associated with this value */
 	papuga_ValueVariant value;			/*< variable value associated with this name */
+	bool inherited;					/*< variable value has been inherited and is not printed as part of the result */
 } papuga_RequestVariable;
 
 /*
@@ -45,7 +51,7 @@ typedef struct papuga_RequestVariable
 * \param[in] classdefs class definitions referred to in host object references
  * @return The automaton structure
  */
-papuga_RequestAutomaton* papuga_create_RequestAutomaton( const papuga_ClassDef* classdefs);
+papuga_RequestAutomaton* papuga_create_RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* resultname);
 
 /*
  * @brief Destroy an automaton
@@ -288,6 +294,16 @@ const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_Request
  * @return pointer to the string built
  */
 const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_ErrorCode* errcode);
+
+/*
+ * @brief Get the name of the result produced by this request (e.g. used as toplevel tag for XML of result)
+ */
+const char* papuga_Request_resultname( const papuga_Request* self);
+
+/*
+ * @brief Get the structure descriptions of the request for mapping the output
+ */
+const papuga_StructInterfaceDescription* papuga_Request_struct_descriptions( const papuga_Request* self);
 
 #ifdef __cplusplus
 }

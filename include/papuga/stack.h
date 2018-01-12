@@ -21,20 +21,34 @@ extern "C" {
 /*
 * @brief Papuga stack (helper) structure
 */
-typedef struct papuga_Stack
+typedef struct papuga_StackNode
 {
+	struct papuga_StackNode* prev;		/*< previous node on the stack */
 	size_t allocsize;			/*< allocation size of the stack in elements */
 	size_t arsize;				/*< number of nodes used */
+} papuga_StackNode;
+
+/*
+* @brief Papuga stack (helper) structure
+*/
+typedef struct papuga_Stack
+{
+	papuga_StackNode* top;			/*< top node of the stack */
+	void* buf;				/*< static buffer used first for allocation */
 	size_t elemsize;			/*< sizeof element in bytes */
-	void* ar;				/*< array of stack elements */
-	bool allocated;				/*< wheter the current buffer is static or allocated */
+	size_t nodesize;			/*< number of elements per node */
+	size_t size;				/*< number of elements on the stack */
 } papuga_Stack;
 
 /*
 * @brief Constructor
 * @param[out] self pointer to structure 
+* @param[in] elemsize sizeof stack element in bytes
+* @param[in] nodesize number of elements allocated per node
+* @param[in] buf static buffer used first for first allocations
+* @param[in] bufsize size of buf in bytes
 */
-void papuga_init_Stack( papuga_Stack* self, size_t elemsize, void* buf, size_t bufsize);
+void papuga_init_Stack( papuga_Stack* self, size_t elemsize, size_t nodesize, void* buf, size_t bufsize);
 
 /*
 * @brief Destructor
@@ -46,19 +60,20 @@ void papuga_destroy_Stack( papuga_Stack* self);
 * @brief Get the size of the stack in number of elements inserted
 * @param[in] self pointer to structure 
 */
-#define papuga_Stack_size( self)	(self)->arsize
+#define papuga_Stack_size( self)	(self)->size
 
 /*
 * @brief Push an element on the stack (memcpy)
 * @param[in] self pointer to structure 
+* @return the memory of the new element pushed to be initialized by the caller 
 */
-bool papuga_Stack_push( papuga_Stack* self, void* elem);
+void* papuga_Stack_push( papuga_Stack* self);
 
 /*
 * @brief Pop an element from the stack 
 * @param[in] self pointer to structure 
 * @return a pointer to the top element popped or NULL if stack is empty
-* @remark the element returned is not guaranteed to stay valid with the further use of the stack. You have to copy the element, if you want to keep it.
+* @remark the element returned is only valid till the next stack operation
 */
 void* papuga_Stack_pop( papuga_Stack* self);
 
@@ -66,18 +81,18 @@ void* papuga_Stack_pop( papuga_Stack* self);
 * @brief Get a reference to the top element on the stack
 * @param[in] self pointer to structure
 * @return a pointer to the top element or NULL if stack is empty
-* @remark the element returned is not guaranteed to stay valid with the further use of the stack. You have to copy the element, if you want to keep it.
+* @remark the element returned is only valid till the next stack operation
 */
 void* papuga_Stack_top( const papuga_Stack* self);
 
 /*
-* @brief Get a reference to an element (random access)
+* @brief Get a reference to the top n elements
 * @param[in] self pointer to structure
-* @param[in] idx index of element starting with 0
-* @return a pointer to the element or NULL if the access is out of bounds
-* @remark the element returned is not guaranteed to stay valid with the further use of the stack. You have to copy the element, if you want to keep it.
+* @param[out] buf buffer filled with pointers to the top N elements
+* @param[in] N number of elements to get the reference of
+* @return true if there are N elements returned, false if the stack contains less elements
 */
-void* papuga_Stack_element( const papuga_Stack* self, size_t idx);
+bool papuga_Stack_top_n( const papuga_Stack* self, void** buf, size_t N);
 
 #ifdef __cplusplus
 }

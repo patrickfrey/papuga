@@ -77,10 +77,12 @@ bool papuga_ValueVariant_print( FILE* out, const papuga_ValueVariant* val)
 	if (str)
 	{
 		fprintf( out, "%s", str);
+		papuga_destroy_Allocator( &allocator);
 		return true;
 	}
 	else
 	{
+		papuga_destroy_Allocator( &allocator);
 		return false;
 	}
 }

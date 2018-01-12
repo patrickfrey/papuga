@@ -13,84 +13,119 @@
 #include <stdlib.h>
 #include <string.h>
 
-void papuga_init_Stack( papuga_Stack* self, size_t elemsize, void* buf, size_t bufsize)
+void papuga_init_Stack( papuga_Stack* self, size_t elemsize, size_t nodesize, void* buf, size_t bufsize)
 {
-	self->elemsize = elemsize;
-	self->arsize = 0;
-	if (buf && bufsize/elemsize > 0) {
-		self->allocated = false;
-		self->ar = buf;
-		self->allocsize = bufsize/elemsize;
-	} else {
-		self->allocated = true;
-		self->ar = NULL;
-		self->allocsize = 0;
+	if (sizeof(papuga_StackNode) + elemsize > bufsize)
+	{
+		self->buf = 0;
+		self->top = 0;
 	}
+	else
+	{
+		self->buf = buf;
+		self->top = (papuga_StackNode*)buf;
+		self->top->prev = NULL;
+		self->top->allocsize = bufsize;
+		self->top->arsize = sizeof(papuga_StackNode);
+	}
+	self->elemsize = elemsize;
+	self->nodesize = nodesize ? nodesize : 128;
+	self->size = 0;
 }
 
 void papuga_destroy_Stack( papuga_Stack* self)
 {
-	if (self->ar && self->allocated)
+	papuga_StackNode* nd = self->top;
+	while (nd)
 	{
-		free( self->ar);
-		self->ar = NULL;
+		papuga_StackNode* prev = nd->prev;
+		if ((void*)nd != self->buf)
+		{
+			free( (void*)nd);
+		}
+		nd = prev;
 	}
 }
 
-static bool alloc_nodes( papuga_Stack* self, size_t addsize)
+void* papuga_Stack_push( papuga_Stack* self)
 {
-	size_t newallocsize;
-	size_t newsize = self->arsize + addsize;
-	if (newsize < self->arsize) return false;
-	if (newsize > self->allocsize)
+	void* rt;
+	if (!self->top || self->top->arsize + self->elemsize > self->top->allocsize)
 	{
-		size_t mm = self->allocsize ? (self->allocsize * 2) : 256;
-		while (mm > self->allocsize && mm < newsize) mm *= 2;
-		newallocsize = mm;
-		mm *= self->elemsize;
-		if (mm < newsize) return false;
-		if (self->allocated)
-		{
-			void* newmem = realloc( self->ar, mm);
-			if (newmem == NULL) return false;
-			self->ar = newmem;
-		}
-		else
-		{
-			void* newmem = malloc( mm);
-			if (newmem == NULL) return false;
-			memcpy( newmem, self->ar, self->arsize * self->elemsize);
-			self->allocated = true;
-			self->ar = newmem;
-		}
-		self->allocsize = newallocsize;
+		size_t mm = sizeof(papuga_StackNode) + self->nodesize * self->elemsize;
+		papuga_StackNode* newnode = (papuga_StackNode*)malloc( mm);
+		if (!newnode) return NULL;
+		newnode->prev = self->top;
+		newnode->allocsize = mm;
+		newnode->arsize = sizeof(papuga_StackNode);
+		self->top = newnode;
 	}
-	return true;
-}
-
-bool papuga_Stack_push( papuga_Stack* self, void* elem)
-{
-	if (!alloc_nodes( self, 1)) return false;
-	memcpy( (char*)self->ar + (self->arsize * self->elemsize), elem, self->elemsize);
-	++self->arsize;
-	return true;
+	rt = (void*)(((char*)(void*)self->top) + self->top->arsize);
+	self->top->arsize += self->elemsize;
+	self->size += 1;
+	return rt;
 }
 
 void* papuga_Stack_pop( papuga_Stack* self)
 {
-	if (self->arsize == 0) return NULL;
-	return (void*)((char*)self->ar + ((--self->arsize) * self->elemsize));
+	if (!self->size) return NULL;
+	while (self->top->arsize == sizeof(papuga_StackNode))
+	{
+		papuga_StackNode* prev = self->top->prev;
+		if ((void*)self->top == self->buf)
+		{
+			return NULL;
+		}
+		else
+		{
+			free( (void*)self->top);
+			self->top = prev;
+		}
+	}
+	if (!self->top || self->top->arsize <= sizeof(papuga_StackNode) + self->elemsize)
+	{
+		return NULL;
+	}
+	void* rt = ((char*)(void*)(self->top)) + self->top->arsize - self->elemsize;
+	self->top->arsize -= self->elemsize;
+	self->size -= 1;
+	return rt;
 }
 
 void* papuga_Stack_top( const papuga_Stack* self)
 {
-	if (self->arsize == 0) return NULL;
-	return (void*)((char*)self->ar + (self->arsize * self->elemsize));
+	if (!self->size) return NULL;
+	papuga_StackNode* nd = self->top;
+	if (nd->arsize == sizeof(papuga_StackNode))
+	{
+		nd = nd->prev;
+	}
+	if (!nd || nd->arsize <= sizeof(papuga_StackNode) + self->elemsize)
+	{
+		return NULL;
+	}
+	return ((char*)(void*)(nd)) + self->top->arsize - self->elemsize;
 }
 
-void* papuga_Stack_element( const papuga_Stack* self, size_t idx)
+bool papuga_Stack_top_n( const papuga_Stack* self, void** buf, size_t nn)
 {
-	if (idx >= self->arsize) return NULL;
-	return (void*)((char*)self->ar + (idx * self->elemsize));
+	if (nn > self->size) return false;
+	papuga_StackNode* nd = self->top;
+	if (!nd) return false;
+	size_t arsize = nd->arsize;
+
+	while (nn > 0)
+	{
+		while (arsize >= sizeof(papuga_StackNode) + self->elemsize)
+		{
+			buf[ nn-1] = ((char*)(void*)(nd)) + arsize - self->elemsize;
+			arsize -= self->elemsize;
+			nn -= 1;
+		}
+		nd = nd->prev;
+		if (!nd) break;
+		arsize = nd->arsize;
+	}
+	return nn == 0;
 }
 

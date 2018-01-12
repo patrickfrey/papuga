@@ -837,15 +837,14 @@ static void papuga_init_PyStruct( papuga_PyStruct* pystruct, int structid)
 {
 	pystruct->nofKeyValuePairs = 0;
 	pystruct->structid = structid;
-	papuga_init_Stack( &pystruct->stk, sizeof(papuga_PyStructNode), pystruct->stk_local_mem, sizeof(pystruct->stk_local_mem));
+	papuga_init_Stack( &pystruct->stk, sizeof(papuga_PyStructNode)/*elemsize*/, 128/*nodesize*/, pystruct->stk_local_mem, sizeof(pystruct->stk_local_mem));
 }
 
 static void papuga_destroy_PyStruct( papuga_PyStruct* pystruct)
 {
-	unsigned int ei = 0, ee = papuga_Stack_size( &pystruct->stk);
-	for (; ei != ee; ++ei)
+	papuga_PyStructNode* nd;
+	while (!!(nd=(papuga_PyStructNode*)papuga_Stack_pop( &pystruct->stk)))
 	{
-		papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
 		papuga_destroy_PyStructNode( nd);
 	}
 	papuga_destroy_Stack( &pystruct->stk);
@@ -853,21 +852,23 @@ static void papuga_destroy_PyStruct( papuga_PyStruct* pystruct)
 
 static bool papuga_PyStruct_push_node( papuga_PyStruct* pystruct, papuga_PyStructNode* nd)
 {
-	if (!papuga_Stack_push( &pystruct->stk, nd)) return false;
+	void* ndmem = papuga_Stack_push( &pystruct->stk);
+	if (!ndmem) return false;
+	memcpy( ndmem, nd, sizeof(*nd));
 	papuga_init_PyStructNode( nd);
 	return true;
 }
 
-static PyObject* papuga_PyStruct_create_dict( const papuga_PyStruct* pystruct, papuga_Allocator* allocator, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+static PyObject* papuga_PyStruct_create_dict( const papuga_PyStruct* pystruct, papuga_PyStructNode** nodes, size_t nofnodes, papuga_Allocator* allocator, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	PyObject* rt = PyDict_New();
 	if (rt)
 	{
 		long currIndex = 0;
-		unsigned int ei = 0, ee = papuga_Stack_size( &pystruct->stk);
-		for (; ei != ee; ++ei)
+		int ei, ee;
+		for (ei = 0, ee = nofnodes; ei != ee; ++ei)
 		{
-			papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
+			papuga_PyStructNode* nd = nodes[ ei];
 			PyObject* keyobj = NULL;
 			if (!nd) break;
 			if (!papuga_ValueVariant_defined( &nd->keyval))
@@ -922,15 +923,15 @@ static PyObject* papuga_PyStruct_create_dict( const papuga_PyStruct* pystruct, p
 	return rt;
 }
 
-static PyObject* papuga_PyStruct_create_list( papuga_PyStruct* pystruct, papuga_ErrorCode* errcode)
+static PyObject* papuga_PyStruct_create_list( papuga_PyStruct* pystruct, papuga_PyStructNode** nodes, size_t nofnodes, papuga_ErrorCode* errcode)
 {
 	PyObject* rt = PyList_New( papuga_Stack_size( &pystruct->stk));
 	if (rt)
 	{
-		unsigned int ei = 0, ee = papuga_Stack_size( &pystruct->stk);
-		for (; ei != ee; ++ei)
+		int ei, ee;
+		for (ei = 0, ee = nofnodes; ei != ee; ++ei)
 		{
-			papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
+			papuga_PyStructNode* nd = nodes[ ei];
 			if (0>PyList_SetItem( rt, ei, nd->valobj)) break;
 			nd->valobj = NULL; /*... reference is stolen by .._SetItem, therefore we hide the old reference with its count as we do not need it anymore (INCREF would also be possible) */
 		}
@@ -949,7 +950,7 @@ static PyObject* papuga_PyStruct_create_list( papuga_PyStruct* pystruct, papuga_
 	return rt;
 }
 
-static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papuga_Allocator* allocator, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papuga_PyStructNode** nodes, size_t nofnodes, papuga_Allocator* allocator, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	const PyMemberDef* members;
 	PyObject* rt = papuga_python_create_struct( pystruct->structid, cemap, errcode);
@@ -965,9 +966,9 @@ static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papug
 		Py_DECREF( rt);
 		return NULL;
 	}
-	for (ei = 0, ee = papuga_Stack_size( &pystruct->stk); ei != ee; ++ei)
+	for (ei = 0, ee = nofnodes; ei != ee; ++ei)
 	{
-		papuga_PyStructNode* nd = (papuga_PyStructNode*)papuga_Stack_element( &pystruct->stk, ei);
+		papuga_PyStructNode* nd = nodes[ ei];
 		int memberidx;
 
 		if (!nd) break;
@@ -1051,18 +1052,35 @@ static PyObject* papuga_PyStruct_create_struct( papuga_PyStruct* pystruct, papug
 static PyObject* papuga_PyStruct_create_object( papuga_PyStruct* pystruct, papuga_Allocator* allocator, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	PyObject* rt = NULL;
+	size_t nofnodes = papuga_Stack_size( &pystruct->stk);
+	papuga_PyStructNode* nodesbuf[ 1024];
+	papuga_PyStructNode** nodes = (nofnodes > sizeof(nodesbuf)/sizeof(nodesbuf[0]))
+		? (papuga_PyStructNode**)malloc( nofnodes * sizeof(papuga_PyStructNode*))
+		: nodesbuf;
+	if (!nodes)
+	{
+		*errcode = papuga_NoMemError;
+		return false;
+	}
+	if (!papuga_Stack_top_n( &pystruct->stk, (void**)nodes, nofnodes))
+	{
+		if (nodes != nodesbuf) free( nodes);
+		*errcode = papuga_NoMemError;
+		return false;
+	}
 	if (pystruct->structid)
 	{
-		rt = papuga_PyStruct_create_struct( pystruct, allocator, cemap, errcode);
+		rt = papuga_PyStruct_create_struct( pystruct, nodes, nofnodes, allocator, cemap, errcode);
 	}
 	else if (pystruct->nofKeyValuePairs > 0)
 	{
-		rt = papuga_PyStruct_create_dict( pystruct, allocator, cemap, errcode);
+		rt = papuga_PyStruct_create_dict( pystruct, nodes, nofnodes, allocator, cemap, errcode);
 	}
 	else
 	{
-		rt = papuga_PyStruct_create_list( pystruct, errcode);
+		rt = papuga_PyStruct_create_list( pystruct, nodes, nofnodes, errcode);
 	}
+	if (nodes != nodesbuf) free( nodes);
 	return rt;
 }
 

@@ -14,6 +14,7 @@
 #include "papuga/valueVariant.h"
 #include "papuga/valueVariant.hpp"
 #include "papuga/callArgs.h"
+#include "papuga/classdef.h"
 #include "textwolf/xmlpathautomatonparse.hpp"
 #include "textwolf/xmlpathselect.hpp"
 #include "textwolf/charset.hpp"
@@ -158,8 +159,9 @@ class AutomatonDescription
 public:
 	typedef textwolf::XMLPathSelectAutomatonParser<> XMLPathSelectAutomaton;
 
-	explicit AutomatonDescription( const papuga_ClassDef* classdefs_)
-		:m_classdefs(classdefs_),m_nof_classdefs(nofClassDefs(classdefs_))
+	explicit AutomatonDescription( const papuga_ClassDef* classdefs_, const char* resultname_)
+		:m_classdefs(classdefs_),m_resultname(resultname_)
+		,m_nof_classdefs(nofClassDefs(classdefs_))
 		,m_calldefs(),m_structdefs(),m_valuedefs(),m_atm(),m_maxitemid(0)
 		,m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
 	{
@@ -170,9 +172,9 @@ public:
 	{
 		return m_classdefs;
 	}
-	int nof_classdefs() const
+	const char* resultname() const
 	{
-		return m_nof_classdefs;
+		return m_resultname;
 	}
 
 	/* @param[in] expression selector of the call scope */
@@ -528,6 +530,7 @@ private:
 
 private:
 	const papuga_ClassDef* m_classdefs;			//< array of classes
+	const char* m_resultname;				//< label of result (top level tag for XML)
 	int m_nof_classdefs;					//< number of classes defined in m_classdefs
 	std::vector<CallDef> m_calldefs;
 	std::vector<StructDef> m_structdefs;
@@ -862,9 +865,9 @@ public:
 	{
 		return m_atm->classdefs();
 	}
-	int nof_classdefs() const
+	const char* resultname() const
 	{
-		return m_atm->nof_classdefs();
+		return m_atm->resultname();
 	}
 
 	class Iterator
@@ -1391,15 +1394,17 @@ private:
 struct papuga_RequestAutomaton
 {
 	AutomatonDescription atm;
+	const papuga_StructInterfaceDescription* structdefs;
 };
 
-extern "C" papuga_RequestAutomaton* papuga_create_RequestAutomaton( const papuga_ClassDef* classdefs)
+extern "C" papuga_RequestAutomaton* papuga_create_RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* resultname)
 {
 	papuga_RequestAutomaton* rt = (papuga_RequestAutomaton*)std::calloc( 1, sizeof(*rt));
 	if (!rt) return NULL;
 	try
 	{
-		new (&rt->atm) AutomatonDescription( classdefs);
+		new (&rt->atm) AutomatonDescription( classdefs, resultname);
+		rt->structdefs = structdefs;
 		return rt;
 	}
 	catch (...)
@@ -1489,6 +1494,7 @@ extern "C" bool papuga_RequestAutomaton_done( papuga_RequestAutomaton* self)
 struct papuga_Request
 {
 	AutomatonContext ctx;
+	const papuga_StructInterfaceDescription* structdefs;
 };
 
 extern "C" papuga_Request* papuga_create_Request( const papuga_RequestAutomaton* atm)
@@ -1498,6 +1504,7 @@ extern "C" papuga_Request* papuga_create_Request( const papuga_RequestAutomaton*
 	try
 	{
 		new (&rt->ctx) AutomatonContext( &atm->atm);
+		rt->structdefs = atm->structdefs;
 		return rt;
 	}
 	catch (...)
@@ -1621,4 +1628,15 @@ extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papu
 		return NULL;
 	}
 }
+
+extern "C" const char* papuga_Request_resultname( const papuga_Request* self)
+{
+	return self->ctx.resultname();
+}
+
+extern "C" const papuga_StructInterfaceDescription* papuga_Request_struct_descriptions( const papuga_Request* self)
+{
+	return self->structdefs;
+}
+
 

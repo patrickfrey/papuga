@@ -7,6 +7,7 @@
  */
 #include "papuga.hpp"
 #include "document.hpp"
+#include "execRequest.h"
 #include <string>
 #include <cstring>
 #include <cstdlib>
@@ -23,7 +24,9 @@ struct Test
 {
 	const char* description;
 	const papuga::test::Document* doc;
-	const papuga::test::RequestAutomaton* atm;
+	const papuga::RequestAutomaton* atm;
+	const RequestVariable* var;
+	const char* result;
 };
 
 #ifdef PAPUGA_LOWLEVEL_DEBUG
@@ -125,6 +128,11 @@ static const char* methodnames_C2[ methodtable_size_C2] = {
 	"M1","M2","M3"
 };
 
+enum {nof_structdefs=0};
+papuga_StructInterfaceDescription g_structdefs[ nof_structdefs+1] = {
+	{NULL/*name*/,NULL/*doc*/,NULL/*members*/}
+};
+
 enum {nof_classdefs=2};
 static const papuga_ClassDef g_classdefs[ nof_classdefs+1] = {
 	{"C1",constructor_C1,destructor_C1,methodtable_C1,methodnames_C1,methodtable_size_C1},
@@ -147,81 +155,6 @@ struct C2
 };
 
 
-
-class Request
-{
-public:
-	Request( papuga_Request* ths)			:m_this(ths){}
-	~Request()					{if (m_this) papuga_destroy_Request(m_this);}
-	operator bool() const				{return !!m_this;}
-	papuga_Request* operator->() const		{return m_this;}
-	papuga_Request* impl() const			{return m_this;}
-private:
-	papuga_Request* m_this;
-};
-
-class RequestParser
-{
-public:
-	RequestParser( papuga_RequestParser* ths)	:m_this(ths){}
-	~RequestParser()				{if (m_this) papuga_destroy_RequestParser(m_this);}
-	operator bool() const				{return !!m_this;}
-	papuga_RequestParser* operator->() const	{return m_this;}
-	papuga_RequestParser* impl() const		{return m_this;}
-private:
-	papuga_RequestParser* m_this;
-};
-
-static std::string executeRequestXml( const papuga::test::RequestAutomaton* atm, papuga_StringEncoding enc, const std::string& doc)
-{
-	Request request( papuga_create_Request( atm->impl()));
-	if (!request) throw std::bad_alloc();
-	papuga_ErrorCode errcode = papuga_Ok;
-	RequestParser parser( papuga_create_RequestParser_xml( enc, doc.c_str(), doc.size(), &errcode));
-	if (!parser) throw papuga::error_exception( errcode, "creating XML request parser");
-	if (!papuga_RequestParser_feed_request( parser.impl(), request.impl(), &errcode))
-	{
-		char buf[ 2048];
-		int pos = papuga_RequestParser_get_position( parser.impl(), buf, sizeof(buf));
-		throw papuga::runtime_error( "error at position %d: %s, feeding request, location: %s", pos, papuga_ErrorCode_tostring( errcode), buf);
-	}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	{
-		papuga_Allocator allocator;
-		papuga_init_Allocator( &allocator, 0, 0);
-		const char* requestdump = papuga_Request_tostring( request.impl(), &allocator, &errcode);
-		if (!requestdump) throw papuga::error_exception( errcode, "dumping request");
-		std::cerr << "ITEMS XML REQUEST:\n" << requestdump << std::endl;
-	}
-#endif
-	return std::string();
-}
-
-static std::string executeRequestJson( const papuga::test::RequestAutomaton* atm, papuga_StringEncoding enc, const std::string& doc)
-{
-	Request request( papuga_create_Request( atm->impl()));
-	if (!request) throw std::bad_alloc();
-	papuga_ErrorCode errcode = papuga_Ok;
-	RequestParser parser( papuga_create_RequestParser_json( enc, doc.c_str(), doc.size(), &errcode));
-	if (!parser) throw papuga::error_exception( errcode, "creating JSON request parser");
-	if (!papuga_RequestParser_feed_request( parser.impl(), request.impl(), &errcode))
-	{
-		char buf[ 2048];
-		int pos = papuga_RequestParser_get_position( parser.impl(), buf, sizeof(buf));
-		throw papuga::runtime_error( "error at position %d: %s, feeding request, location: %s", pos, papuga_ErrorCode_tostring( errcode), buf);
-	}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	{
-		papuga_Allocator allocator;
-		papuga_init_Allocator( &allocator, 0, 0);
-		const char* requestdump = papuga_Request_tostring( request.impl(), &allocator, &errcode);
-		if (!requestdump) throw papuga::error_exception( errcode, "dumping request");
-		std::cerr << "ITEMS JSON REQUEST:\n" << requestdump << std::endl;
-	}
-#endif
-	return std::string();
-}
-
 #if __cplusplus >= 201103L
 enum
 {
@@ -234,8 +167,8 @@ static const papuga::test::Document g_testDocument1 = {
 		{"person", {{"name","Hugo"},{"id","1"}}, {{"Bla bla"}} }
 		}
 	};
-static const papuga::test::RequestAutomaton g_testRequest1 = {
-	g_classdefs,
+static const papuga::RequestAutomaton g_testRequest1 = {
+	g_classdefs, g_structdefs, "person",
 	{
 		{"/doc/person", "@name", (int)PersonName},
 		{"/doc/person", "()", (int)PersonContent},
@@ -249,37 +182,80 @@ static const papuga::test::Document g_testDocument2 = {
 		}
 	};
 
-static const papuga::test::RequestAutomaton g_testRequest2 = {
-	g_classdefs,
+static const papuga::RequestAutomaton g_testRequest2 = {
+	g_classdefs, g_structdefs,
 	{}};
 
 static const Test g_tests[] = {
-	{"simple document", &g_testDocument1, &g_testRequest1},
-	{"arrays", &g_testDocument2, &g_testRequest2},
+	{"simple document", &g_testDocument1, &g_testRequest1, NULL/*variables*/, NULL/*result*/},
+	{"arrays", &g_testDocument2, &g_testRequest2, NULL/*variables*/, NULL/*result*/},
 	{0,0,0}};
+
+struct TestSet
+{
+	papuga_StringEncoding encoding;
+	papuga_ContentType doctype;
+};
+static const TestSet testsets[] = {
+	{papuga_UTF8,papuga_ContentType_XML},
+	{papuga_UTF8,papuga_ContentType_JSON},
+	{papuga_UTF16BE,papuga_ContentType_XML},
+	{papuga_UTF16BE,papuga_ContentType_JSON},
+	{papuga_UTF16LE,papuga_ContentType_XML},
+	{papuga_UTF16LE,papuga_ContentType_JSON},
+	{papuga_UTF32BE,papuga_ContentType_XML},
+	{papuga_UTF32BE,papuga_ContentType_JSON},
+	{papuga_UTF32LE,papuga_ContentType_XML},
+	{papuga_UTF32LE,papuga_ContentType_JSON},
+	{papuga_UTF8,papuga_ContentType_Unknown}
+};
+
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+#define TESTLOG( TITLE, CONTENT)\
+	std::cerr << (TITLE) << ":\n" << (CONTENT) << std::endl;
+#else
+#define TESTLOG( TITLE, CONTENT)
+#endif
+
 
 static void executeTest( int tidx, const Test& test)
 {
 	std::cerr << "Executing test (" << tidx << ") '" << test.description << "'..." << std::endl;
-	std::cout << test.description << ":" << std::endl;
-	std::cout << "TXT:\n" << test.doc->totext() << std::endl;
-	enum {NofEncodings=5};
-	static papuga_StringEncoding encodings[ NofEncodings] = {papuga_UTF8, papuga_UTF16BE, papuga_UTF16LE, papuga_UTF32BE, papuga_UTF32LE};
-	//[+]int ei = 0, ee = NofEncodings;
+	std::cerr << test.description << ":" << std::endl;
+	TESTLOG( "TXT", test.doc->totext())
 	int ei = 0, ee = 1;
-	for (; ei != ee; ++ei)
+	for (; ei != ee && testsets[ei].doctype == papuga_ContentType_Unknown; ++ei)
 	{
-		papuga_StringEncoding enc = encodings[ ei];
+		papuga_ErrorCode errcode = papuga_Ok;
+		char* resstr = 0;
+		std::size_t reslen = 0;
+		papuga_StringEncoding enc = testsets[ ei].encoding;
+		papuga_ContentType doctype = testsets[ ei].doctype;
+
+		std::string content;
+		switch (doctype)
 		{
-			std::string content = test.doc->toxml( enc, false);
-			std::cout << "XML " << papuga_StringEncoding_name( enc) << ":\n" << test.doc->toxml( enc, true) << std::endl;
-			std::cout << "DUMP XML REQUEST:\n" << papuga::test::dumpRequest( papuga_ContentType_XML, enc, content);
-			std::cout << "ITEMS XML REQUEST:\n" << executeRequestXml( test.atm, enc, content);
-		}{
-			std::string content = test.doc->tojson( enc);
-			std::cout << "JSON " << papuga_StringEncoding_name( enc) << ":\n" << content << std::endl;
-			std::cout << "DUMP JSON REQUEST:\n" << papuga::test::dumpRequest( papuga_ContentType_JSON, enc, content);
-			std::cout << "ITEMS JSON REQUEST:\n" << executeRequestJson( test.atm, enc, content);
+			case papuga_ContentType_XML:
+				content = test.doc->toxml( enc, false);
+				TESTLOG( std::string("DOC XML") + papuga_StringEncoding_name( enc), test.doc->toxml( enc, true))
+				break;
+			case papuga_ContentType_JSON:
+				content = test.doc->tojson( enc);
+				TESTLOG( std::string("DOC JSON") + papuga_StringEncoding_name( enc), content)
+				break;
+			case papuga_ContentType_Unknown:
+				break;
+		}
+		TESTLOG( "DUMP", papuga::test::dumpRequest( doctype, enc, content))
+
+		if (!papuga_execute_request( test.atm->impl(), doctype, enc, content.c_str(), content.size(), test.var, &errcode, &resstr, &reslen))
+		{
+			TESTLOG( "ERROR", std::string( resstr, reslen))
+			throw papuga::error_exception( errcode, "executing test request");
+		}
+		else
+		{
+			TESTLOG( "RESULT", std::string( resstr, reslen))
 		}
 	}
 }

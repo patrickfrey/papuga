@@ -13,6 +13,7 @@
 */ 
 /* Implemented in library papuga_devel: */
 #include "papuga/typedefs.h"
+#include "papuga/constants.h"
 #include "papuga/version.h"
 #include "papuga/languages.h"
 #include "papuga/errors.h"
@@ -27,8 +28,10 @@
 #include "papuga/interfaceDescription.h"
 
 /* Implemented in library papuga_request_devel: */
+#include "papuga/classdef.h"
 #include "papuga/request.h"
 #include "papuga/requestParser.h"
+#include "papuga/requestHandler.h"
 
 #endif
 

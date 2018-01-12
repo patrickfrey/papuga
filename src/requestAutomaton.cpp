@@ -8,21 +8,23 @@
 /// \brief Structure to define an automaton mapping a request to function calls in C++ in a convenient way
 /// \file requestAutomaton.cpp
 #include "papuga/requestAutomaton.hpp"
+#include "papuga/classdef.h"
 #include "papuga/request.h"
+#include "papuga/errors.hpp"
 #include <stdexcept>
 #include <cstdio>
 
 #define PAPUGA_LOWLEVEL_DEBUG
 
 using namespace papuga;
-using namespace papuga::test;
 
 void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm) const
 {
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define function expression='%s', method=[%d,%d], self=%s, result=%s, n=%d\n", expression.c_str(), methodid.classid, methodid.functionid, selfvar.c_str(), resultvar.c_str(), (int)args.size());
+	fprintf( stderr, "ATM define function expression='%s', method=[%d,%d], self=%s, result=%s, n=%d\n",
+		 expression, methodid.classid, methodid.functionid, selfvar, resultvar, (int)args.size());
 #endif	
-	if (!papuga_RequestAutomaton_add_call( atm, expression.c_str(), &methodid, selfvar.c_str(), resultvar.c_str(), args.size()))
+	if (!papuga_RequestAutomaton_add_call( atm, expression, &methodid, selfvar, resultvar, args.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add function");
@@ -52,9 +54,9 @@ void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm)
 void RequestAutomaton_StructDef::addToAutomaton( papuga_RequestAutomaton* atm) const
 {
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define structure expression='%s', itemid=%d, n=%d\n", expression.c_str(), itemid, (int)elems.size());
+	fprintf( stderr, "ATM define structure expression='%s', itemid=%d, n=%d\n", expression, itemid, (int)elems.size());
 #endif	
-	if (!papuga_RequestAutomaton_add_structure( atm, expression.c_str(), itemid, elems.size()))
+	if (!papuga_RequestAutomaton_add_structure( atm, expression, itemid, elems.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add structure");
@@ -73,9 +75,9 @@ void RequestAutomaton_StructDef::addToAutomaton( papuga_RequestAutomaton* atm) c
 void RequestAutomaton_ValueDef::addToAutomaton( papuga_RequestAutomaton* atm) const
 {
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define value scope='%s', select=%s, id=%d\n", scope_expression.c_str(), select_expression.c_str(), itemid);
+	fprintf( stderr, "ATM define value scope='%s', select=%s, id=%d\n", scope_expression, select_expression, itemid);
 #endif	
-	if (!papuga_RequestAutomaton_add_value( atm, scope_expression.c_str(), select_expression.c_str(), itemid))
+	if (!papuga_RequestAutomaton_add_value( atm, scope_expression, select_expression, itemid))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add value");
@@ -183,15 +185,15 @@ void RequestAutomaton_Node::addToAutomaton( papuga_RequestAutomaton* atm) const
 }
 #endif
 
-RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs)
-	:m_atm(papuga_create_RequestAutomaton( classdefs))
+RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername)
+	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername))
 {
 	if (!m_atm) throw std::bad_alloc();
 }
 
 #if __cplusplus >= 201103L
-RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const std::initializer_list<RequestAutomaton_Node>& nodes)
-	:m_atm(papuga_create_RequestAutomaton( classdefs))
+RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername, const std::initializer_list<RequestAutomaton_Node>& nodes)
+	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername))
 {
 	if (!m_atm) throw std::bad_alloc();
 	std::initializer_list<RequestAutomaton_Node>::const_iterator ni = nodes.begin(), ne = nodes.end();

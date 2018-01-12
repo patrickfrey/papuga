@@ -26,7 +26,7 @@ void papuga_destroy_CallResult( papuga_CallResult* self)
 	papuga_destroy_Allocator( &self->allocator);
 }
 
-void papuga_init_CallResult( papuga_CallResult* self, char* allocbuf, size_t allocbufsize, char* errbuf, size_t errbufsize)
+void papuga_init_CallResult( papuga_CallResult* self, void* allocbuf, size_t allocbufsize, char* errbuf, size_t errbufsize)
 {
 	papuga_init_Allocator( &self->allocator, allocbuf, allocbufsize);
 	papuga_init_ErrorBuffer( &self->errorbuf, errbuf, errbufsize);

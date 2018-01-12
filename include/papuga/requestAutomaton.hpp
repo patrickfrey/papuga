@@ -9,13 +9,14 @@
 #define _PAPUGA_REQUEST_AUTOMATON_HPP_INCLUDED
 /// \brief Structure to define an automaton mapping a request to function calls in C++ in a convenient way (using initializer lists in C++11)
 /// \file requestAutomaton.hpp
-#include "papuga.hpp"
+#include "papuga/typedefs.h"
+#include "papuga/classdef.h"
+#include "papuga/request.h"
 #include <string>
 #include <stdexcept>
 #include <vector>
 
 namespace papuga {
-namespace test {
 
 /// \brief Request method call (function) definition
 struct RequestAutomaton_FunctionDef
@@ -36,9 +37,9 @@ struct RequestAutomaton_FunctionDef
 			:varname(o.varname),itemid(o.itemid),inherited(o.inherited),defaultvalue(o.defaultvalue){}
 	};
 
-	std::string expression;			///< selecting expression addressing the scope of the request
-	std::string resultvar;			///< variable where the result of the call is stored to, empty if the result is void or dropped
-	std::string selfvar;			///< variable addressing the object of the method call
+	const char* expression;			///< selecting expression addressing the scope of the request
+	const char* resultvar;			///< variable where the result of the call is stored to, empty if the result is void or dropped
+	const char* selfvar;			///< variable addressing the object of the method call
 	papuga_RequestMethodId methodid;	///< identifier of the method to call
 	std::vector<Arg> args;			///< list of references addressing the arguments of the method call
 
@@ -87,7 +88,7 @@ struct RequestAutomaton_StructDef
 			:name(o.name),itemid(o.itemid),inherited(o.inherited){}
 	};
 
-	std::string expression;		///< selecting expression addressing the scope of this structure definition
+	const char* expression;		///< selecting expression addressing the scope of this structure definition
 	int itemid;			///< item identifier unique in its scope (referencing a value or a structure)
 	std::vector<Element> elems;	///< list of references to the elements of this structure
 
@@ -109,8 +110,8 @@ struct RequestAutomaton_StructDef
 /// \brief Request atomic value definition 
 struct RequestAutomaton_ValueDef
 {
-	std::string scope_expression;	///< selecting expression addressing the scope of this value definition
-	std::string select_expression;	///< selecting expression addressing the value itself
+	const char* scope_expression;	///< selecting expression addressing the scope of this value definition
+	const char* select_expression;	///< selecting expression addressing the value itself
 	int itemid;			///< identifier given to the item to make it uniquely addressable in the context of its scope
 
 	/// \brief Copy constructor
@@ -198,11 +199,11 @@ private:
 
 public:
 	/// \brief Constructor defining an empty automaton to be filled with further method calls
-	explicit RequestAutomaton( const papuga_ClassDef* classdefs);
+	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername);
 
 #if __cplusplus >= 201103L
 	/// \brief Constructor defining the whole automaton from an initializer list
-	RequestAutomaton( const papuga_ClassDef* classdefs, const std::initializer_list<RequestAutomaton_Node>& nodes);
+	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername, const std::initializer_list<RequestAutomaton_Node>& nodes);
 #endif
 	/// \brief Destructor
 	~RequestAutomaton();
@@ -257,6 +258,6 @@ private:
 };
 
 
-}}//namespace
+}//namespace
 #endif
 

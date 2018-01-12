@@ -19,7 +19,17 @@ namespace papuga {
 /// \param[out] error code returned in case of error
 /// \return result string of empty string in case of error
 /// \note does not throw
+/// \remark only converting atomic values, not handling structures
 std::string ValueVariant_tostring( const papuga_ValueVariant& value, papuga_ErrorCode& errcode);
+
+/// \brief Append value variant to a string, if possible
+/// \param[in,out] dest where to append result to
+/// \param[in] value variant value to convert
+/// \param[out] error code returned in case of error
+/// \return result string of empty string in case of error
+/// \note does not throw
+/// \remark only converting atomic values, not handling structures
+bool ValueVariant_append_string( std::string& dest, const papuga_ValueVariant& value, papuga_ErrorCode& errcode);
 
 }//namespace
 #endif

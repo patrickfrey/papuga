@@ -25,7 +25,7 @@ extern "C" {
 * @param[in] errbufsize allocation size of errbuf in bytes
 * @return true on success, false if too many return values defined
 */
-void papuga_init_CallResult( papuga_CallResult* self, char* allocbuf, size_t allocbufsize, char* errbuf, size_t errbufsize);
+void papuga_init_CallResult( papuga_CallResult* self, void* allocbuf, size_t allocbufsize, char* errbuf, size_t errbufsize);
 
 /*
 * @brief Destructor of a CallResult

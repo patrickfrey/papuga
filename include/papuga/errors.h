@@ -40,6 +40,14 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode);
 void papuga_ErrorBuffer_reportError( papuga_ErrorBuffer* self, const char* msg, ...);
 
 /*
+* @brief Append a message to the current error message, if possible
+* @param[in,out] self pointer to structure
+* @param[in] msg format string of the error message
+* @param[in] ... arguments of the error message
+*/
+void papuga_ErrorBuffer_appendMessage( papuga_ErrorBuffer* self, const char* msg, ...);
+
+/*
 * @brief Test if the error buffer has an error reported
 * @param[in] self pointer to structure
 */

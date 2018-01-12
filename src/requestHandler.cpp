@@ -11,6 +11,8 @@
 */
 #include "papuga/requestHandler.h"
 #include "papuga/request.h"
+#include "papuga/requestResult.h"
+#include "papuga/classdef.h"
 #include "papuga/allocator.h"
 #include "papuga/serialization.h"
 #include "papuga/valueVariant.h"
@@ -134,6 +136,7 @@ static bool RequestContext_add_variable_shallow_copy( papuga_RequestContext* sel
 	varstruct->name = papuga_Allocator_copy_charp( &self->allocator, name);
 	if (!varstruct->name) return false;
 	papuga_init_ValueVariant_copy( &varstruct->value, value);
+	varstruct->inherited = false;
 	self->variables = add_list( self->variables, varstruct);
 	return true;
 }
@@ -145,6 +148,7 @@ static bool RequestContext_add_variable( papuga_RequestContext* self, const char
 	varstruct->name = papuga_Allocator_copy_charp( &self->allocator, name);
 	if (!varstruct->name) goto ERROR;
 	if (!papuga_Allocator_deepcopy_value( &self->allocator, &varstruct->value, value, moveobj, &self->errcode)) goto ERROR;
+	varstruct->inherited = false;
 	self->variables = add_list( self->variables, varstruct);
 	return true;
 ERROR:
@@ -169,6 +173,7 @@ static papuga_RequestVariable* copyRequestVariables( papuga_Allocator* allocator
 		cur->name = papuga_Allocator_copy_charp( allocator, vl->name);
 		if (!cur->name) goto ERROR;
 		cur->next = 0;
+		cur->inherited = true;
 		if (!papuga_Allocator_deepcopy_value( allocator, &cur->value, &vl->value, moveobj, errcode)) goto ERROR;
 	}
 	return root.next;
@@ -183,6 +188,13 @@ ERROR:
 extern "C" bool papuga_RequestContext_add_variable( papuga_RequestContext* self, const char* name, papuga_ValueVariant* value)
 {
 	return RequestContext_add_variable( self, name, value, true);
+}
+
+const papuga_ValueVariant* papuga_RequestContext_get_variable( papuga_RequestContext* self, const char* name)
+{
+	papuga_RequestVariable* var = find_list( self->variables, &papuga_RequestVariable::name, name);
+	return (var)?&var->value : NULL;
+	
 }
 
 extern "C" bool papuga_RequestContext_allow_access( papuga_RequestContext* self, const char* role)
@@ -318,7 +330,7 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 	}
 }
 
-extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* context, papuga_Request* request, papuga_ErrorBuffer* errorbuf, int* errorpos)
+extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_ErrorBuffer* errorbuf, int* errorpos)
 {
 	const papuga_ClassDef* classdefs = papuga_Request_classdefs( request);
 	papuga_RequestIterator* itr = papuga_create_RequestIterator( &context->allocator, request);
@@ -464,5 +476,27 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 	return true;
 }
 
+extern "C" bool papuga_set_RequestResult( papuga_RequestResult* self, papuga_RequestContext* context, const papuga_Request* request)
+{
+	self->name = papuga_Request_resultname( request);
+	self->structdefs = papuga_Request_struct_descriptions( request);
+	self->nodes = NULL;
+	papuga_RequestResultNode rootnode;
+	rootnode.next = NULL;
+	papuga_RequestResultNode* curnode = &rootnode;
+	papuga_RequestVariable const* vi = context->variables;
+	for (; vi; vi = vi->next)
+	{
+		if (vi->name[0] == '_' || vi->inherited || vi->value.valuetype == papuga_TypeHostObject) continue;
+		curnode->next = alloc_type<papuga_RequestResultNode>( &context->allocator);
+		curnode = curnode->next;
+		if (!curnode) return false;
+		curnode->next = NULL;
+		curnode->name = vi->name;
+		papuga_init_ValueVariant_copy( &curnode->value, &vi->value);
+	}
+	self->nodes = rootnode.next;
+	return true;
+}
 
 

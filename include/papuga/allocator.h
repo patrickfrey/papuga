@@ -69,6 +69,16 @@ void papuga_destroy_ReferenceHeader( papuga_ReferenceHeader* ref);
 void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned int alignment);
 
 /*
+* @brief Shrink the last memory block allocated, making the freed memory for following allocations available
+* @param[in,out] self pointer to structure
+* @param[in] ptr pointer to allocated block to shrink
+* @param[in] oldsize previous size of block
+* @param[in] newsize new size of block
+* @return true on success, false on failure
+*/
+bool papuga_Allocator_shrink_last_alloc( papuga_Allocator* self, void* ptr, size_t oldsize, size_t newsize);
+
+/*
 * @brief Allocate a string copy
 * @param[in,out] self pointer to structure 
 * @param[in] str pointer to string to copy

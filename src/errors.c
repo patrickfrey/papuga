@@ -12,6 +12,7 @@
 #include "papuga/typedefs.h"
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 /* @brief Hook for GETTEXT */
 #define _TXT(x) x
@@ -42,6 +43,7 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)
 		case papuga_NotAllowed: return _TXT("operation not permitted");
 		case papuga_IteratorFailed: return _TXT("call of iterator failed, details not available");
 		case papuga_AddressedItemNotFound: return _TXT("the addressed item was not found");
+		case papuga_HostObjectError: return _TXT("error executing host object function");
 		default: return _TXT("unknown error");
 	}
 }
@@ -50,7 +52,27 @@ void papuga_ErrorBuffer_reportError( papuga_ErrorBuffer* self, const char* msg, 
 {
 	va_list ap;
 	va_start(ap, msg);
-	vsnprintf( self->ptr, self->size, msg, ap);
+	size_t msglen = vsnprintf( self->ptr, self->size, msg, ap);
+	if (msglen >= self->size && self->size)
+	{
+		msglen = self->size-1;
+		self->ptr[ msglen] = 0;
+	}
 	va_end(ap);
 }
+
+void papuga_ErrorBuffer_appendMessage( papuga_ErrorBuffer* self, const char* msg, ...)
+{
+	va_list ap;
+	va_start(ap, msg);
+	size_t len = strlen( self->ptr);
+	size_t msglen = vsnprintf( self->ptr+len, self->size-len, msg, ap) + len;
+	if (msglen >= self->size && self->size)
+	{
+		msglen = self->size-1;
+		self->ptr[ msglen] = 0;
+	}
+	va_end(ap);
+}
+
 
