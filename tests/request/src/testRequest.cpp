@@ -27,7 +27,7 @@ struct Test
 	const papuga::test::Document* doc;
 	const papuga::RequestAutomaton* atm;
 	const RequestVariable* var;
-	const char* result;
+	const papuga::test::Document* expected;
 };
 
 #ifdef PAPUGA_LOWLEVEL_DEBUG
@@ -89,7 +89,7 @@ static bool convertValueVariant( papuga_ValueVariant* dest, const papuga_ValueVa
 				{
 					std::string item = papuga::ValueVariant_tostring( *src, *errcode);
 					if (*errcode != papuga_Ok) return false;
-					std::transform( item.begin(), item.end(), item.begin(), ::tolower);
+					std::transform( item.begin(), item.end(), item.begin(), ::toupper);
 					char* copystr = papuga_Allocator_copy_string( allocator, item.c_str(), item.size());
 					papuga_init_ValueVariant_string( dest, copystr, item.size());
 					break;
@@ -257,9 +257,15 @@ enum
 	PersonName,
 	PersonContent
 };
+/// Test 1:
 static const papuga::test::Document g_testDocument1 = {
 	"doc", {
 		{"person", {{"name","Hugo"},{"id","1"}}, {{"Bla bla"}} }
+		}
+	};
+static const papuga::test::Document g_testResult1 = {
+	"person", {
+		{"var", {{"HUGO"}} }
 		}
 	};
 static const papuga::RequestAutomaton g_testRequest1 = {
@@ -270,6 +276,7 @@ static const papuga::RequestAutomaton g_testRequest1 = {
 		{"/doc", "obj", 0, C1::constructor(), {} },
 		{"/doc", "var", "obj", C1::m1(), {{(int)PersonName}} }
 	}};
+/// Test 2:
 static const papuga::test::Document g_testDocument2 = {
 	"doc", {
 		{"cities", {}, {{"Bern"}}},
@@ -277,14 +284,17 @@ static const papuga::test::Document g_testDocument2 = {
 		{"cities", {}, {{"Biel"}}}
 		}
 	};
-
+static const papuga::test::Document g_testResult2 = {
+	"list", {}
+	};
 static const papuga::RequestAutomaton g_testRequest2 = {
-	g_classdefs, g_structdefs,
+	g_classdefs, g_structdefs, "list",
 	{}};
 
+/// All test declarations:
 static const Test g_tests[] = {
-	{"simple document", &g_testDocument1, &g_testRequest1, NULL/*variables*/, NULL/*result*/},
-	{"arrays", &g_testDocument2, &g_testRequest2, NULL/*variables*/, NULL/*result*/},
+	{"simple document", &g_testDocument1, &g_testRequest1, NULL/*variables*/, &g_testResult1 },
+	{"arrays", &g_testDocument2, &g_testRequest2, NULL/*variables*/, &g_testResult2},
 	{0,0,0}};
 
 struct TestSet
@@ -313,6 +323,24 @@ static const TestSet testsets[] = {
 #define TESTLOG( TITLE, CONTENT)
 #endif
 
+static std::string mapDocument( const papuga::test::Document& doc, papuga_StringEncoding encoding, papuga_ContentType doctype)
+{
+	std::string rt;
+	switch (doctype)
+	{
+		case papuga_ContentType_XML:
+			rt = doc.toxml( encoding, false);
+			TESTLOG( "DOC", doc.toxml( encoding, true))
+			break;
+		case papuga_ContentType_JSON:
+			rt = doc.tojson( encoding);
+			TESTLOG( "DOC", rt)
+			break;
+		case papuga_ContentType_Unknown:
+			break;
+	}
+	return rt;
+}
 
 static void executeTest( int tidx, const Test& test)
 {
@@ -327,20 +355,9 @@ static void executeTest( int tidx, const Test& test)
 		papuga_StringEncoding enc = testsets[ ei].encoding;
 		papuga_ContentType doctype = testsets[ ei].doctype;
 
-		std::string content;
-		switch (doctype)
-		{
-			case papuga_ContentType_XML:
-				content = test.doc->toxml( enc, false);
-				TESTLOG( std::string("DOC XML") + papuga_StringEncoding_name( enc), test.doc->toxml( enc, true))
-				break;
-			case papuga_ContentType_JSON:
-				content = test.doc->tojson( enc);
-				TESTLOG( std::string("DOC JSON") + papuga_StringEncoding_name( enc), content)
-				break;
-			case papuga_ContentType_Unknown:
-				break;
-		}
+		std::cerr << ei << ". doctype=" << papuga_ContentType_name( doctype) << ", encoding=" << papuga_StringEncoding_name( enc) << std::endl;
+
+		std::string content = mapDocument( *test.doc, enc, doctype);
 		TESTLOG( "DUMP", papuga::test::dumpRequest( doctype, enc, content))
 
 		if (!papuga_execute_request( test.atm->impl(), doctype, enc, content.c_str(), content.size(), test.var, &errcode, &resstr, &reslen))
@@ -350,7 +367,15 @@ static void executeTest( int tidx, const Test& test)
 		}
 		else
 		{
-			TESTLOG( "RESULT", std::string( resstr, reslen))
+			std::string expected = mapDocument( *test.expected, enc, doctype);
+			std::string result = std::string( resstr, reslen);
+			TESTLOG( "RESULT", result)
+			if (expected != result)
+			{
+				std::cout << "Result:\n" << result << std::endl;
+				std::cout << "Expected:\n" << expected << std::endl;
+				throw std::runtime_error( "test output differs");
+			}
 		}
 	}
 }

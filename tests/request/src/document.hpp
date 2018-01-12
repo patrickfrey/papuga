@@ -32,6 +32,7 @@ public:
 		,m_child(o.m_child ? new DocumentNode( *o.m_child) : 0){}
 #if __cplusplus >= 201103L
 	DocumentNode( const std::string& name_, const std::initializer_list<std::pair<std::string,std::string> >& attributes, const std::initializer_list<DocumentNode>& content);
+	DocumentNode( const std::string& name_, const std::initializer_list<DocumentNode>& content);
 #endif
 	~DocumentNode();
 

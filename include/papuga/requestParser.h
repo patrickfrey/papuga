@@ -26,6 +26,13 @@ typedef enum {
 } papuga_ContentType;
 
 /*
+ * @brief Get the content type as string
+ * @param[in] type the content type id
+ * @return content type name string
+ */
+const char* papuga_ContentType_name( papuga_ContentType type);
+
+/*
  * @brief Guess content type
  * @param[in] src pointer to source
  * @param[in] srcsize size of src in bytes

@@ -15,6 +15,12 @@
 
 #undef PAPUGA_LOWLEVEL_DEBUG
 
+const char* papuga_ContentType_name( papuga_ContentType type)
+{
+	static const char* ar[] = {"unknown","XML","JSON"};
+	return ar[ (int)type];
+}
+
 const char* papuga_requestElementTypeName( papuga_RequestElementType tp)
 {
 	static const char* ar[] = {"None","Open","Close","AttibuteName","AttibuteValue","Value",0};

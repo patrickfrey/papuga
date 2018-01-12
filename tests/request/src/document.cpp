@@ -70,6 +70,19 @@ catch (...)
 {
 	std::cerr << "Initializer failed: " << name_ << std::endl;
 }
+
+DocumentNode::DocumentNode( const std::string& name_, const std::initializer_list<DocumentNode>& content)
+try	:m_name(name_),m_value(),m_attr(0),m_next(0),m_child(0)
+{
+	for (const auto& ci : content)
+	{
+		addChild( ci);
+	}
+}
+catch (...)
+{
+	std::cerr << "Initializer failed: " << name_ << std::endl;
+}
 #endif
 
 DocumentNode::~DocumentNode()
