@@ -19,6 +19,7 @@
 #include "papuga/stack.h"
 #include <string>
 #include <cstring>
+#include <cstdlib>
 
 static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter* seritr, int structid, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode);
 
@@ -121,6 +122,8 @@ static bool ValueVariant_toxml( std::string& out, const char* name, const papuga
 		}
 		papuga_destroy_CallResult( &result);
 	}
+	else if (!papuga_ValueVariant_defined( &value))
+	{}
 	else
 	{
 		errcode = papuga_TypeError;

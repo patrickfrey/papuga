@@ -259,10 +259,9 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 				}
 				else
 				{
-					papuga_Node node;
-					if (!copy_ValueVariant( &node.content, papuga_SerializationIter_value( &seritr), allocator, moveobj, errcode)) goto ERROR;
-					node.content._tag = papuga_SerializationIter_tag( &seritr);
-					if (!papuga_Serialization_push( dest, &node)) goto ERROR;
+					papuga_ValueVariant valuecopy;
+					if (!copy_ValueVariant( &valuecopy, papuga_SerializationIter_value( &seritr), allocator, moveobj, errcode)) goto ERROR;
+					if (!papuga_Serialization_push( dest, papuga_SerializationIter_tag( &seritr), &valuecopy)) goto ERROR;
 				}
 				papuga_SerializationIter_skip( &seritr);
 			}

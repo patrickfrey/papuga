@@ -148,6 +148,14 @@ bool papuga_add_CallResult_serialization( papuga_CallResult* self);
 bool papuga_add_CallResult_iterator( papuga_CallResult* self, void* data, papuga_Deleter destroy, papuga_GetNext getNext);
 
 /*
+* @brief Define value of CallResult as iterator
+* @param[in,out] self pointer to structure
+* @param[in] value pointer to value to add
+* @return true on success, false on memory allocation error or too many return values defined
+*/
+bool papuga_add_CallResult_value( papuga_CallResult* self, const papuga_ValueVariant* value);
+
+/*
 * @brief Report an error of the call
 * @param[in,out] self pointer to structure
 * @param[in] msg format string of the error message

@@ -86,7 +86,7 @@ static bool insertChunk_filled( papuga_NodeChunk* chunk, int arsize, papuga_Allo
 	nd->content._tag = TAG;\
 	return true;
 
-bool papuga_Serialization_push( papuga_Serialization* self, papuga_Node* nd)
+bool papuga_Serialization_push_node( papuga_Serialization* self, papuga_Node* nd)
 {
 	papuga_Node* new_nd = alloc_node( self);
 	if (!new_nd) return false;
@@ -120,6 +120,9 @@ bool papuga_Serialization_pushClose( papuga_Serialization* self)
 	nd->content._tag = papuga_TagClose;
 	return true;
 }
+
+bool papuga_Serialization_push( papuga_Serialization* self, papuga_Tag tag, const papuga_ValueVariant* value)
+	{PUSH_NODE_1(self,tag,papuga_init_ValueVariant_copy,value)}
 
 bool papuga_Serialization_pushName_void( papuga_Serialization* self)
 	{PUSH_NODE_0(self,papuga_TagName,papuga_init_ValueVariant)}

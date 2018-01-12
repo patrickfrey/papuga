@@ -156,6 +156,13 @@ bool papuga_add_CallResult_iterator( papuga_CallResult* self, void* data, papuga
 	return true;
 }
 
+bool papuga_add_CallResult_value( papuga_CallResult* self, const papuga_ValueVariant* value)
+{
+	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;
+	papuga_init_ValueVariant_copy( &self->valuear[ self->nofvalues++], value);
+	return true;
+}
+
 void papuga_CallResult_reportError( papuga_CallResult* self, const char* msg, ...)
 {
 	size_t nn;

@@ -50,7 +50,16 @@ extern "C" {
 * @param[in] node pointer to the added node
 * @return true on success, false on memory allocation error
 */
-bool papuga_Serialization_push( papuga_Serialization* self, papuga_Node* node);
+bool papuga_Serialization_push_node( papuga_Serialization* self, papuga_Node* node);
+
+/*
+* @brief Add a node to the serialization
+* @param[in,out] self pointer to structure 
+* @param[in] tag tag of the added node
+* @param[in] value pointer to the value of the added node
+* @return true on success, false on memory allocation error
+*/
+bool papuga_Serialization_push( papuga_Serialization* self, papuga_Tag tag, const papuga_ValueVariant* value);
 
 /*
 * @brief Add an 'open' element to the serialization

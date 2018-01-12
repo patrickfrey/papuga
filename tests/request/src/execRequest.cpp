@@ -21,12 +21,13 @@
 
 #define PAPUGA_LOWLEVEL_DEBUG
 #define LOCATION_INFO_VALUE_MAX_LENGTH 32
+#define LOCATION_PRINT_MAX_TAGLEVEL 3
 
 static std::string getLocationInfo( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int errorpos, int maxsize)
 {
 	papuga_RequestParser* parser = 0;
 	std::string locinfo;
-	int tagcnt = 0;
+	int taglevel = 0;
 	papuga_RequestElementType elemtype;
 	int pi = 0;
 	papuga_ValueVariant elemval;
@@ -54,60 +55,77 @@ static std::string getLocationInfo( papuga_ContentType doctype, papuga_StringEnc
 				case papuga_RequestElementType_None:
 					break;
 				case papuga_RequestElementType_Open:
-					++tagcnt;
-					if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
+					++taglevel;
+					if (taglevel <= LOCATION_PRINT_MAX_TAGLEVEL+1)
 					{
-						locinfo.append( "??");
+						locinfo.append( " ");
+						if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
+						{
+							locinfo.append( "??");
+						}
+						locinfo.append( ": {");
 					}
-					locinfo.append( ": {");
 					elemtype = papuga_RequestParser_next( parser, &elemval);
 					break;
 				case papuga_RequestElementType_Close:
-					--tagcnt;
-					if (tagcnt < 0)
+					--taglevel;
+					if (taglevel < 0)
 					{
 						locinfo.append( ".");
 						elemtype = papuga_RequestElementType_None;
 						break;
 					}
-					locinfo.append( "} ");
+					if (taglevel == LOCATION_PRINT_MAX_TAGLEVEL)
+					{
+						locinfo.append( " ... }");
+					}
+					else
+					{
+						locinfo.append( " }");
+					}
 					elemtype = papuga_RequestParser_next( parser, &elemval);
 					break;
 				case papuga_RequestElementType_AttributeName:
-					locinfo.append( "-");
-					if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
+					if (taglevel <= LOCATION_PRINT_MAX_TAGLEVEL)
 					{
-						locinfo.append( "??");
+						locinfo.append( " -");
+						if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
+						{
+							locinfo.append( "??");
+						}
+						locinfo.append( ":");
 					}
-					locinfo.append( ":");
 					elemtype = papuga_RequestParser_next( parser, &elemval);
 					break;
 				case papuga_RequestElementType_AttributeValue:
 				case papuga_RequestElementType_Value:
-					if (elemval.valuetype == papuga_TypeString)
+					if (taglevel <= LOCATION_PRINT_MAX_TAGLEVEL)
 					{
-						locinfo.append( "\"");
-						if (elemval.length > LOCATION_INFO_VALUE_MAX_LENGTH)
+						if (elemval.valuetype == papuga_TypeString)
 						{
-							elemval.length = LOCATION_INFO_VALUE_MAX_LENGTH;
-							if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
+							locinfo.append( elemtype == papuga_RequestElementType_Value ? " \"":"\"");
+							if (elemval.length > LOCATION_INFO_VALUE_MAX_LENGTH)
+							{
+								elemval.length = LOCATION_INFO_VALUE_MAX_LENGTH;
+								if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
+								{
+									locinfo.append( "??");
+								}
+								else
+								{
+									locinfo.append( "...");
+								}
+							}
+							else if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
 							{
 								locinfo.append( "??");
 							}
-							else
-							{
-								locinfo.append( "...");
-							}
+							locinfo.append( "\"");
 						}
 						else if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
 						{
-							locinfo.append( "??");
+							locinfo.append( elemtype == papuga_RequestElementType_Value ? " ??":"??");
 						}
-						locinfo.append( "\"");
-					}
-					else if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
-					{
-						locinfo.append( "??");
 					}
 					elemtype = papuga_RequestParser_next( parser, &elemval);
 					break;
@@ -182,7 +200,7 @@ extern "C" bool papuga_execute_request(
 #endif
 	// Add variables to the request:
 	vi = variables;
-	for (; vi->name; ++vi)
+	if (vi) for (; vi->name; ++vi)
 	{
 		papuga_ValueVariant value;
 		papuga_init_ValueVariant_charp( &value, vi->value);
@@ -226,7 +244,11 @@ ERROR:
 		char* errstr = papuga_ErrorBuffer_lastError(&errorbuf);
 		size_t errlen = strlen( errstr);
 		*resstr = (char*)std::malloc( errlen+1);
-		if (*resstr) std::memcpy( *resstr, errstr, errlen+1);
+		if (*resstr)
+		{
+			std::memcpy( *resstr, errstr, errlen+1);
+			*reslen = errlen;
+		}
 	}
 RELEASE:
 	papuga_destroy_RequestContext( &ctx);

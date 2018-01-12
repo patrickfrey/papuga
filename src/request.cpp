@@ -177,6 +177,16 @@ public:
 		return m_resultname;
 	}
 
+	const char* copyIfDefined( const char* str)
+	{
+		if (str)
+		{
+			str = papuga_Allocator_copy_charp( &m_allocator, str);
+			if (!str) m_errcode = papuga_NoMemError;
+		}
+		return str;
+	}
+
 	/* @param[in] expression selector of the call scope */
 	/* @param[in] nofargs number of arguments */
 	bool addCall( const char* expression, const papuga_RequestMethodId* method_, const char* selfvarname_, const char* resultvarname_, int nofargs)
@@ -215,15 +225,21 @@ public:
 			std::string open_expression( cut_trailing_slashes( expression));
 			std::string close_expression( open_expression + "~");
 			int mm = nofargs * sizeof(CallArgDef);
-			CallArgDef* car = (CallArgDef*)papuga_Allocator_alloc( &m_allocator, mm, 0);
-			const char* selfvarname = papuga_Allocator_copy_charp( &m_allocator, selfvarname_);
-			const char* resultvarname = papuga_Allocator_copy_charp( &m_allocator, resultvarname_);
-			if (!car || !selfvarname || !resultvarname)
+			CallArgDef* car = NULL;
+			if (nofargs)
 			{
-				m_errcode = papuga_NoMemError;
-				return false;
+				car = (CallArgDef*)papuga_Allocator_alloc( &m_allocator, mm, 0);
+				if (!car)
+				{
+					m_errcode = papuga_NoMemError;
+					return false;
+				}
+				std::memset( car, 0, mm);
 			}
-			std::memset( car, 0, mm);
+			const char* selfvarname = copyIfDefined( selfvarname_);
+			const char* resultvarname = copyIfDefined( resultvarname_);
+			if (m_errcode != papuga_Ok) return false;
+
 			m_atm.addExpression( AtmRef_get( MethodCall, m_calldefs.size()), close_expression.c_str(), close_expression.size());
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 			fprintf( stderr, "automaton add event call expression='%s' [%d,%d]\n", close_expression.c_str(), (int)MethodCall, (int)m_calldefs.size());

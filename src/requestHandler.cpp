@@ -386,7 +386,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			papuga_RequestVariable* var = find_list( context->variables, &papuga_RequestVariable::name, call->selfvarname);
 			if (!var)
 			{
-				reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_NoMemError));
+				reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_MissingSelf));
 				*errorpos = call->eventcnt;
 				return false;
 			}

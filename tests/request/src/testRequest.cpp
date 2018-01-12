@@ -17,6 +17,7 @@
 #include <sstream>
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
 
 #define PAPUGA_LOWLEVEL_DEBUG
 
@@ -64,6 +65,100 @@ public:
 	ObjectC2(){}
 };
 
+enum ConversionId {Ident,ToLower,ToUpper};
+static bool convertValueVariant( papuga_ValueVariant* dest, const papuga_ValueVariant* src, papuga_Allocator* allocator, ConversionId convId, papuga_ErrorCode* errcode)
+{
+	if (papuga_ValueVariant_isatomic( src))
+	{
+		try
+		{
+			switch (convId)
+			{
+				case Ident:
+					break;
+				case ToLower:
+				{
+					std::string item = papuga::ValueVariant_tostring( *src, *errcode);
+					if (*errcode != papuga_Ok) return false;
+					std::transform( item.begin(), item.end(), item.begin(), ::tolower);
+					char* copystr = papuga_Allocator_copy_string( allocator, item.c_str(), item.size());
+					papuga_init_ValueVariant_string( dest, copystr, item.size());
+					break;
+				}
+				case ToUpper:
+				{
+					std::string item = papuga::ValueVariant_tostring( *src, *errcode);
+					if (*errcode != papuga_Ok) return false;
+					std::transform( item.begin(), item.end(), item.begin(), ::tolower);
+					char* copystr = papuga_Allocator_copy_string( allocator, item.c_str(), item.size());
+					papuga_init_ValueVariant_string( dest, copystr, item.size());
+					break;
+				}
+			}
+		}
+		catch (...)
+		{
+			*errcode = papuga_NoMemError;
+			return false;
+		}
+		return true;
+	}
+	else if (src->valuetype == papuga_TypeSerialization)
+	{
+		papuga_Serialization* srcser = src->value.serialization;
+		papuga_Serialization* destser = papuga_Allocator_alloc_Serialization( allocator);
+		papuga_SerializationIter srcitr;
+		papuga_init_SerializationIter( &srcitr, srcser);
+		for (; !papuga_SerializationIter_eof( &srcitr); papuga_SerializationIter_skip( &srcitr))
+		{
+			const papuga_ValueVariant* srcval = papuga_SerializationIter_value( &srcitr);
+			papuga_Tag tag = papuga_SerializationIter_tag( &srcitr);
+			if (tag == papuga_TagValue)
+			{
+				papuga_ValueVariant destval;
+				if (!convertValueVariant( &destval, srcval, allocator, convId, errcode)) return false;
+				if (!papuga_Serialization_push( destser, tag, &destval))
+				{
+					*errcode = papuga_NoMemError;
+					return false;
+				}
+			}
+			else
+			{
+				if (!papuga_Serialization_push( destser, tag, srcval))
+				{
+					*errcode = papuga_NoMemError;
+					return false;
+				}
+			}
+		}
+		papuga_init_ValueVariant_serialization( dest, destser);
+		return true;
+	}
+	else
+	{
+		*errcode = papuga_TypeError;
+		return false;
+	}
+}
+
+static bool impl_method( const char* methodname, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv, ConversionId convId)
+{
+	papuga_ErrorCode errcode = papuga_Ok;
+	size_t ai = 0, ae = argc;
+	for (; ai != ae; ++ai)
+	{
+		papuga_ValueVariant res;
+		if (!convertValueVariant( &res, argv+ai, &retval->allocator, convId, &errcode)) goto ERROR;
+		if (!papuga_add_CallResult_value( retval, &res)) goto ERROR;
+	}
+	return true;
+ERROR:
+	if (errcode == papuga_Ok) errcode = papuga_NoMemError;
+	papuga_CallResult_reportError( retval, "error in method %s: %s", methodname, papuga_ErrorCode_tostring(errcode));
+	return false;
+}
+
 static void* constructor_C1( papuga_ErrorBuffer* errbuf, size_t argc, const papuga_ValueVariant* argv)
 {
 	LOG_METHOD_CALL( "C1", "new", argc, argv);
@@ -77,17 +172,17 @@ static void destructor_C1( void* self)
 static bool method_C1M1( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
 {
 	LOG_METHOD_CALL( "C1", "m1", argc, argv);
-	return true;
+	return impl_method( "C1::m1", retval, argc, argv, ToUpper);
 }
 static bool method_C1M2( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
 {
 	LOG_METHOD_CALL( "C1", "m2", argc, argv);
-	return true;
+	return impl_method( "C1::m2", retval, argc, argv, ToLower);
 }
 static bool method_C1M3( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
 {
 	LOG_METHOD_CALL( "C1", "m3", argc, argv);
-	return true;
+	return impl_method( "C1::m2", retval, argc, argv, Ident);
 }
 enum {methodtable_size_C1=3};
 static papuga_ClassMethod methodtable_C1[ methodtable_size_C1] = {
@@ -106,17 +201,17 @@ static void destructor_C2( void* self)
 static bool method_C2M1( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
 {
 	LOG_METHOD_CALL( "C2", "m1", argc, argv);
-	return true;
+	return impl_method( "C2::m2", retval, argc, argv, ToUpper);
 }
 static bool method_C2M2( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
 {
 	LOG_METHOD_CALL( "C2", "m2", argc, argv);
-	return true;
+	return impl_method( "C2::m2", retval, argc, argv, ToLower);
 }
 static bool method_C2M3( void* self, papuga_CallResult* retval, size_t argc, const papuga_ValueVariant* argv)
 {
 	LOG_METHOD_CALL( "C2", "m3", argc, argv);
-	return true;
+	return impl_method( "C2::m3", retval, argc, argv, Ident);
 }
 enum {methodtable_size_C2=3};
 static papuga_ClassMethod methodtable_C2[ methodtable_size_C2] = {
@@ -172,7 +267,8 @@ static const papuga::RequestAutomaton g_testRequest1 = {
 	{
 		{"/doc/person", "@name", (int)PersonName},
 		{"/doc/person", "()", (int)PersonContent},
-		{"/doc", "var", "obj", C1::m1(), {{(int)PersonName}} } 
+		{"/doc", "obj", 0, C1::constructor(), {} },
+		{"/doc", "var", "obj", C1::m1(), {{(int)PersonName}} }
 	}};
 static const papuga::test::Document g_testDocument2 = {
 	"doc", {
@@ -221,10 +317,9 @@ static const TestSet testsets[] = {
 static void executeTest( int tidx, const Test& test)
 {
 	std::cerr << "Executing test (" << tidx << ") '" << test.description << "'..." << std::endl;
-	std::cerr << test.description << ":" << std::endl;
 	TESTLOG( "TXT", test.doc->totext())
 	int ei = 0, ee = 1;
-	for (; ei != ee && testsets[ei].doctype == papuga_ContentType_Unknown; ++ei)
+	for (; ei != ee && testsets[ei].doctype != papuga_ContentType_Unknown; ++ei)
 	{
 		papuga_ErrorCode errcode = papuga_Ok;
 		char* resstr = 0;
