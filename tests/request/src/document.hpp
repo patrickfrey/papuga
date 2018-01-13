@@ -47,7 +47,7 @@ public:
 	std::string totext() const;
 
 private:
-	static inline const char* indentTab() {return "  ";}
+	static inline const char* indentTab() {return "\t";}
 
 	void printNodeText( std::ostream& out, const std::string& indent) const;
 

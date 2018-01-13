@@ -17,11 +17,12 @@
 #include "papuga/callResult.h"
 #include "papuga/interfaceDescription.h"
 #include "papuga/stack.h"
+#include "requestResult_utils.hpp"
 #include <string>
 #include <cstring>
 #include <cstdlib>
 
-static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter* seritr, int structid, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode);
+static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter* seritr, const char* name, int structid, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode);
 
 static bool append_tag_open( std::string& out, const char* name)
 {
@@ -53,6 +54,21 @@ static bool append_tag_close( std::string& out, const char* name)
 	return true;
 }
 
+static bool append_tag_open_close_imm( std::string& out, const char* name)
+{
+	try
+	{
+		out.push_back( '<');
+		out.append( name);
+		out.append( "/>");
+	}
+	catch (...)
+	{
+		return false;
+	}
+	return true;
+}
+
 static bool ValueVariant_toxml( std::string& out, const char* name, const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode)
 {
 	static const char* tupletags[ papuga_MAX_NOF_RETURNS] = {"1","2","3","4","5","6","7","8"};
@@ -69,14 +85,22 @@ static bool ValueVariant_toxml( std::string& out, const char* name, const papuga
 		papuga_init_SerializationIter( &subitr, value.value.serialization);
 		if (!papuga_SerializationIter_eof( &subitr))
 		{
-			rt &= append_tag_open( out, name);
-			rt &= SerializationIter_toxml( out, &subitr, value.value.serialization->structid, structs, errcode);
+			bool isdict = value.value.serialization->structid || papuga_SerializationIter_tag( &subitr) == papuga_TagName;
+			if (isdict)
+			{
+				rt &= append_tag_open( out, name);
+				rt &= SerializationIter_toxml( out, &subitr, NULL/*name*/, value.value.serialization->structid, structs, errcode);
+				rt &= append_tag_close( out, name);
+			}
+			else
+			{
+				rt &= SerializationIter_toxml( out, &subitr, name, value.value.serialization->structid, structs, errcode);
+			}
 			if (!papuga_SerializationIter_eof( &subitr))
 			{
 				errcode = papuga_SyntaxError;
 				rt = false;
 			}
-			rt &= append_tag_close( out, name);
 		}
 	}
 	else if (value.valuetype == papuga_TypeIterator)
@@ -90,20 +114,23 @@ static bool ValueVariant_toxml( std::string& out, const char* name, const papuga
 		papuga_init_CallResult( &result, result_mem, sizeof(result_mem), error_mem, sizeof(error_mem));
 		while (itercnt++ < PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH && rt && iterator->getNext( iterator->data, &result))
 		{
-			rt &= append_tag_open( out, name);
 			if (result.nofvalues > 1)
 			{
+				rt &= append_tag_open( out, name);
 				int ri = 0, re = result.nofvalues;
 				for (; ri != re; ++ri)
 				{
-					rt &= append_tag_open( out, tupletags[ri]);
 					rt &= ValueVariant_toxml( out, tupletags[ri], result.valuear[ri], structs, errcode);
-					rt &= append_tag_open( out, tupletags[ri]);
 				}
+				rt &= append_tag_close( out, name);
 			}
 			else if (result.nofvalues == 1)
 			{
-				rt &= ValueVariant_toxml( out, tupletags[0], result.valuear[0], structs, errcode);
+				rt &= ValueVariant_toxml( out, name, result.valuear[0], structs, errcode);
+			}
+			else
+			{
+				append_tag_open_close_imm( out, name);
 			}
 			papuga_destroy_CallResult( &result);
 			if (!rt)
@@ -112,7 +139,6 @@ static bool ValueVariant_toxml( std::string& out, const char* name, const papuga
 				break;
 			}
 			papuga_init_CallResult( &result, result_mem, sizeof(result_mem), error_mem, sizeof(error_mem));
-			rt &= append_tag_close( out, name);
 		}
 		if (papuga_CallResult_hasError( &result))
 		{
@@ -144,12 +170,11 @@ struct SerializationIterStackElem
 };
 
 
-static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter* seritr, int structid, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode)
+static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter* seritr, const char* name, int structid, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode)
 {
 	bool rt = true;
 	papuga_Stack namestk;
 	int namestk_mem[ 1024];
-	const char* name = 0;
 	int elementcnt = 0;
 	SerializationIterStackElem namebuf;
 
@@ -167,6 +192,8 @@ static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter*
 			if (stkelem)
 			{
 				rt &= append_tag_close( out, stkelem->name);
+				elementcnt = stkelem->parent_elementcnt+1;
+				structid = stkelem->parent_structid;
 			}
 			else
 			{
@@ -233,10 +260,16 @@ static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter*
 		case papuga_TagName:
 		{
 			size_t namelen;
-			if (!papuga_ValueVariant_tostring_enc( papuga_SerializationIter_value(seritr), papuga_UTF8, namebuf.name, sizeof(namebuf.name), &namelen, &errcode))
+			if (name)
+			{
+				errcode = papuga_SyntaxError;
+				goto ERROR;
+			}
+			if (!papuga_ValueVariant_tostring_enc( papuga_SerializationIter_value(seritr), papuga_UTF8, namebuf.name, sizeof(namebuf.name)-1, &namelen, &errcode))
 			{
 				goto ERROR;
 			}
+			namebuf.name[ namelen] = 0;
 			name = namebuf.name;
 		}
 	}
@@ -267,6 +300,7 @@ extern "C" void* papuga_RequestResult_toxml( const papuga_RequestResult* self, p
 			std::snprintf( hdrbuf, sizeof(hdrbuf), "<?xml version=\"1.0\" encoding=\"%s\" standalone=\"yes\"?>\n", papuga_StringEncoding_name( enc));
 		}
 		out.append( hdrbuf);
+
 		papuga_RequestResultNode const* nd = self->nodes;
 		for (; nd; nd = nd->next)
 		{
@@ -282,26 +316,7 @@ extern "C" void* papuga_RequestResult_toxml( const papuga_RequestResult* self, p
 		{
 			out.append( "\n");
 		}
-		papuga_ValueVariant outvalue;
-		papuga_init_ValueVariant_string( &outvalue, out.c_str(), out.size());
-		size_t usize = papuga_StringEncoding_unit_size( enc);
-		size_t rtbufsize = (out.size()+16) * usize;
-		void* rtbuf = std::malloc( rtbufsize);
-		if (!rtbuf)
-		{
-			*err = papuga_NoMemError;
-			return NULL;
-		}
-		const void* rtstr = papuga_ValueVariant_tostring_enc( &outvalue, enc, rtbuf, rtbufsize, len, err);
-		if (!rtstr)
-		{
-			std::free( rtbuf);
-			return NULL;
-		}
-		void* rt = (void*)std::realloc( rtbuf, (*len + 1) * usize);
-		if (!rt) rt = rtbuf;
-		std::memset( (char*)rt + (*len) * usize, 0, usize); //... null termination
-		return rt;
+		return papuga::encodeRequestResultString( out, enc, len, err);
 	}
 	catch (const std::bad_alloc&)
 	{

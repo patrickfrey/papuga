@@ -24,6 +24,7 @@ set( source_files_request
 	requestResult.cpp
 	requestResult_xml.cpp
 	requestResult_json.cpp
+	requestResult_utils.cpp
 	requestAutomaton.cpp
 	requestParser_json.cpp
 	requestParser_xml.cpp

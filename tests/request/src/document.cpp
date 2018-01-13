@@ -235,7 +235,15 @@ void DocumentNode::printNodeValueJson( std::ostream& out, const std::string& ind
 {
 	if (!m_attr && !m_child)
 	{
-		out << "\"" << m_value << "\"";
+		if (m_value.empty())
+		{
+			out << "{}";
+			//... in general we cannot assume that a NULL node is equivalent to an empty string node, but for tests we do this
+		}
+		else
+		{
+			out << "\"" << m_value << "\"";
+		}
 	}
 	else
 	{

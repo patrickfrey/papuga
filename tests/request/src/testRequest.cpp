@@ -21,15 +21,6 @@
 
 #define PAPUGA_LOWLEVEL_DEBUG
 
-struct Test
-{
-	const char* description;
-	const papuga::test::Document* doc;
-	const papuga::RequestAutomaton* atm;
-	const RequestVariable* var;
-	const papuga::test::Document* expected;
-};
-
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 static void LOG_METHOD_CALL( const char* classname, const char* methodname, size_t argc, const papuga_ValueVariant* argv)
 {
@@ -50,9 +41,34 @@ static void LOG_METHOD_CALL( const char* classname, const char* methodname, size
 	}
 	std::cerr << ");" << std::endl;
 }
+static void LOG_TEST_CONTENT( const std::string& title, const std::string& content)
+{
+	std::cerr << title << ":\n" << content << std::endl;
+}
 #else
 #define LOG_METHOD_CALL( classname, methodname, argc, argv)
+#define LOG_TEST_CONTENT( TITLE, CONTENT)
 #endif
+
+
+static std::string mapDocument( const papuga::test::Document& doc, papuga_StringEncoding encoding, papuga_ContentType doctype)
+{
+	std::string rt;
+	switch (doctype)
+	{
+		case papuga_ContentType_XML:
+			rt = doc.toxml( encoding, false);
+			LOG_TEST_CONTENT( "DOC", doc.toxml( encoding, true));
+			break;
+		case papuga_ContentType_JSON:
+			rt = doc.tojson( encoding);
+			LOG_TEST_CONTENT( "DOC", rt);
+			break;
+		case papuga_ContentType_Unknown:
+			break;
+	}
+	return rt;
+}
 
 class ObjectC1
 {
@@ -249,7 +265,6 @@ struct C2
 	static papuga_RequestMethodId m3() {papuga_RequestMethodId rt = {2,3}; return rt;}
 };
 
-
 #if __cplusplus >= 201103L
 enum
 {
@@ -292,7 +307,15 @@ static const papuga::RequestAutomaton g_testRequest2 = {
 	{}};
 
 /// All test declarations:
-static const Test g_tests[] = {
+struct TestData
+{
+	const char* description;
+	const papuga::test::Document* doc;
+	const papuga::RequestAutomaton* atm;
+	const RequestVariable* var;
+	const papuga::test::Document* expected;
+};
+static const TestData g_tests[] = {
 	{"simple document", &g_testDocument1, &g_testRequest1, NULL/*variables*/, &g_testResult1 },
 	{"arrays", &g_testDocument2, &g_testRequest2, NULL/*variables*/, &g_testResult2},
 	{0,0,0}};
@@ -316,37 +339,11 @@ static const TestSet testsets[] = {
 	{papuga_UTF8,papuga_ContentType_Unknown}
 };
 
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-#define TESTLOG( TITLE, CONTENT)\
-	std::cerr << (TITLE) << ":\n" << (CONTENT) << std::endl;
-#else
-#define TESTLOG( TITLE, CONTENT)
-#endif
-
-static std::string mapDocument( const papuga::test::Document& doc, papuga_StringEncoding encoding, papuga_ContentType doctype)
-{
-	std::string rt;
-	switch (doctype)
-	{
-		case papuga_ContentType_XML:
-			rt = doc.toxml( encoding, false);
-			TESTLOG( "DOC", doc.toxml( encoding, true))
-			break;
-		case papuga_ContentType_JSON:
-			rt = doc.tojson( encoding);
-			TESTLOG( "DOC", rt)
-			break;
-		case papuga_ContentType_Unknown:
-			break;
-	}
-	return rt;
-}
-
-static void executeTest( int tidx, const Test& test)
+static void executeTest( int tidx, const TestData& test)
 {
 	std::cerr << "Executing test (" << tidx << ") '" << test.description << "'..." << std::endl;
-	TESTLOG( "TXT", test.doc->totext())
-	int ei = 0, ee = 1;
+	LOG_TEST_CONTENT( "TXT", test.doc->totext());
+	int ei = 0, ee = -1;
 	for (; ei != ee && testsets[ei].doctype != papuga_ContentType_Unknown; ++ei)
 	{
 		papuga_ErrorCode errcode = papuga_Ok;
@@ -358,28 +355,29 @@ static void executeTest( int tidx, const Test& test)
 		std::cerr << ei << ". doctype=" << papuga_ContentType_name( doctype) << ", encoding=" << papuga_StringEncoding_name( enc) << std::endl;
 
 		std::string content = mapDocument( *test.doc, enc, doctype);
-		TESTLOG( "DUMP", papuga::test::dumpRequest( doctype, enc, content))
+		LOG_TEST_CONTENT( "DUMP", papuga::test::dumpRequest( doctype, enc, content));
 
 		if (!papuga_execute_request( test.atm->impl(), doctype, enc, content.c_str(), content.size(), test.var, &errcode, &resstr, &reslen))
 		{
-			TESTLOG( "ERROR", std::string( resstr, reslen))
+			LOG_TEST_CONTENT( "ERROR", std::string( resstr, reslen * papuga_StringEncoding_unit_size( enc)));
 			throw papuga::error_exception( errcode, "executing test request");
 		}
 		else
 		{
 			std::string expected = mapDocument( *test.expected, enc, doctype);
-			std::string result = std::string( resstr, reslen);
-			TESTLOG( "RESULT", result)
+			std::string result = std::string( resstr, reslen * papuga_StringEncoding_unit_size( enc));
+			LOG_TEST_CONTENT( "RESULT", result);
 			if (expected != result)
 			{
-				std::cout << "Result:\n" << result << std::endl;
-				std::cout << "Expected:\n" << expected << std::endl;
+				std::cout << "Result [" << result.size() << "]:\n" << result << std::endl;
+				std::cout << "Expected [" << expected.size() << "]:\n" << expected << std::endl;
 				throw std::runtime_error( "test output differs");
 			}
 		}
 	}
 }
 #endif
+
 
 int main( int argc, const char* argv[])
 {
