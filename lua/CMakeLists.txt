@@ -42,7 +42,7 @@ set_target_properties(
 )
 
 add_library( papuga_lua_dev SHARED ${dev_source_files} )
-target_link_libraries( papuga_lua_dev papuga_gen_utils papuga_devel strus_lua )
+target_link_libraries( papuga_lua_dev papuga_gen_utils papuga_devel papuga_lua )
 
 set_target_properties(
     papuga_lua_dev

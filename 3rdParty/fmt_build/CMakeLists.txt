@@ -25,5 +25,10 @@ link_directories(
 # ------------------------------
 add_library( papuga_fmt STATIC ${fmt_source_files} )
 
+# ------------------------------
+# INSTALLATION
+# ------------------------------
+install( TARGETS papuga_fmt
+           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}/papuga )
 
 

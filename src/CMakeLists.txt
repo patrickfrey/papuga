@@ -77,4 +77,9 @@ install( TARGETS papugaDoc
 install( TARGETS papuga_doc_gen
            LIBRARY DESTINATION ${LIB_INSTALL_DIR}/papuga )
 
+install( TARGETS papuga_request_devel
+           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}/papuga )
+
+install( TARGETS papuga_devel
+           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}/papuga )
 

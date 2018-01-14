@@ -62,6 +62,11 @@ link_directories(
 # ------------------------------
 # LIBRARIES
 # ------------------------------
-add_library( strus_lua STATIC ${source_files} )
+add_library( papuga_lua STATIC ${source_files} )
 
+# ------------------------------
+# INSTALLATION
+# ------------------------------
+install( TARGETS papuga_lua
+           ARCHIVE DESTINATION ${LIB_INSTALL_DIR}/papuga )
 
