@@ -20,7 +20,6 @@
 #include "requestResult_utils.hpp"
 #include <string>
 #include <cstring>
-#include <cstdlib>
 
 static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter* seritr, const char* name, int structid, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode);
 

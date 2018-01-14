@@ -21,7 +21,6 @@
 #include "requestResult_utils.hpp"
 #include <string>
 #include <cstring>
-#include <cstdlib>
 
 static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter* seritr, bool isdict, int structid, const papuga_StructInterfaceDescription* structs, const std::string& indent, papuga_ErrorCode& errcode);
 

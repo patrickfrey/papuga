@@ -12,6 +12,7 @@
 #include "papuga/valueVariant.h"
 #include <string>
 #include <cstring>
+#include <cstdlib>
 
 using namespace papuga;
 
