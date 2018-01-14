@@ -16,7 +16,7 @@
 #include <string>
 #include <limits>
 
-#define PAPUGA_LOWLEVEL_DEBUG
+#undef PAPUGA_LOWLEVEL_DEBUG
 papuga_Allocator g_allocator;
 
 static void initValue( papuga_ValueVariant& value, const int64_t& input)

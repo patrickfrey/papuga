@@ -277,9 +277,9 @@ void DocumentNode::printNodeListJson( std::ostream& out, const std::string& inde
 		const DocumentNode* cn = getNodeNextDiffName( ci);
 		if (cn == ci->m_next)
 		{
-			if (!m_name.empty())
+			if (!ci->m_name.empty())
 			{
-				out << indent << "\"" << m_name << "\": ";
+				out << indent << "\"" << ci->m_name << "\": ";
 				ci->printNodeValueJson( out, indent);
 			}
 			else

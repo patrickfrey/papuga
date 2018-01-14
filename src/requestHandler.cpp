@@ -322,16 +322,33 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 	if (call->methodid.functionid)
 	{
 		const char* methodname = classdef[ call->methodid.classid].methodnames[ call->methodid.functionid-1];
-		papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error calling method %s->%s::%s: %s"), call->selfvarname, classname, methodname, msg);
+		if (call->argcnt >= 0)
+		{
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d of the method %s->%s::%s: %s"), call->argcnt+1, call->selfvarname, classname, methodname, msg);
+		}
+		else
+		{
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error calling the method %s->%s::%s: %s"), call->selfvarname, classname, methodname, msg);
+		}
 	}
 	else
 	{
-		papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error calling constructor of %s: %s"), classname, msg);
+		if (call->argcnt >= 0)
+		{
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d of the constructor of %s: %s"), call->argcnt+1, classname, msg);
+		}
+		else
+		{
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error calling the constructor of %s: %s"), classname, msg);
+		}
 	}
 }
 
 extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_ErrorBuffer* errorbuf, int* errorpos)
 {
+	char membuf_err[ 256];
+	papuga_ErrorBuffer errorbuf_call;
+
 	const papuga_ClassDef* classdefs = papuga_Request_classdefs( request);
 	papuga_RequestIterator* itr = papuga_create_RequestIterator( &context->allocator, request);
 	if (!itr)
@@ -339,19 +356,17 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		papuga_ErrorBuffer_reportError( errorbuf, _TXT("error handling request: %s"), papuga_ErrorCode_tostring( papuga_NoMemError));
 		return false;
 	}
+	papuga_init_ErrorBuffer( &errorbuf_call, membuf_err, sizeof(membuf_err));
 	const papuga_RequestMethodCall* call;
 	while (!!(call = papuga_RequestIterator_next_call( itr, context->variables)))
 	{
-		char membuf_err[ 256];
 		if (call->methodid.functionid == 0)
 		{
 			// [1] Call the constructor
 			const papuga_ClassConstructor func = classdefs[ call->methodid.classid-1].constructor;
-			papuga_ErrorBuffer errorbuf_call;
 			void* self;
 
-			papuga_init_ErrorBuffer( &errorbuf_call, membuf_err, sizeof(membuf_err));
-			if (!(self=(*func)( errorbuf, call->args.argc, call->args.argv)))
+			if (!(self=(*func)( &errorbuf_call, call->args.argc, call->args.argv)))
 			{
 				reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &errorbuf_call));
 				*errorpos = call->eventcnt;
@@ -472,6 +487,14 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				papuga_destroy_CallResult( &retval);
 			}
 		}
+	}
+	// Report error if we could not resolve all parts of a method call:
+	papuga_ErrorCode errcode = papuga_RequestIterator_get_last_error( itr, &call);
+	if (errcode != papuga_Ok)
+	{
+		reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( errcode));
+		*errorpos = call->eventcnt;
+		return false;
 	}
 	return true;
 }

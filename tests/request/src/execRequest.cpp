@@ -19,7 +19,7 @@
 #include <stdexcept>
 #include <iostream>
 
-#define PAPUGA_LOWLEVEL_DEBUG
+#undef PAPUGA_LOWLEVEL_DEBUG
 #define LOCATION_INFO_VALUE_MAX_LENGTH 32
 #define LOCATION_PRINT_MAX_TAGLEVEL 3
 
@@ -29,7 +29,7 @@ static std::string getLocationInfo( papuga_ContentType doctype, papuga_StringEnc
 	std::string locinfo;
 	int taglevel = 0;
 	papuga_RequestElementType elemtype;
-	int pi = 0;
+	int pi = 1;
 	papuga_ValueVariant elemval;
 	papuga_ErrorCode errcode = papuga_Ok;
 
@@ -47,7 +47,7 @@ static std::string getLocationInfo( papuga_ContentType doctype, papuga_StringEnc
 		while (papuga_RequestElementType_None != (elemtype = papuga_RequestParser_next( parser, &elemval)) && pi < errorpos) ++pi;
 		// .... skip to the start position
 
-		// Report location scope until next 'Close'
+		// Report location scope until end of next Element
 		while (maxsize > (int)locinfo.size() && elemtype != papuga_RequestElementType_None)
 		{
 			switch (elemtype)
@@ -69,12 +69,6 @@ static std::string getLocationInfo( papuga_ContentType doctype, papuga_StringEnc
 					break;
 				case papuga_RequestElementType_Close:
 					--taglevel;
-					if (taglevel < 0)
-					{
-						locinfo.append( ".");
-						elemtype = papuga_RequestElementType_None;
-						break;
-					}
 					if (taglevel == LOCATION_PRINT_MAX_TAGLEVEL)
 					{
 						locinfo.append( " ... }");
@@ -82,6 +76,12 @@ static std::string getLocationInfo( papuga_ContentType doctype, papuga_StringEnc
 					else
 					{
 						locinfo.append( " }");
+					}
+					if (taglevel == 0)
+					{
+						locinfo.append( " .");
+						elemtype = papuga_RequestElementType_None;
+						break;
 					}
 					elemtype = papuga_RequestParser_next( parser, &elemval);
 					break;
@@ -126,6 +126,12 @@ static std::string getLocationInfo( papuga_ContentType doctype, papuga_StringEnc
 						{
 							locinfo.append( elemtype == papuga_RequestElementType_Value ? " ??":"??");
 						}
+					}
+					if (taglevel == 0)
+					{
+						locinfo.append( " .");
+						elemtype = papuga_RequestElementType_None;
+						break;
 					}
 					elemtype = papuga_RequestParser_next( parser, &elemval);
 					break;

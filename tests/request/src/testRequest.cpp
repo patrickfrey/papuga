@@ -21,35 +21,50 @@
 
 #define PAPUGA_LOWLEVEL_DEBUG
 
-#ifdef PAPUGA_LOWLEVEL_DEBUG
+std::string g_call_dump;
+
 static void LOG_METHOD_CALL( const char* classname, const char* methodname, size_t argc, const papuga_ValueVariant* argv)
 {
 	papuga_ErrorCode errcode = papuga_Ok;
-	std::cerr << "executing method " << classname << "::" << methodname << "(";
+	std::ostringstream out;
+	out << "executing method " << classname << "::" << methodname << "(";
 	size_t ai=0, ae=argc;
 	for (; ai != ae; ++ai)
 	{
-		std::cerr << (ai?", ":" ");
+		out << (ai?", ":" ");
 		if (papuga_ValueVariant_isatomic( argv+ai))
 		{
-			std::cerr << "'" << papuga::ValueVariant_tostring( argv[ai], errcode) << "'";
+			out << "'" << papuga::ValueVariant_tostring( argv[ai], errcode) << "'";
 		}
 		else
 		{
-			std::cerr << "<" << papuga_Type_name( argv[ai].valuetype) << ">";
+			out << "<" << papuga_Type_name( argv[ai].valuetype) << ">";
 		}
 	}
-	std::cerr << ");" << std::endl;
+	out << ");\n";
+	g_call_dump.append( out.str());
 }
+
+#ifdef PAPUGA_LOWLEVEL_DEBUG
 static void LOG_TEST_CONTENT( const std::string& title, const std::string& content)
 {
 	std::cerr << title << ":\n" << content << std::endl;
 }
 #else
-#define LOG_METHOD_CALL( classname, methodname, argc, argv)
 #define LOG_TEST_CONTENT( TITLE, CONTENT)
 #endif
 
+static std::string mapCallList( const char** calllist)
+{
+	std::string rt;
+	char const** cl = calllist;
+	for (; *cl != NULL; ++cl)
+	{
+		rt.append( *cl);
+		rt.push_back('\n');
+	}
+	return rt;
+}
 
 static std::string mapDocument( const papuga::test::Document& doc, papuga_StringEncoding encoding, papuga_ContentType doctype)
 {
@@ -175,6 +190,8 @@ ERROR:
 	return false;
 }
 
+typedef papuga::RequestAutomaton_Node::Group_ Group;
+
 static void* constructor_C1( papuga_ErrorBuffer* errbuf, size_t argc, const papuga_ValueVariant* argv)
 {
 	LOG_METHOD_CALL( "C1", "new", argc, argv);
@@ -270,7 +287,8 @@ enum
 {
 	VoidItem,
 	PersonName,
-	PersonContent
+	PersonContent,
+	CityName
 };
 /// Test 1:
 static const papuga::test::Document g_testDocument1 = {
@@ -291,20 +309,81 @@ static const papuga::RequestAutomaton g_testRequest1 = {
 		{"/doc", "obj", 0, C1::constructor(), {} },
 		{"/doc", "var", "obj", C1::m1(), {{(int)PersonName}} }
 	}};
+static const char* g_expected_calls1[] = {
+	"executing method C1::new();",
+	"executing method C1::m1( 'Hugo');",
+	"executing method C1::delete();",
+	0
+};
 /// Test 2:
 static const papuga::test::Document g_testDocument2 = {
 	"doc", {
-		{"cities", {}, {{"Bern"}}},
-		{"cities", {}, {{"Luzern"}}},
-		{"cities", {}, {{"Biel"}}}
+		{"city", {{"Bern"}}},
+		{"city", {{"Luzern"}}},
+		{"city", {{"Biel"}}}
 		}
 	};
-static const papuga::test::Document g_testResult2 = {
+static const papuga::test::Document g_testResult2_1 = {
 	"list", {}
 	};
-static const papuga::RequestAutomaton g_testRequest2 = {
+static const papuga::RequestAutomaton g_testRequest2_1 = {
 	g_classdefs, g_structdefs, "list",
 	{}};
+static const char* g_expected_calls2_1[] = {
+	0
+};
+static const papuga::test::Document g_testResult2_2 = {
+	"list", {
+		{"lo", {{"biel"}} },
+		{"hi", {{"BIEL"}} }
+		}
+	};
+static const papuga::RequestAutomaton g_testRequest2_2 = {
+	g_classdefs, g_structdefs, "list",
+	{
+		{"/doc/city", "()", (int)CityName},
+		{"/doc", "obj", 0, C1::constructor(), {} },
+		{"/doc/city", "lo", "obj", C1::m2(), {{(int)CityName}} },
+		{"/doc/city", "hi", "obj", C1::m1(), {{(int)CityName}} }
+	}};
+static const char* g_expected_calls2_2[] = {
+	"executing method C1::new();",
+	"executing method C1::m2( 'Bern');",
+	"executing method C1::m2( 'Luzern');",
+	"executing method C1::m2( 'Biel');",
+	"executing method C1::m1( 'Bern');",
+	"executing method C1::m1( 'Luzern');",
+	"executing method C1::m1( 'Biel');",
+	"executing method C1::delete();",
+	0
+};
+static const papuga::RequestAutomaton g_testRequest2_3 = {
+	g_classdefs, g_structdefs, "list",
+	{
+		{"/doc/city", "()", (int)CityName},
+		{"/doc", "obj", 0, C1::constructor(), {} },
+		{Group(), {
+			{"/doc/city", "lo", "obj", C1::m2(), {{(int)CityName}} },
+			{"/doc/city", "hi", "obj", C1::m1(), {{(int)CityName}} }
+		}}
+	}};
+static const char* g_expected_calls2_3[] = {
+	"executing method C1::new();",
+	"executing method C1::m2( 'Bern');",
+	"executing method C1::m1( 'Bern');",
+	"executing method C1::m2( 'Luzern');",
+	"executing method C1::m1( 'Luzern');",
+	"executing method C1::m2( 'Biel');",
+	"executing method C1::m1( 'Biel');",
+	"executing method C1::delete();",
+	0
+};
+static const papuga::test::Document g_testResult2_3  = {
+	"list", {
+		{"lo", {{"biel"}} },
+		{"hi", {{"BIEL"}} }
+		}
+	};
 
 /// All test declarations:
 struct TestData
@@ -313,11 +392,14 @@ struct TestData
 	const papuga::test::Document* doc;
 	const papuga::RequestAutomaton* atm;
 	const RequestVariable* var;
+	const char** calls;
 	const papuga::test::Document* expected;
 };
 static const TestData g_tests[] = {
-	{"simple document", &g_testDocument1, &g_testRequest1, NULL/*variables*/, &g_testResult1 },
-	{"arrays", &g_testDocument2, &g_testRequest2, NULL/*variables*/, &g_testResult2},
+	{"single item with content and attribute, select attribute", &g_testDocument1, &g_testRequest1, NULL/*variables*/, g_expected_calls1, &g_testResult1 },
+	{"array, empty request", &g_testDocument2, &g_testRequest2_1, NULL/*variables*/, g_expected_calls2_1, &g_testResult2_1},
+	{"array, foreach item", &g_testDocument2, &g_testRequest2_2, NULL/*variables*/, g_expected_calls2_2, &g_testResult2_2},
+	{"array, foreach item group", &g_testDocument2, &g_testRequest2_3, NULL/*variables*/, g_expected_calls2_3, &g_testResult2_3},
 	{0,0,0}};
 
 struct TestSet
@@ -346,6 +428,7 @@ static void executeTest( int tidx, const TestData& test)
 	int ei = 0, ee = -1;
 	for (; ei != ee && testsets[ei].doctype != papuga_ContentType_Unknown; ++ei)
 	{
+		g_call_dump.clear();
 		papuga_ErrorCode errcode = papuga_Ok;
 		char* resstr = 0;
 		std::size_t reslen = 0;
@@ -364,8 +447,8 @@ static void executeTest( int tidx, const TestData& test)
 		}
 		else
 		{
-			std::string expected = mapDocument( *test.expected, enc, doctype);
-			std::string result = std::string( resstr, reslen * papuga_StringEncoding_unit_size( enc));
+			std::string expected = mapCallList( test.calls) + "---\n" + mapDocument( *test.expected, enc, doctype);
+			std::string result = g_call_dump + "---\n" + std::string( resstr, reslen * papuga_StringEncoding_unit_size( enc));
 			LOG_TEST_CONTENT( "RESULT", result);
 			if (expected != result)
 			{

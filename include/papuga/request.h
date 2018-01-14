@@ -264,6 +264,7 @@ typedef struct papuga_RequestMethodCall
 	const char* resultvarname;			/*< variable where to write the result to */
 	papuga_RequestMethodId methodid;		/*< method identifier */
 	int eventcnt;					/*< event (scope) counter for reproducing error area */
+	int argcnt;					/*< argument index of erroneous parameter or -1*/
 	papuga_CallArgs args;				/*< arguments of the call */
 	char membuf[ 4096];				/*< local memory buffer for allocator */
 } papuga_RequestMethodCall;
@@ -281,10 +282,20 @@ papuga_RequestIterator* papuga_create_RequestIterator( papuga_Allocator* allocat
 /*
  * @brief Get the next method call of a request
  * @param[in] self request iterator to get the next method call from
- * @param[in] pointer to current list of variables
+ * @param[in] varlist pointer to current list of variables
  * @return pointer to the method call description (temporary, only valid until the next one is fetched)
  */
 const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestVariable* varlist);
+
+/*
+ * @brief Get the last error of the iterator with a pointer to the method call that failed, if available
+ * @param[in] self request iterator to get the last error from
+ * @param[out] call pointer to call that caused the error
+ * @return the error code of papuga_Ok if there was no error
+ * @return pointer to the method call description (temporary, only valid until the next one is fetched)
+ */
+papuga_ErrorCode papuga_RequestIterator_get_last_error( papuga_RequestIterator* self, const papuga_RequestMethodCall** call);
+
 
 /*
  * @brief Map a request to a readable string of method calls without variables resolved for inspection

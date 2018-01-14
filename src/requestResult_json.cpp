@@ -340,8 +340,9 @@ extern "C" void* papuga_RequestResult_tojson( const papuga_RequestResult* self, 
 		}
 		indent = incindent( indent);
 		papuga_RequestResultNode const* nd = self->nodes;
-		for (; nd; nd = nd->next)
+		for (int ndcnt=0; nd; nd = nd->next, ++ndcnt)
 		{
+			if (ndcnt) out.push_back( ',');
 			out.push_back( '\n');
 			out.append( indent);
 			append_attribute_name( out, nd->name);

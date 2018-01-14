@@ -14,7 +14,7 @@
 #include <stdexcept>
 #include <cstdio>
 
-#define PAPUGA_LOWLEVEL_DEBUG
+#undef PAPUGA_LOWLEVEL_DEBUG
 
 using namespace papuga;
 
