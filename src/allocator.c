@@ -314,7 +314,7 @@ static bool copy_ValueVariant( papuga_ValueVariant* dest, papuga_ValueVariant* o
 		case papuga_TypeDouble:
 		case papuga_TypeInt:
 		case papuga_TypeBool:
-			papuga_init_ValueVariant_copy( dest, orig);
+			papuga_init_ValueVariant_value( dest, orig);
 			break;
 		case papuga_TypeString:
 		{

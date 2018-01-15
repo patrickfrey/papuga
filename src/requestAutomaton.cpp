@@ -42,7 +42,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm)
 		}
 		else
 		{
-			if (!papuga_RequestAutomaton_set_call_arg_item( atm, aidx, ai->itemid, ai->inherited, ai->defaultvalue))
+			if (!papuga_RequestAutomaton_set_call_arg_item( atm, aidx, ai->itemid, ai->resolvetype))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 				if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add item call arg");
@@ -64,7 +64,7 @@ void RequestAutomaton_StructDef::addToAutomaton( papuga_RequestAutomaton* atm) c
 	std::vector<RequestAutomaton_StructDef::Element>::const_iterator ei = elems.begin(), ee = elems.end();
 	for (int eidx=0; ei != ee; ++ei,++eidx)
 	{
-		if (!papuga_RequestAutomaton_set_structure_element( atm, eidx, ei->name, ei->itemid, ei->inherited))
+		if (!papuga_RequestAutomaton_set_structure_element( atm, eidx, ei->name, ei->itemid, ei->resolvetype))
 		{
 			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 			if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add structure element");
@@ -116,7 +116,7 @@ RequestAutomaton_Node::RequestAutomaton_Node()
 	value.functiondef = 0;
 }
 
-RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_Node::Group_&, const std::initializer_list<RequestAutomaton_FunctionDef>& nodes)
+RequestAutomaton_Node::RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_FunctionDef>& nodes)
 	:type(Group)
 {
 	value.groupdef = new RequestAutomaton_GroupDef( std::vector<RequestAutomaton_FunctionDef>( nodes.begin(), nodes.end()));

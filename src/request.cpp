@@ -46,12 +46,12 @@ struct StructMemberDef
 {
 	const char* name;
 	int itemid;
-	bool inherited;
+	papuga_ResolveType resolvetype;
 
-	StructMemberDef( const char* name_, int itemid_, bool inherited_)
-		:name(name_),itemid(itemid_),inherited(inherited_){}
+	StructMemberDef( const char* name_, int itemid_, papuga_ResolveType resolvetype_)
+		:name(name_),itemid(itemid_),resolvetype(resolvetype_){}
 	StructMemberDef( const StructMemberDef& o)
-		:name(o.name),itemid(o.itemid),inherited(o.inherited){}
+		:name(o.name),itemid(o.itemid),resolvetype(o.resolvetype){}
 };
 
 struct StructDef
@@ -70,13 +70,14 @@ struct CallArgDef
 {
 	const char* varname;
 	int itemid;
-	bool inherited;
-	const char* defaultvalue;
+	papuga_ResolveType resolvetype;
 
-	CallArgDef( const char* varname_, int itemid_, bool inherited_, const char* defaultvalue_)
-		:varname(varname_),itemid(itemid_),inherited(inherited_),defaultvalue(defaultvalue_){}
+	CallArgDef( const char* varname_)
+		:varname(varname_),itemid(0),resolvetype(papuga_ResolveTypeRequired){}
+	CallArgDef( int itemid_, papuga_ResolveType resolvetype_)
+		:varname(0),itemid(itemid_),resolvetype(resolvetype_){}
 	CallArgDef( const CallArgDef& o)
-		:varname(o.varname),itemid(o.itemid),inherited(o.inherited),defaultvalue(o.defaultvalue){}
+		:varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype){}
 };
 
 struct CallDef
@@ -118,7 +119,7 @@ struct CallDef
 			}
 			else
 			{
-				out << args[ai].itemid << (args[ai].inherited?" inherited":"");
+				out << args[ai].itemid << " " << papuga_ResolveTypeName( args[ai].resolvetype);
 			}
 		}
 		out << ");";
@@ -279,7 +280,7 @@ public:
 			}
 			adef.itemid = adef_.itemid;
 			adef.varname = adef_.varname;
-			adef.defaultvalue =adef_.defaultvalue;
+			adef.resolvetype = adef_.resolvetype;
 			if (!adef.varname)
 			{
 				if (!checkItemId( adef.itemid))
@@ -305,7 +306,7 @@ public:
 				m_errcode = papuga_TypeError;
 				return false;
 			}
-			CallArgDef adef( papuga_Allocator_copy_charp( &m_allocator, argvar), 0, false, NULL);
+			CallArgDef adef( papuga_Allocator_copy_charp( &m_allocator, argvar));
 			if (!adef.varname)
 			{
 				m_errcode = papuga_NoMemError;
@@ -317,19 +318,19 @@ public:
 		return true;
 	}
 
-	bool setCallArgItem( int idx, int itemid, bool inherited, const char* defaultvalue)
+	bool setCallArgItem( int idx, int itemid, papuga_ResolveType resolvetype)
 	{
 		try
 		{
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton set call argument itemid=%d%s\n", itemid, inherited ? ", inherited":"");
+			fprintf( stderr, "automaton set call argument itemid=%d resolve=%s\n", itemid, papuga_ResolveTypeName( resolvetype));
 #endif
 			if (itemid <= 0)
 			{
 				m_errcode = papuga_TypeError;
 				return false;
 			}
-			CallArgDef adef( 0, itemid, inherited, defaultvalue ? papuga_Allocator_copy_charp( &m_allocator, defaultvalue) : NULL);
+			CallArgDef adef( itemid, resolvetype);
 			return setCallArg( idx, adef);
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -358,7 +359,7 @@ public:
 			std::string open_expression( cut_trailing_slashes( expression));
 			std::string close_expression( open_expression + "~");
 			int mm = nofmembers * sizeof(StructMemberDef);
-			StructMemberDef* mar = (StructMemberDef*)papuga_Allocator_alloc( &m_allocator, mm, sizeof(StructMemberDef));
+			StructMemberDef* mar = (StructMemberDef*)papuga_Allocator_alloc( &m_allocator, mm, 0);
 			if (!mar)
 			{
 				m_errcode = papuga_NoMemError;
@@ -375,12 +376,12 @@ public:
 		return true;
 	}
 
-	bool setMember( int idx, const char* name, int itemid, bool inherited)
+	bool setMember( int idx, const char* name, int itemid, papuga_ResolveType resolvetype)
 	{
 		try
 		{
 	#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton set structure member name='%s', itemid=%d%s\n", name, itemid, inherited ? ", inherited":"");
+			fprintf( stderr, "automaton set structure member name='%s', itemid=%d, resolve=%s\n", name, itemid, papuga_ResolveTypeName( resolvetype));
 	#endif
 			if (!checkItemId( itemid))
 			{
@@ -408,7 +409,7 @@ public:
 				return false;
 			}
 			mdef.itemid = itemid;
-			mdef.inherited = inherited;
+			mdef.resolvetype = resolvetype;
 			if (name)
 			{
 				mdef.name = papuga_Allocator_copy_charp( &m_allocator, name);
@@ -573,6 +574,7 @@ private:
 typedef int ObjectRef;
 static bool ObjectRef_is_value( ObjectRef objref)	{return objref > 0;}
 static bool ObjectRef_is_struct( ObjectRef objref)	{return objref < 0;}
+static bool ObjectRef_is_defined( ObjectRef objref)	{return objref != 0;}
 static int ObjectRef_struct_id( ObjectRef objref)	{return objref < 0 ? -objref-1 : 0;}
 static int ObjectRef_value_id( ObjectRef objref)	{return objref > 0 ? objref-1 : 0;}
 static ObjectRef ObjectRef_value( int idx)		{return (ObjectRef)(idx+1);}
@@ -623,7 +625,7 @@ struct Value
 	}
 	Value( const papuga_ValueVariant* content_)
 	{
-		papuga_init_ValueVariant_copy( &content, content_);
+		papuga_init_ValueVariant_value( &content, content_);
 	}
 	Value( const char* str, int size)
 	{
@@ -631,7 +633,7 @@ struct Value
 	}
 	Value( const Value& o)
 	{
-		papuga_init_ValueVariant_copy( &content, &o.content);
+		papuga_init_ValueVariant_value( &content, &o.content);
 	}
 };
 
@@ -758,7 +760,7 @@ public:
 					return;
 				}
 				valuesize = strlen(valuestr);
-				papuga_init_ValueVariant_copy( &value, value_);
+				papuga_init_ValueVariant_value( &value, value_);
 			}
 		}
 	};
@@ -995,7 +997,6 @@ public:
 			for (; ai != ae; ++ai)
 			{
 				out << "ARG " << (ai+1) << std::endl;
-				papuga_ValueVariant argval;
 				const CallArgDef& argdef = mcdef->args[ai];
 				if (argdef.varname)
 				{
@@ -1003,7 +1004,9 @@ public:
 				}
 				else
 				{
-					if (!initResolvedItemValue( argval, &m_allocator, argdef.itemid, argdef.inherited, mcnode->scope, argdef.defaultvalue))
+					papuga_ValueVariant argval;
+					ValueSink sink( &argval, &m_allocator);
+					if (!initResolvedItemValue( sink, argdef.itemid, argdef.resolvetype, mcnode->scope))
 					{
 						return false;
 					}
@@ -1131,8 +1134,8 @@ public:
 				m_resolvers[ itemid] = it;
 			}
 		}
-	
-		ObjectRef resolveNextItem( const Scope& scope, int itemid)
+
+		ObjectRef resolveNextInsideItem( const Scope& scope, int itemid)
 		{
 			const ScopeObjMap& objmap = m_ctx->scopeobjmap()[ itemid];
 			ScopeObjMap::const_iterator& curitr = m_resolvers[ itemid];
@@ -1146,6 +1149,131 @@ public:
 				if (curitr->first.from >= nextstart && curitr->first.inside( scope)) return curitr->second;
 			}
 		}
+
+		bool hasNextCoveringItem( const Scope& scope, int itemid)
+		{
+			const ScopeObjMap& objmap = m_ctx->scopeobjmap()[ itemid];
+			ScopeObjMap::const_iterator& curitr = m_resolvers[ itemid];
+
+			if (curitr == objmap.end()) return false;
+			for (;;)
+			{
+				++curitr;
+				if (curitr == objmap.end() || curitr->first.from > scope.from) return false;
+				if (scope.inside( curitr->first)) return true;
+			}
+		}
+
+		class ValueSink
+		{
+		public:
+			explicit ValueSink( papuga_Serialization* ser_)
+				:allocator(ser_->allocator),ser(ser_),val(0),name(0){}
+			ValueSink( papuga_ValueVariant* val_, papuga_Allocator* allocator_)
+				:allocator(allocator_),ser(0),val(val_),name(0){}
+
+			papuga_Serialization* openSerialization()
+			{
+				if (ser)
+				{
+					if (name)
+					{
+						if (!papuga_Serialization_pushName_charp( ser, name)) return NULL;
+						name = NULL;
+					}
+					if (!papuga_Serialization_pushOpen( ser)) return NULL;
+					return ser;
+				}
+				else if (val)
+				{
+					if (name) return NULL;
+					papuga_Serialization* vser = papuga_Allocator_alloc_Serialization( allocator);
+					if (!vser) return NULL;
+					papuga_init_ValueVariant_serialization( val, vser);
+					return vser;
+				}
+				else
+				{
+					return NULL;
+				}
+			}
+
+			bool closeSerialization()
+			{
+				if (ser)
+				{
+					return papuga_Serialization_pushClose( ser);
+				}
+				else
+				{
+					return true;
+				}
+			}
+
+			bool pushName( const char* name_)
+			{
+				if (name) return false;
+				name = name_;
+				return true;
+			}
+
+			bool pushValue( const papuga_ValueVariant* val_)
+			{
+				if (ser)
+				{
+					if (name)
+					{
+						if (!papuga_Serialization_pushName_charp( ser, name)) return false;
+						name = NULL;
+					}
+					return papuga_Serialization_pushValue( ser, val_);
+				}
+				else if (val)
+				{
+					if (name) return false;
+					papuga_init_ValueVariant_value( val, val_);
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+
+			bool pushVoid()
+			{
+				if (ser)
+				{
+					if (name)
+					{
+						name = NULL;
+						return true;
+					}
+					else
+					{
+						papuga_ValueVariant voidelem;
+						papuga_init_ValueVariant( &voidelem);
+						return papuga_Serialization_pushValue( ser, &voidelem);
+					}
+				}
+				else if (val)
+				{
+					if (name) return false;
+					papuga_init_ValueVariant( val);
+					return true;
+				}
+				else
+				{
+					return false;
+				}
+			}
+
+		private:
+			papuga_Allocator* allocator;
+			papuga_Serialization* ser;
+			papuga_ValueVariant* val;
+			const char* name;
+		};
 
 		bool add_structure_member( papuga_Serialization* ser, const Scope& scope, const char* name, ObjectRef objref)
 		{
@@ -1163,10 +1291,7 @@ public:
 				}
 				else
 				{
-					if (papuga_ValueVariant_defined( &m_ctx->values()[ valueidx].content))
-					{
-						rt &= papuga_Serialization_pushValue( ser, &m_ctx->values()[ valueidx].content);
-					}
+					rt &= papuga_Serialization_pushValue( ser, &m_ctx->values()[ valueidx].content);
 				}
 			}
 			else if (ObjectRef_is_struct( objref))
@@ -1190,26 +1315,67 @@ public:
 	
 		bool build_structure( papuga_Serialization* ser, const Scope& scope, int structidx)
 		{
-			bool rt = true;
 			const StructDef* stdef = m_ctx->structs()[ structidx];
+			ValueSink sink( ser);
 			int mi = 0, me = stdef->nofmembers;
 			for (; mi != me; ++mi)
 			{
-				int itemid = stdef->members[ mi].itemid;
-				setResolverUpperBound( scope, itemid);
-	
-				if (stdef->members[ mi].inherited)
-				{
-					ObjectRef objref = resolveNearItemCoveringScope( scope, itemid);
-					if (objref)
+				sink.pushName( stdef->members[ mi].name);
+				if (!initResolvedItemValue( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope)) return false;
+			}
+			return true;
+		}
+
+		bool initResolvedItemValue( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope)
+		{
+			ObjectRef objref;
+
+			setResolverUpperBound( scope, itemid);
+			switch (resolvetype)
+			{
+				case papuga_ResolveTypeRequired:
+				case papuga_ResolveTypeOptional:
+					objref = resolveNearItemInsideScope( scope, itemid);
+					if (ObjectRef_is_value( objref))
 					{
-						if (ObjectRef_is_value(objref))
+						int valueidx = ObjectRef_value_id( objref);
+						if (!sink.pushValue( &m_ctx->values()[ valueidx].content))
 						{
-							rt &= add_structure_member( ser,  scope, stdef->members[ mi].name, objref);
+							m_errcode = papuga_NoMemError;
+							return false;
 						}
-						else
+						if (resolveNextInsideItem( scope, itemid))
 						{
-							m_errcode = papuga_InvalidAccess;
+							m_errcode = papuga_AmbiguousReference;
+							return false;
+						}
+					}
+					else if (ObjectRef_is_struct( objref))
+					{
+						int structidx = ObjectRef_struct_id( objref);
+						papuga_Serialization* ser = sink.openSerialization();
+						if (!ser)
+						{
+							m_errcode = papuga_NoMemError;
+							return false;
+						}
+						if (!build_structure( ser, Scope( scope.from+1, scope.to), structidx)) return false;
+						if (!sink.closeSerialization())
+						{
+							m_errcode = papuga_NoMemError;
+							return false;
+						}
+						if (resolveNextInsideItem( scope, itemid))
+						{
+							m_errcode = papuga_AmbiguousReference;
+							return false;
+						}
+					}
+					else if (resolvetype == papuga_ResolveTypeOptional)
+					{
+						if (!sink.pushVoid())
+						{
+							m_errcode = papuga_NoMemError;
 							return false;
 						}
 					}
@@ -1218,53 +1384,64 @@ public:
 						m_errcode = papuga_ValueUndefined;
 						return false;
 					}
-				}
-				else
-				{
-					ObjectRef objref = resolveNearItemInsideScope( scope, itemid);
-					if (objref) while (objref)
+				break;
+				case papuga_ResolveTypeInherited:
+					objref = resolveNearItemCoveringScope( scope, itemid);
+					if (m_resolvers[ itemid]->first == scope)
 					{
-						const Scope& subscope( m_resolvers[ itemid]->first);
-						if (subscope != scope)
+						m_errcode = papuga_AmbiguousReference;
+						return false;
+					}
+					if (ObjectRef_is_value( objref))
+					{
+						int valueidx = ObjectRef_value_id( objref);
+						if (!sink.pushValue( &m_ctx->values()[ valueidx].content))
 						{
-							rt &= add_structure_member( ser, subscope, stdef->members[ mi].name, objref);
+							m_errcode = papuga_NoMemError;
+							return false;
 						}
-						objref = resolveNextItem( scope, itemid);
+						if (hasNextCoveringItem( scope, itemid))
+						{
+							m_errcode = papuga_AmbiguousReference;
+							return false;
+						}
+					}
+					else if (ObjectRef_is_struct( objref))
+					{
+						m_errcode = papuga_InvalidAccess;
+						return false;
 					}
 					else
 					{
 						m_errcode = papuga_ValueUndefined;
 						return false;
 					}
+				break;
+				case papuga_ResolveTypeArray:
+				{
+					objref = resolveNearItemInsideScope( scope, itemid);
+					papuga_Serialization* ser = sink.openSerialization();
+					if (!ser)
+					{
+						m_errcode = papuga_NoMemError;
+						return false;
+					}
+					while (ObjectRef_is_defined( objref))
+					{
+						if (m_resolvers[ itemid]->first != scope)
+						{
+							if (!add_structure_member( ser, m_resolvers[ itemid]->first, NULL/*name*/, objref)) return false;
+						}
+						objref = resolveNextInsideItem( scope, itemid);
+					}
+
+					if (!sink.closeSerialization())
+					{
+						m_errcode = papuga_NoMemError;
+						return false;
+					}
 				}
-			}
-			return rt;
-		}
-	
-		bool initResolvedItemValue( papuga_ValueVariant& arg, papuga_Allocator* allocator, int itemid, bool inherited, const Scope& scope, const char* defaultvalue)
-		{
-			setResolverUpperBound( scope, itemid);
-			ObjectRef objref = (inherited) ? resolveNearItemCoveringScope( scope, itemid) : resolveNearItemInsideScope( scope, itemid);
-			if (ObjectRef_is_value( objref))
-			{
-				int valueidx = ObjectRef_value_id( objref);
-				papuga_init_ValueVariant_copy( &arg, &m_ctx->values()[ valueidx].content);
-			}
-			else if (ObjectRef_is_struct( objref))
-			{
-				int structidx = ObjectRef_struct_id( objref);
-				papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( allocator);
-				papuga_init_ValueVariant_serialization( &arg, ser);
-				if (!build_structure( ser, scope, structidx)) return false;
-			}
-			else if (defaultvalue)
-			{
-				papuga_init_ValueVariant_charp( &arg, defaultvalue);
-			}
-			else
-			{
-				m_errcode = papuga_ValueUndefined;
-				return false;
+				break;
 			}
 			return true;
 		}
@@ -1280,11 +1457,12 @@ public:
 					m_errcode = papuga_ValueUndefined;
 					return false;
 				}
-				papuga_init_ValueVariant_copy( &arg, &vl->value);
+				papuga_init_ValueVariant_value( &arg, &vl->value);
 			}
 			else
 			{
-				if (!initResolvedItemValue( arg, &m_allocator, argdef.itemid, argdef.inherited, scope, argdef.defaultvalue))
+				ValueSink sink( &arg, &m_allocator);
+				if (!initResolvedItemValue( sink, argdef.itemid, argdef.resolvetype, scope))
 				{
 					return false;
 				}
@@ -1378,6 +1556,7 @@ private:
 				int itemid = stdef->itemid;
 				m_scopeobjmap[ itemid].insert( ScopeObjElem( Scope( m_scopestack.back(), m_scopecnt), ObjectRef_struct( m_structs.size())));
 				m_structs.push_back( stdef);
+				break;
 			}
 			case MethodCall:
 			{
@@ -1394,6 +1573,7 @@ private:
 					m_errcode = papuga_ExecutionOrder;
 					return false;
 				}
+				break;
 			}
 		}
 		return true;
@@ -1420,6 +1600,11 @@ private:
 }//anonymous namespace
 
 
+extern "C" const char* papuga_ResolveTypeName( papuga_ResolveType resolvetype)
+{
+	static const char* ar[] = {"required","optional","inherited","array"};
+	return ar[ resolvetype];
+}
 
 struct papuga_RequestAutomaton
 {
@@ -1473,9 +1658,9 @@ extern "C" bool papuga_RequestAutomaton_set_call_arg_var( papuga_RequestAutomato
 	return self->atm.setCallArgVar( idx, varname);
 }
 
-extern "C" bool papuga_RequestAutomaton_set_call_arg_item( papuga_RequestAutomaton* self, int idx, int itemid, bool inherited, const char* defaultvalue)
+extern "C" bool papuga_RequestAutomaton_set_call_arg_item( papuga_RequestAutomaton* self, int idx, int itemid, papuga_ResolveType resolvetype)
 {
-	return self->atm.setCallArgItem( idx, itemid, inherited, defaultvalue);
+	return self->atm.setCallArgItem( idx, itemid, resolvetype);
 }
 
 extern "C" bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self)
@@ -1502,9 +1687,9 @@ extern "C" bool papuga_RequestAutomaton_set_structure_element(
 		int idx,
 		const char* name,
 		int itemid,
-		bool inherited)
+		papuga_ResolveType resolvetype)
 {
-	return self->atm.setMember( idx, name, itemid, inherited);
+	return self->atm.setMember( idx, name, itemid, resolvetype);
 }
 
 extern "C" bool papuga_RequestAutomaton_add_value(

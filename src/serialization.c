@@ -122,13 +122,13 @@ bool papuga_Serialization_pushClose( papuga_Serialization* self)
 }
 
 bool papuga_Serialization_push( papuga_Serialization* self, papuga_Tag tag, const papuga_ValueVariant* value)
-	{PUSH_NODE_1(self,tag,papuga_init_ValueVariant_copy,value)}
+	{PUSH_NODE_1(self,tag,papuga_init_ValueVariant_value,value)}
 
 bool papuga_Serialization_pushName_void( papuga_Serialization* self)
 	{PUSH_NODE_0(self,papuga_TagName,papuga_init_ValueVariant)}
 
 bool papuga_Serialization_pushName( papuga_Serialization* self, const papuga_ValueVariant* name)
-	{PUSH_NODE_1(self,papuga_TagName,papuga_init_ValueVariant_copy,name)}
+	{PUSH_NODE_1(self,papuga_TagName,papuga_init_ValueVariant_value,name)}
 
 bool papuga_Serialization_pushName_string( papuga_Serialization* self, const char* name, int namelen)
 	{PUSH_NODE_2(self,papuga_TagName,papuga_init_ValueVariant_string,name,namelen)}
@@ -153,7 +153,7 @@ bool papuga_Serialization_pushValue_void( papuga_Serialization* self)
 	{PUSH_NODE_0(self,papuga_TagValue,papuga_init_ValueVariant)}
 
 bool papuga_Serialization_pushValue( papuga_Serialization* self, const papuga_ValueVariant* value)
-	{PUSH_NODE_1(self,papuga_TagValue,papuga_init_ValueVariant_copy,value)}
+	{PUSH_NODE_1(self,papuga_TagValue,papuga_init_ValueVariant_value,value)}
 
 bool papuga_Serialization_pushValue_string( papuga_Serialization* self, const char* value, int valuelen)
 	{PUSH_NODE_2(self,papuga_TagValue,papuga_init_ValueVariant_string,value,valuelen)}

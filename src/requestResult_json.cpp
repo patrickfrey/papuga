@@ -74,20 +74,17 @@ static bool ValueVariant_tojson( std::string& out, const papuga_ValueVariant& va
 			papuga_init_SerializationIter( &subitr, value.value.serialization);
 			if (!papuga_SerializationIter_eof( &subitr))
 			{
-				out.push_back( '\n');
 				bool isdict = value.value.serialization->structid || papuga_SerializationIter_tag( &subitr) == papuga_TagName;
 				if (isdict)
 				{
 					out.push_back('{');
-					rt &= SerializationIter_tojson( out, &subitr, isdict, value.value.serialization->structid, structs, indent, errcode);
+					rt &= SerializationIter_tojson( out, &subitr, isdict, value.value.serialization->structid, structs, incindent(indent), errcode);
 					out.push_back('}');
 				}
 				else
 				{
 					out.push_back('[');
-					rt &= SerializationIter_tojson( out, &subitr, isdict, value.value.serialization->structid, structs, indent, errcode);
-					out.push_back('\n');
-					out.append( indent);
+					rt &= SerializationIter_tojson( out, &subitr, isdict, value.value.serialization->structid, structs, incindent(indent), errcode);
 					out.push_back(']');
 				}
 				if (!papuga_SerializationIter_eof( &subitr))
@@ -172,7 +169,7 @@ static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter
 	papuga_init_Stack( &namestk, sizeof(SerializationIterStackElem), 128, namestk_mem, sizeof(namestk_mem));
 	try
 	{
-		while (rt) switch( papuga_SerializationIter_tag(seritr))
+		for (; rt; papuga_SerializationIter_skip(seritr)) switch( papuga_SerializationIter_tag(seritr))
 		{
 			case papuga_TagClose:
 			{

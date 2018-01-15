@@ -62,6 +62,15 @@ void* papuga_RequestResult_toxml( const papuga_RequestResult* self, papuga_Strin
 void* papuga_RequestResult_tojson( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err);
 
 
+/*
+* @brief Dump the request result in readable form
+* @param[in] self pointer to structure
+* @param[out] len length of the output (UTF-8) in bytes
+* @return the request allocated with malloc on success, NULL on memory allocation error
+*/
+char* papuga_RequestResult_tostring( const papuga_RequestResult* self, size_t* len);
+
+
 #ifdef __cplusplus
 }
 #endif

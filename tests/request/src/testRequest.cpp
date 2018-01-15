@@ -190,8 +190,6 @@ ERROR:
 	return false;
 }
 
-typedef papuga::RequestAutomaton_Node::Group_ Group;
-
 static void* constructor_C1( papuga_ErrorBuffer* errbuf, size_t argc, const papuga_ValueVariant* argv)
 {
 	LOG_METHOD_CALL( "C1", "new", argc, argv);
@@ -288,7 +286,8 @@ enum
 	VoidItem,
 	PersonName,
 	PersonContent,
-	CityName
+	CityName,
+	CityList
 };
 /// Test 1:
 static const papuga::test::Document g_testDocument1 = {
@@ -362,7 +361,7 @@ static const papuga::RequestAutomaton g_testRequest2_3 = {
 	{
 		{"/doc/city", "()", (int)CityName},
 		{"/doc", "obj", 0, C1::constructor(), {} },
-		{Group(), {
+		{{
 			{"/doc/city", "lo", "obj", C1::m2(), {{(int)CityName}} },
 			{"/doc/city", "hi", "obj", C1::m1(), {{(int)CityName}} }
 		}}
@@ -384,6 +383,32 @@ static const papuga::test::Document g_testResult2_3  = {
 		{"hi", {{"BIEL"}} }
 		}
 	};
+static const papuga::RequestAutomaton g_testRequest2_4 = {
+	g_classdefs, g_structdefs, "list",
+	{
+		{"/doc/city", "()", CityName},
+		{"/doc", "obj", 0, C1::constructor(), {} },
+		{{
+			{"/doc", "lo", "obj", C1::m2(), {{CityName, '*'}} },
+			{"/doc", "hi", "obj", C1::m1(), {{CityName, '*'}} }
+		}}
+	}};
+static const papuga::test::Document g_testResult2_4  = {
+	"list", {
+			{"lo", {{"bern"}} },
+			{"lo", {{"luzern"}} },
+			{"lo", {{"biel"}} },
+			{"hi", {{"BERN"}} },
+			{"hi", {{"LUZERN"}} },
+			{"hi", {{"BIEL"}} }
+	}};
+static const char* g_expected_calls2_4[] = {
+	"executing method C1::new();",
+	"executing method C1::m2( <Serialization>);",
+	"executing method C1::m1( <Serialization>);",
+	"executing method C1::delete();",
+	0
+};
 
 /// All test declarations:
 struct TestData
@@ -400,6 +425,7 @@ static const TestData g_tests[] = {
 	{"array, empty request", &g_testDocument2, &g_testRequest2_1, NULL/*variables*/, g_expected_calls2_1, &g_testResult2_1},
 	{"array, foreach item", &g_testDocument2, &g_testRequest2_2, NULL/*variables*/, g_expected_calls2_2, &g_testResult2_2},
 	{"array, foreach item group", &g_testDocument2, &g_testRequest2_3, NULL/*variables*/, g_expected_calls2_3, &g_testResult2_3},
+	{"array, foreach struct group", &g_testDocument2, &g_testRequest2_4, NULL/*variables*/, g_expected_calls2_4, &g_testResult2_4},
 	{0,0,0}};
 
 struct TestSet
@@ -449,12 +475,15 @@ static void executeTest( int tidx, const TestData& test)
 		{
 			std::string expected = mapCallList( test.calls) + "---\n" + mapDocument( *test.expected, enc, doctype);
 			std::string result = g_call_dump + "---\n" + std::string( resstr, reslen * papuga_StringEncoding_unit_size( enc));
-			LOG_TEST_CONTENT( "RESULT", result);
 			if (expected != result)
 			{
 				std::cout << "Result [" << result.size() << "]:\n" << result << std::endl;
 				std::cout << "Expected [" << expected.size() << "]:\n" << expected << std::endl;
 				throw std::runtime_error( "test output differs");
+			}
+			else
+			{
+				LOG_TEST_CONTENT( "RESULT", result);
 			}
 		}
 	}
@@ -468,7 +497,7 @@ int main( int argc, const char* argv[])
 	int testcnt = 0;
 #if __cplusplus >= 201103L
 	while (g_tests[testcnt].description) ++testcnt;
-	std::cerr << "found " << testcnt << "tests." << std::endl;
+	std::cerr << "found " << testcnt << " tests." << std::endl;
 #endif
 	if (argc > 1)
 	{

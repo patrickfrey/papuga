@@ -116,7 +116,7 @@ extern "C" {
 * @param[out] self_ pointer to structure 
 * @param[in] o_ pointer to value variant to initialize structure with
 */
-#define papuga_init_ValueVariant_copy(self_,o_)			{papuga_ValueVariant* s = self_; const papuga_ValueVariant* v = o_; s->valuetype=v->valuetype;s->encoding=v->encoding;s->_tag=v->_tag;s->length=v->length;s->value.DATA=v->value.DATA;}
+#define papuga_init_ValueVariant_value(self_,o_)		{papuga_ValueVariant* s = self_; const papuga_ValueVariant* v = o_; s->valuetype=v->valuetype;s->encoding=v->encoding;s->_tag=v->_tag;s->length=v->length;s->value.DATA=v->value.DATA;}
 
 /*
 * @brief Test if the variant value is not NULL

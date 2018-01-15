@@ -18,6 +18,18 @@
 
 namespace papuga {
 
+static inline papuga_ResolveType getResolveType( char resolvechr)
+{
+	switch (resolvechr)
+	{
+		case '*': return papuga_ResolveTypeArray;
+		case '?': return papuga_ResolveTypeOptional;
+		case '!': return papuga_ResolveTypeRequired;
+		case '$': return papuga_ResolveTypeInherited;
+		default: throw std::runtime_error( "unknown resolve type identifier");
+	}
+}
+
 /// \brief Request method call (function) definition
 struct RequestAutomaton_FunctionDef
 {
@@ -26,15 +38,17 @@ struct RequestAutomaton_FunctionDef
 	{
 		const char* varname;		///< name of the variable referencing the argument in case of a variable
 		int itemid;			///< item identifier unique in its scope, in case of an item reference (a value or a structure)
-		bool inherited;			///< tells wheter the item is in a enclosing scope (true) or in an enclosed scope (false), in case of an item reference (a value or a structure)
-		const char* defaultvalue;	///< default value in case not defined
+		papuga_ResolveType resolvetype;	///< tells wheter the item is in a enclosing scope (true) or in an enclosed scope (false), in case of an item reference (a value or a structure)
 
 		Arg( const char* varname_)
-			:varname(varname_),itemid(-1),inherited(false){}
-		Arg( int itemid_, bool inherited_=false, const char* defaultvalue_=0)
-			:varname(0),itemid(itemid_),inherited(inherited_),defaultvalue(defaultvalue_){}
+			:varname(varname_),itemid(-1),resolvetype(papuga_ResolveTypeRequired){}
+		Arg( int itemid_, char resolvechr)
+			:varname(0),itemid(itemid_),resolvetype(getResolveType(resolvechr)){}
+		Arg( int itemid_)
+			:varname(0),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired){}
 		Arg( const Arg& o)
-			:varname(o.varname),itemid(o.itemid),inherited(o.inherited),defaultvalue(o.defaultvalue){}
+			:varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype){}
+
 	};
 
 	const char* expression;			///< selecting expression addressing the scope of the request
@@ -73,24 +87,23 @@ struct RequestAutomaton_StructDef
 	/// \brief Structure element definition
 	struct Element
 	{
-		const char* name;	///< name of the element or NULL in case of an array element
-		int itemid;		///< identifier of the item addressing the element value
-		bool inherited;		///< true if the element is defined in the enclosing scope, false if in the enclosed scope
+		const char* name;		///< name of the element or NULL in case of an array element
+		int itemid;			///< identifier of the item addressing the element value
+		papuga_ResolveType resolvetype;	///< tells wheter the item is in a enclosing scope (true) or in an enclosed scope (false), in case of an item reference (a value or a structure)
 
 		///\brief Constructor (named dictionary element)
-		Element( const char* name_, int itemid_, bool inherited_)
-			:name(name_),itemid(itemid_),inherited(inherited_){}
-		///\brief Constructor (array elements)
-		Element( int itemid_)
-			:name(0),itemid(itemid_),inherited(false){}
+		Element( const char* name_, int itemid_, char resolvechr)
+			:name(name_),itemid(itemid_),resolvetype(getResolveType(resolvechr)){}
+		Element( const char* name_, int itemid_)
+			:name(name_),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired){}
 		///\brief Copy constructor
 		Element( const Element& o)
-			:name(o.name),itemid(o.itemid),inherited(o.inherited){}
+			:name(o.name),itemid(o.itemid),resolvetype(o.resolvetype){}
 	};
 
-	const char* expression;		///< selecting expression addressing the scope of this structure definition
-	int itemid;			///< item identifier unique in its scope (referencing a value or a structure)
-	std::vector<Element> elems;	///< list of references to the elements of this structure
+	const char* expression;			///< selecting expression addressing the scope of this structure definition
+	int itemid;				///< item identifier unique in its scope (referencing a value or a structure)
+	std::vector<Element> elems;		///< list of references to the elements of this structure
 
 	/// \brief Copy constructor
 	RequestAutomaton_StructDef( const RequestAutomaton_StructDef& o)
@@ -152,7 +165,6 @@ struct RequestAutomaton_GroupDef
 /// \brief Union of all RequestAutomaton_XXDef types for using in C++ initializer lists
 struct RequestAutomaton_Node
 {
-	struct Group_ {};
 	enum Type {
 		Empty,
 		Group,
@@ -172,7 +184,7 @@ struct RequestAutomaton_Node
 	///\brief Default contructor
 	RequestAutomaton_Node();
 	///\brief Contructor as RequestAutomaton_GroupDef
-	RequestAutomaton_Node( const Group_&, const std::initializer_list<RequestAutomaton_FunctionDef>& nodes_);
+	RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_FunctionDef>& nodes_);
 	///\brief Contructor as RequestAutomaton_FunctionDef
 	RequestAutomaton_Node( const char* expression_, const char* resultvar_, const char* selfvar_, const papuga_RequestMethodId& methodid_, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args_);
 	///\brief Contructor as RequestAutomaton_StructDef

@@ -19,7 +19,7 @@
 #include <stdexcept>
 #include <iostream>
 
-#undef PAPUGA_LOWLEVEL_DEBUG
+#define PAPUGA_LOWLEVEL_DEBUG
 #define LOCATION_INFO_VALUE_MAX_LENGTH 32
 #define LOCATION_PRINT_MAX_TAGLEVEL 3
 
@@ -226,6 +226,15 @@ extern "C" bool papuga_execute_request(
 	{
 		goto ERROR;
 	}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	{
+		size_t dumplen = 0;
+		char* dumpstr = papuga_RequestResult_tostring( &result, &dumplen);
+		if (!dumpstr) throw papuga::error_exception( papuga_NoMemError, "dumping result");
+		std::cerr << "RESULT DUMP:\n" << dumpstr << std::endl;
+		std::free( dumpstr);
+	}
+#endif
 	// Map the result:
 	switch (doctype)
 	{

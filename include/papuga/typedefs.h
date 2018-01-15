@@ -51,7 +51,8 @@ typedef enum papuga_ErrorCode
 	papuga_NotAllowed=19,
 	papuga_IteratorFailed=20,
 	papuga_AddressedItemNotFound=21,
-	papuga_HostObjectError=22
+	papuga_HostObjectError=22,
+	papuga_AmbiguousReference=23
 } papuga_ErrorCode;
 
 /*

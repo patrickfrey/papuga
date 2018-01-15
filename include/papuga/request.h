@@ -95,20 +95,35 @@ bool papuga_RequestAutomaton_set_call_arg_var(
 		const char* varname);
 
 /*
+ * @brief Enumeration type describing the way an argument of structure member is resolved
+ */
+typedef enum {
+	papuga_ResolveTypeRequired,		/*< the item must be found in the included scope and it is unique */
+	papuga_ResolveTypeOptional,		/*< the item is found in the included scope and it is unique, if it exists */
+	papuga_ResolveTypeInherited,		/*< the item must be found in an including scope, uniqueness is not checked, the innermost candidate wins */
+	papuga_ResolveTypeArray,		/*< the item is found in the included scope and it can exist more that once */
+} papuga_ResolveType;
+
+/*
+ * @brief Get the resolve type name as string
+ * @param[in] resolvetype the resolve type
+ * @return the resolve type name as string
+ */
+const char* papuga_ResolveTypeName( papuga_ResolveType resolvetype);
+
+/*
  * @brief Define an argument to the last method call as item in the document processed
  * @param[in,out] self automaton manipulated
  * @param[in] idx index of the argument to set, starting with 0
  * @param[in] itemid identifier of the item
- * @param[in] inherited true, if the scope of the addressed element is covering the scope of the method call addressing it, false if the method call scope is covering the scope of the addressed element
- * @param[in] defaultvalue default value for an optional value
+ * @param[in] resolvetype defines the way an addressed item is resolved and constructed
  * @return true on success, false on failure (index out of range or memory allocation error)
  */
 bool papuga_RequestAutomaton_set_call_arg_item(
 		papuga_RequestAutomaton* self,
 		int idx,
 		int itemid,
-		bool inherited,
-		const char* defaultvalue);
+		papuga_ResolveType resolvetype);
 
 /*
  * @brief Define the start of a call group. Calls inside a group are executed in sequential order for their context. 
@@ -144,7 +159,7 @@ bool papuga_RequestAutomaton_add_structure(
  * @param[in] idx index of the element to set, starting with 0
  * @param[in] name identifier naming the structure element added or NULL if the element does not get a name (for arrays)
  * @param[in] itemid identifier of the structure or value associated with the element added
- * @param[in] inherited true, if the scope of the addressed element is covering the scope of the structure addressing it, false if the structure scope is covering the scope of the addressed element
+ * @param[in] resolvetype defines the way an addressed item is resolved and constructed
  * @return true on success, false on failure (index out of range or memory allocation error)
  */
 bool papuga_RequestAutomaton_set_structure_element(
@@ -152,7 +167,7 @@ bool papuga_RequestAutomaton_set_structure_element(
 		int idx,
 		const char* name,
 		int itemid,
-		bool inherited);
+		papuga_ResolveType resolvetype);
 
 /*
  * @brief Define an atomic value in the document processed

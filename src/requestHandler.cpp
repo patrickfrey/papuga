@@ -135,7 +135,7 @@ static bool RequestContext_add_variable_shallow_copy( papuga_RequestContext* sel
 	if (!varstruct) return false;
 	varstruct->name = papuga_Allocator_copy_charp( &self->allocator, name);
 	if (!varstruct->name) return false;
-	papuga_init_ValueVariant_copy( &varstruct->value, value);
+	papuga_init_ValueVariant_value( &varstruct->value, value);
 	varstruct->inherited = false;
 	self->variables = add_list( self->variables, varstruct);
 	return true;
@@ -381,7 +381,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			if (var)
 			{
 				// ... overwrite if already defined
-				papuga_init_ValueVariant_copy( &var->value, &result);
+				papuga_init_ValueVariant_value( &var->value, &result);
 			}
 			else
 			{
@@ -439,7 +439,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				}
 				else if (retval.nofvalues == 1)
 				{
-					papuga_init_ValueVariant_copy( &result, &retval.valuear[0]);
+					papuga_init_ValueVariant_value( &result, &retval.valuear[0]);
 				}
 				else
 				{
@@ -468,7 +468,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				if (var)
 				{
 					// ... overwrite if already defined
-					papuga_init_ValueVariant_copy( &var->value, &result);
+					papuga_init_ValueVariant_value( &var->value, &result);
 				}
 				else
 				{
@@ -516,7 +516,7 @@ extern "C" bool papuga_set_RequestResult( papuga_RequestResult* self, papuga_Req
 		if (!curnode) return false;
 		curnode->next = NULL;
 		curnode->name = vi->name;
-		papuga_init_ValueVariant_copy( &curnode->value, &vi->value);
+		papuga_init_ValueVariant_value( &curnode->value, &vi->value);
 	}
 	self->nodes = rootnode.next;
 	return true;

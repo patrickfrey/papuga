@@ -44,6 +44,7 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)
 		case papuga_IteratorFailed: return _TXT("call of iterator failed, details not available");
 		case papuga_AddressedItemNotFound: return _TXT("the addressed item was not found");
 		case papuga_HostObjectError: return _TXT("error executing host object function");
+		case papuga_AmbiguousReference: return _TXT("ambigous reference");
 		default: return _TXT("unknown error");
 	}
 }

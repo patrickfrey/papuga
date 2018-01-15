@@ -817,7 +817,7 @@ static void papuga_destroy_PyStructNode( papuga_PyStructNode* nd)
 
 static void papuga_PyStructNode_set_key( papuga_PyStructNode* nd, const papuga_ValueVariant* keyval)
 {
-	papuga_init_ValueVariant_copy( &nd->keyval, keyval);
+	papuga_init_ValueVariant_value( &nd->keyval, keyval);
 }
 
 static void papuga_PyStructNode_move_value( papuga_PyStructNode* nd, PyObject* val)

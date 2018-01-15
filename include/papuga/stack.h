@@ -63,6 +63,12 @@ void papuga_destroy_Stack( papuga_Stack* self);
 #define papuga_Stack_size( self)	(self)->size
 
 /*
+* @brief Test if the stack has no elements inserted
+* @param[in] self pointer to structure 
+*/
+#define papuga_Stack_empty( self)	(!(self)->size)
+
+/*
 * @brief Push an element on the stack (memcpy)
 * @param[in] self pointer to structure 
 * @return the memory of the new element pushed to be initialized by the caller 
