@@ -19,16 +19,17 @@ set( source_files
 
 set( source_files_request
 	request.cpp
-	requestParser.c
 	requestHandler.cpp
 	requestResult.cpp
 	requestResult_xml.cpp
 	requestResult_json.cpp
 	requestResult_utils.cpp
 	requestAutomaton.cpp
+	requestParser.c
 	requestParser_json.cpp
 	requestParser_xml.cpp
 	requestParser_utils.c
+	requestParser_location.cpp
 )
 
 include_directories(

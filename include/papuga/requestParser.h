@@ -86,8 +86,9 @@ typedef struct papuga_RequestParserHeader {
 
 /*
  * @brief Create a document parser for an XML document
- * @param[in] src pointer to source
- * @param[in] srcsize size of src in bytes
+ * @param[in] encoding character set encoding
+ * @param[in] content pointer to source
+ * @param[in] size size of src in bytes
  * @param[out] error code set in case of failure
  * @return The document parser structure or NULL in case of failure
  */
@@ -95,12 +96,25 @@ papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringEncoding enc
 
 /*
  * @brief Create a document parser for a JSON document
- * @param[in] src pointer to source
- * @param[in] srcsize size of src in bytes
+ * @param[in] encoding character set encoding
+ * @param[in] content pointer to source
+ * @param[in] size size of src in bytes
  * @param[out] error code set in case of failure
  * @return The document parser structure or NULL in case of failure
  */
 papuga_RequestParser* papuga_create_RequestParser_json( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
+
+/*
+ * @brief Create a document parser for a document depending on a document type
+ * @param[in] doctype content type
+ * @param[in] encoding character set encoding
+ * @param[in] content pointer to source
+ * @param[in] size size of src in bytes
+ * @param[out] error code set in case of failure
+ * @return The document parser structure or NULL in case of failure
+ */
+papuga_RequestParser* papuga_create_RequestParser( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
+
 
 /*
  * @brief Destroy a document parser
@@ -145,6 +159,20 @@ typedef struct papuga_Request papuga_Request;
  * @note to get the error position in case of an error with a hint on the location call 'papuga_RequestParser_get_position'
  */
 bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Request* request, papuga_ErrorCode* errcode);
+
+/*
+ * @brief Get the location scope of an error as string for a decent error message for a processed request
+ * @param[in] doctype content type
+ * @param[in] encoding character set encoding
+ * @param[in] docstr pointer to source
+ * @param[in] doclen size of docstr in bytes
+ * @param[in] errorpos the error position as ordinal count of request parser events (papuga_RequestParser_next)
+ * @param[out] buf buffer for filling with the location info returned
+ * @param[in] bufsize size of buffer in bytes
+ * @return pointer to printed location info or NULL in case of error
+ * @return The document parser structure or NULL in case of failure
+ */
+const char* papuga_request_error_location( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int errorpos, char* buf, size_t bufsize);
 
 #ifdef __cplusplus
 }

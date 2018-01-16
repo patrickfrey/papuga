@@ -20,131 +20,6 @@
 #include <iostream>
 
 #define PAPUGA_LOWLEVEL_DEBUG
-#define LOCATION_INFO_VALUE_MAX_LENGTH 32
-#define LOCATION_PRINT_MAX_TAGLEVEL 3
-
-static std::string getLocationInfo( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int errorpos, int maxsize)
-{
-	papuga_RequestParser* parser = 0;
-	std::string locinfo;
-	int taglevel = 0;
-	papuga_RequestElementType elemtype;
-	int pi = 1;
-	papuga_ValueVariant elemval;
-	papuga_ErrorCode errcode = papuga_Ok;
-
-	try
-	{
-		switch (doctype)
-		{
-			case papuga_ContentType_XML:  parser = papuga_create_RequestParser_xml( encoding, docstr, doclen, &errcode); break;
-			case papuga_ContentType_JSON: parser = papuga_create_RequestParser_json( encoding, docstr, doclen, &errcode); break;
-			case papuga_ContentType_Unknown:
-			default: break;
-		}
-		if (!parser) return locinfo;
-
-		while (papuga_RequestElementType_None != (elemtype = papuga_RequestParser_next( parser, &elemval)) && pi < errorpos) ++pi;
-		// .... skip to the start position
-
-		// Report location scope until end of next Element
-		while (maxsize > (int)locinfo.size() && elemtype != papuga_RequestElementType_None)
-		{
-			switch (elemtype)
-			{
-				case papuga_RequestElementType_None:
-					break;
-				case papuga_RequestElementType_Open:
-					++taglevel;
-					if (taglevel <= LOCATION_PRINT_MAX_TAGLEVEL+1)
-					{
-						locinfo.append( " ");
-						if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
-						{
-							locinfo.append( "??");
-						}
-						locinfo.append( ": {");
-					}
-					elemtype = papuga_RequestParser_next( parser, &elemval);
-					break;
-				case papuga_RequestElementType_Close:
-					--taglevel;
-					if (taglevel == LOCATION_PRINT_MAX_TAGLEVEL)
-					{
-						locinfo.append( " ... }");
-					}
-					else
-					{
-						locinfo.append( " }");
-					}
-					if (taglevel == 0)
-					{
-						locinfo.append( " .");
-						elemtype = papuga_RequestElementType_None;
-						break;
-					}
-					elemtype = papuga_RequestParser_next( parser, &elemval);
-					break;
-				case papuga_RequestElementType_AttributeName:
-					if (taglevel <= LOCATION_PRINT_MAX_TAGLEVEL)
-					{
-						locinfo.append( " -");
-						if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
-						{
-							locinfo.append( "??");
-						}
-						locinfo.append( ":");
-					}
-					elemtype = papuga_RequestParser_next( parser, &elemval);
-					break;
-				case papuga_RequestElementType_AttributeValue:
-				case papuga_RequestElementType_Value:
-					if (taglevel <= LOCATION_PRINT_MAX_TAGLEVEL)
-					{
-						if (elemval.valuetype == papuga_TypeString)
-						{
-							locinfo.append( elemtype == papuga_RequestElementType_Value ? " \"":"\"");
-							if (elemval.length > LOCATION_INFO_VALUE_MAX_LENGTH)
-							{
-								elemval.length = LOCATION_INFO_VALUE_MAX_LENGTH;
-								if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
-								{
-									locinfo.append( "??");
-								}
-								else
-								{
-									locinfo.append( "...");
-								}
-							}
-							else if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
-							{
-								locinfo.append( "??");
-							}
-							locinfo.append( "\"");
-						}
-						else if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
-						{
-							locinfo.append( elemtype == papuga_RequestElementType_Value ? " ??":"??");
-						}
-					}
-					if (taglevel == 0)
-					{
-						locinfo.append( " .");
-						elemtype = papuga_RequestElementType_None;
-						break;
-					}
-					elemtype = papuga_RequestParser_next( parser, &elemval);
-					break;
-			}
-		}
-	}
-	catch (...)
-	{
-		if (parser) papuga_destroy_RequestParser( parser);
-	}
-	return locinfo;
-}
-
 
 extern "C" bool papuga_execute_request(
 			const papuga_RequestAutomaton* atm,
@@ -175,13 +50,7 @@ extern "C" bool papuga_execute_request(
 	// Init locals:
 	papuga_init_RequestContext( &ctx);
 	papuga_init_ErrorBuffer( &errorbuf, errbuf_mem, sizeof(errbuf_mem));
-	switch (doctype)
-	{
-		case papuga_ContentType_XML:  parser = papuga_create_RequestParser_xml( encoding, docstr, doclen, errcode); break;
-		case papuga_ContentType_JSON: parser = papuga_create_RequestParser_json( encoding, docstr, doclen, errcode); break;
-		case papuga_ContentType_Unknown: *errcode = papuga_NotImplemented; goto ERROR;
-		default: *errcode = papuga_AddressedItemNotFound; goto ERROR;
-	}
+	parser = papuga_create_RequestParser( doctype, encoding, docstr, doclen, errcode);
 	if (!parser) goto ERROR;
 	request = papuga_create_Request( atm);
 	if (!request) goto ERROR;
@@ -252,9 +121,12 @@ ERROR:
 		if (errorpos >= 0)
 		{
 			// Evaluate more info about the location of the error, we append the scope of the document to the error message:
-			std::string locinfo = getLocationInfo( doctype, encoding, docstr, doclen, errorpos, sizeof(errbuf_mem));
-			//... does not throw
-			papuga_ErrorBuffer_appendMessage( &errorbuf, " (error scope: %s)", locinfo.c_str());
+			char locinfobuf[ 4096];
+			const char* locinfo = papuga_request_error_location( doctype, encoding, docstr, doclen, errorpos, locinfobuf, sizeof(locinfobuf));
+			if (locinfo)
+			{
+				papuga_ErrorBuffer_appendMessage( &errorbuf, " (error scope: %s)", locinfo);
+			}
 		}
 		char* errstr = papuga_ErrorBuffer_lastError(&errorbuf);
 		size_t errlen = strlen( errstr);

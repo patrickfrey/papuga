@@ -284,3 +284,16 @@ bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Req
 	return papuga_Request_done( request);
 }
 
+papuga_RequestParser* papuga_create_RequestParser( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode)
+{
+	switch (doctype)
+	{
+		case papuga_ContentType_XML:  return papuga_create_RequestParser_xml( encoding, content, size, errcode);
+		case papuga_ContentType_JSON: return papuga_create_RequestParser_json( encoding, content, size, errcode);
+		case papuga_ContentType_Unknown: *errcode = papuga_ValueUndefined; return NULL;
+		default: *errcode = papuga_NotImplemented; return NULL;
+	}
+}
+
+
+
