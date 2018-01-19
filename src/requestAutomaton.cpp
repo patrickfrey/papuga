@@ -42,7 +42,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm)
 		}
 		else
 		{
-			if (!papuga_RequestAutomaton_set_call_arg_item( atm, aidx, ai->itemid, ai->resolvetype))
+			if (!papuga_RequestAutomaton_set_call_arg_item( atm, aidx, ai->itemid, ai->resolvetype, ai->max_tag_diff))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 				if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add item call arg");
@@ -64,7 +64,7 @@ void RequestAutomaton_StructDef::addToAutomaton( papuga_RequestAutomaton* atm) c
 	std::vector<RequestAutomaton_StructDef::Element>::const_iterator ei = elems.begin(), ee = elems.end();
 	for (int eidx=0; ei != ee; ++ei,++eidx)
 	{
-		if (!papuga_RequestAutomaton_set_structure_element( atm, eidx, ei->name, ei->itemid, ei->resolvetype))
+		if (!papuga_RequestAutomaton_set_structure_element( atm, eidx, ei->name, ei->itemid, ei->resolvetype, ei->max_tag_diff))
 		{
 			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 			if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add structure element");

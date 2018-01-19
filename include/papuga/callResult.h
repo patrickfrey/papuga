@@ -19,13 +19,13 @@ extern "C" {
 /*
 * @brief Constructor of a CallResult
 * @param[out] self pointer to structure initialized by constructor
-* @param[in] allocbuf pointer to local memory buffer to use for first memory allocations
-* @param[in] allocbufsize allocation size of allocbuf in bytes
+* @param[in] allocator allocator to use
+* @param[in] allocator_ownership true if ownership is passed to call result, the allocator is destroyed with calling 'papuga_destroy_CallResult', false if ownership remains at the caller
 * @param[in] errbuf pointer to local memory buffer to use for error messages
 * @param[in] errbufsize allocation size of errbuf in bytes
 * @return true on success, false if too many return values defined
 */
-void papuga_init_CallResult( papuga_CallResult* self, void* allocbuf, size_t allocbufsize, char* errbuf, size_t errbufsize);
+void papuga_init_CallResult( papuga_CallResult* self, papuga_Allocator* allocator, bool allocator_ownership, char* errbuf, size_t errbufsize);
 
 /*
 * @brief Destructor of a CallResult

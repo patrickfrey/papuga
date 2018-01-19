@@ -82,7 +82,7 @@ void* papuga_Stack_pop( papuga_Stack* self)
 			self->top = prev;
 		}
 	}
-	if (!self->top || self->top->arsize <= sizeof(papuga_StackNode) + self->elemsize)
+	if (!self->top || self->top->arsize < sizeof(papuga_StackNode) + self->elemsize)
 	{
 		return NULL;
 	}
@@ -100,7 +100,7 @@ void* papuga_Stack_top( const papuga_Stack* self)
 	{
 		nd = nd->prev;
 	}
-	if (!nd || nd->arsize <= sizeof(papuga_StackNode) + self->elemsize)
+	if (!nd || nd->arsize < sizeof(papuga_StackNode) + self->elemsize)
 	{
 		return NULL;
 	}

@@ -269,13 +269,15 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 		}
 		case papuga_TypeIterator:
 		{
+			papuga_Allocator iter_allocator;
 			papuga_CallResult result;
 			char result_buf[ 1024];
 			char error_buf[ 128];
 			papuga_Iterator* iterator = orig->value.iterator;
 			int itercnt = 0;
 
-			papuga_init_CallResult( &result, result_buf, sizeof(result_buf), error_buf, sizeof(error_buf));
+			papuga_init_Allocator( &iter_allocator, result_buf, sizeof(result_buf));
+			papuga_init_CallResult( &result, &iter_allocator, true, error_buf, sizeof(error_buf));
 			while (itercnt++ < PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH && iterator->getNext( iterator->data, &result))
 			{
 				bool sc = true;
@@ -288,7 +290,8 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 				sc &= papuga_Serialization_pushClose( dest);
 				papuga_destroy_CallResult( &result);
 				if (!sc) goto ERROR;
-				papuga_init_CallResult( &result, result_buf, sizeof(result_buf), error_buf, sizeof(error_buf));
+				papuga_init_Allocator( &iter_allocator, result_buf, sizeof(result_buf));
+				papuga_init_CallResult( &result, &iter_allocator, true, error_buf, sizeof(error_buf));
 			}
 			if (papuga_CallResult_hasError( &result))
 			{
@@ -343,6 +346,7 @@ static bool copy_ValueVariant( papuga_ValueVariant* dest, papuga_ValueVariant* o
 			papuga_init_ValueVariant_serialization( dest, ser);
 		}
 	}
+	return true;
 ERROR:
 	if (*errcode == papuga_Ok)
 	{
@@ -356,42 +360,4 @@ bool papuga_Allocator_deepcopy_value( papuga_Allocator* self, papuga_ValueVarian
 	return copy_ValueVariant( dest, orig, self, moveobj, errcode);
 }
 
-bool papuga_Allocator_used( papuga_Allocator* self)
-{
-	return (!!self->reflist || !!self->root.next || !!self->root.arsize);
-}
-
-bool papuga_Allocator_takeover( papuga_Allocator* dest, papuga_Allocator* oth)
-{
-	papuga_AllocatorNode* pv;
-	papuga_AllocatorNode* nd;
-
-	if (!papuga_Allocator_used( oth)) return true;
-
-	pv = &oth->root;
-	if (!pv->allocated) return false;
-	nd = pv->next;
-	while (nd)
-	{
-		if (!nd->allocated) return false;
-		pv = nd;
-		nd = nd->next;
-	}
-	nd = (papuga_AllocatorNode*)malloc( sizeof( papuga_AllocatorNode));
-	if (nd == NULL) return false;
-
-	memcpy( nd, &dest->root, sizeof(dest->root));
-	memcpy( &dest->root, &oth->root, sizeof(dest->root));
-	pv->next = nd;
-
-	papuga_ReferenceHeader* pl = oth->reflist;
-	if (pl != NULL)
-	{
-		for (; pl->next; pl = pl->next){}
-		pl->next = dest->reflist;
-		dest->reflist = oth->reflist;
-	}
-	papuga_init_Allocator( oth, 0, 0);
-	return true;
-}
 

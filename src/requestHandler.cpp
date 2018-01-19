@@ -414,7 +414,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			// [2] Call the method and report an error on failure:
 			void* self = var->value.value.hostObject->data;
 			papuga_CallResult retval;
-			papuga_init_CallResult( &retval, 0, 0, membuf_err, sizeof(membuf_err));
+			papuga_init_CallResult( &retval, &context->allocator, false, membuf_err, sizeof(membuf_err));
 			if (!(*func)( self, &retval, call->args.argc, call->args.argv))
 			{
 				reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &retval.errorbuf));
@@ -424,14 +424,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			// [3] Fetch the result(s) if required (stored as variable):
 			if (call->resultvarname)
 			{
-				// [3.1] We takeover the allocator context of the called function 
-				//	and build a shallow copy of the result:
-				if (!papuga_Allocator_takeover( &context->allocator, &retval.allocator))
-				{
-					reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_NoMemError));
-					*errorpos = call->eventcnt;
-					return false;
-				}
+				// [3.1] We build a shallow copy of the result, because the allocator of the result is the one of the context:
 				papuga_ValueVariant result;
 				if (retval.nofvalues == 0)
 				{

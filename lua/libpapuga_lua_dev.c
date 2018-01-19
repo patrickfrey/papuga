@@ -188,6 +188,7 @@ static int iteratorGetNext( lua_State* ls)
 {
 	int rt = 0;
 	papuga_GetNext getNext;
+	papuga_Allocator allocator;
 	papuga_CallResult retval;
 	papuga_ErrorCode errcode = papuga_Ok;
 	char membuf[ 4096];
@@ -201,7 +202,8 @@ static int iteratorGetNext( lua_State* ls)
 	udata = get_IteratorUserData( ls, lua_upvalueindex( 3));
 	if (!udata) papuga_lua_error( ls, "iterator get next", papuga_InvalidAccess);
 
-	papuga_init_CallResult( &retval, membuf, sizeof(membuf), errbuf, sizeof(errbuf));
+	papuga_init_Allocator( &allocator, membuf, sizeof(membuf));
+	papuga_init_CallResult( &retval, &allocator, true, errbuf, sizeof(errbuf));
 	if (!(*getNext)( objref, &retval))
 	{
 		bool haserr = papuga_CallResult_hasError( &retval);
@@ -965,7 +967,7 @@ DLL_PUBLIC int papuga_lua_move_CallResult( lua_State* ls, papuga_CallResult* ret
 			case papuga_TypeString:
 			{
 				size_t strsize;
-				const char* str = papuga_ValueVariant_tostring( &retval->valuear[ ni], &retval->allocator, &strsize, errcode);
+				const char* str = papuga_ValueVariant_tostring( &retval->valuear[ ni], retval->allocator, &strsize, errcode);
 				if (str)
 				{
 					/* MEMORY LEAK ON ERROR: papuga_destroy_CallResult( retval) not called when lua_pushlstring fails because of a memory allocation error */

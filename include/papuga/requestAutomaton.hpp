@@ -39,16 +39,16 @@ struct RequestAutomaton_FunctionDef
 		const char* varname;		///< name of the variable referencing the argument in case of a variable
 		int itemid;			///< item identifier unique in its scope, in case of an item reference (a value or a structure)
 		papuga_ResolveType resolvetype;	///< tells wheter the item is in a enclosing scope (true) or in an enclosed scope (false), in case of an item reference (a value or a structure)
+		int max_tag_diff;		///< maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
 
 		Arg( const char* varname_)
-			:varname(varname_),itemid(-1),resolvetype(papuga_ResolveTypeRequired){}
-		Arg( int itemid_, char resolvechr)
-			:varname(0),itemid(itemid_),resolvetype(getResolveType(resolvechr)){}
+			:varname(varname_),itemid(-1),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
+		Arg( int itemid_, char resolvechr, int max_tag_diff_=1)
+			:varname(0),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(max_tag_diff_){}
 		Arg( int itemid_)
-			:varname(0),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired){}
+			:varname(0),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
 		Arg( const Arg& o)
-			:varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype){}
-
+			:varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype),max_tag_diff(o.max_tag_diff){}
 	};
 
 	const char* expression;			///< selecting expression addressing the scope of the request
@@ -90,15 +90,16 @@ struct RequestAutomaton_StructDef
 		const char* name;		///< name of the element or NULL in case of an array element
 		int itemid;			///< identifier of the item addressing the element value
 		papuga_ResolveType resolvetype;	///< tells wheter the item is in a enclosing scope (true) or in an enclosed scope (false), in case of an item reference (a value or a structure)
+		int max_tag_diff;		///< maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
 
 		///\brief Constructor (named dictionary element)
-		Element( const char* name_, int itemid_, char resolvechr)
-			:name(name_),itemid(itemid_),resolvetype(getResolveType(resolvechr)){}
+		Element( const char* name_, int itemid_, char resolvechr, int max_tag_diff_=1)
+			:name(name_),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(max_tag_diff_){}
 		Element( const char* name_, int itemid_)
-			:name(name_),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired){}
+			:name(name_),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
 		///\brief Copy constructor
 		Element( const Element& o)
-			:name(o.name),itemid(o.itemid),resolvetype(o.resolvetype){}
+			:name(o.name),itemid(o.itemid),resolvetype(o.resolvetype),max_tag_diff(o.max_tag_diff){}
 	};
 
 	const char* expression;			///< selecting expression addressing the scope of this structure definition

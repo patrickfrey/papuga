@@ -951,7 +951,7 @@ DLL_PUBLIC bool papuga_php_move_CallResult( void* zval_return_value, papuga_Call
 	}
 	else if (retval->nofvalues == 1)
 	{
-		rt = valueVariantToZval( return_value, &retval->allocator, &retval->valuear[0], cemap, "assign return value", errcode);
+		rt = valueVariantToZval( return_value, retval->allocator, &retval->valuear[0], cemap, "assign return value", errcode);
 	}
 	else
 	{
@@ -960,9 +960,9 @@ DLL_PUBLIC bool papuga_php_move_CallResult( void* zval_return_value, papuga_Call
 		array_init_size( return_value, retval->nofvalues);
 		for (;ai != ae; ++ai)
 		{
-			if (valueVariantToZval( &element, &retval->allocator, &retval->valuear[ ai], cemap, "assign return value", errcode))
+			if (valueVariantToZval( &element, retval->allocator, &retval->valuear[ ai], cemap, "assign return value", errcode))
 			{
-				if (!zval_structure_addnode( return_value, &retval->allocator, 0, &element, errcode))
+				if (!zval_structure_addnode( return_value, retval->allocator, 0, &element, errcode))
 				{
 					zval_dtor( &element);
 					rt = false;
@@ -982,12 +982,14 @@ DLL_PUBLIC bool papuga_php_move_CallResult( void* zval_return_value, papuga_Call
 
 static bool iteratorFetchNext( IteratorObject* iobj, papuga_ErrorBuffer* errbuf)
 {
+	papuga_Allocator allocator;
 	papuga_CallResult retstruct;
 	char membuf[ 4096];
 	char msgbuf[ 128];
 	const char* msg;
 
-	papuga_init_CallResult( &retstruct, membuf, sizeof(membuf), msgbuf, sizeof(msgbuf));
+	papuga_init_Allocator( &allocator, membuf, sizeof(membuf));
+	papuga_init_CallResult( &retstruct, &allocator, true, msgbuf, sizeof(msgbuf));
 
 	if (iobj->eof && iobj->idx) return false;
 	if (iobj->iterator.getNext( iobj->iterator.data, &retstruct))

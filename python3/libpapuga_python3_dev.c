@@ -672,6 +672,7 @@ static void papuga_Iterator_dealloc( PyObject *selfobj_)
 
 static PyObject* papuga_Iterator_next( PyObject *selfobj_)
 {
+	papuga_Allocator allocator;
 	papuga_CallResult result;
 	papuga_ErrorCode errcode;
 	char membuf[ 4096];
@@ -688,7 +689,8 @@ static PyObject* papuga_Iterator_next( PyObject *selfobj_)
 		PyErr_SetNone( PyExc_StopIteration);
 		return NULL;
 	}
-	papuga_init_CallResult( &result, membuf, sizeof(membuf), errbuf, sizeof(errbuf));
+	papuga_init_Allocator( &allocator, membuf, sizeof(membuf));
+	papuga_init_CallResult( &result, &allocator, true, errbuf, sizeof(errbuf));
 	if (selfobj->impl.getNext( selfobj->impl.data, &result))
 	{
 		PyObject* rt = papuga_python_move_CallResult( &result, selfobj->cemap, &errcode);
@@ -1448,7 +1450,7 @@ DLL_PUBLIC PyObject* papuga_python_move_CallResult( papuga_CallResult* retval, c
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 		printValueVariant( stderr, "call result", &retval->valuear[ ai]);
 #endif
-		ar[ai] = createPyObjectFromVariant( &retval->allocator, &retval->valuear[ai], cemap, errcode);
+		ar[ai] = createPyObjectFromVariant( retval->allocator, &retval->valuear[ai], cemap, errcode);
 		if (!ar[ai])
 		{
 			goto ERROR;

@@ -4,6 +4,6 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 add_subdirectory( src )
 
 # Tests:
-add_test( TestRequest src/testRequest )
+add_test( PapugaRequest src/testRequest )
 
 

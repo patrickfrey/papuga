@@ -15,6 +15,9 @@
 #include "papuga/valueVariant.hpp"
 #include "papuga/callArgs.h"
 #include "papuga/classdef.h"
+#include "papuga/allocator.h"
+#include "papuga/stack.h"
+#include "papuga/errors.hpp"
 #include "textwolf/xmlpathautomatonparse.hpp"
 #include "textwolf/xmlpathselect.hpp"
 #include "textwolf/charset.hpp"
@@ -26,6 +29,7 @@
 #include <cstdio>
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 #define PAPUGA_LOWLEVEL_DEBUG
 
@@ -47,11 +51,12 @@ struct StructMemberDef
 	const char* name;
 	int itemid;
 	papuga_ResolveType resolvetype;
+	int max_tag_diff;
 
-	StructMemberDef( const char* name_, int itemid_, papuga_ResolveType resolvetype_)
-		:name(name_),itemid(itemid_),resolvetype(resolvetype_){}
+	StructMemberDef( const char* name_, int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
+		:name(name_),itemid(itemid_),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
 	StructMemberDef( const StructMemberDef& o)
-		:name(o.name),itemid(o.itemid),resolvetype(o.resolvetype){}
+		:name(o.name),itemid(o.itemid),resolvetype(o.resolvetype),max_tag_diff(o.max_tag_diff){}
 };
 
 struct StructDef
@@ -71,13 +76,14 @@ struct CallArgDef
 	const char* varname;
 	int itemid;
 	papuga_ResolveType resolvetype;
+	int max_tag_diff;
 
 	CallArgDef( const char* varname_)
-		:varname(varname_),itemid(0),resolvetype(papuga_ResolveTypeRequired){}
-	CallArgDef( int itemid_, papuga_ResolveType resolvetype_)
-		:varname(0),itemid(itemid_),resolvetype(resolvetype_){}
+		:varname(varname_),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
+	CallArgDef( int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
+		:varname(0),itemid(itemid_),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
 	CallArgDef( const CallArgDef& o)
-		:varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype){}
+		:varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype),max_tag_diff(o.max_tag_diff){}
 };
 
 struct CallDef
@@ -130,6 +136,12 @@ struct CallDef
 
 typedef int AtmRef;
 enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall};
+enum {MaxAtmRefType=MethodCall};
+const char* atmRefTypeName( AtmRefType t)
+{
+	const char* ar[ MaxAtmRefType+1] = {"InstantiateValue","CollectValue","CloseStruct","MethodCall"};
+	return ar[t];
+}
 static AtmRef AtmRef_get( AtmRefType type, int idx)	{return (AtmRef)(((int)type<<28) | (idx+1));}
 static AtmRefType AtmRef_type( AtmRef atmref)		{return (AtmRefType)((atmref>>28) & 0x7);}
 static int AtmRef_index( AtmRef atmref)			{return ((int)atmref & 0x0fFFffFF)-1;}
@@ -243,9 +255,11 @@ public:
 			const char* resultvarname = copyIfDefined( resultvarname_);
 			if (m_errcode != papuga_Ok) return false;
 
-			m_atm.addExpression( AtmRef_get( MethodCall, m_calldefs.size()), close_expression.c_str(), close_expression.size());
+			int evid = AtmRef_get( MethodCall, m_calldefs.size());
+			m_atm.addExpression( evid, close_expression.c_str(), close_expression.size());
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add event call expression='%s' [%d,%d]\n", close_expression.c_str(), (int)MethodCall, (int)m_calldefs.size());
+			fprintf( stderr, "automaton add event [%s %d] call expression='%s'\n",
+				 atmRefTypeName(MethodCall), (int)m_calldefs.size(), close_expression.c_str());
 #endif
 			m_calldefs.push_back( CallDef( method_, selfvarname, resultvarname, car, nofargs, m_groupid < 0 ? m_calldefs.size():m_groupid));
 		}
@@ -281,6 +295,12 @@ public:
 			adef.itemid = adef_.itemid;
 			adef.varname = adef_.varname;
 			adef.resolvetype = adef_.resolvetype;
+			adef.max_tag_diff = adef_.max_tag_diff;
+			if (adef.max_tag_diff < 0) 
+			{
+				m_errcode = papuga_TypeError;
+				return false;
+			}
 			if (!adef.varname)
 			{
 				if (!checkItemId( adef.itemid))
@@ -318,19 +338,19 @@ public:
 		return true;
 	}
 
-	bool setCallArgItem( int idx, int itemid, papuga_ResolveType resolvetype)
+	bool setCallArgItem( int idx, int itemid, papuga_ResolveType resolvetype, int max_tag_diff)
 	{
 		try
 		{
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton set call argument itemid=%d resolve=%s\n", itemid, papuga_ResolveTypeName( resolvetype));
+			fprintf( stderr, "automaton set call argument item id=%d resolve=%s, max tag diff %d\n", itemid, papuga_ResolveTypeName( resolvetype), max_tag_diff);
 #endif
 			if (itemid <= 0)
 			{
 				m_errcode = papuga_TypeError;
 				return false;
 			}
-			CallArgDef adef( itemid, resolvetype);
+			CallArgDef adef( itemid, resolvetype, max_tag_diff);
 			return setCallArg( idx, adef);
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -345,7 +365,7 @@ public:
 		try
 		{
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add structure expression='%s', itemid=%d, nofmembers=%d\n", expression, itemid, nofmembers);
+			fprintf( stderr, "automaton add structure expression='%s', item id=%d, nofmembers=%d\n", expression, itemid, nofmembers);
 #endif
 			if (!checkItemId( itemid))
 			{
@@ -366,9 +386,11 @@ public:
 				return false;
 			}
 			std::memset( mar, 0, mm);
-			m_atm.addExpression( AtmRef_get( CloseStruct, m_structdefs.size()), close_expression.c_str(), close_expression.size());
+			int evid = AtmRef_get( CloseStruct, m_structdefs.size());
+			m_atm.addExpression( evid, close_expression.c_str(), close_expression.size());
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add event structure close expression='%s' [%d,%d]\n", close_expression.c_str(), (int)CloseStruct, (int)m_structdefs.size());
+			fprintf( stderr, "automaton add event [%s %d] structure close expression='%s'\n",
+				 atmRefTypeName(CloseStruct), (int)m_structdefs.size(), close_expression.c_str());
 #endif
 			m_structdefs.push_back( StructDef( itemid, mar, nofmembers));
 		}
@@ -376,12 +398,12 @@ public:
 		return true;
 	}
 
-	bool setMember( int idx, const char* name, int itemid, papuga_ResolveType resolvetype)
+	bool setMember( int idx, const char* name, int itemid, papuga_ResolveType resolvetype, int max_tag_diff)
 	{
 		try
 		{
 	#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton set structure member name='%s', itemid=%d, resolve=%s\n", name, itemid, papuga_ResolveTypeName( resolvetype));
+			fprintf( stderr, "automaton set structure member name='%s', item id=%d, resolve=%s, max tag diff %d\n", name, itemid, papuga_ResolveTypeName( resolvetype), max_tag_diff);
 	#endif
 			if (!checkItemId( itemid))
 			{
@@ -402,6 +424,11 @@ public:
 				m_errcode = papuga_TypeError;
 				return false;
 			}
+			if (max_tag_diff < -1) 
+			{
+				m_errcode = papuga_TypeError;
+				return false;
+			}
 			StructMemberDef& mdef = m_structdefs.back().members[ idx];
 			if (mdef.itemid)
 			{
@@ -410,6 +437,7 @@ public:
 			}
 			mdef.itemid = itemid;
 			mdef.resolvetype = resolvetype;
+			mdef.max_tag_diff = max_tag_diff;
 			if (name)
 			{
 				mdef.name = papuga_Allocator_copy_charp( &m_allocator, name);
@@ -437,7 +465,7 @@ public:
 		try
 		{
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add value scope='%s', select='%s', itemid=%d\n", scope_expression, select_expression, itemid);
+			fprintf( stderr, "automaton add value scope='%s', select='%s', item id=%d\n", scope_expression, select_expression, itemid);
 #endif
 			if (!checkItemId( itemid))
 			{
@@ -471,11 +499,15 @@ public:
 			{
 				value_expression.append( open_expression + "/" + select_expression);
 			}
-			m_atm.addExpression( AtmRef_get( InstantiateValue, m_valuedefs.size()), value_expression.c_str(), value_expression.size());
-			m_atm.addExpression( AtmRef_get( CollectValue, m_valuedefs.size()), close_expression.c_str(), close_expression.size());
+			int evid_inst = AtmRef_get( InstantiateValue, m_valuedefs.size());
+			int evid_coll = AtmRef_get( CollectValue, m_valuedefs.size());
+			m_atm.addExpression( evid_inst, value_expression.c_str(), value_expression.size());
+			m_atm.addExpression( evid_coll, close_expression.c_str(), close_expression.size());
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add event instantiate value expression='%s' [%d,%d]\n", value_expression.c_str(), (int)InstantiateValue, (int)m_valuedefs.size());
-			fprintf( stderr, "automaton add event collect value expression='%s' [%d,%d]\n", close_expression.c_str(), (int)CollectValue, (int)m_valuedefs.size());
+			fprintf( stderr, "automaton add event [%s %d] instantiate value expression='%s'\n",
+				 atmRefTypeName( InstantiateValue), (int)m_valuedefs.size(), value_expression.c_str());
+			fprintf( stderr, "automaton add event [%s %d] collect value expression='%s'\n",
+				 atmRefTypeName( CollectValue), (int)m_valuedefs.size(), close_expression.c_str());
 #endif
 			m_valuedefs.push_back( ValueDef( itemid));
 		}
@@ -580,6 +612,26 @@ static int ObjectRef_value_id( ObjectRef objref)	{return objref > 0 ? objref-1 :
 static ObjectRef ObjectRef_value( int idx)		{return (ObjectRef)(idx+1);}
 static ObjectRef ObjectRef_struct( int idx)		{return (ObjectRef)-(idx+1);}
 
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+static std::string ObjectRef_descr( ObjectRef objref)
+{
+	std::ostringstream out;
+	if (ObjectRef_is_struct( objref))
+	{
+		out << "struct " << ObjectRef_struct_id( objref);
+	}
+	else if (ObjectRef_is_value( objref))
+	{
+		out << "value " << ObjectRef_value_id( objref);
+	}
+	else
+	{
+		out << "NULL";
+	}
+	return out.str();
+}
+#endif
+
 struct Scope
 {
 	int from;
@@ -590,16 +642,13 @@ struct Scope
 	Scope( const Scope& o)
 		:from(o.from),to(o.to){}
 
-	bool operator<( const Scope& o) const
+	bool inside( const Scope& o) const
 	{
-		if (from == o.from)
-		{
-			return (to < o.to);
-		}
-		else
-		{
-			return (from < o.from);
-		}
+		return (from >= o.from && to <= o.to);
+	}
+	Scope inner() const
+	{
+		return Scope( from+1, to);
 	}
 	bool operator==( const Scope& o) const
 	{
@@ -609,17 +658,75 @@ struct Scope
 	{
 		return from != o.from || to != o.to;
 	}
-	bool inside( const Scope& o) const
+};
+
+enum ScopeKeyType {SearchScope,ValueScope,ObjectScope};
+
+struct ScopeKey
+	:public Scope
+{
+	unsigned char prio;
+
+	ScopeKey( ScopeKeyType type_, int from_, int to_)
+		:Scope(from_,to_),prio(type_){}
+	ScopeKey( ScopeKeyType type_, const Scope& scope_)
+		:Scope(scope_),prio(type_){}
+	ScopeKey( const ScopeKey& o)
+		:Scope(o),prio(o.prio){}
+
+	static inline ScopeKey search( int from_)
 	{
-		return (from >= o.from && to <= o.to);
+		return ScopeKey( SearchScope, from_, std::numeric_limits<int>::max());
 	}
+	const Scope& scope() const
+	{
+		return *this;
+	}
+
+	bool operator<( const ScopeKey& o) const
+	{
+		if (from == o.from)
+		{
+			if (to == o.to)
+			{
+				return prio < o.prio;
+			}
+			else
+			{
+				return (to > o.to);
+			}
+		}
+		else
+		{
+			return (from < o.from);
+		}
+	}
+	bool operator==( const ScopeKey& o) const
+	{
+		return from == o.from && to == o.to && prio == o.prio;
+	}
+	bool operator!=( const ScopeKey& o) const
+	{
+		return from != o.from || to != o.to || prio != o.prio;
+	}
+};
+
+struct ObjectDescr
+{
+	ObjectRef objref;
+	int taglevel;
+
+	ObjectDescr( const ObjectRef& objref_, int taglevel_)
+		:objref(objref_),taglevel(taglevel_){}
+	ObjectDescr( const ObjectDescr& o)
+		:objref(o.objref),taglevel(o.taglevel){}
 };
 
 struct Value
 {
 	papuga_ValueVariant content;
 
-	Value()
+	explicit Value()
 	{
 		papuga_init_ValueVariant( &content);
 	}
@@ -635,17 +742,33 @@ struct Value
 	{
 		papuga_init_ValueVariant_value( &content, &o.content);
 	}
+	std::string tostring() const
+	{
+		papuga_ErrorCode errcode = papuga_Ok;
+		return ValueVariant_tostring( content, errcode);
+	}
 };
 
 struct ValueNode
 {
-	Value value;
+	papuga_ValueVariant value;
 	int itemid;
 
-	ValueNode( int itemid_, const Value& value_)
-		:value(value_),itemid(itemid_) {}
+	ValueNode( int itemid_, const papuga_ValueVariant* value_)
+		:itemid(itemid_)
+	{
+		papuga_init_ValueVariant_value( &value, value_);
+	}
 	ValueNode( const ValueNode& o)
-		:value(o.value),itemid(o.itemid){}
+		:itemid(o.itemid)
+	{
+		papuga_init_ValueVariant_value( &value, &o.value);
+	}
+	std::string tostring() const
+	{
+		papuga_ErrorCode errcode = papuga_Ok;
+		return ValueVariant_tostring( value, errcode);
+	}
 };
 
 struct MethodCallKey
@@ -682,11 +805,12 @@ struct MethodCallNode
 {
 	const CallDef* def;
 	Scope scope;
+	int taglevel;
 
-	MethodCallNode( const CallDef* def_, const Scope& scope_, const MethodCallKey& key_)
-		:MethodCallKey(key_),def(def_),scope(scope_){}
+	MethodCallNode( const CallDef* def_, const Scope& scope_, int taglevel_, const MethodCallKey& key_)
+		:MethodCallKey(key_),def(def_),scope(scope_),taglevel(taglevel_){}
 	MethodCallNode( const MethodCallNode& o)
-		:MethodCallKey(o),def(o.def),scope(o.scope){}
+		:MethodCallKey(o),def(o.def),scope(o.scope),taglevel(o.taglevel){}
 };
 
 static void papuga_init_RequestMethodCall( papuga_RequestMethodCall* self)
@@ -699,6 +823,133 @@ static void papuga_init_RequestMethodCall( papuga_RequestMethodCall* self)
 	papuga_init_CallArgs( &self->args, self->membuf, sizeof(self->membuf));
 }
 
+class EventStack
+{
+public:
+	EventStack()
+	{
+		papuga_init_Stack( &m_stk, sizeof(int)/*element size*/, 256/*node size*/, &m_mem, sizeof(m_mem));
+	}
+	~EventStack()
+	{
+		papuga_destroy_Stack( &m_stk);
+	}
+	void push( int ev)
+	{
+		int* elemptr = (int*)papuga_Stack_push( &m_stk);
+		if (!elemptr) throw std::bad_alloc();
+		*elemptr = ev;
+	}
+	int pop()
+	{
+		int* elemptr = (int*)papuga_Stack_pop( &m_stk);
+		if (!elemptr) return 0;
+		return *elemptr;
+	}
+
+private:
+	papuga_Stack m_stk;
+	int m_mem[ 256];
+};
+
+/* \brief Abstraction for building recursive structures */
+class ValueSink
+{
+public:
+	explicit ValueSink( papuga_Serialization* ser_)
+		:allocator(ser_->allocator),ser(ser_),val(0),name(0),opentags(0){}
+	ValueSink( papuga_ValueVariant* val_, papuga_Allocator* allocator_)
+		:allocator(allocator_),ser(0),val(val_),name(0),opentags(0){}
+
+	bool openSerialization()
+	{
+		if (ser)
+		{
+			if (name)
+			{
+				if (!papuga_Serialization_pushName_charp( ser, name)) return false;
+				name = NULL;
+			}
+			if (!papuga_Serialization_pushOpen( ser)) return false;
+			++opentags;
+		}
+		else
+		{
+			if (!val || papuga_ValueVariant_defined( val)) return false;
+			ser = papuga_Allocator_alloc_Serialization( allocator);
+			if (!ser) return false;
+			papuga_init_ValueVariant_serialization( val, ser);
+		}
+		return true;
+	}
+
+	bool closeSerialization()
+	{
+		if (ser && opentags)
+		{
+			--opentags;
+			return papuga_Serialization_pushClose( ser);
+		}
+		else
+		{
+			return true;
+		}
+	}
+
+	bool pushName( const char* name_)
+	{
+		if (name) return false;
+		name = name_;
+		return true;
+	}
+
+	bool pushValue( const papuga_ValueVariant* val_)
+	{
+		if (ser)
+		{
+			if (name)
+			{
+				if (papuga_ValueVariant_defined( val_))
+				{
+					if (!papuga_Serialization_pushName_charp( ser, name)) return false;
+					if (!papuga_Serialization_pushValue( ser, val_)) return false;
+				}
+				name = NULL;
+				return true;
+			}
+			else
+			{
+				return papuga_Serialization_pushValue( ser, val_);
+			}
+		}
+		else if (val)
+		{
+			if (name || papuga_ValueVariant_defined( val)) return false;
+			papuga_init_ValueVariant_value( val, val_);
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	bool pushVoid()
+	{
+		papuga_ValueVariant voidelem;
+		papuga_init_ValueVariant( &voidelem);
+		return pushValue( &voidelem);
+	}
+
+private:
+	papuga_Allocator* allocator;
+	papuga_Serialization* ser;
+	papuga_ValueVariant* val;
+	const char* name;
+	int opentags;
+};
+
+
 class AutomatonContext
 {
 public:
@@ -708,6 +959,7 @@ public:
 		,m_done(false),m_errcode(papuga_Ok)
 	{
 		papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
+		m_scopestack.reserve( 32);
 		m_scopestack.push_back( 0);
 	}
 	~AutomatonContext()
@@ -720,85 +972,85 @@ public:
 		return m_errcode;
 	}
 
-	struct LocalBuffer
+	bool processEvents( const textwolf::XMLScannerBase::ElementType tp, const papuga_ValueVariant* value, const char* valuestr, size_t valuelen)
 	{
-		char numbuf[ 128];
-		const char* valuestr;
-		std::size_t valuesize;
-		papuga_ValueVariant value;
-		bool deepcopy;
-
-		LocalBuffer( const papuga_ValueVariant* value_, papuga_Allocator& allocator, papuga_ErrorCode& errcode)
-			:deepcopy(true)
+		AutomatonState::iterator itr = m_atmstate.push( tp, valuestr, valuelen);
+		for (*itr; *itr; ++itr)
 		{
-			if (!papuga_ValueVariant_isatomic( value_))
+			int ev = *itr;
+			m_event_stacks[ AtmRef_type(ev)].push( ev);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "triggered event [%s %d]\n",
+				 atmRefTypeName( AtmRef_type( ev)), AtmRef_index( ev));
+#endif
+		}
+		// Ensure that events are issued in the order InstantiateValue,CollectValue,CloseStruct and MethodCall:
+		int ei = 0, ee = MaxAtmRefType+1;
+		for (;ei < ee; ++ei)
+		{
+			for (int ev=m_event_stacks[ei].pop(); ev; ev=m_event_stacks[ei].pop())
 			{
-				papuga_init_ValueVariant( &value);
-				valuestr = NULL;
-				valuesize = 0;
-				errcode = papuga_AtomicValueExpected;
-			}
-			else if (papuga_ValueVariant_isstring( value_))
-			{
-				valuestr = papuga_ValueVariant_tostring( value_, &allocator, &valuesize, &errcode);
-				if (!valuestr)
-				{
-					valuesize = 0;
-					return;
-				}
-				papuga_init_ValueVariant_string( &value, valuestr, valuesize);
-				deepcopy = (value.value.string == value_->value.string);
-			}
-			else
-			{
-				valuestr = papuga_ValueVariant_toascii( numbuf, sizeof(numbuf), value_);
-				if (!valuestr)
-				{
-					papuga_init_ValueVariant( &value);
-					valuesize = 0;
-					errcode = papuga_BufferOverflowError;
-					return;
-				}
-				valuesize = strlen(valuestr);
-				papuga_init_ValueVariant_value( &value, value_);
+				if (!processEvent( ev, value)) return false;
 			}
 		}
-	};
+		return true;
+	}
+
+	bool pushValueAndProcessEvents( const textwolf::XMLScannerBase::ElementType tp, const papuga_ValueVariant* value)
+	{
+		char localbuf[ 1024];
+		size_t valuelen;
+		const char* valuestr = (const char*)papuga_ValueVariant_tostring_enc( value, papuga_UTF8, localbuf, sizeof(localbuf)-1, &valuelen, &m_errcode);
+		if (!valuestr) return false;
+		localbuf[ valuelen] = 0;	//... textwolf needs null termination
+
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		fprintf( stderr, "push element type %s value '%s'\n",
+			 textwolf::XMLScannerBase::getElementTypeName( tp), valuestr);
+#endif
+		return processEvents( tp, value, valuestr, valuelen);
+	}
+
+	bool pushEmptyAndProcessEvents( const textwolf::XMLScannerBase::ElementType tp, const papuga_ValueVariant* value)
+	{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		fprintf( stderr, "push element type %s\n",
+			 textwolf::XMLScannerBase::getElementTypeName( tp));
+#endif
+		return processEvents( tp, value, "", 0);
+	}
+
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	void DEBUG_logProcessEvent( const char* name, const papuga_ValueVariant* value)
+	{
+		papuga_ErrorCode errcode = papuga_Ok;
+		std::string valuestr = ValueVariant_tostring( *value, errcode);
+		fprintf( stderr, "scope [%d,%d]: process %s '%s'\n", curscope().from, curscope().to, name, valuestr.c_str());
+	}
+#else
+#define DEBUG_logProcessEvent( name, value)
+#endif
 
 	bool processOpenTag( const papuga_ValueVariant* tagname)
 	{
 		try
 		{
 			++m_scopecnt;
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			papuga_ErrorCode errcode = papuga_Ok;
-			std::string tagnamestr = ValueVariant_tostring( *tagname, errcode);
-			fprintf( stderr, "process open tag '%s' scope %d\n", tagnamestr.c_str(), m_scopecnt);
-#endif
-			LocalBuffer localbuf( tagname, m_allocator, m_errcode);
-			if (!localbuf.valuestr) return false;
-			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::OpenTag, localbuf.valuestr, localbuf.valuesize);
-			for (; *itr; ++itr) processEvent( *itr, &localbuf.value, localbuf.deepcopy);
+			DEBUG_logProcessEvent( "open tag", tagname);
 			m_scopestack.push_back( m_scopecnt);
+			if (!pushValueAndProcessEvents( textwolf::XMLScannerBase::OpenTag, tagname)) return false;
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 	}
-
+	
 	bool processAttributeName( const papuga_ValueVariant* attrname)
 	{
 		try
 		{
 			++m_scopecnt;
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			papuga_ErrorCode errcode = papuga_Ok;
-			std::string attrnamestr = ValueVariant_tostring( *attrname, errcode);
-			fprintf( stderr, "process attribute name '%s'\n", attrnamestr.c_str());
-#endif
-			LocalBuffer localbuf( attrname, m_allocator, m_errcode);
-			if (!localbuf.valuestr) return false;
-			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::TagAttribName, localbuf.valuestr, localbuf.valuesize);
-			for (; *itr; ++itr) processEvent( *itr, &localbuf.value, localbuf.deepcopy);
+			DEBUG_logProcessEvent( "attribute name", attrname);
+			if (!pushValueAndProcessEvents( textwolf::XMLScannerBase::TagAttribName, attrname)) return false;
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -808,15 +1060,8 @@ public:
 		try
 		{
 			++m_scopecnt;
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			papuga_ErrorCode errcode = papuga_Ok;
-			std::string valuestr = ValueVariant_tostring( *value, errcode);
-			fprintf( stderr, "process attribute value '%s'\n", valuestr.c_str());
-#endif
-			LocalBuffer localbuf( value, m_allocator, m_errcode);
-			if (!localbuf.valuestr) return false;
-			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::TagAttribValue, localbuf.valuestr, localbuf.valuesize);
-			for (; *itr; ++itr) processEvent( *itr, &localbuf.value, localbuf.deepcopy);
+			DEBUG_logProcessEvent( "attribute value", value);
+			if (!pushValueAndProcessEvents( textwolf::XMLScannerBase::TagAttribValue, value)) return false;
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -827,15 +1072,8 @@ public:
 		try
 		{
 			++m_scopecnt;
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			papuga_ErrorCode errcode = papuga_Ok;
-			std::string valuestr = ValueVariant_tostring( *value, errcode);
-			fprintf( stderr, "process value '%s'\n", valuestr.c_str());
-#endif
-			LocalBuffer localbuf( value, m_allocator, m_errcode);
-			if (!localbuf.valuestr) return false;
-			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::Content, localbuf.valuestr, localbuf.valuesize);
-			for (; *itr; ++itr) processEvent( *itr, &localbuf.value, localbuf.deepcopy);
+			DEBUG_logProcessEvent( "content value", value);
+			if (!pushEmptyAndProcessEvents( textwolf::XMLScannerBase::Content, value)) return false;
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -843,15 +1081,12 @@ public:
 
 	bool processCloseTag()
 	{
+		static const Value empty;
 		try
 		{
 			++m_scopecnt;
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "process close tag\n");
-#endif
-			static Value empty;
-			AutomatonState::iterator itr = m_atmstate.push( textwolf::XMLScannerBase::CloseTag, "", 0);
-			for (; *itr; ++itr) processEvent( *itr, &empty.content, true);
+			DEBUG_logProcessEvent( "close tag", &empty.content);
+			if (!pushEmptyAndProcessEvents( textwolf::XMLScannerBase::CloseTag, &empty.content)) return false;
 			m_scopestack.pop_back();
 			return true;
 		}
@@ -865,13 +1100,16 @@ public:
 			++m_scopecnt;
 			if (m_done) return true;
 			std::sort( m_methodcalls.begin(), m_methodcalls.end());
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			printScopeObjMap( std::cerr);
+#endif
 			return m_done = true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 	}
 
-	typedef std::pair<Scope,ObjectRef> ScopeObjElem;
-	typedef std::map<Scope,ObjectRef> ScopeObjMap;
+	typedef std::pair<ScopeKey,ObjectDescr> ScopeObjElem;
+	typedef std::multimap<ScopeKey,ObjectDescr> ScopeObjMap;
 	typedef ScopeObjMap::const_iterator ScopeObjItr;
 
 	const MethodCallNode* methodCallNode( int idx) const
@@ -889,6 +1127,18 @@ public:
 	const std::vector<ScopeObjMap>& scopeobjmap() const
 	{
 		return m_scopeobjmap;
+	}
+	void insertObjectRef( int itemid, const ScopeKeyType& type, const Scope& scope, int taglevel, const ObjectRef& objref)
+	{
+		m_scopeobjmap[ itemid].insert( ScopeObjElem( ScopeKey(type,scope), ObjectDescr( objref, taglevel)));
+	}
+	Scope curscope() const
+	{
+		return Scope( m_scopestack.back(), m_scopecnt);
+	}
+	int taglevel() const
+	{
+		return m_scopestack.size();
 	}
 	bool isDone() const
 	{
@@ -952,7 +1202,8 @@ public:
 			int ai = 0, ae = mcdef->nofargs;
 			for (; ai != ae; ++ai)
 			{
-				if (!setCallArgValue( args->argv[ai], mcdef->args[ai], mcnode->scope, varlist))
+				papuga_init_ValueVariant( args->argv + ai);
+				if (!setCallArgValue( args->argv[ai], mcdef->args[ai], mcnode->scope, mcnode->taglevel, varlist))
 				{
 					m_curr_methodcall.argcnt = ai;
 					return NULL;
@@ -1004,9 +1255,11 @@ public:
 				}
 				else
 				{
+					TagLevelRange tagLevelRange = getTagLevelRange( argdef.resolvetype, mcnode->taglevel, argdef.max_tag_diff);
 					papuga_ValueVariant argval;
+					papuga_init_ValueVariant( &argval);
 					ValueSink sink( &argval, &m_allocator);
-					if (!initResolvedItemValue( sink, argdef.itemid, argdef.resolvetype, mcnode->scope))
+					if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, mcnode->scope, tagLevelRange))
 					{
 						return false;
 					}
@@ -1035,25 +1288,64 @@ public:
 		}
 
 	private:
-		ObjectRef resolveNearItemCoveringScope( const Scope& scope, int itemid)
+		typedef std::pair<int,int> TagLevelRange;
+		TagLevelRange getTagLevelRange( papuga_ResolveType resolvetype, int taglevel, int tagdiff)
+		{
+			if (tagdiff >= 0)
+			{
+				if (resolvetype == papuga_ResolveTypeInherited)
+				{
+					return std::pair<int,int>( taglevel - tagdiff, taglevel);
+				}
+				else
+				{
+					return std::pair<int,int>( taglevel, taglevel + tagdiff);
+				}
+			}
+			else
+			{
+				return std::pair<int,int>( 0, std::numeric_limits<int>::max());
+			}
+		}
+
+		struct ResolvedObject
+		{
+			ObjectRef objref;
+			int taglevel;
+			Scope scope;
+
+			ResolvedObject()
+				:objref(0),taglevel(0),scope(0,0){}
+			ResolvedObject( const ObjectRef& objref_, int taglevel_, const Scope& scope_)
+				:objref(objref_),taglevel(taglevel_),scope(scope_){}
+			ResolvedObject( const ResolvedObject& o)
+				:objref(o.objref),taglevel(o.taglevel),scope(o.scope){}
+
+			bool valid() const
+			{
+				return ObjectRef_is_defined( objref);
+			}
+		};
+
+		ResolvedObject resolveNearItemCoveringScope( const Scope& scope, const TagLevelRange& taglevelRange, int itemid)
 		{
 			// Seek backwards for scope overlapping search scope: 
 			const ScopeObjMap& objmap = m_ctx->scopeobjmap()[ itemid];
 			ScopeObjMap::const_iterator it = m_resolvers[ itemid];
-	
+
 			if (it == objmap.end())
 			{
-				if (objmap.empty()) return 0;
+				if (objmap.empty()) return ResolvedObject();
 				--it;
 			}
 			while (it->first.from > scope.from)
 			{
-				if (it == objmap.begin()) return 0;
+				if (it == objmap.begin()) return ResolvedObject();
 				--it;
 			}
-			if (it->first.to >= scope.to)
+			if (it->first.to >= scope.to && it->second.taglevel >= taglevelRange.first && it->second.taglevel <= taglevelRange.second)
 			{
-				return it->second;
+				return ResolvedObject( it->second.objref, it->second.taglevel, it->first);
 			}
 			else
 			{
@@ -1061,45 +1353,43 @@ public:
 				{
 					--it;
 					if (it->first.to > scope.from) break;
-					if (it->first.to >= scope.to)
+					if (it->first.to >= scope.to && it->second.taglevel >= taglevelRange.first && it->second.taglevel <= taglevelRange.second)
 					{
 						m_resolvers[ itemid] = it;
-						return it->second;
+						return ResolvedObject( it->second.objref, it->second.taglevel, it->first);
 					}
 				}
 			}
-			return 0;
+			return ResolvedObject();
 		}
-	
-		ObjectRef resolveNearItemInsideScope( const Scope& scope, int itemid)
+
+		ResolvedObject resolveNearItemInsideScope( const Scope& scope, const TagLevelRange& taglevelRange, int itemid)
 		{
 			// Seek forwards for scope overlapped by search scope:
 			const ScopeObjMap& objmap = m_ctx->scopeobjmap()[ itemid];
 			ScopeObjMap::const_iterator it = m_resolvers[ itemid];
-			if (it == objmap.end()) return 0;
+
+			if (it == objmap.end()) return ResolvedObject();
 	
 			if (it->first.from >= scope.from)
 			{
-				if (it->first.to <= scope.to)
+				if (it->first.to <= scope.to && it->second.taglevel >= taglevelRange.first && it->second.taglevel <= taglevelRange.second)
 				{
-					return it->second;
+					return ResolvedObject( it->second.objref, it->second.taglevel, it->first);
 				}
-				else
+				for (++it; it != objmap.end(); ++it)
 				{
-					for (++it; it != objmap.end(); ++it)
+					if (it->first.from > scope.to) break;
+					if (it->first.to <= scope.to && it->second.taglevel >= taglevelRange.first && it->second.taglevel <= taglevelRange.second)
 					{
-						if (it->first.from > scope.to) break;
-						if (it->first.to <= scope.to)
-						{
-							m_resolvers[ itemid] = it;
-							return it->second;
-						}
+						m_resolvers[ itemid] = it;
+						return ResolvedObject( it->second.objref, it->second.taglevel, it->first);
 					}
 				}
 			}
-			return 0;
+			return ResolvedObject();
 		}
-	
+
 		void setResolverUpperBound( const Scope& scope, int itemid)
 		{
 			const ScopeObjMap& objmap = m_ctx->scopeobjmap()[ itemid];
@@ -1107,8 +1397,7 @@ public:
 
 			if (it == objmap.end())
 			{
-				Scope searchScope( scope.from, 0);
-				m_resolvers[ itemid] = objmap.lower_bound( searchScope);
+				m_resolvers[ itemid] = objmap.lower_bound( ScopeKey::search( scope.from));
 			}
 			else if (it->first.from < scope.from)
 			{
@@ -1135,22 +1424,39 @@ public:
 			}
 		}
 
-		ObjectRef resolveNextInsideItem( const Scope& scope, int itemid)
+		ResolvedObject resolveNextSameScopeItem( int itemid)
+		{
+			const ScopeObjMap& objmap = m_ctx->scopeobjmap()[ itemid];
+			ScopeObjMap::const_iterator& curitr = m_resolvers[ itemid];
+			if (curitr == objmap.end()) return ResolvedObject();
+			const Scope& scope = curitr->first;
+
+			++curitr;
+			if (curitr == objmap.end() || curitr->first.scope() != scope) return ResolvedObject();
+			return ResolvedObject( curitr->second.objref, curitr->second.taglevel, curitr->first);
+		}
+
+		ResolvedObject resolveNextInsideItem( const Scope& scope, const TagLevelRange& taglevelRange, int itemid)
 		{
 			const ScopeObjMap& objmap = m_ctx->scopeobjmap()[ itemid];
 			ScopeObjMap::const_iterator& curitr = m_resolvers[ itemid];
 
-			if (curitr == objmap.end()) return 0;
+			if (curitr == objmap.end()) return ResolvedObject();
 			int nextstart = curitr->first.to+1;
 			for (;;)
 			{
 				++curitr;
-				if (curitr == objmap.end() || curitr->first.from > scope.to) return 0;
-				if (curitr->first.from >= nextstart && curitr->first.inside( scope)) return curitr->second;
+				if (curitr == objmap.end() || curitr->first.from > scope.to) return ResolvedObject();
+				if (curitr->first.from >= nextstart
+					&& curitr->second.taglevel >= taglevelRange.first && curitr->second.taglevel <= taglevelRange.second
+					&& curitr->first.inside( scope))
+				{
+					return ResolvedObject( curitr->second.objref, curitr->second.taglevel, curitr->first);
+				}
 			}
 		}
 
-		bool hasNextCoveringItem( const Scope& scope, int itemid)
+		bool hasNextCoveringItem( const Scope& scope, const TagLevelRange& taglevelRange, int itemid)
 		{
 			const ScopeObjMap& objmap = m_ctx->scopeobjmap()[ itemid];
 			ScopeObjMap::const_iterator& curitr = m_resolvers[ itemid];
@@ -1160,253 +1466,178 @@ public:
 			{
 				++curitr;
 				if (curitr == objmap.end() || curitr->first.from > scope.from) return false;
-				if (scope.inside( curitr->first)) return true;
+				if (curitr->second.taglevel >= taglevelRange.first && curitr->second.taglevel <= taglevelRange.second
+					&& scope.inside( curitr->first))
+				{
+					return true;
+				}
 			}
 		}
 
-		class ValueSink
-		{
-		public:
-			explicit ValueSink( papuga_Serialization* ser_)
-				:allocator(ser_->allocator),ser(ser_),val(0),name(0){}
-			ValueSink( papuga_ValueVariant* val_, papuga_Allocator* allocator_)
-				:allocator(allocator_),ser(0),val(val_),name(0){}
-
-			papuga_Serialization* openSerialization()
-			{
-				if (ser)
-				{
-					if (name)
-					{
-						if (!papuga_Serialization_pushName_charp( ser, name)) return NULL;
-						name = NULL;
-					}
-					if (!papuga_Serialization_pushOpen( ser)) return NULL;
-					return ser;
-				}
-				else if (val)
-				{
-					if (name) return NULL;
-					papuga_Serialization* vser = papuga_Allocator_alloc_Serialization( allocator);
-					if (!vser) return NULL;
-					papuga_init_ValueVariant_serialization( val, vser);
-					return vser;
-				}
-				else
-				{
-					return NULL;
-				}
-			}
-
-			bool closeSerialization()
-			{
-				if (ser)
-				{
-					return papuga_Serialization_pushClose( ser);
-				}
-				else
-				{
-					return true;
-				}
-			}
-
-			bool pushName( const char* name_)
-			{
-				if (name) return false;
-				name = name_;
-				return true;
-			}
-
-			bool pushValue( const papuga_ValueVariant* val_)
-			{
-				if (ser)
-				{
-					if (name)
-					{
-						if (!papuga_Serialization_pushName_charp( ser, name)) return false;
-						name = NULL;
-					}
-					return papuga_Serialization_pushValue( ser, val_);
-				}
-				else if (val)
-				{
-					if (name) return false;
-					papuga_init_ValueVariant_value( val, val_);
-					return true;
-				}
-				else
-				{
-					return false;
-				}
-			}
-
-			bool pushVoid()
-			{
-				if (ser)
-				{
-					if (name)
-					{
-						name = NULL;
-						return true;
-					}
-					else
-					{
-						papuga_ValueVariant voidelem;
-						papuga_init_ValueVariant( &voidelem);
-						return papuga_Serialization_pushValue( ser, &voidelem);
-					}
-				}
-				else if (val)
-				{
-					if (name) return false;
-					papuga_init_ValueVariant( val);
-					return true;
-				}
-				else
-				{
-					return false;
-				}
-			}
-
-		private:
-			papuga_Allocator* allocator;
-			papuga_Serialization* ser;
-			papuga_ValueVariant* val;
-			const char* name;
-		};
-
-		bool add_structure_member( papuga_Serialization* ser, const Scope& scope, const char* name, ObjectRef objref)
-		{
-			bool rt = true;
-			if (ObjectRef_is_value( objref))
-			{
-				int valueidx = ObjectRef_value_id( objref);
-				if (name)
-				{
-					if (papuga_ValueVariant_defined( &m_ctx->values()[ valueidx].content))
-					{
-						rt &= papuga_Serialization_pushName_charp( ser, name);
-						rt &= papuga_Serialization_pushValue( ser, &m_ctx->values()[ valueidx].content);
-					}
-				}
-				else
-				{
-					rt &= papuga_Serialization_pushValue( ser, &m_ctx->values()[ valueidx].content);
-				}
-			}
-			else if (ObjectRef_is_struct( objref))
-			{
-				int structidx = ObjectRef_struct_id( objref);
-				if (name)
-				{
-					rt &= papuga_Serialization_pushName_charp( ser, name);
-				}
-				rt &= papuga_Serialization_pushOpen( ser);
-				rt &= build_structure( ser, scope, structidx);
-				rt &= papuga_Serialization_pushClose( ser);
-			}
-			else
-			{
-				m_errcode = papuga_ValueUndefined;
-				return false;
-			}
-			return rt;
-		}
-	
-		bool build_structure( papuga_Serialization* ser, const Scope& scope, int structidx)
+		bool build_structure( ValueSink& sink, const Scope& scope, int taglevel, int structidx)
 		{
 			const StructDef* stdef = m_ctx->structs()[ structidx];
-			ValueSink sink( ser);
 			int mi = 0, me = stdef->nofmembers;
 			for (; mi != me; ++mi)
 			{
+				TagLevelRange taglevelRange = getTagLevelRange( stdef->members[ mi].resolvetype, taglevel, stdef->members[ mi].max_tag_diff);
 				sink.pushName( stdef->members[ mi].name);
-				if (!initResolvedItemValue( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope)) return false;
+				if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange))
+				{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+					std::cerr << "resolving structure member '" << stdef->members[ mi].name << "' failed." << std::endl;
+#endif
+					return false;
+				}
 			}
 			return true;
 		}
 
-		bool initResolvedItemValue( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope)
+		bool addResolvedItemValue( ValueSink& sink, const ResolvedObject& resolvedObj)
 		{
-			ObjectRef objref;
+			if (ObjectRef_is_value( resolvedObj.objref))
+			{
+				int valueidx = ObjectRef_value_id( resolvedObj.objref);
+				const papuga_ValueVariant* value = &m_ctx->values()[ valueidx].content;
+				if (!papuga_ValueVariant_defined( value))
+				{
+					return false;
+				}
+				if (!sink.pushValue( value))
+				{
+					m_errcode = papuga_NoMemError;
+					return false;
+				}
+			}
+			else if (ObjectRef_is_struct( resolvedObj.objref))
+			{
+				int structidx = ObjectRef_struct_id( resolvedObj.objref);
+				if (!sink.openSerialization())
+				{
+					m_errcode = papuga_NoMemError;
+					return false;
+				}
+				if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx)) return false;
+				if (!sink.closeSerialization())
+				{
+					m_errcode = papuga_NoMemError;
+					return false;
+				}
+			}
+			else
+			{
+				if (!sink.pushVoid())
+				{
+					m_errcode = papuga_NoMemError;
+					return false;
+				}
+			}
+			return true;
+		}
 
+		/* \brief Build the data requested by an item id and a scope in a manner defined by a class of resolving a reference */
+		bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange)
+		{
 			setResolverUpperBound( scope, itemid);
 			switch (resolvetype)
 			{
 				case papuga_ResolveTypeRequired:
 				case papuga_ResolveTypeOptional:
-					objref = resolveNearItemInsideScope( scope, itemid);
-					if (ObjectRef_is_value( objref))
+				{
+					ResolvedObject resolvedObj = resolveNearItemInsideScope( scope, taglevelRange, itemid);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+					if (resolvedObj.valid())
 					{
-						int valueidx = ObjectRef_value_id( objref);
-						if (!sink.pushValue( &m_ctx->values()[ valueidx].content))
-						{
-							m_errcode = papuga_NoMemError;
-							return false;
-						}
-						if (resolveNextInsideItem( scope, itemid))
-						{
-							m_errcode = papuga_AmbiguousReference;
-							return false;
-						}
-					}
-					else if (ObjectRef_is_struct( objref))
-					{
-						int structidx = ObjectRef_struct_id( objref);
-						papuga_Serialization* ser = sink.openSerialization();
-						if (!ser)
-						{
-							m_errcode = papuga_NoMemError;
-							return false;
-						}
-						if (!build_structure( ser, Scope( scope.from+1, scope.to), structidx)) return false;
-						if (!sink.closeSerialization())
-						{
-							m_errcode = papuga_NoMemError;
-							return false;
-						}
-						if (resolveNextInsideItem( scope, itemid))
-						{
-							m_errcode = papuga_AmbiguousReference;
-							return false;
-						}
-					}
-					else if (resolvetype == papuga_ResolveTypeOptional)
-					{
-						if (!sink.pushVoid())
-						{
-							m_errcode = papuga_NoMemError;
-							return false;
-						}
+						std::string objdescr = ObjectRef_descr( resolvedObj.objref);
+						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found %s in scope [%d,%d] taglevel %d\n",
+							 papuga_ResolveTypeName(resolvetype), itemid, scope.from, scope.to,
+							 taglevelRange.first, taglevelRange.second,
+							 objdescr.c_str(), resolvedObj.scope.from, resolvedObj.scope.to, resolvedObj.taglevel);
 					}
 					else
 					{
-						m_errcode = papuga_ValueUndefined;
-						return false;
+						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] failed\n",
+							 papuga_ResolveTypeName(resolvetype), itemid,
+							 scope.from, scope.to, taglevelRange.first, taglevelRange.second);
 					}
-				break;
-				case papuga_ResolveTypeInherited:
-					objref = resolveNearItemCoveringScope( scope, itemid);
-					if (m_resolvers[ itemid]->first == scope)
+#endif
+					// We try to get a valid node candidate preferring value nodes if defined
+					while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj))
 					{
+						if (m_errcode != papuga_Ok) return false;
+						resolvedObj = resolveNextSameScopeItem( itemid);
+					}
+					if (!resolvedObj.valid())
+					{
+						if (resolvetype == papuga_ResolveTypeRequired)
+						{
+							m_errcode = papuga_ValueUndefined;
+							return false;
+						}
+						else
+						{
+							if (m_errcode != papuga_Ok) return false;
+							sink.pushVoid();
+							// ... we get here only if we found a value that matches, but was undefined
+						}
+					}
+					ResolvedObject resolvedObjNext = resolveNextInsideItem( scope, taglevelRange, itemid);
+					if (resolvedObjNext.valid())
+					{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found another in scope [%d,%d] taglevel %d\n",
+							 papuga_ResolveTypeName(resolvetype), itemid,
+							 scope.from, scope.to,
+							 taglevelRange.first, taglevelRange.second,
+							 resolvedObjNext.scope.from, resolvedObjNext.scope.to, resolvedObjNext.taglevel);
+#endif
 						m_errcode = papuga_AmbiguousReference;
 						return false;
 					}
-					if (ObjectRef_is_value( objref))
+				}
+				break;
+				case papuga_ResolveTypeInherited:
+				{
+					ResolvedObject resolvedObj = resolveNearItemCoveringScope( scope, taglevelRange, itemid);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+					if (resolvedObj.valid())
 					{
-						int valueidx = ObjectRef_value_id( objref);
+						std::string objdescr = ObjectRef_descr( resolvedObj.objref);
+						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found %s in scope [%d,%d] taglevel %d\n",
+							 papuga_ResolveTypeName(resolvetype), itemid,
+							 scope.from, scope.to,
+							 taglevelRange.first, taglevelRange.second,
+							 objdescr.c_str(),
+							 resolvedObj.scope.from, resolvedObj.scope.to, resolvedObj.taglevel);
+					}
+					else
+					{
+						fprintf( stderr, "search %s item %d in scope [%d,%d] failed\n",
+							 papuga_ResolveTypeName(resolvetype), itemid, scope.from, scope.to);
+					}
+#endif
+					if (ObjectRef_is_value( resolvedObj.objref))
+					{
+						int valueidx = ObjectRef_value_id( resolvedObj.objref);
 						if (!sink.pushValue( &m_ctx->values()[ valueidx].content))
 						{
 							m_errcode = papuga_NoMemError;
 							return false;
 						}
-						if (hasNextCoveringItem( scope, itemid))
+						if (hasNextCoveringItem( scope, taglevelRange, itemid))
 						{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+							fprintf( stderr, "search %s item in scope [%d,%d] taglevel [%d,%d] found another in scope [%d,%d] taglevel %d\n",
+								 papuga_ResolveTypeName(resolvetype),
+								 scope.from, scope.to,
+								 taglevelRange.first, taglevelRange.second,
+								 resolvedObj.scope.from, resolvedObj.scope.to, resolvedObj.taglevel);
+#endif
 							m_errcode = papuga_AmbiguousReference;
 							return false;
 						}
 					}
-					else if (ObjectRef_is_struct( objref))
+					else if (ObjectRef_is_struct( resolvedObj.objref))
 					{
 						m_errcode = papuga_InvalidAccess;
 						return false;
@@ -1416,25 +1647,51 @@ public:
 						m_errcode = papuga_ValueUndefined;
 						return false;
 					}
+				}
 				break;
 				case papuga_ResolveTypeArray:
 				{
-					objref = resolveNearItemInsideScope( scope, itemid);
-					papuga_Serialization* ser = sink.openSerialization();
-					if (!ser)
+					ResolvedObject resolvedObj = resolveNearItemInsideScope( scope, taglevelRange, itemid);
+					if (!sink.openSerialization())
 					{
 						m_errcode = papuga_NoMemError;
 						return false;
 					}
-					while (ObjectRef_is_defined( objref))
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+					int arrayElementCount = 0;
+#endif
+					while (resolvedObj.valid())
 					{
-						if (m_resolvers[ itemid]->first != scope)
+						// We try to get a valid node candidate preferring value nodes if defined
+						while (!addResolvedItemValue( sink, resolvedObj))
 						{
-							if (!add_structure_member( ser, m_resolvers[ itemid]->first, NULL/*name*/, objref)) return false;
+							resolvedObj = resolveNextSameScopeItem( itemid);
+							if (!resolvedObj.valid()) break;
 						}
-						objref = resolveNextInsideItem( scope, itemid);
+						if (!resolvedObj.valid())
+						{
+							if (m_errcode != papuga_Ok) return false;
+							sink.pushVoid();
+							// ... we get here only if we found a value that matches, but was undefined
+						}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+						++arrayElementCount;
+						std::string objdescr = ObjectRef_descr( resolvedObj.objref);
+						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found %s in scope [%d,%d] taglevel %d\n",
+							 papuga_ResolveTypeName(resolvetype), itemid,
+							 scope.from, scope.to,
+							 taglevelRange.first, taglevelRange.second,
+							 objdescr.c_str(), resolvedObj.scope.from, resolvedObj.scope.to, resolvedObj.taglevel);
+#endif
+						resolvedObj = resolveNextInsideItem( scope, taglevelRange, itemid);
 					}
-
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+					fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found %d elements\n", 
+						 papuga_ResolveTypeName(resolvetype), itemid,
+						 scope.from, scope.to,
+						 taglevelRange.first, taglevelRange.second,
+						 arrayElementCount);
+#endif
 					if (!sink.closeSerialization())
 					{
 						m_errcode = papuga_NoMemError;
@@ -1446,7 +1703,7 @@ public:
 			return true;
 		}
 
-		bool setCallArgValue( papuga_ValueVariant& arg, const CallArgDef& argdef, const Scope& scope, const papuga_RequestVariable* varlist)
+		bool setCallArgValue( papuga_ValueVariant& arg, const CallArgDef& argdef, const Scope& scope, int taglevel, const papuga_RequestVariable* varlist)
 		{
 			if (argdef.varname)
 			{
@@ -1461,8 +1718,9 @@ public:
 			}
 			else
 			{
+				TagLevelRange tagLevelRange = getTagLevelRange( argdef.resolvetype, taglevel, argdef.max_tag_diff);
 				ValueSink sink( &arg, &m_allocator);
-				if (!initResolvedItemValue( sink, argdef.itemid, argdef.resolvetype, scope))
+				if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, scope, tagLevelRange))
 				{
 					return false;
 				}
@@ -1481,8 +1739,54 @@ public:
 	};
 
 private:
-	bool processEvent( int ev, const papuga_ValueVariant* evalue, bool deepcopy)
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	void printScopeObjMap( std::ostream& out)
 	{
+		out << "scope object map:" << std::endl;
+		std::vector<ScopeObjMap>::const_iterator ii = m_scopeobjmap.begin(), ie = m_scopeobjmap.end();
+		int itemidx = 0;
+		for (; ii != ie; ++ii,++itemidx)
+		{
+			if (!ii->empty())
+			{
+				ScopeObjMap::const_iterator mi = ii->begin(), me = ii->end();
+				for (; mi != me; ++mi)
+				{
+					const ObjectDescr& objdescr = mi->second;
+					const ScopeKey& key = mi->first;
+					out << "\t"
+						<< "item " << itemidx
+						<< " prio " << (int)key.prio
+						<< ", scope [" << key.from << "," << key.to << "] "
+						<< ObjectRef_descr( objdescr.objref);
+;
+					if (ObjectRef_is_value( objdescr.objref))
+					{
+						int objindex = ObjectRef_value_id( objdescr.objref);
+						if (papuga_ValueVariant_defined( &m_values[ objindex].content))
+						{
+							std::string valuestr = ValueVariant_tostring( m_values[ objindex].content, m_errcode);
+							if (m_errcode != papuga_Ok) throw papuga::error_exception( m_errcode, "debug dump scope object map");
+							out << " taglevel " << objdescr.taglevel << " value '" << valuestr << "'";
+						}
+						else
+						{
+							out << " value undefined";
+						}
+					}
+					out << std::endl;
+				}
+			}
+		}
+	}
+#endif
+
+	bool processEvent( int ev, const papuga_ValueVariant* evalue)
+	{
+		// Check if event has already been processed (some automaton definitions may lead to duplicate of events):
+		if (isDuplicateEvent( ev)) return true;
+
+		// Process event depending on type:
 		int evidx = AtmRef_index( ev);
 		switch (AtmRef_type( ev))
 		{
@@ -1491,30 +1795,23 @@ private:
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 				papuga_ErrorCode errcode = papuga_Ok;
 				std::string evaluestr = ValueVariant_tostring( *evalue, errcode);
-				fprintf( stderr, "process event [%d,%d] instantiate value='%s', itemid=%d\n", (int)InstantiateValue, evidx, evaluestr.c_str(), m_atm->valuedefs()[ evidx].itemid);
+				fprintf( stderr, "process event [%s %d] value='%s' item id=%d taglevel=%d\n",
+					 atmRefTypeName(InstantiateValue), evidx, evaluestr.c_str(),
+					 m_atm->valuedefs()[ evidx].itemid, taglevel());
 #endif
-				if (!deepcopy)
-				{
-					m_valuenodes.push_back( ValueNode( m_atm->valuedefs()[ evidx].itemid, Value( evalue)));
-				}
-				else if (papuga_ValueVariant_isstring( evalue) && (evalue->encoding == papuga_UTF8 || evalue->encoding == papuga_Binary))
-				{
-					char* valuestrcopy = papuga_Allocator_copy_string( &m_allocator, evalue->value.string, evalue->length);
-					m_valuenodes.push_back( ValueNode( m_atm->valuedefs()[ evidx].itemid, Value( valuestrcopy, evalue->length)));
-				}
-				else
-				{
-					m_errcode = papuga_LogicError;
-					//... conversion to 'UTF8' happens earlier in LocalBuffer (papuga_ValueVariant_tostring), 'Binary' is untouched
-					return false;
-				}
+				papuga_ValueVariant evalue_copy;
+				//PF:HACK: The const cast has no influence, as movehostobj parameter is false and the contents of evalue remain
+				//	untouched, but it is still ugly and a bad hack:
+				if (!papuga_Allocator_deepcopy_value( &m_allocator, &evalue_copy, const_cast<papuga_ValueVariant*>(evalue), false, &m_errcode)) return false;
+				m_valuenodes.push_back( ValueNode( m_atm->valuedefs()[ evidx].itemid, &evalue_copy));
 				break;
 			}
 			case CollectValue:
 			{
 				int itemid = m_atm->valuedefs()[ evidx].itemid;
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-				fprintf( stderr, "process event [%d,%d] collect item id=%d\n", (int)CollectValue, evidx, itemid);
+				fprintf( stderr, "process event [%s %d] item id=%d scope=[%d,%d] taglevel=%d\n",
+					 atmRefTypeName( CollectValue), evidx, itemid, curscope().from, curscope().to, taglevel());
 #endif
 				std::vector<ValueNode>::iterator vi = m_valuenodes.begin();
 				int valuecnt = 0;
@@ -1523,8 +1820,15 @@ private:
 				{
 					if (vi->itemid == itemid)
 					{
-						m_scopeobjmap[ itemid].insert( ScopeObjElem( Scope( m_scopestack.back(), m_scopecnt), ObjectRef_value( m_values.size())));
-						m_values.push_back( vi->value);
+						int objref = ObjectRef_value( m_values.size());
+						insertObjectRef( itemid, ValueScope, curscope(), taglevel(), objref);
+						m_values.push_back( Value( &vi->value));
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+						std::string vstr = vi->tostring();
+						std::string objdescr = ObjectRef_descr( objref);
+						fprintf( stderr, "collect value item id=%d %s scope=[%d,%d] taglevel=%d value='%s'\n",
+							 itemid, objdescr.c_str(), curscope().from, curscope().to, taglevel(), vstr.c_str());
+#endif
 						m_valuenodes.erase( vi);
 						vi = m_valuenodes.begin() + vidx;
 						++valuecnt;
@@ -1537,8 +1841,14 @@ private:
 				}
 				if (valuecnt == 0)
 				{
-					m_scopeobjmap[ itemid].insert( ScopeObjElem( Scope( m_scopestack.back(), m_scopecnt), ObjectRef_value( m_values.size())));
+					int objref = ObjectRef_value( m_values.size());
+					insertObjectRef( itemid, ValueScope, curscope(), taglevel(), objref);
 					m_values.push_back( Value());
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+					std::string objdescr = ObjectRef_descr( objref);
+					fprintf( stderr, "collect void value item id=%d %s scope=[%d,%d] taglevel=%d\n",
+						 itemid, objdescr.c_str(), curscope().from, curscope().to, taglevel());
+#endif
 				}
 				else if (valuecnt > 1)
 				{
@@ -1550,11 +1860,12 @@ private:
 			case CloseStruct:
 			{
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-				fprintf( stderr, "process event [%d,%d] close struct itemid=%d\n", (int)CloseStruct, evidx, m_atm->valuedefs()[ evidx].itemid);
+				fprintf( stderr, "process event [%s %d] item id=%d scope=[%d,%d] taglevel=%d\n",
+					 atmRefTypeName(CloseStruct), evidx, m_atm->valuedefs()[ evidx].itemid,
+					 curscope().from, curscope().to, taglevel());
 #endif
 				const StructDef* stdef = &m_atm->structdefs()[ evidx];
-				int itemid = stdef->itemid;
-				m_scopeobjmap[ itemid].insert( ScopeObjElem( Scope( m_scopestack.back(), m_scopecnt), ObjectRef_struct( m_structs.size())));
+				insertObjectRef( stdef->itemid, ObjectScope, curscope(), taglevel(), ObjectRef_struct( m_structs.size()));
 				m_structs.push_back( stdef);
 				break;
 			}
@@ -1562,12 +1873,12 @@ private:
 			{
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 				std::string calldefstr = m_atm->calldefs()[ evidx].tostring();
-				fprintf( stderr, "process event [%d,%d] method call: %s\n", (int)MethodCall, evidx, calldefstr.c_str());
+				fprintf( stderr, "process event [%s %d] method call: %s scope=[%d,%d] taglevel=%d\n",
+					 atmRefTypeName(MethodCall), evidx, calldefstr.c_str(), curscope().from, curscope().to, taglevel());
 #endif
 				const CallDef* calldef = &m_atm->calldefs()[ evidx];
 				MethodCallKey key( calldef->groupid, m_scopecnt, evidx);
-				Scope scope( m_scopestack.back(), m_scopecnt);
-				m_methodcalls.push_back( MethodCallNode( calldef, scope, key));
+				m_methodcalls.push_back( MethodCallNode( calldef, curscope(), taglevel(), key));
 				if (m_done)
 				{
 					m_errcode = papuga_ExecutionOrder;
@@ -1579,14 +1890,44 @@ private:
 		return true;
 	}
 
+	struct EventId
+	{
+		int scopecnt;
+		int id;
+
+		EventId()
+			:scopecnt(0),id(0){}
+		EventId( int scopecnt_, int id_)
+			:scopecnt(scopecnt_),id(id_){}
+		EventId( const EventId& o)
+			:scopecnt(o.scopecnt),id(o.id){}
+
+		bool operator==( const EventId& o) const
+		{
+			return id == o.id && scopecnt == o.scopecnt;
+		}
+	};
+
+	inline bool isDuplicateEvent( int ev)
+	{
+		AtmRefType evtype = AtmRef_type( ev);
+		EventId evid( m_scopecnt, ev);
+		if (m_previous_event[ evtype] == evid)
+		{
+			return true;
+		}
+		m_previous_event[ evtype] = evid;
+		return false;
+	}
+
 private:
 	typedef textwolf::XMLPathSelect<textwolf::charset::UTF8> AutomatonState;
 
 	const AutomatonDescription* m_atm;
 	AutomatonState m_atmstate;
-	int m_scopecnt;
 	papuga_Allocator m_allocator;
 	char m_allocator_membuf[ 4096];
+	int m_scopecnt;
 	std::vector<int> m_scopestack;
 	std::vector<ValueNode> m_valuenodes;
 	std::vector<Value> m_values;
@@ -1595,6 +1936,8 @@ private:
 	std::vector<MethodCallNode> m_methodcalls;
 	bool m_done;
 	papuga_ErrorCode m_errcode;
+	EventId m_previous_event[ MaxAtmRefType+1];		//< PF:HACK: As textwolf may duplicate events in recursive structures with nodes referenced as //node
+	EventStack m_event_stacks[ MaxAtmRefType+1];
 };
 
 }//anonymous namespace
@@ -1658,9 +2001,9 @@ extern "C" bool papuga_RequestAutomaton_set_call_arg_var( papuga_RequestAutomato
 	return self->atm.setCallArgVar( idx, varname);
 }
 
-extern "C" bool papuga_RequestAutomaton_set_call_arg_item( papuga_RequestAutomaton* self, int idx, int itemid, papuga_ResolveType resolvetype)
+extern "C" bool papuga_RequestAutomaton_set_call_arg_item( papuga_RequestAutomaton* self, int idx, int itemid, papuga_ResolveType resolvetype, int max_tag_diff)
 {
-	return self->atm.setCallArgItem( idx, itemid, resolvetype);
+	return self->atm.setCallArgItem( idx, itemid, resolvetype, max_tag_diff);
 }
 
 extern "C" bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self)
@@ -1687,9 +2030,10 @@ extern "C" bool papuga_RequestAutomaton_set_structure_element(
 		int idx,
 		const char* name,
 		int itemid,
-		papuga_ResolveType resolvetype)
+		papuga_ResolveType resolvetype,
+		int max_tag_diff)
 {
-	return self->atm.setMember( idx, name, itemid, resolvetype);
+	return self->atm.setMember( idx, name, itemid, resolvetype, max_tag_diff);
 }
 
 extern "C" bool papuga_RequestAutomaton_add_value(

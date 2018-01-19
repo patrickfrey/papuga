@@ -267,8 +267,9 @@ typedef struct papuga_SerializationIter
 struct papuga_CallResult
 {
 	papuga_ValueVariant valuear[ papuga_MAX_NOF_RETURNS];	/*< result values */
-	papuga_Allocator allocator;				/*< allocator for values that had to be copied */
+	papuga_Allocator* allocator;				/*< allocator for values that had to be copied */
 	papuga_ErrorBuffer errorbuf;				/*< static buffer for error messages */
+	bool allocator_ownership;				/*< true if ownership is passed to call result, the allocator is destroyed with calling 'papuga_destroy_CallResult', false if ownership remains at the caller */
 	int nofvalues;						/*< number of values in valuear */
 };
 

@@ -54,9 +54,13 @@ static bool append_value( std::string& out, const papuga_ValueVariant& value, pa
 	return true;
 }
 
-static std::string incindent( const std::string& indent)
+static void incindent( std::string& indent)
 {
-	return indent + "\t";
+	indent.push_back( '\t');
+}
+static void decindent( std::string& indent)
+{
+	indent.pop_back();
 }
 
 static bool ValueVariant_tojson( std::string& out, const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structs, const std::string& indent, papuga_ErrorCode& errcode)
@@ -75,18 +79,11 @@ static bool ValueVariant_tojson( std::string& out, const papuga_ValueVariant& va
 			if (!papuga_SerializationIter_eof( &subitr))
 			{
 				bool isdict = value.value.serialization->structid || papuga_SerializationIter_tag( &subitr) == papuga_TagName;
-				if (isdict)
-				{
-					out.push_back('{');
-					rt &= SerializationIter_tojson( out, &subitr, isdict, value.value.serialization->structid, structs, incindent(indent), errcode);
-					out.push_back('}');
-				}
-				else
-				{
-					out.push_back('[');
-					rt &= SerializationIter_tojson( out, &subitr, isdict, value.value.serialization->structid, structs, incindent(indent), errcode);
-					out.push_back(']');
-				}
+
+				out.push_back( isdict?'{':'[');
+				rt &= SerializationIter_tojson( out, &subitr, isdict, value.value.serialization->structid, structs, indent+'\t', errcode);
+				out.push_back( isdict?'}':']');
+
 				if (!papuga_SerializationIter_eof( &subitr))
 				{
 					errcode = papuga_SyntaxError;
@@ -97,12 +94,14 @@ static bool ValueVariant_tojson( std::string& out, const papuga_ValueVariant& va
 		else if (value.valuetype == papuga_TypeIterator)
 		{
 			int itercnt = 0;
+			papuga_Allocator allocator;
 			papuga_CallResult result;
 			int result_mem[ 1024];
 			char error_mem[ 128];
 			papuga_Iterator* iterator = value.value.iterator;
-	
-			papuga_init_CallResult( &result, result_mem, sizeof(result_mem), error_mem, sizeof(error_mem));
+
+			papuga_init_Allocator( &allocator, result_mem, sizeof(result_mem));
+			papuga_init_CallResult( &result, &allocator, true, error_mem, sizeof(error_mem));
 			while (itercnt++ < PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH && rt && iterator->getNext( iterator->data, &result))
 			{
 				out.push_back('[');
@@ -110,7 +109,7 @@ static bool ValueVariant_tojson( std::string& out, const papuga_ValueVariant& va
 				for (; ri != re; ++ri)
 				{
 					if (ri) out.push_back( ',');
-					rt &= ValueVariant_tojson( out, result.valuear[ri], structs, incindent(indent), errcode);
+					rt &= ValueVariant_tojson( out, result.valuear[ri], structs, indent+'\t', errcode);
 				}
 				out.push_back( ']');
 				papuga_destroy_CallResult( &result);
@@ -119,13 +118,13 @@ static bool ValueVariant_tojson( std::string& out, const papuga_ValueVariant& va
 					errcode = papuga_NoMemError;
 					break;
 				}
-				papuga_init_CallResult( &result, result_mem, sizeof(result_mem), error_mem, sizeof(error_mem));
+				papuga_init_Allocator( &allocator, result_mem, sizeof(result_mem));
+				papuga_init_CallResult( &result, &allocator, true, error_mem, sizeof(error_mem));
 			}
 			if (papuga_CallResult_hasError( &result))
 			{
 				errcode = papuga_IteratorFailed;
-				papuga_destroy_CallResult( &result);
-				return false;
+				rt = false;
 			}
 			papuga_destroy_CallResult( &result);
 		}
@@ -157,7 +156,7 @@ struct SerializationIterStackElem
 	char name[ 128];
 };
 
-static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter* seritr, bool isdict, int structid, const papuga_StructInterfaceDescription* structs, const std::string& indent, papuga_ErrorCode& errcode)
+static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter* seritr, bool isdict, int structid, const papuga_StructInterfaceDescription* structs, const std::string& indent_, papuga_ErrorCode& errcode)
 {
 	bool rt = true;
 	papuga_Stack namestk;
@@ -165,6 +164,7 @@ static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter
 	const char* name = 0;
 	int elementcnt = 0;
 	SerializationIterStackElem namebuf;
+	std::string indent( indent_);
 
 	papuga_init_Stack( &namestk, sizeof(SerializationIterStackElem), 128, namestk_mem, sizeof(namestk_mem));
 	try
@@ -181,8 +181,7 @@ static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter
 				SerializationIterStackElem* stkelem = (SerializationIterStackElem*)papuga_Stack_pop( &namestk);
 				if (stkelem)
 				{
-					out.push_back( '\n');
-					out.append( indent);
+					decindent( indent);
 					if (isdict)
 					{
 						out.push_back( '}');
@@ -263,7 +262,7 @@ static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter
 				stkelem->parent_structid = structid;
 				stkelem->parent_elementcnt = elementcnt;
 				stkelem->parent_isdict = isdict;
-				if (sizeof(stkelem->name) >= namelen)
+				if (sizeof(stkelem->name) <= namelen)
 				{
 					errcode = papuga_BufferOverflowError;
 					goto ERROR;
@@ -274,8 +273,17 @@ static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter
 					structid = papuga_ValueVariant_toint( value, &errcode);
 					if (errcode != papuga_Ok) goto ERROR;
 				}
-				out.push_back( '\n');
-				out.append( indent);
+				if (structid)
+				{
+					isdict = true;
+				}
+				else
+				{
+					papuga_SerializationIter seritr_follow;
+					papuga_init_SerializationIter_copy( &seritr_follow, seritr);
+					papuga_SerializationIter_skip( &seritr_follow);
+					isdict = structid || papuga_SerializationIter_tag( &seritr_follow) == papuga_TagName;
+				}
 				if (isdict)
 				{
 					out.push_back( '{');
@@ -284,6 +292,8 @@ static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter
 				{
 					out.push_back( '[');
 				}
+				elementcnt = 0;
+				incindent( indent);
 				name = NULL;
 				break;
 			}
@@ -331,11 +341,12 @@ extern "C" void* papuga_RequestResult_tojson( const papuga_RequestResult* self, 
 		if (rootelem)
 		{
 			out.push_back( '\n');
-			out.append( indent = incindent( indent));
+			incindent( indent);
+			out.append( indent);
 			append_attribute_name( out, rootelem);
 			out.push_back( '{');
 		}
-		indent = incindent( indent);
+		incindent( indent);
 		papuga_RequestResultNode const* nd = self->nodes;
 		for (int ndcnt=0; nd; nd = nd->next, ++ndcnt)
 		{
@@ -345,6 +356,7 @@ extern "C" void* papuga_RequestResult_tojson( const papuga_RequestResult* self, 
 			append_attribute_name( out, nd->name);
 			if (!ValueVariant_tojson( out, nd->value, self->structdefs, indent, *err)) return NULL;
 		}
+		decindent( indent);
 		if (rootelem)
 		{
 			out.push_back( '}');

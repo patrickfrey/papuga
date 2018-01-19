@@ -23,12 +23,13 @@
 
 void papuga_destroy_CallResult( papuga_CallResult* self)
 {
-	papuga_destroy_Allocator( &self->allocator);
+	if (self->allocator_ownership) papuga_destroy_Allocator( self->allocator);
 }
 
-void papuga_init_CallResult( papuga_CallResult* self, void* allocbuf, size_t allocbufsize, char* errbuf, size_t errbufsize)
+void papuga_init_CallResult( papuga_CallResult* self, papuga_Allocator* allocator, bool allocator_ownership, char* errbuf, size_t errbufsize)
 {
-	papuga_init_Allocator( &self->allocator, allocbuf, allocbufsize);
+	self->allocator = allocator;
+	self->allocator_ownership = allocator_ownership;
 	papuga_init_ErrorBuffer( &self->errorbuf, errbuf, errbufsize);
 	self->nofvalues = 0;
 }
@@ -58,7 +59,7 @@ bool papuga_add_CallResult_string_copy( papuga_CallResult* self, const char* val
 {
 	char* val_copy;
 	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;
-	val_copy = papuga_Allocator_copy_string( &self->allocator, val, valsize);
+	val_copy = papuga_Allocator_copy_string( self->allocator, val, valsize);
 	if (!val_copy) return false;
 	papuga_init_ValueVariant_string( &self->valuear[ self->nofvalues++], val_copy, valsize);
 	return true;
@@ -75,7 +76,7 @@ bool papuga_add_CallResult_blob_copy( papuga_CallResult* self, const void* val, 
 {
 	char* val_copy;
 	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;
-	val_copy = papuga_Allocator_alloc( &self->allocator, valsize, 0);
+	val_copy = papuga_Allocator_alloc( self->allocator, valsize, 0);
 	if (!val_copy) return false;
 	memcpy( val_copy, val, valsize);
 	papuga_init_ValueVariant_blob( &self->valuear[ self->nofvalues++], val_copy, valsize);
@@ -94,7 +95,7 @@ bool papuga_add_CallResult_charp_copy( papuga_CallResult* self, const char* val)
 	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;
 	if (val)
 	{
-		char* val_copy = papuga_Allocator_copy_charp( &self->allocator, val);
+		char* val_copy = papuga_Allocator_copy_charp( self->allocator, val);
 		if (!val_copy) return false;
 		papuga_init_ValueVariant_charp( &self->valuear[ self->nofvalues++], val_copy);
 	}
@@ -130,7 +131,7 @@ bool papuga_add_CallResult_serialization( papuga_CallResult* self)
 {
 	papuga_Serialization* ser;
 	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;
-	ser = papuga_Allocator_alloc_Serialization( &self->allocator);
+	ser = papuga_Allocator_alloc_Serialization( self->allocator);
 	if (!ser) return false;
 	papuga_init_ValueVariant_serialization( &self->valuear[ self->nofvalues++], ser);
 	return true;
@@ -140,7 +141,7 @@ bool papuga_add_CallResult_hostobject( papuga_CallResult* self, int classid, voi
 {
 	papuga_HostObject* obj;
 	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;
-	obj = papuga_Allocator_alloc_HostObject( &self->allocator, classid, data, destroy);
+	obj = papuga_Allocator_alloc_HostObject( self->allocator, classid, data, destroy);
 	if (!obj) return false;
 	papuga_init_ValueVariant_hostobj( &self->valuear[ self->nofvalues++], obj);
 	return true;
@@ -150,7 +151,7 @@ bool papuga_add_CallResult_iterator( papuga_CallResult* self, void* data, papuga
 {
 	papuga_Iterator* itr;
 	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;
-	itr = papuga_Allocator_alloc_Iterator( &self->allocator, data, destroy, getNext);
+	itr = papuga_Allocator_alloc_Iterator( self->allocator, data, destroy, getNext);
 	if (!itr) return false;
 	papuga_init_ValueVariant_iterator( &self->valuear[ self->nofvalues++], itr);
 	return true;

@@ -99,7 +99,12 @@ public:
 enum ConversionId {Ident,ToLower,ToUpper};
 static bool convertValueVariant( papuga_ValueVariant* dest, const papuga_ValueVariant* src, papuga_Allocator* allocator, ConversionId convId, papuga_ErrorCode* errcode)
 {
-	if (papuga_ValueVariant_isatomic( src))
+	if (!papuga_ValueVariant_defined( src))
+	{
+		papuga_init_ValueVariant( dest);
+		return true;
+	}
+	else if (papuga_ValueVariant_isatomic( src))
 	{
 		try
 		{
@@ -180,7 +185,7 @@ static bool impl_method( const char* methodname, papuga_CallResult* retval, size
 	for (; ai != ae; ++ai)
 	{
 		papuga_ValueVariant res;
-		if (!convertValueVariant( &res, argv+ai, &retval->allocator, convId, &errcode)) goto ERROR;
+		if (!convertValueVariant( &res, argv+ai, retval->allocator, convId, &errcode)) goto ERROR;
 		if (!papuga_add_CallResult_value( retval, &res)) goto ERROR;
 	}
 	return true;
@@ -280,153 +285,284 @@ struct C2
 	static papuga_RequestMethodId m3() {papuga_RequestMethodId rt = {2,3}; return rt;}
 };
 
-#if __cplusplus >= 201103L
 enum
 {
 	VoidItem,
 	PersonName,
 	PersonContent,
 	CityName,
-	CityList
+	CityList,
+	TreeNode,
+	TreeNodeLeft,
+	TreeNodeRight
 };
-/// Test 1:
-static const papuga::test::Document g_testDocument1 = {
-	"doc", {
-		{"person", {{"name","Hugo"},{"id","1"}}, {{"Bla bla"}} }
-		}
-	};
-static const papuga::test::Document g_testResult1 = {
-	"person", {
-		{"var", {{"HUGO"}} }
-		}
-	};
-static const papuga::RequestAutomaton g_testRequest1 = {
-	g_classdefs, g_structdefs, "person",
+
+#if __cplusplus >= 201103L
+struct TestData
+{
+	const char* description;
+	papuga::test::Document* doc;
+	papuga::RequestAutomaton* atm;
+	const RequestVariable* var;
+	const char** calls;
+	papuga::test::Document* expected;
+
+	TestData() :description(0),doc(0),atm(0),var(0),calls(0),expected(0){}
+	~TestData()
 	{
-		{"/doc/person", "@name", (int)PersonName},
-		{"/doc/person", "()", (int)PersonContent},
-		{"/doc", "obj", 0, C1::constructor(), {} },
-		{"/doc", "var", "obj", C1::m1(), {{(int)PersonName}} }
-	}};
-static const char* g_expected_calls1[] = {
-	"executing method C1::new();",
-	"executing method C1::m1( 'Hugo');",
-	"executing method C1::delete();",
-	0
+		if (doc) delete doc;
+		if (atm) delete atm;
+		if (expected) delete expected;
+	}
 };
-/// Test 2:
-static const papuga::test::Document g_testDocument2 = {
-	"doc", {
-		{"city", {{"Bern"}}},
-		{"city", {{"Luzern"}}},
-		{"city", {{"Biel"}}}
-		}
-	};
-static const papuga::test::Document g_testResult2_1 = {
-	"list", {}
-	};
-static const papuga::RequestAutomaton g_testRequest2_1 = {
-	g_classdefs, g_structdefs, "list",
-	{}};
-static const char* g_expected_calls2_1[] = {
-	0
-};
-static const papuga::test::Document g_testResult2_2 = {
-	"list", {
-		{"lo", {{"biel"}} },
-		{"hi", {{"BIEL"}} }
-		}
-	};
-static const papuga::RequestAutomaton g_testRequest2_2 = {
-	g_classdefs, g_structdefs, "list",
-	{
-		{"/doc/city", "()", (int)CityName},
-		{"/doc", "obj", 0, C1::constructor(), {} },
-		{"/doc/city", "lo", "obj", C1::m2(), {{(int)CityName}} },
-		{"/doc/city", "hi", "obj", C1::m1(), {{(int)CityName}} }
-	}};
-static const char* g_expected_calls2_2[] = {
-	"executing method C1::new();",
-	"executing method C1::m2( 'Bern');",
-	"executing method C1::m2( 'Luzern');",
-	"executing method C1::m2( 'Biel');",
-	"executing method C1::m1( 'Bern');",
-	"executing method C1::m1( 'Luzern');",
-	"executing method C1::m1( 'Biel');",
-	"executing method C1::delete();",
-	0
-};
-static const papuga::RequestAutomaton g_testRequest2_3 = {
-	g_classdefs, g_structdefs, "list",
-	{
-		{"/doc/city", "()", (int)CityName},
-		{"/doc", "obj", 0, C1::constructor(), {} },
-		{{
+
+typedef TestData* (*createTestDataFunction)();
+
+static TestData* createTestData_1()
+{
+	TestData* data = new TestData();
+	data->description = "single item with content and attribute, select attribute";
+	data->doc = new papuga::test::Document(
+		"doc", {
+			{"person", {{"name","Hugo"},{"id","1"}}, {{"Bla bla"}} }
+			}
+		);
+	data->atm = new papuga::RequestAutomaton(
+		g_classdefs, g_structdefs, "person",
+		{
+			{"/doc/person", "@name", (int)PersonName},
+			{"/doc/person", "()", (int)PersonContent},
+			{"/doc", "obj", 0, C1::constructor(), {} },
+			{"/doc", "var", "obj", C1::m1(), {{(int)PersonName}} }
+		} );
+	static const char* expected_calls[] = {
+		"executing method C1::new();",
+		"executing method C1::m1( 'Hugo');",
+		"executing method C1::delete();",
+		0};
+	data->calls = expected_calls;
+	data->expected = new papuga::test::Document(
+		"person", {
+			{"var", {{"HUGO"}} }
+			}
+		);
+	return data;
+}
+
+static TestData* createTestData_2()
+{
+	TestData* data = new TestData();
+	data->description = "array, empty request";
+	data->doc = new papuga::test::Document(
+		"doc", {
+			{"city", {{"Bern"}}},
+			{"city", {{"Luzern"}}},
+			{"city", {{"Biel"}}}
+			}
+		);
+	data->atm = new papuga::RequestAutomaton(
+		g_classdefs, g_structdefs, "list",
+		{}
+		);
+	static const char* expected_calls[] = {0};
+	data->calls = expected_calls;
+	data->expected = new papuga::test::Document(
+		"list", {}
+		);
+	return data;
+}
+
+static TestData* createTestData_3()
+{
+	TestData* data = new TestData();
+	data->description = "array, foreach item";
+	data->doc = new papuga::test::Document(
+		"doc", {
+			{"city", {{"Bern"}}},
+			{"city", {{"Luzern"}}},
+			{"city", {{"Biel"}}}
+			}
+		);
+	data->atm = new papuga::RequestAutomaton(
+		g_classdefs, g_structdefs, "list",
+		{
+			{"/doc/city", "()", (int)CityName},
+			{"/doc", "obj", 0, C1::constructor(), {} },
 			{"/doc/city", "lo", "obj", C1::m2(), {{(int)CityName}} },
 			{"/doc/city", "hi", "obj", C1::m1(), {{(int)CityName}} }
-		}}
-	}};
-static const char* g_expected_calls2_3[] = {
-	"executing method C1::new();",
-	"executing method C1::m2( 'Bern');",
-	"executing method C1::m1( 'Bern');",
-	"executing method C1::m2( 'Luzern');",
-	"executing method C1::m1( 'Luzern');",
-	"executing method C1::m2( 'Biel');",
-	"executing method C1::m1( 'Biel');",
-	"executing method C1::delete();",
-	0
-};
-static const papuga::test::Document g_testResult2_3  = {
-	"list", {
-		{"lo", {{"biel"}} },
-		{"hi", {{"BIEL"}} }
-		}
+		});
+	static const char* expected_calls[] = {
+		"executing method C1::new();",
+		"executing method C1::m2( 'Bern');",
+		"executing method C1::m2( 'Luzern');",
+		"executing method C1::m2( 'Biel');",
+		"executing method C1::m1( 'Bern');",
+		"executing method C1::m1( 'Luzern');",
+		"executing method C1::m1( 'Biel');",
+		"executing method C1::delete();",
+		0};
+	data->calls = expected_calls;
+	data->expected = new papuga::test::Document(
+		"list", {
+			{"lo", {{"biel"}} },
+			{"hi", {{"BIEL"}} }
+			}
+		);
+	return data;
+}
+
+static TestData* createTestData_4()
+{
+	TestData* data = new TestData();
+	data->description = "array, foreach item group";
+	data->doc = new papuga::test::Document(
+		"doc", {
+			{"city", {{"Bern"}}},
+			{"city", {{"Luzern"}}},
+			{"city", {{"Biel"}}}
+			}
+		);
+	data->atm = new papuga::RequestAutomaton(
+		g_classdefs, g_structdefs, "list",
+		{
+			{"/doc/city", "()", (int)CityName},
+			{"/doc", "obj", 0, C1::constructor(), {} },
+			{{
+				{"/doc/city", "lo", "obj", C1::m2(), {{(int)CityName}} },
+				{"/doc/city", "hi", "obj", C1::m1(), {{(int)CityName}} }
+			}}
+		});
+	static const char* expected_calls[] = {
+		"executing method C1::new();",
+		"executing method C1::m2( 'Bern');",
+		"executing method C1::m1( 'Bern');",
+		"executing method C1::m2( 'Luzern');",
+		"executing method C1::m1( 'Luzern');",
+		"executing method C1::m2( 'Biel');",
+		"executing method C1::m1( 'Biel');",
+		"executing method C1::delete();",
+		0
 	};
-static const papuga::RequestAutomaton g_testRequest2_4 = {
-	g_classdefs, g_structdefs, "list",
-	{
-		{"/doc/city", "()", CityName},
-		{"/doc", "obj", 0, C1::constructor(), {} },
-		{{
-			{"/doc", "lo", "obj", C1::m2(), {{CityName, '*'}} },
-			{"/doc", "hi", "obj", C1::m1(), {{CityName, '*'}} }
-		}}
-	}};
-static const papuga::test::Document g_testResult2_4  = {
-	"list", {
+	data->calls = expected_calls;
+	data->expected = new papuga::test::Document(
+		"list", {
+			{"lo", {{"biel"}} },
+			{"hi", {{"BIEL"}} }
+			}
+		);
+	return data;
+}
+
+static TestData* createTestData_5()
+{
+	TestData* data = new TestData();
+	data->description = "array, foreach struct group";
+	data->doc = new papuga::test::Document(
+		"doc", {
+			{"city", {{"Bern"}}},
+			{"city", {{"Luzern"}}},
+			{"city", {{"Biel"}}}
+			}
+		);
+	data->atm = new papuga::RequestAutomaton(
+		g_classdefs, g_structdefs, "list",
+		{
+			{"/doc/city", "()", CityName},
+			{"/doc", "obj", 0, C1::constructor(), {} },
+			{{
+				{"/doc", "lo", "obj", C1::m2(), {{CityName, '*'}} },
+				{"/doc", "hi", "obj", C1::m1(), {{CityName, '*'}} }
+			}}
+		});
+	static const char* expected_calls[] = {
+		"executing method C1::new();",
+		"executing method C1::m2( <Serialization>);",
+		"executing method C1::m1( <Serialization>);",
+		"executing method C1::delete();",
+		0
+	};
+	data->calls = expected_calls;
+	data->expected = new papuga::test::Document(
+		"list", {
 			{"lo", {{"bern"}} },
 			{"lo", {{"luzern"}} },
 			{"lo", {{"biel"}} },
 			{"hi", {{"BERN"}} },
 			{"hi", {{"LUZERN"}} },
 			{"hi", {{"BIEL"}} }
-	}};
-static const char* g_expected_calls2_4[] = {
-	"executing method C1::new();",
-	"executing method C1::m2( <Serialization>);",
-	"executing method C1::m1( <Serialization>);",
-	"executing method C1::delete();",
-	0
-};
+		});
+	return data;
+}
 
-/// All test declarations:
-struct TestData
+static TestData* createTestData_6()
 {
-	const char* description;
-	const papuga::test::Document* doc;
-	const papuga::RequestAutomaton* atm;
-	const RequestVariable* var;
-	const char** calls;
-	const papuga::test::Document* expected;
-};
-static const TestData g_tests[] = {
-	{"single item with content and attribute, select attribute", &g_testDocument1, &g_testRequest1, NULL/*variables*/, g_expected_calls1, &g_testResult1 },
-	{"array, empty request", &g_testDocument2, &g_testRequest2_1, NULL/*variables*/, g_expected_calls2_1, &g_testResult2_1},
-	{"array, foreach item", &g_testDocument2, &g_testRequest2_2, NULL/*variables*/, g_expected_calls2_2, &g_testResult2_2},
-	{"array, foreach item group", &g_testDocument2, &g_testRequest2_3, NULL/*variables*/, g_expected_calls2_3, &g_testResult2_3},
-	{"array, foreach struct group", &g_testDocument2, &g_testRequest2_4, NULL/*variables*/, g_expected_calls2_4, &g_testResult2_4},
-	{0,0,0}};
+	TestData* data = new TestData();
+	data->description = "binary tree";
+	data->doc = new papuga::test::Document(
+		"tree", {
+				{"left", {
+					 {"left", {{"L.L"}} },
+					 {"right", {{"L.R"}} }
+					}
+				},
+				{"right", {{"R"}}},
+			}
+		);
+	data->atm = new papuga::RequestAutomaton(
+		g_classdefs, g_structdefs, "result",
+		{
+			{"/tree", TreeNode, {{"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
+			{"/tree", "()", TreeNode},
+			{"//left", "()", TreeNodeLeft},
+			{"//left", TreeNodeLeft, {{"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
+			{"//right", "()", TreeNodeRight},
+			{"//right", TreeNodeRight, {{"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
+			{"/tree", "obj", 0, C1::constructor(), {} },
+			{{
+				{"/tree", "lo", "obj", C1::m2(), {{TreeNode, '?'}} },
+				{"/tree", "hi", "obj", C1::m1(), {{TreeNode, '?'}} }
+			}}
+		});
+	static const char* expected_calls[] = {
+		"executing method C1::new();",
+		"executing method C1::m2( <Serialization>);",
+		"executing method C1::m1( <Serialization>);",
+		"executing method C1::delete();",
+		0
+	};
+	data->calls = expected_calls;
+	data->expected = new papuga::test::Document(	
+		"result", {
+			{"lo", {
+				{"left", {
+						{"left", {{"l.l"}} },
+						{"right", {{"l.r"}} }
+					}
+				},
+				{"right", {{"r"}}}
+				}
+			},
+			{"hi", {
+				{"left", {
+						{"left", {{"L.L"}} },
+						{"right", {{"L.R"}} }
+					}
+				},
+				{"right", {{"R"}}}
+				}
+			}
+		});
+	return data;
+}
+
+static createTestDataFunction g_tests[] = {
+	&createTestData_1,
+	&createTestData_2,
+	&createTestData_3,
+	&createTestData_4,
+	&createTestData_5,
+	&createTestData_6,
+	NULL};
 
 struct TestSet
 {
@@ -496,7 +632,7 @@ int main( int argc, const char* argv[])
 	int testno = -1;
 	int testcnt = 0;
 #if __cplusplus >= 201103L
-	while (g_tests[testcnt].description) ++testcnt;
+	while (g_tests[testcnt]) ++testcnt;
 	std::cerr << "found " << testcnt << " tests." << std::endl;
 #endif
 	if (argc > 1)
@@ -522,11 +658,17 @@ int main( int argc, const char* argv[])
 #if __cplusplus >= 201103L
 		if (testno >= 1)
 		{
-			executeTest( testno, g_tests[ testno-1]);
+			createTestDataFunction createTestData = g_tests[ testno-1];
+			TestData* test = createTestData();
+			executeTest( testno, *test);
+			delete test;
 		}
 		else for (int testidx = 1; testidx <= testcnt; ++testidx)
 		{
-			executeTest( testidx, g_tests[ testidx-1]);
+			createTestDataFunction createTestData = g_tests[ testidx-1];
+			TestData* test = createTestData();
+			executeTest( testidx, *test);
+			delete test;
 		}
 #else
 		std::cerr << "This test needs C++11 as it uses std initializer_list" << std::endl;

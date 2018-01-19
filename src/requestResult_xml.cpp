@@ -84,15 +84,18 @@ static bool ValueVariant_toxml( std::string& out, const char* name, const papuga
 		papuga_init_SerializationIter( &subitr, value.value.serialization);
 		bool isdict = value.value.serialization->structid || papuga_SerializationIter_tag( &subitr) == papuga_TagName;
 		int elementcnt = 0;
-		while (rt && !papuga_SerializationIter_eof( &subitr))
+		if (isdict)
 		{
-			if (isdict)
+			rt &= append_tag_open( out, name);
+			while (rt && !papuga_SerializationIter_eof( &subitr))
 			{
-				rt &= append_tag_open( out, name);
 				rt &= SerializationIter_toxml( out, &subitr, NULL/*name*/, value.value.serialization->structid, elementcnt++, structs, errcode);
-				rt &= append_tag_close( out, name);
 			}
-			else
+			rt &= append_tag_close( out, name);
+		}
+		else
+		{
+			while (rt && !papuga_SerializationIter_eof( &subitr))
 			{
 				rt &= SerializationIter_toxml( out, &subitr, name, value.value.serialization->structid, elementcnt++, structs, errcode);
 			}
@@ -101,12 +104,14 @@ static bool ValueVariant_toxml( std::string& out, const char* name, const papuga
 	else if (value.valuetype == papuga_TypeIterator)
 	{
 		int itercnt = 0;
+		papuga_Allocator allocator;
 		papuga_CallResult result;
 		int result_mem[ 1024];
 		char error_mem[ 128];
 		papuga_Iterator* iterator = value.value.iterator;
 
-		papuga_init_CallResult( &result, result_mem, sizeof(result_mem), error_mem, sizeof(error_mem));
+		papuga_init_Allocator( &allocator, result_mem, sizeof(result_mem));
+		papuga_init_CallResult( &result, &allocator, true, error_mem, sizeof(error_mem));
 		while (itercnt++ < PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH && rt && iterator->getNext( iterator->data, &result))
 		{
 			if (result.nofvalues > 1)
@@ -133,13 +138,13 @@ static bool ValueVariant_toxml( std::string& out, const char* name, const papuga
 				errcode = papuga_NoMemError;
 				break;
 			}
-			papuga_init_CallResult( &result, result_mem, sizeof(result_mem), error_mem, sizeof(error_mem));
+			papuga_init_Allocator( &allocator, result_mem, sizeof(result_mem));
+			papuga_init_CallResult( &result, &allocator, true, error_mem, sizeof(error_mem));
 		}
 		if (papuga_CallResult_hasError( &result))
 		{
 			errcode = papuga_IteratorFailed;
-			papuga_destroy_CallResult( &result);
-			return false;
+			rt = false;
 		}
 		papuga_destroy_CallResult( &result);
 	}
@@ -189,7 +194,7 @@ public:
 		if (name)
 		{
 			size_t namelen = std::snprintf( stkelem->name, sizeof(stkelem->name), "%s", name);
-			if (sizeof(stkelem->name) >= namelen)
+			if (sizeof(stkelem->name) <= namelen)
 			{
 				errcode = papuga_BufferOverflowError;
 				return false;
@@ -218,6 +223,11 @@ public:
 		return papuga_Stack_empty( &m_namestk);
 	}
 
+	int size() const
+	{
+		return papuga_Stack_size( &m_namestk);
+	}
+
 private:
 	papuga_Stack m_namestk;
 	int m_namestk_mem[ 1024];
@@ -230,100 +240,104 @@ static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter*
 	char namebuf[ 128];
 	char const* tagname;
 
-	for (; rt; papuga_SerializationIter_skip(seritr)) switch( papuga_SerializationIter_tag(seritr))
+	for (; rt; papuga_SerializationIter_skip(seritr))
 	{
-		case papuga_TagClose:
+		switch( papuga_SerializationIter_tag(seritr))
 		{
-			if (name)
+			case papuga_TagClose:
 			{
-				errcode = papuga_SyntaxError;
-				return false;
-			}
-			if (!namestk.pop( structid, elementcnt, tagname))
-			{
-				goto EXIT;
-			}
-			if (tagname)
-			{
-				rt &= append_tag_close( out, tagname);
-			}
-			if (namestk.empty())
-			{
-				papuga_SerializationIter_skip(seritr);
-				goto EXIT;
-			}
-			break;
-		}
-		case papuga_TagValue:
-		{
-			const papuga_ValueVariant* value = papuga_SerializationIter_value(seritr);
-			if (!name)
-			{
-				if (structid)
-				{
-					name = structs[ structid-1].members[ elementcnt].name;
-				}
-				else
+				if (name)
 				{
 					errcode = papuga_SyntaxError;
 					return false;
 				}
-			}
-			++elementcnt;
-			rt &= ValueVariant_toxml( out, name, *value, structs, errcode);
-			name = NULL;
-			if (namestk.empty())
-			{
-				papuga_SerializationIter_skip(seritr);
-				goto EXIT;
-			}
-			break;
-		}
-		case papuga_TagOpen:
-		{
-			const papuga_ValueVariant* value = papuga_SerializationIter_value(seritr);
-			if (!name)
-			{
-				if (structid)
-				{
-					name = structs[ structid-1].members[ elementcnt].name;
-				}
-				else
+				if (!namestk.pop( structid, elementcnt, tagname))
 				{
 					errcode = papuga_SyntaxError;
 					return false;
 				}
+				if (tagname)
+				{
+					rt &= append_tag_close( out, tagname);
+				}
+				if (namestk.empty())
+				{
+					papuga_SerializationIter_skip(seritr);
+					goto EXIT;
+				}
+				break;
 			}
-			++elementcnt;
-			if (!namestk.push( structid, elementcnt, name, errcode))
+			case papuga_TagValue:
 			{
-				return false;
+				const papuga_ValueVariant* value = papuga_SerializationIter_value(seritr);
+				if (!name)
+				{
+					if (structid)
+					{
+						name = structs[ structid-1].members[ elementcnt].name;
+					}
+					else
+					{
+						errcode = papuga_SyntaxError;
+						return false;
+					}
+				}
+				++elementcnt;
+				rt &= ValueVariant_toxml( out, name, *value, structs, errcode);
+				name = NULL;
+				if (namestk.empty())
+				{
+					papuga_SerializationIter_skip(seritr);
+					goto EXIT;
+				}
+				break;
 			}
-			structid = 0;
-			elementcnt = 0;
-			if (papuga_ValueVariant_defined( value))
+			case papuga_TagOpen:
 			{
-				structid = papuga_ValueVariant_toint( value, &errcode);
-				if (errcode != papuga_Ok) return false;
+				const papuga_ValueVariant* value = papuga_SerializationIter_value(seritr);
+				if (!name)
+				{
+					if (structid)
+					{
+						name = structs[ structid-1].members[ elementcnt].name;
+					}
+					else
+					{
+						errcode = papuga_SyntaxError;
+						return false;
+					}
+				}
+				++elementcnt;
+				if (!namestk.push( structid, elementcnt, name, errcode))
+				{
+					return false;
+				}
+				structid = 0;
+				elementcnt = 0;
+				if (papuga_ValueVariant_defined( value))
+				{
+					structid = papuga_ValueVariant_toint( value, &errcode);
+					if (errcode != papuga_Ok) return false;
+				}
+				rt &= append_tag_open( out, name);
+				name = NULL;
+				break;
 			}
-			rt &= append_tag_open( out, name);
-			name = NULL;
-			break;
-		}
-		case papuga_TagName:
-		{
-			size_t namelen;
-			if (name)
+			case papuga_TagName:
 			{
-				errcode = papuga_SyntaxError;
-				return false;
+				size_t namelen;
+				if (name)
+				{
+					errcode = papuga_SyntaxError;
+					return false;
+				}
+				if (!papuga_ValueVariant_tostring_enc( papuga_SerializationIter_value(seritr), papuga_UTF8, namebuf, sizeof(namebuf)-1, &namelen, &errcode))
+				{
+					return false;
+				}
+				namebuf[ namelen] = 0;
+				name = namebuf;
 			}
-			if (!papuga_ValueVariant_tostring_enc( papuga_SerializationIter_value(seritr), papuga_UTF8, namebuf, sizeof(namebuf)-1, &namelen, &errcode))
-			{
-				return false;
-			}
-			namebuf[ namelen] = 0;
-			name = namebuf;
 		}
 	}
 	if (name)
