@@ -109,6 +109,7 @@ void papuga_destroy_RequestHandler( papuga_RequestHandler* self);
  * @param[in] name name given to the context used to address the parent context when initializing a child context
  * @param[in,out] ctx context copied to handler with the ownership of all host object references moved
  * @param[out] errcode error code in case of error, untouched in case of success
+ * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false on failure
  */
 bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode);
@@ -120,6 +121,7 @@ bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char*
  * @param[in] parent name of the parent context
  * @param[in] role name of the instance asking for granting access to the parent context
  * @param[out] errcode error code in case of error, untouched in case of success
+ * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
  * @return true on success, false on failure
  */
 bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* parent, const char* role, papuga_ErrorCode* errcode);
@@ -129,6 +131,7 @@ bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga
  * @param[in] self this pointer to the request handler
  * @param[in] name name given to the schema
  * @param[in] automaton automaton of the schema (ownership passed)
+ * @remark Not thread safe, synchronization has to be done by the caller, read access is thread safe if writers are synchronized
  * @return true on success, false on memory allocation error
  */ 
 bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* name, papuga_RequestAutomaton* automaton);
@@ -139,9 +142,10 @@ bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* 
  * @param[in] name name of the schema
  * @param[in] role name of role to grant access to this schema
  * @param[out] errcode error code in case of error, untouched in case of success
+ * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false on memory allocation error
  */
-bool papuga_RequestHandler_schema_allow_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
+bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
 
 /*
  * @brief Retrieve a schema for execution with validation of access rights
@@ -149,6 +153,7 @@ bool papuga_RequestHandler_schema_allow_access( papuga_RequestHandler* self, con
  * @param[in] name name of the schema
  * @param[in] role name of role to grant access to this schema
  * @param[out] errcode error code in case of error, untouched in case of success
+ * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
  * @return pointer to automaton on success, NULL on failure
  */
 const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
