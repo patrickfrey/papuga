@@ -281,7 +281,7 @@ extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, c
 	return true;
 }
 
-extern "C" bool papuga_RequestHandler_schema_allow_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
+extern "C" bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
 {
 	RequestSchemaList* sl = find_list( self->schemas, &RequestSchemaList::name, name);
 	if (!sl)
