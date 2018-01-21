@@ -156,7 +156,7 @@ bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, con
  * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
  * @return pointer to automaton on success, NULL on failure
  */
-const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
+const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
 
 /*
  * @brief Execute a request

@@ -298,7 +298,7 @@ extern "C" bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler
 	return true;
 }
 
-extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
+extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
 {
 	const RequestSchemaList* sl = 
 	sl = find_list( self->schemas, &RequestSchemaList::name, name);

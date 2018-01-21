@@ -9,6 +9,7 @@ set( source_files
 	callResult.c
 	callArgs.c
 	errors.c
+	encoding.c
 	${CMAKE_CURRENT_BINARY_DIR}/internationalization.c
 	stack.c
 	errors.cpp
