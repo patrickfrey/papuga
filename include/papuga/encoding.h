@@ -17,7 +17,19 @@
 extern "C" {
 #endif
 
+/*
+ * @brief Parse an encoding from a string
+ * @param[out] encoding encoding type parsed
+ * @param[in] name encoding as string
+ * @return true on success, false on failure
+ */
 bool papuga_getStringEncodingFromName( papuga_StringEncoding* encoding, const char* name);
+
+/*
+ * @brief Get the encoding as string
+ * @param[in] encoding the encoding id
+ * @return encoding name string
+ */
 const char* papuga_stringEncodingName( papuga_StringEncoding encoding);
 
 #ifdef __cplusplus

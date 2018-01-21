@@ -15,6 +15,22 @@
 
 #undef PAPUGA_LOWLEVEL_DEBUG
 
+papuga_ContentType papuga_contentTypeFromName( const char* name)
+{
+	if (NULL!=strstr( name, "xml") || NULL!=strstr( name, "XML"))
+	{
+		return papuga_ContentType_XML;
+	}
+	else if (NULL==strstr( name, "json") || NULL==strstr( name, "JSON"))
+	{
+		return papuga_ContentType_JSON;
+	}
+	else
+	{
+		return papuga_ContentType_Unknown;
+	}
+}
+
 const char* papuga_ContentType_name( papuga_ContentType type)
 {
 	static const char* ar[] = {"unknown","XML","JSON"};

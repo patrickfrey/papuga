@@ -33,6 +33,13 @@ typedef enum {
 const char* papuga_ContentType_name( papuga_ContentType type);
 
 /*
+ * @brief Parse a content type from a string
+ * @param[in] name content type as string
+ * @return true on success, false on failure
+ */
+papuga_ContentType papuga_contentTypeFromName( const char* name);
+
+/*
  * @brief Guess content type
  * @param[in] src pointer to source
  * @param[in] srcsize size of src in bytes
