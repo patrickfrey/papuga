@@ -17,6 +17,7 @@
 #include "papuga/version.h"
 #include "papuga/languages.h"
 #include "papuga/errors.h"
+#include "papuga/encoding.h"
 #include "papuga/callResult.h"
 #include "papuga/callArgs.h"
 #include "papuga/hostObject.h"

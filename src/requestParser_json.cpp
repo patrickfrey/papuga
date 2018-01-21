@@ -384,8 +384,8 @@ extern "C" papuga_RequestParser* papuga_create_RequestParser_json( papuga_String
 		else
 		{
 			papuga_ValueVariant input;
-			size_t bytesize = size * papuga_StringEncoding_unit_size( encoding);
-			papuga_init_ValueVariant_string_enc( &input, encoding, content, bytesize);
+			size_t unitsize = size / papuga_StringEncoding_unit_size( encoding);
+			papuga_init_ValueVariant_string_enc( &input, encoding, content, unitsize);
 			contentUTF8 = ValueVariant_tostring( input, *errcode);
 		}
 		new (&rt->impl) RequestParser_json( contentUTF8);
