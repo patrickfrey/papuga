@@ -11,6 +11,7 @@
 #ifndef _PAPUGA_REQUEST_PARSER_H_INCLUDED
 #define _PAPUGA_REQUEST_PARSER_H_INCLUDED
 #include "papuga/typedefs.h"
+#include "papuga/request.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -151,13 +152,6 @@ papuga_ErrorCode papuga_RequestParser_last_error( const papuga_RequestParser* se
  * @return position or -1 if not available
  */
 int papuga_RequestParser_get_position( const papuga_RequestParser* self, char* locbuf, size_t locbufsize);
-
-/*
- * Forward declaration
- */
-#ifndef _PAPUGA_REQUEST_H_INCLUDED
-typedef struct papuga_Request papuga_Request;
-#endif
 
 /*
  * @brief Feed a request iterating with a request parser on some content

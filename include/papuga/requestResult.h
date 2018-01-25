@@ -11,6 +11,7 @@
 #ifndef _PAPUGA_REQUEST_RESULT_H_INCLUDED
 #define _PAPUGA_REQUEST_RESULT_H_INCLUDED
 #include "papuga/typedefs.h"
+#include "papuga/interfaceDescription.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,13 +22,10 @@ extern "C" {
  */
 typedef struct papuga_RequestResultNode
 {
-	papuga_RequestResultNode* next;
+	struct papuga_RequestResultNode* next;
 	const char* name;
 	papuga_ValueVariant value;
 } papuga_RequestResultNode;
-
-/* Forward declaration interfaceDescription.h */
-typedef struct papuga_StructInterfaceDescription papuga_StructInterfaceDescription;
 
 /*
  * @brief Defines the result of a request
