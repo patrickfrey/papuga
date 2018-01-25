@@ -12,6 +12,8 @@
 #ifndef _PAPUGA_REQUEST_H_INCLUDED
 #define _PAPUGA_REQUEST_H_INCLUDED
 #include "papuga/typedefs.h"
+#include "papuga/interfaceDescription.h"
+#include "papuga/classdef.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,11 +21,6 @@ extern "C" {
 
 typedef struct papuga_RequestAutomaton papuga_RequestAutomaton;
 typedef struct papuga_Request papuga_Request;
-
-/* Forward declaration interfaceDescription.h */
-typedef struct papuga_StructInterfaceDescription papuga_StructInterfaceDescription;
-/* Forward declaration classdef.h */
-typedef struct papuga_ClassDef papuga_ClassDef;
 
 /*
  * @brief Defines an identifier for a method

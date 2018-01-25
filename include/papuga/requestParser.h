@@ -155,7 +155,9 @@ int papuga_RequestParser_get_position( const papuga_RequestParser* self, char* l
 /*
  * Forward declaration
  */
+#ifndef _PAPUGA_REQUEST_H_INCLUDED
 typedef struct papuga_Request papuga_Request;
+#endif
 
 /*
  * @brief Feed a request iterating with a request parser on some content

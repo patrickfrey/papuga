@@ -28,11 +28,15 @@ typedef struct papuga_RequestHandler papuga_RequestHandler;
 typedef struct papuga_RequestAcl papuga_RequestAcl;
 
 /* External declarations in request.h */
+#ifndef _PAPUGA_REQUEST_H_INCLUDED
 typedef struct papuga_RequestVariable papuga_RequestVariable;
 typedef struct papuga_RequestAutomaton papuga_RequestAutomaton;
 typedef struct papuga_Request papuga_Request;
+#endif
 /* External declarations in requestResult.h */
+#ifndef _PAPUGA_REQUEST_RESULT_H_INCLUDED
 typedef struct papuga_RequestResult papuga_RequestResult;
+#endif
 
 /*
  * @brief Defines the context of a request
