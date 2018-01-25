@@ -38,7 +38,7 @@ extern "C" const char* papuga_request_error_location( papuga_ContentType doctype
 		// .... skip to the start position
 
 		// Report location scope until end of next Element
-		while (bufsize > (int)locinfo.size() && elemtype != papuga_RequestElementType_None)
+		while (bufsize > locinfo.size() && elemtype != papuga_RequestElementType_None)
 		{
 			switch (elemtype)
 			{
