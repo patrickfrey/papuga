@@ -1815,7 +1815,7 @@ private:
 #endif
 				std::vector<ValueNode>::iterator vi = m_valuenodes.begin();
 				int valuecnt = 0;
-				int vidx = 0;
+				std::size_t vidx = 0;
 				while (vidx != m_valuenodes.size())
 				{
 					if (vi->itemid == itemid)

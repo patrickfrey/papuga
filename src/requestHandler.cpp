@@ -300,8 +300,7 @@ extern "C" bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler
 
 extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
 {
-	const RequestSchemaList* sl = 
-	sl = find_list( self->schemas, &RequestSchemaList::name, name);
+	const RequestSchemaList* sl = find_list( self->schemas, &RequestSchemaList::name, name);
 	if (!sl)
 	{
 		*errcode = papuga_AddressedItemNotFound;
@@ -455,6 +454,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 						*errorpos = call->eventcnt;
 						return false;
 					}
+					papuga_init_ValueVariant_serialization( &result, ser);
 				}
 				// [3.2] Assign the result to the result variable:
 				var = find_list( context->variables, &papuga_RequestVariable::name, call->resultvarname);
