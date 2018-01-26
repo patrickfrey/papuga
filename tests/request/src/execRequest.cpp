@@ -16,6 +16,7 @@
 #include "papuga/valueVariant.hpp"
 #include <cstring>
 #include <cstdlib>
+#include <cstdarg>
 #include <stdexcept>
 #include <iostream>
 #include <sstream>
