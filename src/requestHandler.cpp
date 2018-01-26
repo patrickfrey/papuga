@@ -80,6 +80,7 @@ struct papuga_RequestHandler
 {
 	RequestContextList* contexts;
 	RequestSchemaList* schemas;
+	papuga_RequestLogger* logger;
 	papuga_Allocator allocator;
 	char allocator_membuf[ 1<<14];
 };
@@ -111,12 +112,13 @@ static papuga_RequestAcl* copyRequestAcl( papuga_Allocator* allocator, const pap
 	return root.next;
 }
 
-extern "C" void papuga_init_RequestContext( papuga_RequestContext* self)
+extern "C" void papuga_init_RequestContext( papuga_RequestContext* self, papuga_RequestLogger* logger)
 {
 	papuga_init_Allocator( &self->allocator, self->allocator_membuf, sizeof( self->allocator_membuf));
 	self->errcode = papuga_Ok;
 	self->variables = NULL;
 	self->acl = NULL;
+	self->logger = logger;
 }
 
 extern "C" void papuga_destroy_RequestContext( papuga_RequestContext* self)
@@ -203,12 +205,13 @@ extern "C" bool papuga_RequestContext_allow_access( papuga_RequestContext* self,
 	return (!!self->acl);
 }
 
-extern "C" papuga_RequestHandler* papuga_create_RequestHandler()
+extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger)
 {
 	papuga_RequestHandler* rt = (papuga_RequestHandler*) std::malloc( sizeof(papuga_RequestHandler));
 	if (!rt) return NULL;
 	rt->contexts = NULL;
 	rt->schemas = NULL;
+	rt->logger = logger;
 	papuga_init_Allocator( &rt->allocator, rt->allocator_membuf, sizeof(rt->allocator_membuf));
 	return rt;
 }
@@ -223,7 +226,7 @@ extern "C" bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, 
 {
 	RequestContextList* listitem = alloc_type<RequestContextList>( &self->allocator);
 	if (!listitem) goto ERROR;
-	papuga_init_RequestContext( &listitem->context);
+	papuga_init_RequestContext( &listitem->context, self->logger);
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
 	listitem->context.acl = copyRequestAcl( &listitem->context.allocator, ctx->acl);
 	listitem->context.variables = copyRequestVariables( &listitem->context.allocator, ctx->variables, true, errcode);
@@ -257,7 +260,7 @@ extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, c
 		*errcode = papuga_NotAllowed;
 		goto ERROR;
 	}
-	papuga_init_RequestContext( self);
+	papuga_init_RequestContext( self, handler->logger);
 	self->acl = copyRequestAcl( &self->allocator, cl->context.acl);
 	self->variables = copyRequestVariables( &self->allocator, cl->context.variables, false, errcode);
 	if (!self->variables || !self->acl) goto ERROR;
@@ -392,6 +395,14 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					return false;
 				}
 			}
+			// [3] Log the call:
+			if (context->logger->logMethodCall)
+			{
+				(*context->logger->logMethodCall)( context->logger->self, 3,
+					papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+					papuga_LogItemArgc, call->args.argc,
+					papuga_LogItemArgv, &call->args.argv[0]);
+			}
 		}
 		else
 		{
@@ -472,6 +483,16 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 						*errorpos = call->eventcnt;
 						return false;
 					}
+				}
+				// [3.3] Log the call
+				if (context->logger->logMethodCall)
+				{
+					(*context->logger->logMethodCall)( context->logger->self, 5, 
+							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+							papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
+							papuga_LogItemArgc, call->args.argc,
+							papuga_LogItemArgv, &call->args.argv[0],
+							papuga_LogItemResult, &result);
 				}
 			}
 			else

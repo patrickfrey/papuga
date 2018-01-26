@@ -1783,9 +1783,6 @@ private:
 
 	bool processEvent( int ev, const papuga_ValueVariant* evalue)
 	{
-		// Check if event has already been processed (some automaton definitions may lead to duplicate of events):
-		if (isDuplicateEvent( ev)) return true;
-
 		// Process event depending on type:
 		int evidx = AtmRef_index( ev);
 		switch (AtmRef_type( ev))
@@ -1908,18 +1905,6 @@ private:
 		}
 	};
 
-	inline bool isDuplicateEvent( int ev)
-	{
-		AtmRefType evtype = AtmRef_type( ev);
-		EventId evid( m_scopecnt, ev);
-		if (m_previous_event[ evtype] == evid)
-		{
-			return true;
-		}
-		m_previous_event[ evtype] = evid;
-		return false;
-	}
-
 private:
 	typedef textwolf::XMLPathSelect<textwolf::charset::UTF8> AutomatonState;
 
@@ -1936,7 +1921,6 @@ private:
 	std::vector<MethodCallNode> m_methodcalls;
 	bool m_done;
 	papuga_ErrorCode m_errcode;
-	EventId m_previous_event[ MaxAtmRefType+1];		//< PF:HACK: As textwolf may duplicate events in recursive structures with nodes referenced as //node
 	EventStack m_event_stacks[ MaxAtmRefType+1];
 };
 

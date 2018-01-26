@@ -18,8 +18,72 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <iostream>
+#include <sstream>
 
 #define PAPUGA_LOWLEVEL_DEBUG
+
+struct LoggerContext
+{
+	std::ostringstream out;
+};
+
+static void logMethodCall( void* self, int nofItems, ...)
+{
+	LoggerContext* ctx = (LoggerContext*)self;
+	va_list arguments;
+	va_start( arguments, nofItems );
+	try
+	{
+		papuga_ErrorCode errcode = papuga_Ok;
+		std::size_t nofargs = 0;
+		for( int ai = 0; ai < nofItems; ++ai)
+		{
+			papuga_RequestLogItem itype = (papuga_RequestLogItem)va_arg( arguments, int);
+			if (ai) ctx->out << " ";
+			typedef const char* charp;
+			switch (itype)
+			{
+				case papuga_LogItemClassName:
+					ctx->out << va_arg( arguments,charp);
+					break;
+				case papuga_LogItemMethodName:
+					ctx->out << va_arg( arguments,charp);
+					break;
+				case papuga_LogItemResult:
+					ctx->out << papuga::ValueVariant_tostring( *va_arg( arguments, papuga_ValueVariant*), errcode);
+					break;
+				case papuga_LogItemArgc:
+					nofargs = va_arg( arguments,size_t);
+					ctx->out << nofargs;
+					break;
+				case papuga_LogItemArgv:
+				{
+					papuga_ValueVariant* ar = va_arg( arguments, papuga_ValueVariant*);
+					std::size_t ii=0, ie=nofargs;
+					for (; ii!=ie; ++ii)
+					{
+						if (ii) ctx->out << " ";
+						ctx->out << papuga::ValueVariant_tostring( ar[ii], errcode);
+					}
+					break;
+				}
+				case papuga_LogItemMessage:
+					ctx->out << va_arg( arguments,charp);
+					break;
+			}
+		}
+		if (errcode != papuga_Ok)
+		{
+			std::cerr << "error in logger: " << papuga_ErrorCode_tostring( errcode) << std::endl;
+		}
+		ctx->out << std::endl;
+	}
+	catch (const std::bad_alloc&)
+	{
+		std::cerr << "out of memory logging method call" << std::endl;
+	}
+	va_end( arguments);
+}
 
 extern "C" bool papuga_execute_request(
 			const papuga_RequestAutomaton* atm,
@@ -30,7 +94,8 @@ extern "C" bool papuga_execute_request(
 			const RequestVariable* variables,
 			papuga_ErrorCode* errcode,
 			char** resstr,
-			size_t* reslen)
+			size_t* reslen,
+			char** logout)
 {
 	bool rt = true;
 	char errbuf_mem[ 4096];
@@ -41,6 +106,10 @@ extern "C" bool papuga_execute_request(
 	papuga_RequestContext ctx;
 	papuga_RequestResult result;
 	RequestVariable const* vi;
+	LoggerContext logctx;
+
+	// Logger:
+	papuga_RequestLogger logger = {&logctx, &logMethodCall};
 
 	// Init output:
 	*errcode = papuga_Ok;
@@ -48,7 +117,7 @@ extern "C" bool papuga_execute_request(
 	*reslen = 0;
 
 	// Init locals:
-	papuga_init_RequestContext( &ctx);
+	papuga_init_RequestContext( &ctx, &logger);
 	papuga_init_ErrorBuffer( &errorbuf, errbuf_mem, sizeof(errbuf_mem));
 	parser = papuga_create_RequestParser( doctype, encoding, docstr, doclen, errcode);
 	if (!parser) goto ERROR;
@@ -113,6 +182,19 @@ extern "C" bool papuga_execute_request(
 		default: break;
 	}
 	if (!*resstr) goto ERROR;
+
+	*logout = NULL;
+	try
+	{
+		std::string logoutput = logctx.out.str();
+		*logout = (char*)std::malloc( logoutput.size()+1);
+		if (*logout)
+		{
+			std::memcpy( *logout, logoutput.c_str(), logoutput.size()+1);
+		}
+	}
+	catch (const std::bad_alloc&)
+	{}
 	goto RELEASE;
 ERROR:
 	rt = false;

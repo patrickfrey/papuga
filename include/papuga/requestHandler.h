@@ -14,6 +14,7 @@
 #include "papuga/typedefs.h"
 #include "papuga/request.h"
 #include "papuga/requestResult.h"
+#include "papuga/requestLogger.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,6 +24,8 @@ extern "C" {
  * @brief Request handler
  */
 typedef struct papuga_RequestHandler papuga_RequestHandler;
+
+typedef void (*papuga_LoggerProcedure)( int nofItems, ...);
 
 /*
  * @brief Access control list
@@ -38,14 +41,16 @@ typedef struct papuga_RequestContext
 	papuga_Allocator allocator;			/*< allocator for this context */
 	papuga_RequestVariable* variables;		/*< variables defined in the context */
 	papuga_RequestAcl* acl;				/*< access control list */
+	papuga_RequestLogger* logger;			/*< logger to use */
 	char allocator_membuf[ 1<<14];			/*< initial memory buffer for the allocator */
 } papuga_RequestContext;
 
 /*
  * @brief Creates a new context for handling a request
  * @param[in] self this pointer to the object to initialize
+ * @param[in] logger logger interface to use
  */
-void papuga_init_RequestContext( papuga_RequestContext* self);
+void papuga_init_RequestContext( papuga_RequestContext* self, papuga_RequestLogger* logger);
 
 /*
  * @brief Deletes a request context and its content
@@ -87,10 +92,10 @@ bool papuga_RequestContext_allow_access( papuga_RequestContext* self, const char
 
 /*
  * @brief Creates a request handler
- * @param[in] classdefs class definitions referred to in host object references
+ * @param[in] logger logger interface to use
  * @return pointer to request handler
  */
-papuga_RequestHandler* papuga_create_RequestHandler();
+papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger);
 
 /*
  * @brief Destroys a request handler

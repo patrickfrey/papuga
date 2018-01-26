@@ -339,6 +339,8 @@ static TestData* createTestData_1()
 		"executing method C1::new();",
 		"executing method C1::m1( 'Hugo');",
 		"executing method C1::delete();",
+		"C1 0 ",
+		"C1 M1 1 Hugo HUGO",
 		0};
 	data->calls = expected_calls;
 	data->expected = new papuga::test::Document(
@@ -400,6 +402,13 @@ static TestData* createTestData_3()
 		"executing method C1::m1( 'Luzern');",
 		"executing method C1::m1( 'Biel');",
 		"executing method C1::delete();",
+		"C1 0 ",
+		"C1 M2 1 Bern bern",
+		"C1 M2 1 Luzern luzern",
+		"C1 M2 1 Biel biel",
+		"C1 M1 1 Bern BERN",
+		"C1 M1 1 Luzern LUZERN",
+		"C1 M1 1 Biel BIEL",
 		0};
 	data->calls = expected_calls;
 	data->expected = new papuga::test::Document(
@@ -441,6 +450,13 @@ static TestData* createTestData_4()
 		"executing method C1::m2( 'Biel');",
 		"executing method C1::m1( 'Biel');",
 		"executing method C1::delete();",
+		"C1 0 ",
+		"C1 M2 1 Bern bern",
+		"C1 M1 1 Bern BERN",
+		"C1 M2 1 Luzern luzern",
+		"C1 M1 1 Luzern LUZERN",
+		"C1 M2 1 Biel biel",
+		"C1 M1 1 Biel BIEL",
 		0
 	};
 	data->calls = expected_calls;
@@ -479,6 +495,9 @@ static TestData* createTestData_5()
 		"executing method C1::m2( <Serialization>);",
 		"executing method C1::m1( <Serialization>);",
 		"executing method C1::delete();",
+		"C1 0 ",
+		"C1 M2 1  ",  
+		"C1 M1 1  ",
 		0
 	};
 	data->calls = expected_calls;
@@ -528,6 +547,9 @@ static TestData* createTestData_6()
 		"executing method C1::m2( <Serialization>);",
 		"executing method C1::m1( <Serialization>);",
 		"executing method C1::delete();",
+		"C1 0 ",
+		"C1 M2 1  ",  
+		"C1 M1 1  ",
 		0
 	};
 	data->calls = expected_calls;
@@ -594,6 +616,7 @@ static void executeTest( int tidx, const TestData& test)
 		papuga_ErrorCode errcode = papuga_Ok;
 		char* resstr = 0;
 		std::size_t reslen = 0;
+		char* logout = 0;
 		papuga_StringEncoding enc = testsets[ ei].encoding;
 		papuga_ContentType doctype = testsets[ ei].doctype;
 
@@ -602,7 +625,7 @@ static void executeTest( int tidx, const TestData& test)
 		std::string content = mapDocument( *test.doc, enc, doctype);
 		LOG_TEST_CONTENT( "DUMP", papuga::test::dumpRequest( doctype, enc, content));
 
-		if (!papuga_execute_request( test.atm->impl(), doctype, enc, content.c_str(), content.size(), test.var, &errcode, &resstr, &reslen))
+		if (!papuga_execute_request( test.atm->impl(), doctype, enc, content.c_str(), content.size(), test.var, &errcode, &resstr, &reslen, &logout))
 		{
 			LOG_TEST_CONTENT( "ERROR", std::string( resstr, reslen * papuga_StringEncoding_unit_size( enc)));
 			throw papuga::error_exception( errcode, "executing test request");
@@ -610,7 +633,7 @@ static void executeTest( int tidx, const TestData& test)
 		else
 		{
 			std::string expected = mapCallList( test.calls) + "---\n" + mapDocument( *test.expected, enc, doctype);
-			std::string result = g_call_dump + "---\n" + std::string( resstr, reslen * papuga_StringEncoding_unit_size( enc));
+			std::string result = g_call_dump + logout + "---\n" + std::string( resstr, reslen * papuga_StringEncoding_unit_size( enc));
 			if (expected != result)
 			{
 				std::cout << "Result [" << result.size() << "]:\n" << result << std::endl;

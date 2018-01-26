@@ -31,7 +31,8 @@ bool papuga_execute_request(
 		const RequestVariable* variables,
 		papuga_ErrorCode* errcode,
 		char** resstr,
-		size_t* reslen);
+		size_t* reslen,
+		char** logout);
 
 #ifdef __cplusplus
 }
