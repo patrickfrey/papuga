@@ -65,7 +65,7 @@ struct RequestContextList
 struct papuga_RequestAcl
 {
 	struct papuga_RequestAcl* next;			/*< next role allowed */
-	const char* allowed_role;			/*< role allowed for accessing this item */
+	const char* allowed_role;			/*< role allowed for accessing this item '*' for all */
 };
 
 struct RequestSchemaList
@@ -85,13 +85,25 @@ struct papuga_RequestHandler
 	char allocator_membuf[ 1<<14];
 };
 
+static bool all_allowed( papuga_RequestAcl* acl)
+{
+	return (acl && acl->allowed_role[0] == '*' && !acl->allowed_role[1]);
+}
+
 static papuga_RequestAcl* addRequestAcl( papuga_Allocator* allocator, papuga_RequestAcl* acl, const char* role)
 {
 	papuga_RequestAcl* aclitem = alloc_type<papuga_RequestAcl>( allocator);
 	if (!aclitem) return NULL;
 	aclitem->allowed_role = papuga_Allocator_copy_charp( allocator, role);
 	if (!aclitem->allowed_role) return NULL;
-	return add_list( acl, aclitem);
+	if (role[0] == '*' && !role[1])
+	{
+		return aclitem;
+	}
+	else
+	{
+		return add_list( acl, aclitem);
+	}
 }
 
 static papuga_RequestAcl* copyRequestAcl( papuga_Allocator* allocator, const papuga_RequestAcl* acl)
@@ -205,6 +217,12 @@ extern "C" bool papuga_RequestContext_allow_access( papuga_RequestContext* self,
 	return (!!self->acl);
 }
 
+extern "C" bool papuga_RequestContext_allow_access_all( papuga_RequestContext* self)
+{
+	self->acl = addRequestAcl( &self->allocator, self->acl, "*");
+	return (!!self->acl);
+}
+
 extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger)
 {
 	papuga_RequestHandler* rt = (papuga_RequestHandler*) std::malloc( sizeof(papuga_RequestHandler));
@@ -255,7 +273,7 @@ extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, c
 		*errcode = papuga_AddressedItemNotFound;
 		goto ERROR;
 	}
-	if (!find_list( cl->context.acl, &papuga_RequestAcl::allowed_role, role))
+	if (!all_allowed( cl->context.acl) && !find_list( cl->context.acl, &papuga_RequestAcl::allowed_role, role))
 	{
 		*errcode = papuga_NotAllowed;
 		goto ERROR;
@@ -301,6 +319,23 @@ extern "C" bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler
 	return true;
 }
 
+extern "C" bool papuga_RequestHandler_allow_schema_access_all( papuga_RequestHandler* self, const char* name, papuga_ErrorCode* errcode)
+{
+	RequestSchemaList* sl = find_list( self->schemas, &RequestSchemaList::name, name);
+	if (!sl)
+	{
+		*errcode = papuga_AddressedItemNotFound;
+		return false;
+	}
+	sl->acl = addRequestAcl( &self->allocator, sl->acl, "*");
+	if (!sl->acl)
+	{
+		*errcode = papuga_NoMemError;
+		return false;
+	}
+	return true;
+}
+
 extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
 {
 	const RequestSchemaList* sl = find_list( self->schemas, &RequestSchemaList::name, name);
@@ -309,7 +344,7 @@ extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( cons
 		*errcode = papuga_AddressedItemNotFound;
 		return NULL;
 	}
-	if (!find_list( sl->acl, &papuga_RequestAcl::allowed_role, role))
+	if (!all_allowed( sl->acl) && !find_list( sl->acl, &papuga_RequestAcl::allowed_role, role))
 	{
 		*errcode = papuga_NotAllowed;
 		return NULL;

@@ -91,6 +91,13 @@ const papuga_ValueVariant* papuga_RequestContext_get_variable( papuga_RequestCon
 bool papuga_RequestContext_allow_access( papuga_RequestContext* self, const char* role);
 
 /*
+ * @brief Allow access to this context for all (no restriction)
+ * @param[in] self this pointer to the object to add for access to all
+ * @return true on success, false on failure
+ */
+bool papuga_RequestContext_allow_access_all( papuga_RequestContext* self);
+
+/*
  * @brief Creates a request handler
  * @param[in] logger logger interface to use
  * @return pointer to request handler
@@ -137,7 +144,7 @@ bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga
 bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* name, papuga_RequestAutomaton* automaton);
 
 /*
- * @brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials
+ * @brief Allow access to a schema with a given name for a role
  * @param[in] self this pointer to the request handler
  * @param[in] name name of the schema
  * @param[in] role name of role to grant access to this schema
@@ -146,6 +153,16 @@ bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* 
  * @return true on success, false on memory allocation error
  */
 bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
+
+/*
+ * @brief Allow access to a schema with a given name for all (no restriction)
+ * @param[in] self this pointer to the object to add for access to all
+ * @param[in] name name of the schema
+ * @param[out] errcode error code in case of error, untouched in case of success
+ * @remark Not thread safe, synchronization has to be done by the caller
+ * @return true on success, false on memory allocation error
+ */
+bool papuga_RequestHandler_allow_schema_access_all( papuga_RequestHandler* self, const char* name, papuga_ErrorCode* errcode);
 
 /*
  * @brief Retrieve a schema for execution with validation of access rights
