@@ -192,12 +192,19 @@ public:
 
 	const char* copyIfDefined( const char* str)
 	{
-		if (str)
+		if (str && str[0])
 		{
 			str = papuga_Allocator_copy_charp( &m_allocator, str);
-			if (!str) m_errcode = papuga_NoMemError;
+			if (str)
+			{
+				return str;
+			}
+			else
+			{
+				m_errcode = papuga_NoMemError;
+			}
 		}
-		return str;
+		return NULL;
 	}
 
 	/* @param[in] expression selector of the call scope */
@@ -235,7 +242,7 @@ public:
 			classname = cdef->name;
 			methodname = method_->functionid == 0 ? "new" : cdef->methodnames[ method_->functionid-1];
 			fprintf( stderr, "automaton add call expression='%s', class=%s, method=%s, self='%s', result='%s', nofargs=%d\n",
-					expression, classname, methodname, selfvarname_, resultvarname_, nofargs);
+					expression, classname, methodname, selfvarname_?selfvarname_:"", resultvarname_?resultvarname_:"", nofargs);
 #endif
 			std::string open_expression( cut_trailing_slashes( expression));
 			std::string close_expression( open_expression + "~");
