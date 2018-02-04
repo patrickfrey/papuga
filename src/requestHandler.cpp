@@ -274,21 +274,28 @@ extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, c
 		*errcode = papuga_ValueUndefined;
 		goto ERROR;
 	}
-	cl = find_list( handler->contexts, &RequestContextList::name, parent);
-	if (!cl)
+	if (parent)
 	{
-		*errcode = papuga_AddressedItemNotFound;
-		goto ERROR;
+		cl = find_list( handler->contexts, &RequestContextList::name, parent);
+		if (!cl)
+		{
+			*errcode = papuga_AddressedItemNotFound;
+			goto ERROR;
+		}
+		if (!all_allowed( cl->context.acl) && !find_list( cl->context.acl, &papuga_RequestAcl::allowed_role, role))
+		{
+			*errcode = papuga_NotAllowed;
+			goto ERROR;
+		}
+		papuga_init_RequestContext( self, handler->logger);
+		self->acl = copyRequestAcl( &self->allocator, cl->context.acl);
+		self->variables = copyRequestVariables( &self->allocator, cl->context.variables, false, errcode);
+		if (!self->variables || !self->acl) goto ERROR;
 	}
-	if (!all_allowed( cl->context.acl) && !find_list( cl->context.acl, &papuga_RequestAcl::allowed_role, role))
+	else
 	{
-		*errcode = papuga_NotAllowed;
-		goto ERROR;
+		papuga_init_RequestContext( self, handler->logger);
 	}
-	papuga_init_RequestContext( self, handler->logger);
-	self->acl = copyRequestAcl( &self->allocator, cl->context.acl);
-	self->variables = copyRequestVariables( &self->allocator, cl->context.variables, false, errcode);
-	if (!self->variables || !self->acl) goto ERROR;
 	return true;
 ERROR:
 	if (*errcode == papuga_Ok)
@@ -307,6 +314,11 @@ extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, c
 	listitem->automaton = automaton;
 	self->schemas = add_list( self->schemas, listitem);
 	return true;
+}
+
+bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* name)
+{
+	return !!find_list( self->schemas, &RequestSchemaList::name, name);
 }
 
 extern "C" bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)

@@ -152,6 +152,14 @@ bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga
 bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* name, const papuga_RequestAutomaton* automaton);
 
 /*
+ * @brief Test if a schema definition with a given name exists
+ * @param[in] self this pointer to the request handler
+ * @param[in] name name of the schema queried
+ * @return true, if the schema exists, false else
+ */
+bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* name);
+
+/*
  * @brief Allow access to a schema with a given name for a role
  * @param[in] self this pointer to the request handler
  * @param[in] name name of the schema
