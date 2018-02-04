@@ -42,6 +42,7 @@ typedef struct papuga_RequestContext
 	papuga_RequestVariable* variables;		/*< variables defined in the context */
 	papuga_RequestAcl* acl;				/*< access control list */
 	papuga_RequestLogger* logger;			/*< logger to use */
+	const char* schemaprefix;			/*< prefix for command argument to build schema name for papuga_RequestHandler_get_schema as <prefix>_<cmd> or <cmd> if prefix is NULL */
 	char allocator_membuf[ 1<<14];			/*< initial memory buffer for the allocator */
 } papuga_RequestContext;
 
@@ -96,6 +97,13 @@ bool papuga_RequestContext_allow_access( papuga_RequestContext* self, const char
  * @return true on success, false on failure
  */
 bool papuga_RequestContext_allow_access_all( papuga_RequestContext* self);
+
+/*
+ * @brief Define prefix for building the schema name out of the command name in the request URL as <prefix>_<cmd> or <cmd> if schema prefix is not defined
+ * @param[in] self this pointer to the object to define the schema prefix for
+ * @return true on success, false on memory allocation error
+ */
+bool papuga_RequestContext_set_schemaprefix( papuga_RequestContext* self, const char* prefixname);
 
 /*
  * @brief Creates a request handler

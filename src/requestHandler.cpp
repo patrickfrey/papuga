@@ -223,6 +223,12 @@ extern "C" bool papuga_RequestContext_allow_access_all( papuga_RequestContext* s
 	return (!!self->acl);
 }
 
+extern "C" bool papuga_RequestContext_set_schemaprefix( papuga_RequestContext* self, const char* prefixname)
+{
+	self->schemaprefix = papuga_Allocator_copy_charp( &self->allocator, prefixname);
+	return (!!self->schemaprefix);
+}
+
 extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger)
 {
 	papuga_RequestHandler* rt = (papuga_RequestHandler*) std::malloc( sizeof(papuga_RequestHandler));
@@ -248,7 +254,8 @@ extern "C" bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, 
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
 	listitem->context.acl = copyRequestAcl( &listitem->context.allocator, ctx->acl);
 	listitem->context.variables = copyRequestVariables( &listitem->context.allocator, ctx->variables, true, errcode);
-	if (!listitem->name || listitem->context.acl || !listitem->context.variables) goto ERROR;
+	listitem->context.schemaprefix = ctx->schemaprefix ? papuga_Allocator_copy_charp( &self->allocator, ctx->schemaprefix) : NULL;
+	if (!listitem->name || listitem->context.acl || !listitem->context.variables || listitem->context.schemaprefix) goto ERROR;
 	self->contexts = add_list( self->contexts, listitem);
 	return true;
 ERROR:
