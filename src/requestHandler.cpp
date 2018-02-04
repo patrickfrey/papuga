@@ -73,7 +73,7 @@ struct RequestSchemaList
 	struct RequestSchemaList* next;
 	const char* name;				/*< name of the context to address it as parent of a new context */
 	papuga_RequestAcl* acl;				/*< access control list */
-	papuga_RequestAutomaton* automaton;		/*< automaton */
+	const papuga_RequestAutomaton* automaton;	/*< automaton */
 };
 
 struct papuga_RequestHandler
@@ -291,7 +291,7 @@ ERROR:
 	return false;
 }
 
-extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* name, papuga_RequestAutomaton* automaton)
+extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* name, const papuga_RequestAutomaton* automaton)
 {
 	RequestSchemaList* listitem = alloc_type<RequestSchemaList>( &self->allocator);
 	if (!listitem) return false;

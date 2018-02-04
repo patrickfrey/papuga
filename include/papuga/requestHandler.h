@@ -137,11 +137,11 @@ bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials
  * @param[in] self this pointer to the request handler
  * @param[in] name name given to the schema
- * @param[in] automaton automaton of the schema (ownership passed)
+ * @param[in] automaton pointer to automaton of the schema
  * @remark Not thread safe, synchronization has to be done by the caller, read access is thread safe if writers are synchronized
  * @return true on success, false on memory allocation error
  */ 
-bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* name, papuga_RequestAutomaton* automaton);
+bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* name, const papuga_RequestAutomaton* automaton);
 
 /*
  * @brief Allow access to a schema with a given name for a role
