@@ -58,7 +58,7 @@ static const TYPE* find_list( const TYPE* lst, const char* TYPE::*member, const 
 struct RequestContextList
 {
 	struct RequestContextList* next;
-	const char* name;			/*< name of the context to address it as parent of a new context */
+	const char* name;				/*< name of the context to address it as parent of a new context */
 	papuga_RequestContext context;
 };
 
@@ -340,19 +340,29 @@ extern "C" bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler
 
 extern "C" bool papuga_RequestHandler_allow_schema_access_all( papuga_RequestHandler* self, const char* name, papuga_ErrorCode* errcode)
 {
-	RequestSchemaList* sl = find_list( self->schemas, &RequestSchemaList::name, name);
-	if (!sl)
+	return papuga_RequestHandler_allow_schema_access( self, name, "*", errcode);
+}
+
+extern "C" bool papuga_RequestHandler_allow_context_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
+{
+	RequestContextList* cl = find_list( self->contexts, &RequestContextList::name, name);
+	if (!cl)
 	{
 		*errcode = papuga_AddressedItemNotFound;
 		return false;
 	}
-	sl->acl = addRequestAcl( &self->allocator, sl->acl, "*");
-	if (!sl->acl)
+	cl->context.acl = addRequestAcl( &self->allocator, cl->context.acl, role);
+	if (!cl->context.acl)
 	{
 		*errcode = papuga_NoMemError;
 		return false;
 	}
 	return true;
+}
+
+extern "C" bool papuga_RequestHandler_allow_context_access_all( papuga_RequestHandler* self, const char* name, papuga_ErrorCode* errcode)
+{
+	return papuga_RequestHandler_allow_context_access( self, name, "*", errcode);
 }
 
 extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)

@@ -166,7 +166,7 @@ bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* 
  * @param[in] role name of role to grant access to this schema
  * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Not thread safe, synchronization has to be done by the caller
- * @return true on success, false on memory allocation error
+ * @return true on success, false on error
  */
 bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
 
@@ -176,9 +176,30 @@ bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, con
  * @param[in] name name of the schema
  * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Not thread safe, synchronization has to be done by the caller
- * @return true on success, false on memory allocation error
+ * @return true on success, false on error
  */
 bool papuga_RequestHandler_allow_schema_access_all( papuga_RequestHandler* self, const char* name, papuga_ErrorCode* errcode);
+
+/*
+ * @brief Allow access to a context with a given name for a role
+ * @param[in] self this pointer to the request handler
+ * @param[in] name name of the context
+ * @param[in] role name of role to grant access to this schema
+ * @param[out] errcode error code in case of error, untouched in case of success
+ * @remark Not thread safe, synchronization has to be done by the caller
+ * @return true on success, false on error
+ */
+bool papuga_RequestHandler_allow_context_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
+
+/*
+ * @brief Allow access to a context with a given name for all (no restriction)
+ * @param[in] self this pointer to the object to add for access to all
+ * @param[in] name name of the context
+ * @param[out] errcode error code in case of error, untouched in case of success
+ * @remark Not thread safe, synchronization has to be done by the caller
+ * @return true on success, false on error
+ */
+bool papuga_RequestHandler_allow_context_access_all( papuga_RequestHandler* self, const char* name, papuga_ErrorCode* errcode);
 
 /*
  * @brief Retrieve a schema for execution with validation of access rights
