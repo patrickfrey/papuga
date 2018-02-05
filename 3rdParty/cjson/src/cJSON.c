@@ -881,7 +881,6 @@ static cJSON_bool parse_token(cJSON * const item, parse_buffer * const input_buf
     item->valuestring = (char*)output;
 
     input_buffer->offset = (size_t) (input_end - input_buffer->content);
-    input_buffer->offset++;
 
     return true;
 

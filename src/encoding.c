@@ -23,7 +23,9 @@ bool papuga_getStringEncodingFromName( papuga_StringEncoding* encoding, const ch
 		unsigned char ch = *ni | 32;
 		if (ch == '-' || ch == ' ') continue;
 		buf[ bi++] = ch;
-		if (ch < 'a' || ch > 'z') return false;
+		if (ch >= '0' && ch <= '9') continue;
+		if (ch >= 'a' && ch <= 'z') continue;
+		break;
 	}
 	if (*ni) return false;
 	buf[ bi] = 0;
