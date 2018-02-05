@@ -269,7 +269,7 @@ ERROR:
 extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* parent, const char* role, papuga_ErrorCode* errcode)
 {
 	RequestContextList* cl;
-	if (!parent || !role)
+	if (!role)
 	{
 		*errcode = papuga_ValueUndefined;
 		goto ERROR;
