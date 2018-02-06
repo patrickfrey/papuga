@@ -99,7 +99,7 @@ struct CallDef
 		:selfvarname(selfvarname_),resultvarname(resultvarname_),args(args_),nofargs(nofargs_),groupid(groupid_)
 	{
 		methodid.classid = methodid_->classid;
-		methodid.functionid  = methodid_->functionid ;
+		methodid.functionid  = methodid_->functionid;
 	}
 	CallDef( const CallDef& o)
 		:selfvarname(o.selfvarname),resultvarname(o.resultvarname),args(o.args),nofargs(o.nofargs),groupid(o.groupid)

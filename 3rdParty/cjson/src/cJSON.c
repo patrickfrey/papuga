@@ -843,9 +843,9 @@ static cJSON_bool is_token_chr( unsigned char chr)
 /* PF:PATCH: Parse a token, a sequence of non space characters. */
 static cJSON_bool parse_token(cJSON * const item, parse_buffer * const input_buffer)
 {
-    const char opchr[] = "{}[],;=\"\'\n\t\b\r-+/()";
-    const unsigned char *input_pointer = buffer_at_offset(input_buffer) + 1;
-    const unsigned char *input_end = buffer_at_offset(input_buffer) + 1;
+    const char opchr[] = "{}[],;=\"\'\n\t \b\r-+/()";
+    const unsigned char *input_pointer = buffer_at_offset(input_buffer);
+    const unsigned char *input_end = buffer_at_offset(input_buffer);
     unsigned char *output_pointer = NULL;
     unsigned char *output = NULL;
     {

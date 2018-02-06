@@ -131,6 +131,7 @@ extern "C" void papuga_init_RequestContext( papuga_RequestContext* self, papuga_
 	self->variables = NULL;
 	self->acl = NULL;
 	self->logger = logger;
+	self->schemaprefix = 0;
 }
 
 extern "C" void papuga_destroy_RequestContext( papuga_RequestContext* self)
@@ -255,7 +256,10 @@ extern "C" bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, 
 	listitem->context.acl = copyRequestAcl( &listitem->context.allocator, ctx->acl);
 	listitem->context.variables = copyRequestVariables( &listitem->context.allocator, ctx->variables, true, errcode);
 	listitem->context.schemaprefix = ctx->schemaprefix ? papuga_Allocator_copy_charp( &self->allocator, ctx->schemaprefix) : NULL;
-	if (!listitem->name || listitem->context.acl || !listitem->context.variables || listitem->context.schemaprefix) goto ERROR;
+	if (!listitem->name
+		|| (!listitem->context.acl && ctx->acl)
+		|| (!listitem->context.variables && ctx->variables)
+		|| (!listitem->context.schemaprefix && ctx->schemaprefix)) goto ERROR;
 	self->contexts = add_list( self->contexts, listitem);
 	return true;
 ERROR:
@@ -384,10 +388,10 @@ extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( cons
 static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Request* request, const papuga_RequestMethodCall* call, const char* msg)
 {
 	const papuga_ClassDef* classdef = papuga_Request_classdefs( request);
-	const char* classname = classdef[ call->methodid.classid].name;
+	const char* classname = classdef[ call->methodid.classid-1].name;
 	if (call->methodid.functionid)
 	{
-		const char* methodname = classdef[ call->methodid.classid].methodnames[ call->methodid.functionid-1];
+		const char* methodname = classdef[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1];
 		if (call->argcnt >= 0)
 		{
 			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d of the method %s->%s::%s: %s"), call->argcnt+1, call->selfvarname, classname, methodname, msg);

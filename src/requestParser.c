@@ -297,6 +297,11 @@ bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Req
 				break;
 		}
 	}
+	if (!papuga_Request_feed_close_tag( request))
+	{
+		*errcode = papuga_Request_last_error( request);
+		return false;
+	}
 	return papuga_Request_done( request);
 }
 
