@@ -137,7 +137,8 @@ extern "C" bool papuga_execute_request(
 	{
 		papuga_Allocator allocator;
 		papuga_init_Allocator( &allocator, 0, 0);
-		const char* requestdump = papuga_Request_tostring( request, &allocator, errcode);
+		std::size_t requestdumplen;
+		const char* requestdump = papuga_Request_tostring( request, &allocator, papuga_UTF8, &requestdumplen, errcode);
 		if (!requestdump) throw papuga::error_exception( *errcode, "dumping request");
 		std::cerr << "ITEMS REQUEST:\n" << requestdump << std::endl;
 		papuga_destroy_Allocator( &allocator);

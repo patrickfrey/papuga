@@ -2148,7 +2148,7 @@ papuga_ErrorCode papuga_RequestIterator_get_last_error( papuga_RequestIterator* 
 	return self->itr.lastError();
 }
 
-extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_ErrorCode* errcode)
+extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_StringEncoding enc, std::size_t* length, papuga_ErrorCode* errcode)
 {
 	try
 	{
@@ -2166,8 +2166,22 @@ extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papu
 		}
 		if (*errcode != papuga_Ok) return NULL;
 		std::string rtbuf( out.str());
-		const char* rt = papuga_Allocator_copy_string( allocator, rtbuf.c_str(), rtbuf.size());
-		if (!rt)
+		const char* rt = 0;
+		if (enc == papuga_UTF8)
+		{
+			*length = rtbuf.size();
+			rt = papuga_Allocator_copy_string( allocator, rtbuf.c_str(), rtbuf.size());
+		}
+		else
+		{
+			std::size_t usize = papuga_StringEncoding_unit_size( enc);
+			std::size_t bufsize = (rtbuf.size()+1) * usize;
+			void* buf = papuga_Allocator_alloc( allocator, bufsize, usize);
+			papuga_ValueVariant strval;
+			papuga_init_ValueVariant_string( &strval, rtbuf.c_str(), rtbuf.size());
+			rt = (const char*)papuga_ValueVariant_tostring_enc( &strval, enc, buf, bufsize, length, errcode);
+		}
+		if (!rt && *errcode == papuga_Ok)
 		{
 			*errcode = papuga_NoMemError;
 		}
