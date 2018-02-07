@@ -42,18 +42,8 @@ bool papuga_getStringEncodingFromName( papuga_StringEncoding* encoding, const ch
 
 const char* papuga_stringEncodingName( papuga_StringEncoding encoding)
 {
-	switch (encoding)
-	{
-		case papuga_UTF8: return "UTF-8";
-		case papuga_UTF16BE: return "UTF-16BE";
-		case papuga_UTF16LE: return "UTF-16LE";
-		case papuga_UTF16: return "UTF-16";
-		case papuga_UTF32BE: return "UTF-32BE";
-		case papuga_UTF32LE: return "UTF-32LE";
-		case papuga_UTF32: return "UTF-32";
-		case papuga_Binary: return "Binary";
-	}
-	return 0;
+	static const char* ar[] = {"UTF-8","UTF-16BE","UTF-16LE","UTF-16","UTF-32BE","UTF-32LE","UTF-32","Binary",0};
+	return ar[ encoding];
 }
 
 
