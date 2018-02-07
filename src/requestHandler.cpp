@@ -54,6 +54,11 @@ static const TYPE* find_list( const TYPE* lst, const char* TYPE::*member, const 
 	for (; ll && 0!=std::strcmp( ll->*member, name); ll = ll->next){}
 	return ll;
 }
+template <typename TYPE, typename MEMBERTYPE>
+static void foreach_list( TYPE* lst, MEMBERTYPE TYPE::*member, void (*action)( MEMBERTYPE* self))
+{
+	for (; lst; lst = lst->next) (*action)( &(lst->*member));
+}
 
 struct RequestContextList
 {
@@ -243,6 +248,7 @@ extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLo
 
 extern "C" void papuga_destroy_RequestHandler( papuga_RequestHandler* self)
 {
+	foreach_list( self->contexts, &RequestContextList::context, &papuga_destroy_RequestContext);
 	papuga_destroy_Allocator( &self->allocator);
 	std::free( self);
 }
@@ -398,7 +404,7 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 		}
 		else
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error calling the method %s->%s::%s: %s"), call->selfvarname, classname, methodname, msg);
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error for object '%s': %s"), call->selfvarname, msg);
 		}
 	}
 	else
@@ -409,7 +415,7 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 		}
 		else
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error calling the constructor of %s: %s"), classname, msg);
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error creating '%s': %s"), call->resultvarname, msg);
 		}
 	}
 }
