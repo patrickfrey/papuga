@@ -37,6 +37,12 @@ const char* papuga_ContentType_name( papuga_ContentType type)
 	return ar[ (int)type];
 }
 
+const char* papuga_ContentType_mime( papuga_ContentType type)
+{
+	static const char* ar[] = {"application/octet-stream","application/xml","application/json"};
+	return ar[ (int)type];
+}
+
 const char* papuga_requestElementTypeName( papuga_RequestElementType tp)
 {
 	static const char* ar[] = {"None","Open","Close","AttibuteName","AttibuteValue","Value",0};

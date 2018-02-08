@@ -27,6 +27,13 @@ typedef enum {
 } papuga_ContentType;
 
 /*
+ * @brief Get the content type name as used for MIME
+ * @param[in] type the content type id
+ * @return content type name string
+ */
+const char* papuga_ContentType_mime( papuga_ContentType type);
+
+/*
  * @brief Get the content type as string
  * @param[in] type the content type id
  * @return content type name string
