@@ -31,7 +31,7 @@
 #include <algorithm>
 #include <limits>
 
-#define PAPUGA_LOWLEVEL_DEBUG
+#undef PAPUGA_LOWLEVEL_DEBUG
 
 using namespace papuga;
 
@@ -137,11 +137,13 @@ struct CallDef
 typedef int AtmRef;
 enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall};
 enum {MaxAtmRefType=MethodCall};
-const char* atmRefTypeName( AtmRefType t)
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+static const char* atmRefTypeName( AtmRefType t)
 {
 	const char* ar[ MaxAtmRefType+1] = {"InstantiateValue","CollectValue","CloseStruct","MethodCall"};
 	return ar[t];
 }
+#endif
 static AtmRef AtmRef_get( AtmRefType type, int idx)	{return (AtmRef)(((int)type<<28) | (idx+1));}
 static AtmRefType AtmRef_type( AtmRef atmref)		{return (AtmRefType)((atmref>>28) & 0x7);}
 static int AtmRef_index( AtmRef atmref)			{return ((int)atmref & 0x0fFFffFF)-1;}

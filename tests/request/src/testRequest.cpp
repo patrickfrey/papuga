@@ -19,7 +19,7 @@
 #include <stdexcept>
 #include <algorithm>
 
-#define PAPUGA_LOWLEVEL_DEBUG
+#undef PAPUGA_LOWLEVEL_DEBUG
 
 std::string g_call_dump;
 

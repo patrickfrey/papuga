@@ -21,7 +21,7 @@
 #include <iostream>
 #include <sstream>
 
-#define PAPUGA_LOWLEVEL_DEBUG
+#undef PAPUGA_LOWLEVEL_DEBUG
 
 struct LoggerContext
 {
