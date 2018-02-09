@@ -422,7 +422,7 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 
 extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_ErrorBuffer* errorbuf, int* errorpos)
 {
-	char membuf_err[ 256];
+	char membuf_err[ 1024];
 	papuga_ErrorBuffer errorbuf_call;
 
 	const papuga_ClassDef* classdefs = papuga_Request_classdefs( request);
