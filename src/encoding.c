@@ -29,14 +29,14 @@ bool papuga_getStringEncodingFromName( papuga_StringEncoding* encoding, const ch
 	}
 	if (*ni) return false;
 	buf[ bi] = 0;
-	if (0==strcmp( buf, "utf8")) *encoding = papuga_UTF8; return true;
-	if (0==strcmp( buf, "utf16be")) *encoding = papuga_UTF16BE; return true;
-	if (0==strcmp( buf, "utf16le")) *encoding = papuga_UTF16LE; return true;
-	if (0==strcmp( buf, "utf16")) *encoding = papuga_UTF16; return true;
-	if (0==strcmp( buf, "utf32be")) *encoding = papuga_UTF32BE; return true;
-	if (0==strcmp( buf, "utf32le")) *encoding = papuga_UTF32LE; return true;
-	if (0==strcmp( buf, "utf32")) *encoding = papuga_UTF32; return true;
-	if (0==strcmp( buf, "binary")) *encoding = papuga_Binary; return true;
+	if (0==strcmp( buf, "utf8")) {*encoding = papuga_UTF8; return true;}
+	if (0==strcmp( buf, "utf16be")) {*encoding = papuga_UTF16BE; return true;}
+	if (0==strcmp( buf, "utf16le")) {*encoding = papuga_UTF16LE; return true;}
+	if (0==strcmp( buf, "utf16")) {*encoding = papuga_UTF16; return true;}
+	if (0==strcmp( buf, "utf32be")) {*encoding = papuga_UTF32BE; return true;}
+	if (0==strcmp( buf, "utf32le")) {*encoding = papuga_UTF32LE; return true;}
+	if (0==strcmp( buf, "utf32")) {*encoding = papuga_UTF32; return true;}
+	if (0==strcmp( buf, "binary")) {*encoding = papuga_Binary; return true;}
 	return false;
 }
 
