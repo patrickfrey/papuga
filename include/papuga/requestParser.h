@@ -22,14 +22,14 @@ extern "C" {
  */
 typedef enum {
 	papuga_ContentType_Unknown,						/*< Content type is not known */
-	papuga_ContentType_XML,							/*< Content  type is XML*/
-	papuga_ContentType_JSON							/*< Content  type is JSON */
+	papuga_ContentType_XML,							/*< Content type is XML*/
+	papuga_ContentType_JSON							/*< Content type is JSON */
 } papuga_ContentType;
 
 /*
  * @brief Get the content type name as used for MIME
  * @param[in] type the content type id
- * @return content type name string
+ * @return content type MIME name string
  */
 const char* papuga_ContentType_mime( papuga_ContentType type);
 
