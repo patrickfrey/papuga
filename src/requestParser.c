@@ -21,7 +21,7 @@ papuga_ContentType papuga_contentTypeFromName( const char* name)
 	{
 		return papuga_ContentType_XML;
 	}
-	else if (NULL==strstr( name, "json") || NULL==strstr( name, "JSON"))
+	else if (NULL!=strstr( name, "json") || NULL!=strstr( name, "JSON"))
 	{
 		return papuga_ContentType_JSON;
 	}
