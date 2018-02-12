@@ -55,7 +55,7 @@ configure_file( "${PROJECT_SOURCE_DIR}/include/papuga/languages.h.in"      "${CM
 enable_testing()
 
 # Path declarations:
-set( FMT_INCLUDE_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/fmt" )
+set( FMT_INCLUDE_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/fmt_4_1" )
 set( FMT_LIBRARY_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/fmt_build" )
 set( LUA_INCLUDE_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/lua" )
 set( LUA_LIBRARY_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/lua_cmake" )

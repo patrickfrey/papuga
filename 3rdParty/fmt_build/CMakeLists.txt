@@ -4,10 +4,10 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # SOURCES AND INCLUDES
 # --------------------------------------
 set( fmt_source_files
-	../fmt/fmt/format.cc
-	../fmt/fmt/ostream.cc
-	../fmt/fmt/posix.cc
-	../fmt/fmt/printf.cc
+	../fmt_4_1/fmt/format.cc
+	../fmt_4_1/fmt/ostream.cc
+	../fmt_4_1/fmt/posix.cc
+	../fmt_4_1/fmt/printf.cc
 )
 
 include_directories(
