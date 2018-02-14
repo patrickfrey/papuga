@@ -76,9 +76,10 @@ struct papuga_RequestAcl
 struct RequestSchemaList
 {
 	struct RequestSchemaList* next;
-	const char* name;				/*< name of the context to address it as parent of a new context */
+	const char* type;				/*< type name of the context this schema is valid for */
+	const char* name;				/*< name of the schema */
 	papuga_RequestAcl* acl;				/*< access control list */
-	const papuga_RequestAutomaton* automaton;	/*< automaton */
+	const papuga_RequestAutomaton* automaton;	/*< automaton of the schema */
 };
 
 struct papuga_RequestHandler
@@ -136,7 +137,7 @@ extern "C" void papuga_init_RequestContext( papuga_RequestContext* self, papuga_
 	self->variables = NULL;
 	self->acl = NULL;
 	self->logger = logger;
-	self->schemaprefix = 0;
+	self->type = 0;
 }
 
 extern "C" void papuga_destroy_RequestContext( papuga_RequestContext* self)
@@ -229,10 +230,10 @@ extern "C" bool papuga_RequestContext_allow_access_all( papuga_RequestContext* s
 	return (!!self->acl);
 }
 
-extern "C" bool papuga_RequestContext_set_schemaprefix( papuga_RequestContext* self, const char* prefixname)
+extern "C" bool papuga_RequestContext_set_type( papuga_RequestContext* self, const char* type)
 {
-	self->schemaprefix = papuga_Allocator_copy_charp( &self->allocator, prefixname);
-	return (!!self->schemaprefix);
+	self->type = papuga_Allocator_copy_charp( &self->allocator, type);
+	return (!!self->type);
 }
 
 extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger)
@@ -261,11 +262,11 @@ extern "C" bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, 
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
 	listitem->context.acl = copyRequestAcl( &listitem->context.allocator, ctx->acl);
 	listitem->context.variables = copyRequestVariables( &listitem->context.allocator, ctx->variables, true, errcode);
-	listitem->context.schemaprefix = ctx->schemaprefix ? papuga_Allocator_copy_charp( &self->allocator, ctx->schemaprefix) : NULL;
+	listitem->context.type = ctx->type ? papuga_Allocator_copy_charp( &self->allocator, ctx->type) : NULL;
 	if (!listitem->name
 		|| (!listitem->context.acl && ctx->acl)
 		|| (!listitem->context.variables && ctx->variables)
-		|| (!listitem->context.schemaprefix && ctx->schemaprefix)) goto ERROR;
+		|| (!listitem->context.type && ctx->type)) goto ERROR;
 	self->contexts = add_list( self->contexts, listitem);
 	return true;
 ERROR:
@@ -315,25 +316,32 @@ ERROR:
 	return false;
 }
 
-extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* name, const papuga_RequestAutomaton* automaton)
+extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton)
 {
 	RequestSchemaList* listitem = alloc_type<RequestSchemaList>( &self->allocator);
 	if (!listitem) return false;
+	listitem->type = papuga_Allocator_copy_charp( &self->allocator, type);
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
-	if (!listitem->name) return false;
+	if (!listitem->type || !listitem->name) return false;
 	listitem->automaton = automaton;
 	self->schemas = add_list( self->schemas, listitem);
 	return true;
 }
 
-bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* name)
+static RequestSchemaList* find_schema( RequestSchemaList* ll, const char* type, const char* name)
 {
-	return !!find_list( self->schemas, &RequestSchemaList::name, name);
+	for (; ll && (0!=std::strcmp( ll->name, name) || 0!=std::strcmp( ll->type, type)); ll = ll->next){}
+	return ll;
 }
 
-extern "C" bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
+bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* type, const char* name)
 {
-	RequestSchemaList* sl = find_list( self->schemas, &RequestSchemaList::name, name);
+	return !!find_schema( self->schemas, type, name);
+}
+
+extern "C" bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, const char* type, const char* name, const char* role, papuga_ErrorCode* errcode)
+{
+	RequestSchemaList* sl = find_schema( self->schemas, type, name);
 	if (!sl)
 	{
 		*errcode = papuga_AddressedItemNotFound;
@@ -348,9 +356,9 @@ extern "C" bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler
 	return true;
 }
 
-extern "C" bool papuga_RequestHandler_allow_schema_access_all( papuga_RequestHandler* self, const char* name, papuga_ErrorCode* errcode)
+extern "C" bool papuga_RequestHandler_allow_schema_access_all( papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode)
 {
-	return papuga_RequestHandler_allow_schema_access( self, name, "*", errcode);
+	return papuga_RequestHandler_allow_schema_access( self, type, name, "*", errcode);
 }
 
 extern "C" bool papuga_RequestHandler_allow_context_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
@@ -375,9 +383,9 @@ extern "C" bool papuga_RequestHandler_allow_context_access_all( papuga_RequestHa
 	return papuga_RequestHandler_allow_context_access( self, name, "*", errcode);
 }
 
-extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
+extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* type, const char* name, const char* role, papuga_ErrorCode* errcode)
 {
-	const RequestSchemaList* sl = find_list( self->schemas, &RequestSchemaList::name, name);
+	const RequestSchemaList* sl = find_schema( self->schemas, type, name);
 	if (!sl)
 	{
 		*errcode = papuga_AddressedItemNotFound;
