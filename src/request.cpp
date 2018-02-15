@@ -1164,15 +1164,24 @@ public:
 
 	class Iterator
 	{
+	private:
+		Iterator( const Iterator&){}		//... non copyable
+		void operator=( const Iterator&){}	//... non copyable
 	public:
 		explicit Iterator( papuga_ErrorCode errcode_)
-			:m_ctx(0),m_resolvers(),m_curr_methodidx(0),m_errcode(errcode_)
+			:m_ctx(0)
+			,m_resolvers()
+			,m_curr_methodidx(0)
+			,m_errcode(errcode_)
 		{
 			papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
 			papuga_init_RequestMethodCall( &m_curr_methodcall);
 		}
 		explicit Iterator( const AutomatonContext* ctx_)
-			:m_ctx(ctx_),m_resolvers(ctx_->scopeobjmap().size(),ScopeObjItr()),m_curr_methodidx(0),m_errcode(papuga_Ok)
+			:m_ctx(ctx_)
+			,m_resolvers(ctx_->scopeobjmap().size(),ScopeObjItr())
+			,m_curr_methodidx(0)
+			,m_errcode(papuga_Ok)
 		{
 			papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
 			papuga_init_RequestMethodCall( &m_curr_methodcall);

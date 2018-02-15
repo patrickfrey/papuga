@@ -601,6 +601,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		papuga_destroy_RequestIterator( itr);
 		return false;
 	}
+	papuga_destroy_RequestIterator( itr);
 	return true;
 }
 
