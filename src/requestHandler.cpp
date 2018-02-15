@@ -301,7 +301,8 @@ extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, c
 		papuga_init_RequestContext( self, handler->logger);
 		self->acl = copyRequestAcl( &self->allocator, cl->context.acl);
 		self->variables = copyRequestVariables( &self->allocator, cl->context.variables, false, errcode);
-		if (!self->variables || !self->acl) goto ERROR;
+		self->type = papuga_Allocator_copy_charp( &self->allocator, cl->context.type);
+		if (!self->variables || !self->acl || !self->type) goto ERROR;
 	}
 	else
 	{
