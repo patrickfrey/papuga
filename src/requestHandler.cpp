@@ -137,7 +137,7 @@ extern "C" void papuga_init_RequestContext( papuga_RequestContext* self, papuga_
 	self->variables = NULL;
 	self->acl = NULL;
 	self->logger = logger;
-	self->type = 0;
+	self->type = "";
 }
 
 extern "C" void papuga_destroy_RequestContext( papuga_RequestContext* self)
@@ -385,7 +385,7 @@ extern "C" bool papuga_RequestHandler_allow_context_access_all( papuga_RequestHa
 
 extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* type, const char* name, const char* role, papuga_ErrorCode* errcode)
 {
-	const RequestSchemaList* sl = find_schema( self->schemas, type, name);
+	const RequestSchemaList* sl = find_schema( self->schemas, type?type:"", name);
 	if (!sl)
 	{
 		*errcode = papuga_AddressedItemNotFound;
