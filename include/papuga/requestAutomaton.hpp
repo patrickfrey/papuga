@@ -182,6 +182,8 @@ struct RequestAutomaton_Node
 		RequestAutomaton_ValueDef* valuedef;
 	} value;
 
+	///\brief Destructor
+	~RequestAutomaton_Node();
 	///\brief Default contructor
 	RequestAutomaton_Node();
 	///\brief Contructor as RequestAutomaton_GroupDef

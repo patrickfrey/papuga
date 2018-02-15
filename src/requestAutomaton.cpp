@@ -110,36 +110,51 @@ void RequestAutomaton_GroupDef::addToAutomaton( papuga_RequestAutomaton* atm) co
 }
 
 #if __cplusplus >= 201103L
+RequestAutomaton_Node::~RequestAutomaton_Node()
+{
+	switch (type)
+	{
+		case Empty:
+			break;
+		case Function:
+			delete value.functiondef;
+			break;
+		case Struct:
+			delete value.structdef;
+			break;
+		case Value:
+			delete value.valuedef;
+			break;
+		case Group:
+			delete value.groupdef;
+			break;
+	}
+}
 RequestAutomaton_Node::RequestAutomaton_Node()
 	:type(Empty)
 {
 	value.functiondef = 0;
 }
-
 RequestAutomaton_Node::RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_FunctionDef>& nodes)
 	:type(Group)
 {
 	value.groupdef = new RequestAutomaton_GroupDef( std::vector<RequestAutomaton_FunctionDef>( nodes.begin(), nodes.end()));
 }
-
 RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args)
 	:type(Function)
 {
 	value.functiondef = new RequestAutomaton_FunctionDef( expression, resultvar, selfvar, methodid, std::vector<RequestAutomaton_FunctionDef::Arg>( args.begin(), args.end()));
 }
-
 RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, int itemid, const std::initializer_list<RequestAutomaton_StructDef::Element>& elems)
 	:type(Struct)
 {
 	value.structdef = new RequestAutomaton_StructDef( expression, itemid, std::vector<RequestAutomaton_StructDef::Element>( elems.begin(), elems.end()));
 }
-
 RequestAutomaton_Node::RequestAutomaton_Node( const char* scope_expression, const char* select_expression, int itemid)
 	:type(Value)
 {
 	value.valuedef = new RequestAutomaton_ValueDef( scope_expression, select_expression, itemid);
 }
-
 RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_Node& o)
 	:type(o.type)
 {
