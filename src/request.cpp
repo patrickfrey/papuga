@@ -2139,6 +2139,11 @@ extern "C" papuga_RequestIterator* papuga_create_RequestIterator( papuga_Allocat
 	}
 }
 
+extern "C" void papuga_destroy_RequestIterator( papuga_RequestIterator* self)
+{
+	self->itr.~Iterator();
+}
+
 extern "C" const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestVariable* varlist)
 {
 	return self->itr.next( varlist);

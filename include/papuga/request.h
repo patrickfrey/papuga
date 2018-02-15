@@ -296,6 +296,12 @@ typedef struct papuga_RequestIterator papuga_RequestIterator;
 papuga_RequestIterator* papuga_create_RequestIterator( papuga_Allocator* allocator, const papuga_Request* request);
 
 /*
+ * @brief Destructor of an iterator on the method calls of a closed request
+ * @param[in] self request iterator to destroy
+ */
+void papuga_destroy_RequestIterator( papuga_RequestIterator* self);
+
+/*
  * @brief Get the next method call of a request
  * @param[in] self request iterator to get the next method call from
  * @param[in] varlist pointer to current list of variables

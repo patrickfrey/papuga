@@ -455,6 +455,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			{
 				reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &errorbuf_call));
 				*errorpos = call->eventcnt;
+				papuga_destroy_RequestIterator( itr);
 				return false;
 			}
 			papuga_HostObject* hobj = papuga_Allocator_alloc_HostObject( &context->allocator, call->methodid.classid, self, classdefs[ call->methodid.classid-1].destructor);
@@ -475,6 +476,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				{
 					reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_NoMemError));
 					*errorpos = call->eventcnt;
+					papuga_destroy_RequestIterator( itr);
 					return false;
 				}
 			}
@@ -496,12 +498,14 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			{
 				reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_MissingSelf));
 				*errorpos = call->eventcnt;
+				papuga_destroy_RequestIterator( itr);
 				return false;
 			}
 			if (var->value.valuetype != papuga_TypeHostObject || var->value.value.hostObject->classid != call->methodid.classid)
 			{
 				reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_TypeError));
 				*errorpos = call->eventcnt;
+				papuga_destroy_RequestIterator( itr);
 				return false;
 			}
 			// [2] Call the method and report an error on failure:
@@ -512,6 +516,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			{
 				reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &retval.errorbuf));
 				*errorpos = call->eventcnt;
+				papuga_destroy_RequestIterator( itr);
 				return false;
 			}
 			// [3] Fetch the result(s) if required (stored as variable):
@@ -546,6 +551,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					{
 						reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_NoMemError));
 						*errorpos = call->eventcnt;
+						papuga_destroy_RequestIterator( itr);
 						return false;
 					}
 					papuga_init_ValueVariant_serialization( &result, ser);
@@ -564,6 +570,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					{
 						reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_NoMemError));
 						*errorpos = call->eventcnt;
+						papuga_destroy_RequestIterator( itr);
 						return false;
 					}
 				}
@@ -591,6 +598,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 	{
 		reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( errcode));
 		*errorpos = call->eventcnt;
+		papuga_destroy_RequestIterator( itr);
 		return false;
 	}
 	return true;
