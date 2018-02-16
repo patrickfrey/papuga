@@ -311,6 +311,26 @@ extern "C" const char** papuga_RequestHandler_list_contexts( const papuga_Reques
 	return buf;
 }
 
+extern "C" const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, const char* role, char const** buf, size_t bufsize)
+{
+	size_t bufpos = 0;
+	RequestContextList const* cl = self->contexts;
+	for (; cl; cl = cl->next)
+	{
+		if (!role || all_allowed( cl->context.acl) || find_list( cl->context.acl, &papuga_RequestAcl::allowed_role, role))
+		{
+			size_t bi = 0;
+			for (; bi < bufpos && !!std::strcmp(buf[bi],cl->context.type); ++bi){}
+			if (bi < bufpos) continue;
+			if (bufpos >= bufsize) return NULL;
+			buf[ bufpos++] = cl->context.type;
+		}
+	}
+	if (bufpos >= bufsize) return NULL;
+	buf[ bufpos] = NULL;
+	return buf;
+}
+
 extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* parent, const char* role, papuga_ErrorCode* errcode)
 {
 	RequestContextList* cl;

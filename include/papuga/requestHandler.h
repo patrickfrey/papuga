@@ -150,6 +150,16 @@ bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char*
 const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* self, const char* type, const char* role, char const** buf, size_t bufsize);
 
 /*
+* @brief List the names of context types visible for a certain role
+* @param[in] self this pointer to the request handler
+* @param[in] role role identifier for filtering out contexts that are not allowed to see
+* @param[in] buf buffer to use for result
+* @param[in] bufsize size of buffer to use for result
+* @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
+*/
+const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, const char* role, char const** buf, size_t bufsize);
+
+/*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials
  * @param[out] self this pointer to the request context initialized
  * @param[in] handler request handler to get the parent context from
