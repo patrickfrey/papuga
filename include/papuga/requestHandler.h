@@ -84,6 +84,15 @@ bool papuga_RequestContext_add_variable( papuga_RequestContext* self, const char
 const papuga_ValueVariant* papuga_RequestContext_get_variable( papuga_RequestContext* self, const char* name);
 
 /*
+* @brief List the names of variables defined in a context
+* @param[in] self this pointer to the context
+* @param[in] buf buffer to use for result
+* @param[in] bufsize size of buffer to use for result
+* @return NULL terminated array of variable names or NULL if the buffer buf is too small for the result
+*/
+const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, char const** buf, size_t bufsize);
+
+/*
  * @brief Allow access to this context by a role
  * @param[in] self this pointer to the object to add the role for access to
  * @param[in] role name of role to grant access to this
@@ -128,6 +137,17 @@ void papuga_destroy_RequestHandler( papuga_RequestHandler* self);
  * @return true on success, false on failure
  */
 bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode);
+
+/*
+* @brief List the names of contexts of a given type visible for a certain role
+* @param[in] self this pointer to the request handler
+* @param[in] type type name of the contexts to filter or NULL if all selected
+* @param[in] role role identifier for filtering out contexts that are not allowed to see
+* @param[in] buf buffer to use for result
+* @param[in] bufsize size of buffer to use for result
+* @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
+*/
+const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* self, const char* type, const char* role, char const** buf, size_t bufsize);
 
 /*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials

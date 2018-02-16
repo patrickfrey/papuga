@@ -218,6 +218,20 @@ const papuga_ValueVariant* papuga_RequestContext_get_variable( papuga_RequestCon
 	
 }
 
+extern "C" const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, char const** buf, size_t bufsize)
+{
+	size_t bufpos = 0;
+	papuga_RequestVariable const* vl = self->variables;
+	for (; vl; vl = vl->next)
+	{
+		if (bufpos >= bufsize) return NULL;
+		buf[ bufpos++] = vl->name;
+	}
+	if (bufpos >= bufsize) return NULL;
+	buf[ bufpos] = NULL;
+	return buf;
+}
+
 extern "C" bool papuga_RequestContext_allow_access( papuga_RequestContext* self, const char* role)
 {
 	self->acl = addRequestAcl( &self->allocator, self->acl, role);
@@ -275,6 +289,26 @@ ERROR:
 		*errcode = papuga_NoMemError;
 	}
 	return false;
+}
+
+extern "C" const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* self, const char* type, const char* role, char const** buf, size_t bufsize)
+{
+	size_t bufpos = 0;
+	RequestContextList const* cl = self->contexts;
+	for (; cl; cl = cl->next)
+	{
+		if (!type || 0==std::strcmp(type, cl->context.type))
+		{
+			if (!role || all_allowed( cl->context.acl) || find_list( cl->context.acl, &papuga_RequestAcl::allowed_role, role))
+			{
+				if (bufpos >= bufsize) return NULL;
+				buf[ bufpos++] = cl->name;
+			}
+		}
+	}
+	if (bufpos >= bufsize) return NULL;
+	buf[ bufpos] = NULL;
+	return buf;
 }
 
 extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* parent, const char* role, papuga_ErrorCode* errcode)
