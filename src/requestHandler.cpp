@@ -67,18 +67,11 @@ struct RequestContextList
 	papuga_RequestContext context;
 };
 
-struct papuga_RequestAcl
-{
-	struct papuga_RequestAcl* next;			/*< next role allowed */
-	const char* allowed_role;			/*< role allowed for accessing this item '*' for all */
-};
-
 struct RequestSchemaList
 {
 	struct RequestSchemaList* next;
 	const char* type;				/*< type name of the context this schema is valid for */
 	const char* name;				/*< name of the schema */
-	papuga_RequestAcl* acl;				/*< access control list */
 	const papuga_RequestAutomaton* automaton;	/*< automaton of the schema */
 };
 
@@ -91,51 +84,11 @@ struct papuga_RequestHandler
 	char allocator_membuf[ 1<<14];
 };
 
-static bool all_allowed( papuga_RequestAcl* acl)
-{
-	return (acl && acl->allowed_role[0] == '*' && !acl->allowed_role[1]);
-}
-
-static papuga_RequestAcl* addRequestAcl( papuga_Allocator* allocator, papuga_RequestAcl* acl, const char* role)
-{
-	papuga_RequestAcl* aclitem = alloc_type<papuga_RequestAcl>( allocator);
-	if (!aclitem) return NULL;
-	aclitem->allowed_role = papuga_Allocator_copy_charp( allocator, role);
-	if (!aclitem->allowed_role) return NULL;
-	if (role[0] == '*' && !role[1])
-	{
-		return aclitem;
-	}
-	else
-	{
-		return add_list( acl, aclitem);
-	}
-}
-
-static papuga_RequestAcl* copyRequestAcl( papuga_Allocator* allocator, const papuga_RequestAcl* acl)
-{
-	papuga_RequestAcl root;
-	root.next = 0;
-	papuga_RequestAcl* cur = &root;
-	papuga_RequestAcl const* al = acl;
-	for (; al != 0; al = al->next)
-	{
-		cur->next = alloc_type<papuga_RequestAcl>( allocator);
-		cur = cur->next;
-		if (!cur) return NULL;
-		cur->allowed_role = papuga_Allocator_copy_charp( allocator, al->allowed_role);
-		cur->next = 0;
-		if (!cur->allowed_role) return NULL;
-	}
-	return root.next;
-}
-
 extern "C" void papuga_init_RequestContext( papuga_RequestContext* self, papuga_RequestLogger* logger)
 {
 	papuga_init_Allocator( &self->allocator, self->allocator_membuf, sizeof( self->allocator_membuf));
 	self->errcode = papuga_Ok;
 	self->variables = NULL;
-	self->acl = NULL;
 	self->logger = logger;
 	self->type = "";
 }
@@ -232,18 +185,6 @@ extern "C" const char** papuga_RequestContext_list_variables( const papuga_Reque
 	return buf;
 }
 
-extern "C" bool papuga_RequestContext_allow_access( papuga_RequestContext* self, const char* role)
-{
-	self->acl = addRequestAcl( &self->allocator, self->acl, role);
-	return (!!self->acl);
-}
-
-extern "C" bool papuga_RequestContext_allow_access_all( papuga_RequestContext* self)
-{
-	self->acl = addRequestAcl( &self->allocator, self->acl, "*");
-	return (!!self->acl);
-}
-
 extern "C" bool papuga_RequestContext_set_type( papuga_RequestContext* self, const char* type)
 {
 	self->type = papuga_Allocator_copy_charp( &self->allocator, type);
@@ -274,11 +215,9 @@ extern "C" bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, 
 	if (!listitem) goto ERROR;
 	papuga_init_RequestContext( &listitem->context, self->logger);
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
-	listitem->context.acl = copyRequestAcl( &listitem->context.allocator, ctx->acl);
 	listitem->context.variables = copyRequestVariables( &listitem->context.allocator, ctx->variables, true, errcode);
 	listitem->context.type = ctx->type ? papuga_Allocator_copy_charp( &self->allocator, ctx->type) : NULL;
 	if (!listitem->name
-		|| (!listitem->context.acl && ctx->acl)
 		|| (!listitem->context.variables && ctx->variables)
 		|| (!listitem->context.type && ctx->type)) goto ERROR;
 	self->contexts = add_list( self->contexts, listitem);
@@ -291,7 +230,7 @@ ERROR:
 	return false;
 }
 
-extern "C" const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* self, const char* type, const char* role, char const** buf, size_t bufsize)
+extern "C" const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize)
 {
 	size_t bufpos = 0;
 	RequestContextList const* cl = self->contexts;
@@ -299,11 +238,8 @@ extern "C" const char** papuga_RequestHandler_list_contexts( const papuga_Reques
 	{
 		if (!type || 0==std::strcmp(type, cl->context.type))
 		{
-			if (!role || all_allowed( cl->context.acl) || find_list( cl->context.acl, &papuga_RequestAcl::allowed_role, role))
-			{
-				if (bufpos >= bufsize) return NULL;
-				buf[ bufpos++] = cl->name;
-			}
+			if (bufpos >= bufsize) return NULL;
+			buf[ bufpos++] = cl->name;
 		}
 	}
 	if (bufpos >= bufsize) return NULL;
@@ -311,34 +247,26 @@ extern "C" const char** papuga_RequestHandler_list_contexts( const papuga_Reques
 	return buf;
 }
 
-extern "C" const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, const char* role, char const** buf, size_t bufsize)
+extern "C" const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, char const** buf, size_t bufsize)
 {
 	size_t bufpos = 0;
 	RequestContextList const* cl = self->contexts;
 	for (; cl; cl = cl->next)
 	{
-		if (!role || all_allowed( cl->context.acl) || find_list( cl->context.acl, &papuga_RequestAcl::allowed_role, role))
-		{
-			size_t bi = 0;
-			for (; bi < bufpos && !!std::strcmp(buf[bi],cl->context.type); ++bi){}
-			if (bi < bufpos) continue;
-			if (bufpos >= bufsize) return NULL;
-			buf[ bufpos++] = cl->context.type;
-		}
+		size_t bi = 0;
+		for (; bi < bufpos && !!std::strcmp(buf[bi],cl->context.type); ++bi){}
+		if (bi < bufpos) continue;
+		if (bufpos >= bufsize) return NULL;
+		buf[ bufpos++] = cl->context.type;
 	}
 	if (bufpos >= bufsize) return NULL;
 	buf[ bufpos] = NULL;
 	return buf;
 }
 
-extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* parent, const char* role, papuga_ErrorCode* errcode)
+extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* parent, papuga_ErrorCode* errcode)
 {
 	RequestContextList* cl;
-	if (!role)
-	{
-		*errcode = papuga_ValueUndefined;
-		goto ERROR;
-	}
 	if (parent)
 	{
 		cl = find_list( handler->contexts, &RequestContextList::name, parent);
@@ -347,16 +275,10 @@ extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, c
 			*errcode = papuga_AddressedItemNotFound;
 			goto ERROR;
 		}
-		if (!all_allowed( cl->context.acl) && !find_list( cl->context.acl, &papuga_RequestAcl::allowed_role, role))
-		{
-			*errcode = papuga_NotAllowed;
-			goto ERROR;
-		}
 		papuga_init_RequestContext( self, handler->logger);
-		self->acl = copyRequestAcl( &self->allocator, cl->context.acl);
 		self->variables = copyRequestVariables( &self->allocator, cl->context.variables, false, errcode);
 		self->type = papuga_Allocator_copy_charp( &self->allocator, cl->context.type);
-		if (!self->variables || !self->acl || !self->type) goto ERROR;
+		if (!self->variables || !self->type) goto ERROR;
 	}
 	else
 	{
@@ -394,61 +316,12 @@ bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* 
 	return !!find_schema( self->schemas, type, name);
 }
 
-extern "C" bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, const char* type, const char* name, const char* role, papuga_ErrorCode* errcode)
-{
-	RequestSchemaList* sl = find_schema( self->schemas, type, name);
-	if (!sl)
-	{
-		*errcode = papuga_AddressedItemNotFound;
-		return false;
-	}
-	sl->acl = addRequestAcl( &self->allocator, sl->acl, role);
-	if (!sl->acl)
-	{
-		*errcode = papuga_NoMemError;
-		return false;
-	}
-	return true;
-}
-
-extern "C" bool papuga_RequestHandler_allow_schema_access_all( papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode)
-{
-	return papuga_RequestHandler_allow_schema_access( self, type, name, "*", errcode);
-}
-
-extern "C" bool papuga_RequestHandler_allow_context_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode)
-{
-	RequestContextList* cl = find_list( self->contexts, &RequestContextList::name, name);
-	if (!cl)
-	{
-		*errcode = papuga_AddressedItemNotFound;
-		return false;
-	}
-	cl->context.acl = addRequestAcl( &self->allocator, cl->context.acl, role);
-	if (!cl->context.acl)
-	{
-		*errcode = papuga_NoMemError;
-		return false;
-	}
-	return true;
-}
-
-extern "C" bool papuga_RequestHandler_allow_context_access_all( papuga_RequestHandler* self, const char* name, papuga_ErrorCode* errcode)
-{
-	return papuga_RequestHandler_allow_context_access( self, name, "*", errcode);
-}
-
-extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* type, const char* name, const char* role, papuga_ErrorCode* errcode)
+extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode)
 {
 	const RequestSchemaList* sl = find_schema( self->schemas, type?type:"", name);
 	if (!sl)
 	{
 		*errcode = papuga_AddressedItemNotFound;
-		return NULL;
-	}
-	if (!all_allowed( sl->acl) && !find_list( sl->acl, &papuga_RequestAcl::allowed_role, role))
-	{
-		*errcode = papuga_NotAllowed;
 		return NULL;
 	}
 	return sl->automaton;

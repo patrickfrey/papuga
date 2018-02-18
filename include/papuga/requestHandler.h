@@ -28,11 +28,6 @@ typedef struct papuga_RequestHandler papuga_RequestHandler;
 typedef void (*papuga_LoggerProcedure)( int nofItems, ...);
 
 /*
- * @brief Access control list
- */
-typedef struct papuga_RequestAcl papuga_RequestAcl;
-
-/*
  * @brief Defines the context of a request
  */
 typedef struct papuga_RequestContext
@@ -40,7 +35,6 @@ typedef struct papuga_RequestContext
 	papuga_ErrorCode errcode;			/*< last error in the request context */
 	papuga_Allocator allocator;			/*< allocator for this context */
 	papuga_RequestVariable* variables;		/*< variables defined in the context */
-	papuga_RequestAcl* acl;				/*< access control list */
 	papuga_RequestLogger* logger;			/*< logger to use */
 	const char* type;				/*< type identifier of this context used for schema selection papuga_RequestHandler_get_schema */
 	char allocator_membuf[ 1<<14];			/*< initial memory buffer for the allocator */
@@ -93,21 +87,6 @@ const papuga_ValueVariant* papuga_RequestContext_get_variable( papuga_RequestCon
 const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, char const** buf, size_t bufsize);
 
 /*
- * @brief Allow access to this context by a role
- * @param[in] self this pointer to the object to add the role for access to
- * @param[in] role name of role to grant access to this
- * @return true on success, false on failure
- */
-bool papuga_RequestContext_allow_access( papuga_RequestContext* self, const char* role);
-
-/*
- * @brief Allow access to this context for all (no restriction)
- * @param[in] self this pointer to the object to add for access to all
- * @return true on success, false on failure
- */
-bool papuga_RequestContext_allow_access_all( papuga_RequestContext* self);
-
-/*
  * @brief Define the type of this context used for schema selection
  * @param[in] self this pointer to the object to define the schema prefix for
  * @return true on success, false on memory allocation error
@@ -139,37 +118,34 @@ void papuga_destroy_RequestHandler( papuga_RequestHandler* self);
 bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode);
 
 /*
-* @brief List the names of contexts of a given type visible for a certain role
+* @brief List the names of contexts of a given type
 * @param[in] self this pointer to the request handler
 * @param[in] type type name of the contexts to filter or NULL if all selected
-* @param[in] role role identifier for filtering out contexts that are not allowed to see
 * @param[in] buf buffer to use for result
 * @param[in] bufsize size of buffer to use for result
 * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
 */
-const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* self, const char* type, const char* role, char const** buf, size_t bufsize);
+const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize);
 
 /*
-* @brief List the names of context types visible for a certain role
+* @brief List the names of context types
 * @param[in] self this pointer to the request handler
-* @param[in] role role identifier for filtering out contexts that are not allowed to see
 * @param[in] buf buffer to use for result
 * @param[in] bufsize size of buffer to use for result
 * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
 */
-const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, const char* role, char const** buf, size_t bufsize);
+const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, char const** buf, size_t bufsize);
 
 /*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials
  * @param[out] self this pointer to the request context initialized
  * @param[in] handler request handler to get the parent context from
  * @param[in] parent name of the parent context
- * @param[in] role name of the instance asking for granting access to the parent context
  * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
  * @return true on success, false on failure
  */
-bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* parent, const char* role, papuga_ErrorCode* errcode);
+bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* parent, papuga_ErrorCode* errcode);
 
 /*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials
@@ -192,60 +168,15 @@ bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* 
 bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* type, const char* name);
 
 /*
- * @brief Allow access to a schema with a given name for a role
- * @param[in] self this pointer to the request handler
- * @param[in] type type name name of the context this schema is valid for
- * @param[in] name name of the schema
- * @param[in] role name of role to grant access to this schema
- * @param[out] errcode error code in case of error, untouched in case of success
- * @remark Not thread safe, synchronization has to be done by the caller
- * @return true on success, false on error
- */
-bool papuga_RequestHandler_allow_schema_access( papuga_RequestHandler* self, const char* type, const char* name, const char* role, papuga_ErrorCode* errcode);
-
-/*
- * @brief Allow access to a schema with a given name for all (no restriction)
- * @param[in] self this pointer to the object to add for access to all
- * @param[in] type type name name of the context this schema is valid for
- * @param[in] name name of the schema
- * @param[out] errcode error code in case of error, untouched in case of success
- * @remark Not thread safe, synchronization has to be done by the caller
- * @return true on success, false on error
- */
-bool papuga_RequestHandler_allow_schema_access_all( papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode);
-
-/*
- * @brief Allow access to a context with a given name for a role
- * @param[in] self this pointer to the request handler
- * @param[in] name name of the context
- * @param[in] role name of role to grant access to this schema
- * @param[out] errcode error code in case of error, untouched in case of success
- * @remark Not thread safe, synchronization has to be done by the caller
- * @return true on success, false on error
- */
-bool papuga_RequestHandler_allow_context_access( papuga_RequestHandler* self, const char* name, const char* role, papuga_ErrorCode* errcode);
-
-/*
- * @brief Allow access to a context with a given name for all (no restriction)
- * @param[in] self this pointer to the object to add for access to all
- * @param[in] name name of the context
- * @param[out] errcode error code in case of error, untouched in case of success
- * @remark Not thread safe, synchronization has to be done by the caller
- * @return true on success, false on error
- */
-bool papuga_RequestHandler_allow_context_access_all( papuga_RequestHandler* self, const char* name, papuga_ErrorCode* errcode);
-
-/*
  * @brief Retrieve a schema for execution with validation of access rights
  * @param[in] self this pointer to the request handler
  * @param[in] type type name of the object that is base of this schema
  * @param[in] name name of the schema
- * @param[in] role name of role to grant access to this schema
  * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
  * @return pointer to automaton on success, NULL on failure
  */
-const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* type, const char* name, const char* role, papuga_ErrorCode* errcode);
+const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode);
 
 /*
  * @brief Execute a request
