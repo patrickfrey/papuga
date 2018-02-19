@@ -33,25 +33,19 @@ typedef void (*papuga_LoggerProcedure)( int nofItems, ...);
 typedef struct papuga_RequestContext
 {
 	papuga_ErrorCode errcode;			/*< last error in the request context */
-	papuga_Allocator allocator;			/*< allocator for this context */
+	papuga_Allocator* allocator;			/*< allocator for this context */
 	papuga_RequestVariable* variables;		/*< variables defined in the context */
 	papuga_RequestLogger* logger;			/*< logger to use */
 	const char* type;				/*< type identifier of this context used for schema selection papuga_RequestHandler_get_schema */
-	char allocator_membuf[ 1<<14];			/*< initial memory buffer for the allocator */
 } papuga_RequestContext;
 
 /*
  * @brief Creates a new context for handling a request
  * @param[in] self this pointer to the object to initialize
+ * @param[in] allocator allocator to use
  * @param[in] logger logger interface to use
  */
-void papuga_init_RequestContext( papuga_RequestContext* self, papuga_RequestLogger* logger);
-
-/*
- * @brief Deletes a request context and its content
- * @param[in] self this pointer to the object to delete
- */
-void papuga_destroy_RequestContext( papuga_RequestContext* self);
+void papuga_init_RequestContext( papuga_RequestContext* self, papuga_Allocator* allocator, papuga_RequestLogger* logger);
 
 /*
  * @brief Get the last error in the request
@@ -139,13 +133,14 @@ const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandl
 /*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials
  * @param[out] self this pointer to the request context initialized
+ * @param[in] allocator allocator to use
  * @param[in] handler request handler to get the parent context from
  * @param[in] parent name of the parent context
  * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
  * @return true on success, false on failure
  */
-bool papuga_init_RequestContext_child( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* parent, papuga_ErrorCode* errcode);
+bool papuga_init_RequestContext_child( papuga_RequestContext* self, papuga_Allocator* allocator, const papuga_RequestHandler* handler, const char* parent, papuga_ErrorCode* errcode);
 
 /*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials

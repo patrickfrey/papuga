@@ -116,6 +116,7 @@ bool papuga_execute_request(
 {
 	bool rt = true;
 	char errbuf_mem[ 4096];
+	char content_mem[ 4096];
 	papuga_ErrorBuffer errorbuf;
 	int errorpos = -1;
 	papuga_Request* request = 0;
@@ -126,15 +127,16 @@ bool papuga_execute_request(
 	LoggerContext logctx;
 	char* resstr = 0;
 	std::size_t reslen = 0;
+	papuga_Allocator allocator;
 
-	// Logger:
+	papuga_init_Allocator( &allocator, content_mem, sizeof(content_mem));
 	papuga_RequestLogger logger = {&logctx, &logMethodCall};
 
 	// Init output:
 	errcode = papuga_Ok;
 
 	// Init locals:
-	papuga_init_RequestContext( &ctx, &logger);
+	papuga_init_RequestContext( &ctx, &allocator, &logger);
 	papuga_init_ErrorBuffer( &errorbuf, errbuf_mem, sizeof(errbuf_mem));
 	parser = papuga_create_RequestParser( doctype, encoding, doc.c_str(), doc.size(), &errcode);
 	if (!parser) goto ERROR;
@@ -232,7 +234,7 @@ ERROR:
 		{}
 	}
 RELEASE:
-	papuga_destroy_RequestContext( &ctx);
+	papuga_destroy_Allocator( &allocator);
 	if (parser) papuga_destroy_RequestParser( parser);
 	if (request) papuga_destroy_Request( request);
 	return rt;
