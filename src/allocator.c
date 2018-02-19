@@ -144,6 +144,19 @@ void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned
 	return self->root.ar;
 }
 
+bool papuga_Allocator_add_free_mem( papuga_Allocator* self, void* mem)
+{
+	papuga_AllocatorNode* nd = (papuga_AllocatorNode*)calloc( 1, sizeof( papuga_AllocatorNode));
+	if (!nd) return false;
+	nd->allocsize = 1;
+	nd->arsize = 1;
+	nd->ar = (char*)mem;
+	nd->allocated = true;
+	nd->next = self->root.next;
+	self->root.next = nd;
+	return true;
+}
+
 bool papuga_Allocator_shrink_last_alloc( papuga_Allocator* self, void* ptr, size_t oldsize, size_t newsize)
 {
 	if ((char*)ptr == (self->root.ar + self->root.arsize - oldsize) && newsize <= oldsize)

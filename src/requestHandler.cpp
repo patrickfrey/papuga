@@ -534,6 +534,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 
 extern "C" bool papuga_set_RequestResult( papuga_RequestResult* self, papuga_RequestContext* context, const papuga_Request* request)
 {
+	self->allocator = &context->allocator;
 	self->name = papuga_Request_resultname( request);
 	self->structdefs = papuga_Request_struct_descriptions( request);
 	self->nodes = NULL;
@@ -544,7 +545,7 @@ extern "C" bool papuga_set_RequestResult( papuga_RequestResult* self, papuga_Req
 	for (; vi; vi = vi->next)
 	{
 		if (vi->name[0] == '_' || vi->inherited || vi->value.valuetype == papuga_TypeHostObject) continue;
-		curnode->next = alloc_type<papuga_RequestResultNode>( &context->allocator);
+		curnode->next = alloc_type<papuga_RequestResultNode>( self->allocator);
 		curnode = curnode->next;
 		if (!curnode) return false;
 		curnode->next = NULL;

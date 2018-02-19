@@ -363,7 +363,9 @@ extern "C" void* papuga_RequestResult_tojson( const papuga_RequestResult* self, 
 		}
 		out.append( "\n}\n");
 
-		return papuga::encodeRequestResultString( out, enc, len, err);
+		void* rt = papuga::encodeRequestResultString( out, enc, len, err);
+		if (rt) papuga_Allocator_add_free_mem( self->allocator, rt);
+		return rt;
 	}
 	catch (const std::bad_alloc&)
 	{

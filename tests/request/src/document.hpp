@@ -79,6 +79,11 @@ public:
 		:m_root( new DocumentNode(o)){}
 	Document( const Document& o)
 		:m_root( o.m_root ? new DocumentNode(*o.m_root) : 0){}
+	~Document()
+	{
+		if (m_root) delete m_root;
+	}
+
 #if __cplusplus >= 201103L
 	Document( const std::string& name_, const std::initializer_list<DocumentNode>& content)
 		:m_root( new DocumentNode( name_, {}, content)){}

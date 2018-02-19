@@ -386,7 +386,9 @@ extern "C" void* papuga_RequestResult_toxml( const papuga_RequestResult* self, p
 		{
 			out.append( "\n");
 		}
-		return papuga::encodeRequestResultString( out, enc, len, err);
+		void* rt = papuga::encodeRequestResultString( out, enc, len, err);
+		if (rt) papuga_Allocator_add_free_mem( self->allocator, rt);
+		return rt;
 	}
 	catch (const std::bad_alloc&)
 	{

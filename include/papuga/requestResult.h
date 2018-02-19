@@ -32,10 +32,28 @@ typedef struct papuga_RequestResultNode
  */
 typedef struct papuga_RequestResult
 {
+	papuga_Allocator* allocator;					//< reference to allocator to use
 	const char* name;						//< name of the result (unique top level root element name for XML)
 	const papuga_StructInterfaceDescription* structdefs;		//< structs structure descriptions addressed in serialization in values
 	papuga_RequestResultNode* nodes;				//< list of result elements
 } papuga_RequestResult;
+
+/*
+ * @brief Initializes a result of a request with a single value
+ * @param[in] allocator pointer to allocator to use
+ * @param[in] self pointer to structure initialized
+ * @param[in] rootname name of the result root element
+ * @param[in] elemname name of a result element
+ * @param[in] value pointer to content of the result
+ * @return true on success, false on memory allocation error
+ */
+bool papuga_init_RequestResult_single(
+		papuga_RequestResult* self,
+		papuga_Allocator* allocator,
+		const char* rootname,
+		const char* elemname,
+		const papuga_StructInterfaceDescription* structdefs,
+		papuga_ValueVariant* value);
 
 /*
 * @brief Map a request result to XML in a defined encoding
@@ -43,8 +61,7 @@ typedef struct papuga_RequestResult
 * @param[in] enc encoding of the output XML
 * @param[out] len length of the output in character units, depending on the encoding specified
 * @param[out] err error code in case of error (untouched if call succeeds)
-* @return the dumped XML allocated with malloc on success, NULL on failure
-* @remark return value allocated with malloc, to be freed with free
+* @return the dumped XML (allocated in result allocator) on success, NULL on failure
 */
 void* papuga_RequestResult_toxml( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err);
 
@@ -54,8 +71,7 @@ void* papuga_RequestResult_toxml( const papuga_RequestResult* self, papuga_Strin
 * @param[in] enc encoding of the output JSON
 * @param[out] len length of the output in character units, depending on the encoding specified
 * @param[out] err error code in case of error (untouched if call succeeds)
-* @return the dumped XML allocated with malloc on success, NULL on failure
-* @remark return value allocated with malloc, to be freed with free
+* @return the dumped JSON (allocated in result allocator) on success, NULL on failure
 */
 void* papuga_RequestResult_tojson( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err);
 
@@ -64,7 +80,7 @@ void* papuga_RequestResult_tojson( const papuga_RequestResult* self, papuga_Stri
 * @brief Dump the request result in readable form
 * @param[in] self pointer to structure
 * @param[out] len length of the output (UTF-8) in bytes
-* @return the request allocated with malloc on success, NULL on memory allocation error
+* @return the dumped request allocated with malloc on success, NULL on memory allocation error
 */
 char* papuga_RequestResult_tostring( const papuga_RequestResult* self, size_t* len);
 

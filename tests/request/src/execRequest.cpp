@@ -8,12 +8,13 @@
 /// \brief Function to execute a request
 /// \file execRequest.cpp
 
-#include "execRequest.h"
+#include "execRequest.hpp"
 #include "papuga/requestParser.h"
 #include "papuga/requestHandler.h"
 #include "papuga/requestResult.h"
 #include "papuga/errors.hpp"
 #include "papuga/valueVariant.hpp"
+#include "papuga/serialization.hpp"
 #include <cstring>
 #include <cstdlib>
 #include <cstdarg>
@@ -51,8 +52,18 @@ static void logMethodCall( void* self, int nofItems, ...)
 					ctx->out << va_arg( arguments,charp);
 					break;
 				case papuga_LogItemResult:
-					ctx->out << papuga::ValueVariant_tostring( *va_arg( arguments, papuga_ValueVariant*), errcode);
+				{
+					papuga_ValueVariant* arg = va_arg( arguments, papuga_ValueVariant*);
+					if (papuga_ValueVariant_isatomic( arg))
+					{
+						ctx->out << papuga::ValueVariant_tostring( *arg, errcode);
+					}
+					else
+					{
+						ctx->out << "<" << papuga_Type_name( arg->valuetype) << ">";
+					}
 					break;
+				}
 				case papuga_LogItemArgc:
 					nofargs = va_arg( arguments,size_t);
 					ctx->out << nofargs;
@@ -64,7 +75,14 @@ static void logMethodCall( void* self, int nofItems, ...)
 					for (; ii!=ie; ++ii)
 					{
 						if (ii) ctx->out << " ";
-						ctx->out << papuga::ValueVariant_tostring( ar[ii], errcode);
+						if (papuga_ValueVariant_isatomic( ar+ii))
+						{
+							ctx->out << papuga::ValueVariant_tostring( ar[ii], errcode);
+						}
+						else
+						{
+							ctx->out << "<" << papuga_Type_name( ar[ii].valuetype) << ">";
+						}
 					}
 					break;
 				}
@@ -86,17 +104,15 @@ static void logMethodCall( void* self, int nofItems, ...)
 	va_end( arguments);
 }
 
-extern "C" bool papuga_execute_request(
+bool papuga_execute_request(
 			const papuga_RequestAutomaton* atm,
 			papuga_ContentType doctype,
 			papuga_StringEncoding encoding,
-			const char* docstr,
-			size_t doclen,
+			const std::string& doc,
 			const RequestVariable* variables,
-			papuga_ErrorCode* errcode,
-			char** resstr,
-			size_t* reslen,
-			char** logout)
+			papuga_ErrorCode& errcode,
+			std::string& resultblob,
+			std::string& logout)
 {
 	bool rt = true;
 	char errbuf_mem[ 4096];
@@ -108,29 +124,29 @@ extern "C" bool papuga_execute_request(
 	papuga_RequestResult result;
 	RequestVariable const* vi;
 	LoggerContext logctx;
+	char* resstr = 0;
+	std::size_t reslen = 0;
 
 	// Logger:
 	papuga_RequestLogger logger = {&logctx, &logMethodCall};
 
 	// Init output:
-	*errcode = papuga_Ok;
-	*resstr = 0;
-	*reslen = 0;
+	errcode = papuga_Ok;
 
 	// Init locals:
 	papuga_init_RequestContext( &ctx, &logger);
 	papuga_init_ErrorBuffer( &errorbuf, errbuf_mem, sizeof(errbuf_mem));
-	parser = papuga_create_RequestParser( doctype, encoding, docstr, doclen, errcode);
+	parser = papuga_create_RequestParser( doctype, encoding, doc.c_str(), doc.size(), &errcode);
 	if (!parser) goto ERROR;
 	request = papuga_create_Request( atm);
 	if (!request) goto ERROR;
 
 	// Parse the request document and feed it to the request:
-	if (!papuga_RequestParser_feed_request( parser, request, errcode))
+	if (!papuga_RequestParser_feed_request( parser, request, &errcode))
 	{
 		char buf[ 2048];
 		int pos = papuga_RequestParser_get_position( parser, buf, sizeof(buf));
-		papuga_ErrorBuffer_reportError( &errorbuf, "error at position %d: %s, feeding request, location: %s", pos, papuga_ErrorCode_tostring( *errcode), buf);
+		papuga_ErrorBuffer_reportError( &errorbuf, "error at position %d: %s, feeding request, location: %s", pos, papuga_ErrorCode_tostring( errcode), buf);
 		goto ERROR;
 	}
 #ifdef PAPUGA_LOWLEVEL_DEBUG
@@ -138,8 +154,8 @@ extern "C" bool papuga_execute_request(
 		papuga_Allocator allocator;
 		papuga_init_Allocator( &allocator, 0, 0);
 		std::size_t requestdumplen;
-		const char* requestdump = papuga_Request_tostring( request, &allocator, papuga_UTF8, &requestdumplen, errcode);
-		if (!requestdump) throw papuga::error_exception( *errcode, "dumping request");
+		const char* requestdump = papuga_Request_tostring( request, &allocator, papuga_UTF8, &requestdumplen, &errcode);
+		if (!requestdump) throw papuga::error_exception( errcode, "dumping request");
 		std::cerr << "ITEMS REQUEST:\n" << requestdump << std::endl;
 		papuga_destroy_Allocator( &allocator);
 	}
@@ -152,14 +168,14 @@ extern "C" bool papuga_execute_request(
 		papuga_init_ValueVariant_charp( &value, vi->value);
 		if (!papuga_RequestContext_add_variable( &ctx, vi->name, &value))
 		{
-			*errcode = papuga_NoMemError;
+			errcode = papuga_NoMemError;
 			goto ERROR;
 		}
 	}
 	// Execute the request and initialize the result:
 	if (!papuga_RequestContext_execute_request( &ctx, request, &errorbuf, &errorpos))
 	{
-		*errcode = papuga_HostObjectError;
+		errcode = papuga_HostObjectError;
 		goto ERROR;
 	}
 	if (!papuga_set_RequestResult( &result, &ctx, request))
@@ -172,28 +188,22 @@ extern "C" bool papuga_execute_request(
 		char* dumpstr = papuga_RequestResult_tostring( &result, &dumplen);
 		if (!dumpstr) throw papuga::error_exception( papuga_NoMemError, "dumping result");
 		std::cerr << "RESULT DUMP:\n" << dumpstr << std::endl;
-		std::free( dumpstr);
 	}
 #endif
 	// Map the result:
 	switch (doctype)
 	{
-		case papuga_ContentType_XML:  *resstr = (char*)papuga_RequestResult_toxml( &result, encoding, reslen, errcode); break;
-		case papuga_ContentType_JSON: *resstr = (char*)papuga_RequestResult_tojson( &result, encoding, reslen, errcode); break;
+		case papuga_ContentType_XML:  resstr = (char*)papuga_RequestResult_toxml( &result, encoding, &reslen, &errcode); break;
+		case papuga_ContentType_JSON: resstr = (char*)papuga_RequestResult_tojson( &result, encoding, &reslen, &errcode); break;
 		case papuga_ContentType_Unknown:
 		default: break;
 	}
-	if (!*resstr) goto ERROR;
+	if (!resstr) goto ERROR;
+	resultblob.append( resstr, reslen * papuga_StringEncoding_unit_size( encoding));
 
-	*logout = NULL;
 	try
 	{
-		std::string logoutput = logctx.out.str();
-		*logout = (char*)std::malloc( logoutput.size()+1);
-		if (*logout)
-		{
-			std::memcpy( *logout, logoutput.c_str(), logoutput.size()+1);
-		}
+		logout.append( logctx.out.str());
 	}
 	catch (const std::bad_alloc&)
 	{}
@@ -206,7 +216,7 @@ ERROR:
 		{
 			// Evaluate more info about the location of the error, we append the scope of the document to the error message:
 			char locinfobuf[ 4096];
-			const char* locinfo = papuga_request_error_location( doctype, encoding, docstr, doclen, errorpos, locinfobuf, sizeof(locinfobuf));
+			const char* locinfo = papuga_request_error_location( doctype, encoding, doc.c_str(), doc.size(), errorpos, locinfobuf, sizeof(locinfobuf));
 			if (locinfo)
 			{
 				papuga_ErrorBuffer_appendMessage( &errorbuf, " (error scope: %s)", locinfo);
@@ -214,12 +224,12 @@ ERROR:
 		}
 		char* errstr = papuga_ErrorBuffer_lastError(&errorbuf);
 		size_t errlen = strlen( errstr);
-		*resstr = (char*)std::malloc( errlen+1);
-		if (*resstr)
+		try
 		{
-			std::memcpy( *resstr, errstr, errlen+1);
-			*reslen = errlen;
+			resultblob.append( errstr, errlen);
 		}
+		catch (const std::bad_alloc&)
+		{}
 	}
 RELEASE:
 	papuga_destroy_RequestContext( &ctx);

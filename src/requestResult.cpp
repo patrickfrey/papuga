@@ -12,6 +12,7 @@
 #include "papuga/serialization.hpp"
 #include "papuga/valueVariant.hpp"
 #include "papuga/valueVariant.h"
+#include "papuga/allocator.h"
 #include <string>
 #include <cstring>
 #include <cstdlib>
@@ -49,6 +50,7 @@ extern "C" char* papuga_RequestResult_tostring( const papuga_RequestResult* self
 		std::string res( dump.str());
 		char* rt = (char*)std::malloc( res.size() +1);
 		if (!rt) return NULL;
+		papuga_Allocator_add_free_mem( self->allocator, rt);
 		std::memcpy( rt, res.c_str(), res.size() +1);
 		*len = res.size();
 		return rt;
@@ -57,6 +59,20 @@ extern "C" char* papuga_RequestResult_tostring( const papuga_RequestResult* self
 	{
 		return NULL;
 	}
+}
+
+bool papuga_init_RequestResult_single( papuga_RequestResult* self, papuga_Allocator* allocator, const char* rootname, const char* elemname, const papuga_StructInterfaceDescription* structdefs, papuga_ValueVariant* value)
+{
+	self->allocator = allocator;
+	self->name = papuga_Allocator_copy_charp( allocator, rootname);
+	papuga_RequestResultNode* node = (papuga_RequestResultNode*)papuga_Allocator_alloc( allocator, sizeof(papuga_RequestResultNode), 0);
+	if (!node || !self->name) return false;
+	self->structdefs = structdefs;
+	self->nodes = node;
+	papuga_init_ValueVariant_value( &node->value, value);
+	node->name = papuga_Allocator_copy_charp( allocator, elemname);
+	node->next = NULL;
+	return true;
 }
 
 

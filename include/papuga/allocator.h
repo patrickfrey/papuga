@@ -62,6 +62,14 @@ void papuga_destroy_ReferenceHeader( papuga_ReferenceHeader* ref);
 void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned int alignment);
 
 /*
+* @brief Allocate a block of memory
+* @param[in,out] self pointer to structure 
+* @param[in] mem pointer to memory to add to the allocators context, to be freed (with malloc free) when the allocator is destroyed
+* @return true on success, false on failure
+*/
+bool papuga_Allocator_add_free_mem( papuga_Allocator* self, void* mem);
+
+/*
 * @brief Shrink the last memory block allocated, making the freed memory for following allocations available
 * @param[in,out] self pointer to structure
 * @param[in] ptr pointer to allocated block to shrink
