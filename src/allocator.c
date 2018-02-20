@@ -293,8 +293,7 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 			papuga_init_CallResult( &result, &iter_allocator, true, error_buf, sizeof(error_buf));
 			while (itercnt++ < PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH && iterator->getNext( iterator->data, &result))
 			{
-				bool sc = true;
-				sc &= papuga_Serialization_pushOpen( dest);
+				bool sc = papuga_Serialization_pushOpen( dest);
 				int ri = 0, re = result.nofvalues;
 				for (; ri != re; ++ri)
 				{

@@ -51,9 +51,10 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)
 
 void papuga_ErrorBuffer_reportError( papuga_ErrorBuffer* self, const char* msg, ...)
 {
+	size_t msglen;
 	va_list ap;
 	va_start(ap, msg);
-	size_t msglen = vsnprintf( self->ptr, self->size, msg, ap);
+	msglen = vsnprintf( self->ptr, self->size, msg, ap);
 	if (msglen >= self->size && self->size)
 	{
 		msglen = self->size-1;
@@ -64,10 +65,11 @@ void papuga_ErrorBuffer_reportError( papuga_ErrorBuffer* self, const char* msg, 
 
 void papuga_ErrorBuffer_appendMessage( papuga_ErrorBuffer* self, const char* msg, ...)
 {
+	size_t len,msglen;
 	va_list ap;
 	va_start(ap, msg);
-	size_t len = strlen( self->ptr);
-	size_t msglen = vsnprintf( self->ptr+len, self->size-len, msg, ap) + len;
+	len = strlen( self->ptr);
+	msglen = vsnprintf( self->ptr+len, self->size-len, msg, ap) + len;
 	if (msglen >= self->size && self->size)
 	{
 		msglen = self->size-1;

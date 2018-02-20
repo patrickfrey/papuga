@@ -68,6 +68,8 @@ void* papuga_Stack_push( papuga_Stack* self)
 
 void* papuga_Stack_pop( papuga_Stack* self)
 {
+	void* rt;
+
 	if (!self->size) return NULL;
 	while (self->top->arsize == sizeof(papuga_StackNode))
 	{
@@ -86,7 +88,7 @@ void* papuga_Stack_pop( papuga_Stack* self)
 	{
 		return NULL;
 	}
-	void* rt = ((char*)(void*)(self->top)) + self->top->arsize - self->elemsize;
+	rt = ((char*)(void*)(self->top)) + self->top->arsize - self->elemsize;
 	self->top->arsize -= self->elemsize;
 	self->size -= 1;
 	return rt;
@@ -94,8 +96,9 @@ void* papuga_Stack_pop( papuga_Stack* self)
 
 void* papuga_Stack_top( const papuga_Stack* self)
 {
+	papuga_StackNode* nd;
 	if (!self->size) return NULL;
-	papuga_StackNode* nd = self->top;
+	nd = self->top;
 	if (nd->arsize == sizeof(papuga_StackNode))
 	{
 		nd = nd->prev;
@@ -109,10 +112,13 @@ void* papuga_Stack_top( const papuga_Stack* self)
 
 bool papuga_Stack_top_n( const papuga_Stack* self, void** buf, size_t nn)
 {
+	papuga_StackNode* nd;
+	size_t arsize;
+
 	if (nn > self->size) return false;
-	papuga_StackNode* nd = self->top;
+	nd = self->top;
 	if (!nd) return false;
-	size_t arsize = nd->arsize;
+	arsize = nd->arsize;
 
 	while (nn > 0)
 	{

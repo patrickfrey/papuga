@@ -98,7 +98,7 @@ typedef enum {
 	papuga_ResolveTypeRequired,		/*< the item must be found in the included scope and it is unique */
 	papuga_ResolveTypeOptional,		/*< the item is found in the included scope and it is unique, if it exists */
 	papuga_ResolveTypeInherited,		/*< the item must be found in an including scope, uniqueness is not checked, the innermost candidate wins */
-	papuga_ResolveTypeArray,		/*< the item is found in the included scope and it can exist more that once */
+	papuga_ResolveTypeArray			/*< the item is found in the included scope and it can exist more that once */
 } papuga_ResolveType;
 
 /*

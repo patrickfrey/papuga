@@ -1137,9 +1137,9 @@ public:
 	{
 		return m_scopeobjmap;
 	}
-	void insertObjectRef( int itemid, const ScopeKeyType& type, const Scope& scope, int taglevel, const ObjectRef& objref)
+	void insertObjectRef( int itemid, const ScopeKeyType& type, const Scope& scope, int taglevel_, const ObjectRef& objref)
 	{
-		m_scopeobjmap[ itemid].insert( ScopeObjElem( ScopeKey(type,scope), ObjectDescr( objref, taglevel)));
+		m_scopeobjmap[ itemid].insert( ScopeObjElem( ScopeKey(type,scope), ObjectDescr( objref, taglevel_)));
 	}
 	Scope curscope() const
 	{

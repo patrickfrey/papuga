@@ -23,12 +23,14 @@ void fillErrorLocation( char* errlocbuf, size_t errlocbufsize, const char* sourc
 {
 	size_t start = errpos > (errlocbufsize / 2) ? errpos - (errlocbufsize / 2) : 0;
 	char const* cc = source + start;
+	size_t ei, ee;
+
 	while (isUTF8MidChar( *cc))
 	{
 		++cc;
 		++start;
 	}
-	size_t ei = 0, ee = errlocbufsize-1;
+	ei = 0, ee = errlocbufsize-1;
 	for (; ei < ee && *cc; ++ei,++cc,++start)
 	{
 		if (start == errpos)

@@ -32,10 +32,10 @@ typedef struct papuga_RequestResultNode
  */
 typedef struct papuga_RequestResult
 {
-	papuga_Allocator* allocator;					//< reference to allocator to use
-	const char* name;						//< name of the result (unique top level root element name for XML)
-	const papuga_StructInterfaceDescription* structdefs;		//< structs structure descriptions addressed in serialization in values
-	papuga_RequestResultNode* nodes;				//< list of result elements
+	papuga_Allocator* allocator;					/*< reference to allocator to use */
+	const char* name;						/*< name of the result (unique top level root element name for XML) */
+	const papuga_StructInterfaceDescription* structdefs;		/*< structs structure descriptions addressed in serialization in values */
+	papuga_RequestResultNode* nodes;				/*< list of result elements */
 } papuga_RequestResult;
 
 /*
