@@ -21,15 +21,27 @@
 #include <string>
 #include <cstring>
 
-static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter* seritr, const char* name, int structid, int elementcnt, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode);
+enum StyleType {StyleHTML,StyleXML};
 
-static bool append_tag_open( std::string& out, const char* name)
+static bool SerializationIter_toxml( StyleType styleType, std::string& out, papuga_SerializationIter* seritr, const char* name, int structid, int elementcnt, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode);
+
+static bool append_tag_open( StyleType styleType, std::string& out, const char* name)
 {
 	try
 	{
-		out.push_back( '<');
-		out.append( name);
-		out.push_back( '>');
+		switch (styleType)
+		{
+			case StyleXML:
+				out.push_back( '<');
+				out.append( name);
+				out.push_back( '>');
+				break;
+			case StyleHTML:
+				out.append( "<div class=\"");
+				out.append( name);
+				out.append( "\">");
+				break;
+		}
 	}
 	catch (...)
 	{
@@ -38,13 +50,22 @@ static bool append_tag_open( std::string& out, const char* name)
 	return true;
 }
 
-static bool append_tag_close( std::string& out, const char* name)
+static bool append_tag_close( StyleType styleType, std::string& out, const char* name)
 {
 	try
 	{
-		out.append( "</");
-		out.append( name);
-		out.push_back( '>');
+		switch (styleType)
+		{
+			case StyleXML:
+				out.append( "</");
+				out.append( name);
+				out.push_back( '>');
+				break;
+			
+			case StyleHTML:
+				out.append( "</div>");
+				break;
+		}
 	}
 	catch (...)
 	{
@@ -53,13 +74,23 @@ static bool append_tag_close( std::string& out, const char* name)
 	return true;
 }
 
-static bool append_tag_open_close_imm( std::string& out, const char* name)
+static bool append_tag_open_close_imm( StyleType styleType, std::string& out, const char* name)
 {
 	try
 	{
-		out.push_back( '<');
-		out.append( name);
-		out.append( "/>");
+		switch (styleType)
+		{
+			case StyleXML:
+				out.push_back( '<');
+				out.append( name);
+				out.append( "/>");
+				break;
+			case StyleHTML:
+				out.append( "<div class=\"");
+				out.append( name);
+				out.append( "\"/>");
+				break;
+		}
 	}
 	catch (...)
 	{
@@ -68,15 +99,15 @@ static bool append_tag_open_close_imm( std::string& out, const char* name)
 	return true;
 }
 
-static bool ValueVariant_toxml( std::string& out, const char* name, const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode)
+static bool ValueVariant_toxml( StyleType styleType, std::string& out, const char* name, const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode)
 {
 	static const char* tupletags[ papuga_MAX_NOF_RETURNS] = {"1","2","3","4","5","6","7","8"};
 	bool rt = true;
 	if (papuga_ValueVariant_isatomic(&value))
 	{
-		rt &= append_tag_open( out, name);
+		rt &= append_tag_open( styleType, out, name);
 		rt &= papuga::ValueVariant_append_string( out, value, errcode);
-		rt &= append_tag_close( out, name);
+		rt &= append_tag_close( styleType, out, name);
 	}
 	else if (value.valuetype == papuga_TypeSerialization)
 	{
@@ -86,18 +117,18 @@ static bool ValueVariant_toxml( std::string& out, const char* name, const papuga
 		int elementcnt = 0;
 		if (isdict)
 		{
-			rt &= append_tag_open( out, name);
+			rt &= append_tag_open( styleType, out, name);
 			while (rt && !papuga_SerializationIter_eof( &subitr))
 			{
-				rt &= SerializationIter_toxml( out, &subitr, NULL/*name*/, value.value.serialization->structid, elementcnt++, structs, errcode);
+				rt &= SerializationIter_toxml( styleType, out, &subitr, NULL/*name*/, value.value.serialization->structid, elementcnt++, structs, errcode);
 			}
-			rt &= append_tag_close( out, name);
+			rt &= append_tag_close( styleType, out, name);
 		}
 		else
 		{
 			while (rt && !papuga_SerializationIter_eof( &subitr))
 			{
-				rt &= SerializationIter_toxml( out, &subitr, name, value.value.serialization->structid, elementcnt++, structs, errcode);
+				rt &= SerializationIter_toxml( styleType, out, &subitr, name, value.value.serialization->structid, elementcnt++, structs, errcode);
 			}
 		}
 	}
@@ -116,21 +147,21 @@ static bool ValueVariant_toxml( std::string& out, const char* name, const papuga
 		{
 			if (result.nofvalues > 1)
 			{
-				rt &= append_tag_open( out, name);
+				rt &= append_tag_open( styleType, out, name);
 				int ri = 0, re = result.nofvalues;
 				for (; ri != re; ++ri)
 				{
-					rt &= ValueVariant_toxml( out, tupletags[ri], result.valuear[ri], structs, errcode);
+					rt &= ValueVariant_toxml( styleType, out, tupletags[ri], result.valuear[ri], structs, errcode);
 				}
-				rt &= append_tag_close( out, name);
+				rt &= append_tag_close( styleType, out, name);
 			}
 			else if (result.nofvalues == 1)
 			{
-				rt &= ValueVariant_toxml( out, name, result.valuear[0], structs, errcode);
+				rt &= ValueVariant_toxml( styleType, out, name, result.valuear[0], structs, errcode);
 			}
 			else
 			{
-				append_tag_open_close_imm( out, name);
+				append_tag_open_close_imm( styleType, out, name);
 			}
 			papuga_destroy_CallResult( &result);
 			if (!rt)
@@ -233,7 +264,7 @@ private:
 	int m_namestk_mem[ 1024];
 };
 
-static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter* seritr, const char* name, int structid, int elementcnt, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode)
+static bool SerializationIter_toxml( StyleType styleType, std::string& out, papuga_SerializationIter* seritr, const char* name, int structid, int elementcnt, const papuga_StructInterfaceDescription* structs, papuga_ErrorCode& errcode)
 {
 	bool rt = true;
 	SerializationIterStack namestk;
@@ -258,7 +289,7 @@ static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter*
 				}
 				if (tagname)
 				{
-					rt &= append_tag_close( out, tagname);
+					rt &= append_tag_close( styleType, out, tagname);
 				}
 				if (namestk.empty())
 				{
@@ -283,7 +314,7 @@ static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter*
 					}
 				}
 				++elementcnt;
-				rt &= ValueVariant_toxml( out, name, *value, structs, errcode);
+				rt &= ValueVariant_toxml( styleType, out, name, *value, structs, errcode);
 				name = NULL;
 				if (namestk.empty())
 				{
@@ -319,7 +350,7 @@ static bool SerializationIter_toxml( std::string& out, papuga_SerializationIter*
 					structid = papuga_ValueVariant_toint( value, &errcode);
 					if (errcode != papuga_Ok) return false;
 				}
-				rt &= append_tag_open( out, name);
+				rt &= append_tag_open( styleType, out, name);
 				name = NULL;
 				break;
 			}
@@ -353,39 +384,28 @@ EXIT:
 	return rt;
 }
 
-extern "C" void* papuga_RequestResult_toxml( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
+static void* RequestResult_toxml( StyleType styleType, const char* hdr, const char* tail, const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
 {
 	try
 	{
-		char hdrbuf[ 128];
 		std::string out;
 		const char* rootelem = self->name;
 
+		out.append( hdr);
 		if (rootelem)
 		{
-			std::snprintf( hdrbuf, sizeof(hdrbuf), "<?xml version=\"1.0\" encoding=\"%s\" standalone=\"yes\"?>\n<%s>", papuga_StringEncoding_name( enc), rootelem);
+			append_tag_open( styleType, out, rootelem);
 		}
-		else
-		{
-			std::snprintf( hdrbuf, sizeof(hdrbuf), "<?xml version=\"1.0\" encoding=\"%s\" standalone=\"yes\"?>\n", papuga_StringEncoding_name( enc));
-		}
-		out.append( hdrbuf);
-
 		papuga_RequestResultNode const* nd = self->nodes;
 		for (; nd; nd = nd->next)
 		{
-			if (!ValueVariant_toxml( out, nd->name, nd->value, self->structdefs, *err)) return NULL;
+			if (!ValueVariant_toxml( styleType, out, nd->name, nd->value, self->structdefs, *err)) return NULL;
 		}
 		if (rootelem)
 		{
-			out.append( "</");
-			out.append( rootelem);
-			out.append( ">\n");
+			append_tag_close( styleType, out, rootelem);
 		}
-		else
-		{
-			out.append( "\n");
-		}
+		out.append( tail);
 		void* rt = papuga::encodeRequestResultString( out, enc, len, err);
 		if (rt) papuga_Allocator_add_free_mem( self->allocator, rt);
 		return rt;
@@ -398,6 +418,34 @@ extern "C" void* papuga_RequestResult_toxml( const papuga_RequestResult* self, p
 	catch (...)
 	{
 		*err = papuga_UncaughtException;
+		return NULL;
+	}
+}
+
+extern "C" void* papuga_RequestResult_toxml( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
+{
+	char hdrbuf[ 256];
+
+	std::snprintf( hdrbuf, sizeof(hdrbuf), "<?xml version=\"1.0\" encoding=\"%s\" standalone=\"yes\"?>\n", papuga_StringEncoding_name( enc));
+	return RequestResult_toxml( StyleXML, hdrbuf, "\n", self, enc, len, err);
+}
+
+extern "C" void* papuga_RequestResult_tohtml5( const papuga_RequestResult* self, papuga_StringEncoding enc, const char* head, size_t* len, papuga_ErrorCode* err)
+{
+	try
+	{
+		std::string hdr;
+		char hdrbuf[ 256];
+
+		std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<head>\n<head>\n<body>\n<meta>\n<charset=\"%s\">\n</meta>\n", papuga_StringEncoding_name( enc));
+		hdr.append( hdrbuf);
+		hdr.append( head);
+		hdr.append( "</head>\n<body>");
+		return RequestResult_toxml( StyleHTML, hdr.c_str(), "\n</body>\n</html>", self, enc, len, err);
+	}
+	catch (const std::bad_alloc&)
+	{
+		*err = papuga_NoMemError;
 		return NULL;
 	}
 }

@@ -75,6 +75,16 @@ void* papuga_RequestResult_toxml( const papuga_RequestResult* self, papuga_Strin
 */
 void* papuga_RequestResult_tojson( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err);
 
+/*
+* @brief Map a request result to HTML5 div style in a defined encoding with some injected meta data
+* @param[in] self pointer to structure
+* @param[in] enc encoding of the output HTML
+* @param[out] len length of the output in character units, depending on the encoding specified
+* @param[out] err error code in case of error (untouched if call succeeds)
+* @return the dumped HTML (allocated in result allocator) on success, NULL on failure
+*/
+void* papuga_RequestResult_tohtml5( const papuga_RequestResult* self, papuga_StringEncoding enc, const char* head, size_t* len, papuga_ErrorCode* err);
+
 
 /*
 * @brief Dump the request result in readable form
