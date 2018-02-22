@@ -94,6 +94,15 @@ void* papuga_RequestResult_tohtml5( const papuga_RequestResult* self, papuga_Str
 */
 char* papuga_RequestResult_tostring( const papuga_RequestResult* self, size_t* len);
 
+/*
+* @brief Dump the request result as text/plain
+* @param[in] self pointer to structure
+* @param[in] enc encoding of the output text
+* @param[out] len length of the output in character units, depending on the encoding specified
+* @param[out] err error code in case of error (untouched if call succeeds)
+* @return the dumped text allocated with malloc on success, NULL on memory allocation error
+*/
+void* papuga_RequestResult_totext( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err);
 
 #ifdef __cplusplus
 }
