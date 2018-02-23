@@ -61,7 +61,7 @@ extern "C" char* papuga_RequestResult_tostring( const papuga_RequestResult* self
 	}
 }
 
-bool papuga_init_RequestResult_single( papuga_RequestResult* self, papuga_Allocator* allocator, const char* rootname, const char* elemname, const papuga_StructInterfaceDescription* structdefs, papuga_ValueVariant* value)
+bool papuga_init_RequestResult_single( papuga_RequestResult* self, papuga_Allocator* allocator, const char* rootname, const char* elemname, const papuga_StructInterfaceDescription* structdefs, const papuga_ValueVariant* value)
 {
 	self->allocator = allocator;
 	self->name = papuga_Allocator_copy_charp( allocator, rootname);

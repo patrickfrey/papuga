@@ -53,7 +53,7 @@ bool papuga_init_RequestResult_single(
 		const char* rootname,
 		const char* elemname,
 		const papuga_StructInterfaceDescription* structdefs,
-		papuga_ValueVariant* value);
+		const papuga_ValueVariant* value);
 
 /*
 * @brief Map a request result to XML in a defined encoding
