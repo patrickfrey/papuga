@@ -180,12 +180,6 @@ extern "C" const char** papuga_RequestContext_list_variables( const papuga_Reque
 	return buf;
 }
 
-extern "C" bool papuga_RequestContext_set_type( papuga_RequestContext* self, const char* type)
-{
-	self->type = papuga_Allocator_copy_charp( self->allocator, type);
-	return (!!self->type);
-}
-
 extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger)
 {
 	papuga_RequestHandler* rt = (papuga_RequestHandler*) std::malloc( sizeof(papuga_RequestHandler));
@@ -203,14 +197,14 @@ extern "C" void papuga_destroy_RequestHandler( papuga_RequestHandler* self)
 	std::free( self);
 }
 
-extern "C" bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode)
+extern "C" bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode)
 {
 	RequestContextList* listitem = alloc_type<RequestContextList>( &self->allocator);
 	if (!listitem) goto ERROR;
 	papuga_init_RequestContext( &listitem->context, &self->allocator, self->logger);
+	listitem->context.type = papuga_Allocator_copy_charp( &self->allocator, type);
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
 	listitem->context.variables = copyRequestVariables( &self->allocator, ctx->variables, true, errcode);
-	listitem->context.type = ctx->type ? papuga_Allocator_copy_charp( &self->allocator, ctx->type) : NULL;
 	if (!listitem->name
 		|| (!listitem->context.variables && ctx->variables)
 		|| (!listitem->context.type && ctx->type)) goto ERROR;
@@ -258,25 +252,37 @@ extern "C" const char** papuga_RequestHandler_list_context_types( const papuga_R
 	return buf;
 }
 
-extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, papuga_Allocator* allocator, const papuga_RequestHandler* handler, const char* parent, papuga_ErrorCode* errcode)
+static const papuga_RequestContext* find_context( const RequestContextList* clst, const char* type, const char* name)
 {
-	RequestContextList* cl;
-	if (parent)
+	RequestContextList const* cl = clst;
+	for (; cl && (0!=std::strcmp( cl->context.type, type) || 0!=std::strcmp( cl->name, name)); cl = cl->next){}
+	return &cl->context;
+}
+
+extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, papuga_Allocator* allocator, const papuga_RequestHandler* handler, const char* type, const char* name, papuga_ErrorCode* errcode)
+{
+	const papuga_RequestContext* parent_context;
+	if (type && name)
 	{
-		cl = find_list( handler->contexts, &RequestContextList::name, parent);
-		if (!cl)
+		parent_context = find_context( handler->contexts, type, name);
+		if (!parent_context)
 		{
 			*errcode = papuga_AddressedItemNotFound;
 			goto ERROR;
 		}
 		papuga_init_RequestContext( self, allocator, handler->logger);
-		self->variables = copyRequestVariables( self->allocator, cl->context.variables, false, errcode);
-		self->type = papuga_Allocator_copy_charp( self->allocator, cl->context.type);
+		self->variables = copyRequestVariables( self->allocator, parent_context->variables, false, errcode);
+		self->type = papuga_Allocator_copy_charp( self->allocator, parent_context->type);
 		if (!self->variables || !self->type) goto ERROR;
+	}
+	else if (!type && !name)
+	{
+		papuga_init_RequestContext( self, allocator, handler->logger);
 	}
 	else
 	{
-		papuga_init_RequestContext( self, allocator, handler->logger);
+		*errcode = papuga_AddressedItemNotFound;
+		goto ERROR;
 	}
 	return true;
 ERROR:

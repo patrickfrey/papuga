@@ -81,13 +81,6 @@ const papuga_ValueVariant* papuga_RequestContext_get_variable( papuga_RequestCon
 const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, char const** buf, size_t bufsize);
 
 /*
- * @brief Define the type of this context used for schema selection
- * @param[in] self this pointer to the object to define the schema prefix for
- * @return true on success, false on memory allocation error
- */
-bool papuga_RequestContext_set_type( papuga_RequestContext* self, const char* type);
-
-/*
  * @brief Creates a request handler
  * @param[in] logger logger interface to use
  * @return pointer to request handler
@@ -103,18 +96,19 @@ void papuga_destroy_RequestHandler( papuga_RequestHandler* self);
 /*
  * @brief Add the context (deep copy) to the request handler with the ownership of all host object references
  * @param[in] self this pointer to the request handler
- * @param[in] name name given to the context used to address the parent context when initializing a child context
+ * @param[in] type type name given to the context used to address it and its schemas
+ * @param[in] name name given to the context used with the type to address it
  * @param[in,out] ctx context copied to handler with the ownership of all host object references moved
  * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false on failure
  */
-bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode);
+bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode);
 
 /*
 * @brief List the names of contexts of a given type
 * @param[in] self this pointer to the request handler
-* @param[in] type type name of the contexts to filter or NULL if all selected
+* @param[in] type type name of the contexts to list
 * @param[in] buf buffer to use for result
 * @param[in] bufsize size of buffer to use for result
 * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
@@ -131,24 +125,25 @@ const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* s
 const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, char const** buf, size_t bufsize);
 
 /*
- * @brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials
+ * @brief Defines a new context for requests inherited from another context addressed by type and name in the request handler
  * @param[out] self this pointer to the request context initialized
  * @param[in] allocator allocator to use
  * @param[in] handler request handler to get the parent context from
- * @param[in] parent name of the parent context
+ * @param[in] type type name of the context to select and inherit from
+ * @param[in] name name of the context to select and inherit from
  * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
  * @return true on success, false on failure
  */
-bool papuga_init_RequestContext_child( papuga_RequestContext* self, papuga_Allocator* allocator, const papuga_RequestHandler* handler, const char* parent, papuga_ErrorCode* errcode);
+bool papuga_init_RequestContext_child( papuga_RequestContext* self, papuga_Allocator* allocator, const papuga_RequestHandler* handler, const char* type, const char* name, papuga_ErrorCode* errcode);
 
 /*
- * @brief Defines a new context for requests inherited from another context addressed by name in the request handler, checking credentials
+ * @brief Defines a new context for requests inherited from another context addressed by name in the request handler
  * @param[in] self this pointer to the request handler
  * @param[in] type type name name of the context the added schema is valid for
  * @param[in] name name given to the schema
  * @param[in] automaton pointer to automaton of the schema
- * @remark Not thread safe, synchronization has to be done by the caller, read access is thread safe if writers are synchronized
+ * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false on memory allocation error
  */ 
 bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton);
@@ -163,10 +158,10 @@ bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* 
 bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* type, const char* name);
 
 /*
- * @brief Retrieve a schema for execution with validation of access rights
+ * @brief Retrieve a schema for execution of a request
  * @param[in] self this pointer to the request handler
  * @param[in] type type name of the object that is base of this schema
- * @param[in] name name of the schema
+ * @param[in] name name of the schema (the tuple [type,name] is identifying the schema)
  * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
  * @return pointer to automaton on success, NULL on failure
