@@ -159,11 +159,10 @@ extern "C" bool papuga_RequestContext_add_variable( papuga_RequestContext* self,
 	return RequestContext_add_variable( self, name, value, true);
 }
 
-const papuga_ValueVariant* papuga_RequestContext_get_variable( papuga_RequestContext* self, const char* name)
+const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name)
 {
-	papuga_RequestVariable* var = find_list( self->variables, &papuga_RequestVariable::name, name);
+	const papuga_RequestVariable* var = find_list( self->variables, &papuga_RequestVariable::name, name);
 	return (var)?&var->value : NULL;
-	
 }
 
 extern "C" const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, char const** buf, size_t bufsize)

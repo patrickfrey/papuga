@@ -69,7 +69,7 @@ bool papuga_RequestContext_add_variable( papuga_RequestContext* self, const char
  * @param[in] name name of variable to get
  * @return the variable value on success, NULL if it does not exist
  */
-const papuga_ValueVariant* papuga_RequestContext_get_variable( papuga_RequestContext* self, const char* name);
+const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name);
 
 /*
 * @brief List the names of variables defined in a context
