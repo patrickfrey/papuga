@@ -151,11 +151,11 @@ bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* 
 /*
  * @brief Test if a schema definition with a given name exists
  * @param[in] self this pointer to the request handler
- * @param[in] type type of the context the schema is valid for
- * @param[in] name name of the schema queried
+ * @param[in] type type name of the context the schema is valid for
+ * @param[in] schema name of the schema queried
  * @return true, if the schema exists, false else
  */
-bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* type, const char* name);
+bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* type, const char* schema);
 
 /*
  * @brief Retrieve a schema for execution of a request

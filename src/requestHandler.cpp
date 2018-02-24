@@ -310,9 +310,9 @@ static RequestSchemaList* find_schema( RequestSchemaList* ll, const char* type, 
 	return ll;
 }
 
-bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* type, const char* name)
+bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* contextType, const char* schema)
 {
-	return !!find_schema( self->schemas, type, name);
+	return !!find_schema( self->schemas, contextType, schema);
 }
 
 extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode)
