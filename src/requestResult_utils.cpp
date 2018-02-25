@@ -18,26 +18,41 @@ using namespace papuga;
 
 void* papuga::encodeRequestResultString( const std::string& out, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
 {
-	papuga_ValueVariant outvalue;
-	papuga_init_ValueVariant_string( &outvalue, out.c_str(), out.size());
-	size_t usize = papuga_StringEncoding_unit_size( enc);
-	size_t rtbufsize = (out.size()+16) * usize;
-	void* rtbuf = std::malloc( rtbufsize);
-	if (!rtbuf)
+	if (enc == papuga_UTF8)
 	{
-		*err = papuga_NoMemError;
-		return NULL;
+		void* rt = (void*)std::malloc( out.size()+1);
+		if (!rt)
+		{
+			*err = papuga_NoMemError;
+			return NULL;
+		}
+		*len = out.size();
+		std::memcpy( (char*)rt, out.c_str(), (*len)+1);
+		return rt;
 	}
-	const void* rtstr = papuga_ValueVariant_tostring_enc( &outvalue, enc, rtbuf, rtbufsize, len, err);
-	if (!rtstr)
+	else
 	{
-		std::free( rtbuf);
-		return NULL;
+		papuga_ValueVariant outvalue;
+		papuga_init_ValueVariant_string( &outvalue, out.c_str(), out.size());
+		size_t usize = papuga_StringEncoding_unit_size( enc);
+		size_t rtbufsize = (out.size()+16) * usize;
+		void* rtbuf = std::malloc( rtbufsize);
+		if (!rtbuf)
+		{
+			*err = papuga_NoMemError;
+			return NULL;
+		}
+		const void* rtstr = papuga_ValueVariant_tostring_enc( &outvalue, enc, rtbuf, rtbufsize, len, err);
+		if (!rtstr)
+		{
+			std::free( rtbuf);
+			return NULL;
+		}
+		void* rt = (void*)std::realloc( rtbuf, (*len + 1) * usize);
+		if (!rt) rt = rtbuf;
+		std::memset( (char*)rt + (*len) * usize, 0, usize); //... null termination
+		return rt;
 	}
-	void* rt = (void*)std::realloc( rtbuf, (*len + 1) * usize);
-	if (!rt) rt = rtbuf;
-	std::memset( (char*)rt + (*len) * usize, 0, usize); //... null termination
-	return rt;
 }
 
 
