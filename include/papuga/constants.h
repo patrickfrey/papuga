@@ -17,5 +17,10 @@
 */
 #define PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH 100
 
+/*
+* @brief Maximum depth of recursion in recursive expansions with a small per iteration footprint (<= 256 bytes) on the stack (like XML,JSON mapping)
+*/
+#define PAPUGA_MAX_RECURSION_DEPTH 200
+
 #endif
 
