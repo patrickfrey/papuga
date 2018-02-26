@@ -250,7 +250,7 @@ static bool ValueVariant_toxml_node( StyleType styleType, std::string& out, cons
 		papuga_SerializationIter seritr;
 		papuga_init_SerializationIter( &seritr, value.value.serialization);
 		if (!getStructType( st, &seritr, errcode)) return false;
-		if (st.id == StructType::Array)
+		if (st.id != StructType::Array)
 		{
 			return ValueVariant_toxml( styleType, out, NULL/*name*/, value, structs, maxDepth, errcode);
 		}
