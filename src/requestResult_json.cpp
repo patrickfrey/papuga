@@ -347,14 +347,21 @@ extern "C" void* papuga_RequestResult_tojson( const papuga_RequestResult* self, 
 			out.push_back( '{');
 		}
 		incindent( indent);
-		papuga_RequestResultNode const* nd = self->nodes;
-		for (int ndcnt=0; nd; nd = nd->next, ++ndcnt)
+		if (self->nodes && !self->nodes->next && self->nodes->name_optional)
 		{
-			if (ndcnt) out.push_back( ',');
-			out.push_back( '\n');
-			out.append( indent);
-			append_attribute_name( out, nd->name);
-			if (!ValueVariant_tojson( out, nd->value, self->structdefs, indent, *err)) return NULL;
+			if (!ValueVariant_tojson( out, self->nodes->value, self->structdefs, indent, *err)) return NULL;
+		}
+		else
+		{
+			papuga_RequestResultNode const* nd = self->nodes;
+			for (int ndcnt=0; nd; nd = nd->next, ++ndcnt)
+			{
+				if (ndcnt) out.push_back( ',');
+				out.push_back( '\n');
+				out.append( indent);
+				append_attribute_name( out, nd->name);
+				if (!ValueVariant_tojson( out, nd->value, self->structdefs, indent, *err)) return NULL;
+			}
 		}
 		decindent( indent);
 		if (rootelem)

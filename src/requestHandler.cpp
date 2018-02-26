@@ -559,6 +559,7 @@ extern "C" bool papuga_set_RequestResult( papuga_RequestResult* self, papuga_Req
 		if (!curnode) return false;
 		curnode->next = NULL;
 		curnode->name = vi->name;
+		curnode->name_optional = false;
 		papuga_init_ValueVariant_value( &curnode->value, &vi->value);
 	}
 	self->nodes = rootnode.next;

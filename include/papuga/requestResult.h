@@ -24,6 +24,7 @@ typedef struct papuga_RequestResultNode
 {
 	struct papuga_RequestResultNode* next;
 	const char* name;
+	bool name_optional;
 	papuga_ValueVariant value;
 } papuga_RequestResultNode;
 

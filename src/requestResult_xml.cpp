@@ -62,6 +62,20 @@ static void append_tag_close( StyleType styleType, std::string& out, const char*
 	}
 }
 
+static void append_tag_open_node( StyleType styleType, std::string& out, const char* name)
+{
+	switch (styleType)
+	{
+		case StyleXML:
+			out.push_back( '<');
+			out.append( name);
+			out.push_back( '>');
+			break;
+		case StyleHTML:
+			break;
+	}
+}
+
 static void append_tag_open_close_imm( StyleType styleType, std::string& out, const char* name)
 {
 	switch (styleType)
@@ -226,6 +240,22 @@ static bool getStructType( StructType& st, const papuga_SerializationIter* serit
 		}
 	}
 	return true;
+}
+
+static bool ValueVariant_toxml_node( StyleType styleType, std::string& out, const char* name, const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structs, int maxDepth, papuga_ErrorCode& errcode)
+{
+	if (value.valuetype == papuga_TypeSerialization)
+	{
+		StructType st;
+		papuga_SerializationIter seritr;
+		papuga_init_SerializationIter( &seritr, value.value.serialization);
+		if (!getStructType( st, &seritr, errcode)) return false;
+		if (st.id == StructType::Array)
+		{
+			return ValueVariant_toxml( styleType, out, name, value, structs, maxDepth, errcode);
+		}
+	}
+	return ValueVariant_toxml( styleType, out, NULL/*name*/, value, structs, maxDepth, errcode);
 }
 
 static inline bool SerializationIter_toxml_named_elem( StyleType styleType, std::string& out, papuga_SerializationIter* seritr, const char* name, const papuga_StructInterfaceDescription* structs, int maxDepth, papuga_ErrorCode& errcode)
@@ -430,12 +460,19 @@ static void* RequestResult_toxml( StyleType styleType, const char* hdr, const ch
 	out.append( hdr);
 	if (rootelem)
 	{
-		append_tag_open( styleType, out, rootelem);
+		append_tag_open_node( styleType, out, rootelem);
 	}
 	papuga_RequestResultNode const* nd = self->nodes;
 	for (; nd; nd = nd->next)
 	{
-		if (!ValueVariant_toxml( styleType, out, nd->name, nd->value, self->structdefs, PAPUGA_MAX_RECURSION_DEPTH, *err)) return NULL;
+		if (nd->name_optional)
+		{
+			if (!ValueVariant_toxml_node( styleType, out, nd->name, nd->value, self->structdefs, PAPUGA_MAX_RECURSION_DEPTH, *err)) return NULL;
+		}
+		else
+		{
+			if (!ValueVariant_toxml( styleType, out, nd->name, nd->value, self->structdefs, PAPUGA_MAX_RECURSION_DEPTH, *err)) return NULL;
+		}
 	}
 	if (rootelem)
 	{

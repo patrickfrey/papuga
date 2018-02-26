@@ -71,6 +71,7 @@ bool papuga_init_RequestResult_single( papuga_RequestResult* self, papuga_Alloca
 	self->nodes = node;
 	papuga_init_ValueVariant_value( &node->value, value);
 	node->name = papuga_Allocator_copy_charp( allocator, elemname);
+	node->name_optional = true;
 	node->next = NULL;
 	return true;
 }
