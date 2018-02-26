@@ -252,10 +252,10 @@ static bool ValueVariant_toxml_node( StyleType styleType, std::string& out, cons
 		if (!getStructType( st, &seritr, errcode)) return false;
 		if (st.id == StructType::Array)
 		{
-			return ValueVariant_toxml( styleType, out, name, value, structs, maxDepth, errcode);
+			return ValueVariant_toxml( styleType, out, NULL/*name*/, value, structs, maxDepth, errcode);
 		}
 	}
-	return ValueVariant_toxml( styleType, out, NULL/*name*/, value, structs, maxDepth, errcode);
+	return ValueVariant_toxml( styleType, out, name, value, structs, maxDepth, errcode);
 }
 
 static inline bool SerializationIter_toxml_named_elem( StyleType styleType, std::string& out, papuga_SerializationIter* seritr, const char* name, const papuga_StructInterfaceDescription* structs, int maxDepth, papuga_ErrorCode& errcode)
