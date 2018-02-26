@@ -74,12 +74,12 @@ const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_Requ
 /*
 * @brief List the names of variables defined in a context
 * @param[in] self this pointer to the context
-* @param[in] inheritcnt maximum number of inheritance steps a selected variable has gone through or -1, if inheritance level is not a criterion (0: own variable, 1: parent context variable, 2: gran parent ...)
+* @param[in] max_inheritcnt maximum number of inheritance steps a selected variable has gone through or -1, if inheritance level is not a criterion (0: own variable, 1: parent context variable, 2: gran parent ...)
 * @param[in] buf buffer to use for result
 * @param[in] bufsize size of buffer to use for result
 * @return NULL terminated array of variable names or NULL if the buffer buf is too small for the result
 */
-const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, int inheritcnt, char const** buf, size_t bufsize);
+const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, int max_inheritcnt, char const** buf, size_t bufsize);
 
 /*
  * @brief Creates a request handler
