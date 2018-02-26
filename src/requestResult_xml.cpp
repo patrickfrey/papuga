@@ -93,14 +93,12 @@ static bool append_key_value( StyleType styleType, std::string& out, const char*
 			out.push_back( '>');
 			break;
 		case StyleHTML:
-			append_tag_open( styleType, out, name);
 			out.append( "<span class=\"name\">");
 			out.append( name);
 			out.append( "</span>");
 			out.append( "<span class=\"value\">");
 			if (!papuga::ValueVariant_append_string( out, value, errcode)) return false;
 			out.append( "</span>");
-			append_tag_close( styleType, out, name);
 			break;
 	}
 	return true;
