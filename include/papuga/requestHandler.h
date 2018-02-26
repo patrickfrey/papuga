@@ -74,11 +74,12 @@ const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_Requ
 /*
 * @brief List the names of variables defined in a context
 * @param[in] self this pointer to the context
+* @param[in] inheritcnt maximum number of inheritance steps a selected variable has gone through or -1, if inheritance level is not a criterion (0: own variable, 1: parent context variable, 2: gran parent ...)
 * @param[in] buf buffer to use for result
 * @param[in] bufsize size of buffer to use for result
 * @return NULL terminated array of variable names or NULL if the buffer buf is too small for the result
 */
-const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, char const** buf, size_t bufsize);
+const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, int inheritcnt, char const** buf, size_t bufsize);
 
 /*
  * @brief Creates a request handler
@@ -136,6 +137,16 @@ const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandl
  * @return true on success, false on failure
  */
 bool papuga_init_RequestContext_child( papuga_RequestContext* self, papuga_Allocator* allocator, const papuga_RequestHandler* handler, const char* type, const char* name, papuga_ErrorCode* errcode);
+
+/*
+ * @brief Find a stored context
+ * @param[in] handler request handler to get the context from
+ * @param[in] type type name of the context to find
+ * @param[in] name name of the context to find
+ * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
+ * @return pointer to the found context on success, NULL if not found
+ */
+const papuga_RequestContext* papuga_RequestHandler_find_context( const papuga_RequestHandler* handler, const char* type, const char* name);
 
 /*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler

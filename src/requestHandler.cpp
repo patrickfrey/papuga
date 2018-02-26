@@ -105,7 +105,7 @@ static bool RequestContext_add_variable_shallow_copy( papuga_RequestContext* sel
 	varstruct->name = papuga_Allocator_copy_charp( self->allocator, name);
 	if (!varstruct->name) return false;
 	papuga_init_ValueVariant_value( &varstruct->value, value);
-	varstruct->inherited = false;
+	varstruct->inheritcnt = 0;
 	self->variables = add_list( self->variables, varstruct);
 	return true;
 }
@@ -117,7 +117,7 @@ static bool RequestContext_add_variable( papuga_RequestContext* self, const char
 	varstruct->name = papuga_Allocator_copy_charp( self->allocator, name);
 	if (!varstruct->name) goto ERROR;
 	if (!papuga_Allocator_deepcopy_value( self->allocator, &varstruct->value, value, moveobj, &self->errcode)) goto ERROR;
-	varstruct->inherited = false;
+	varstruct->inheritcnt = 0;
 	self->variables = add_list( self->variables, varstruct);
 	return true;
 ERROR:
@@ -142,7 +142,7 @@ static papuga_RequestVariable* copyRequestVariables( papuga_Allocator* allocator
 		cur->name = papuga_Allocator_copy_charp( allocator, vl->name);
 		if (!cur->name) goto ERROR;
 		cur->next = 0;
-		cur->inherited = true;
+		cur->inheritcnt += 1;
 		if (!papuga_Allocator_deepcopy_value( allocator, &cur->value, &vl->value, moveobj, errcode)) goto ERROR;
 	}
 	return root.next;
@@ -165,13 +165,14 @@ const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_Requ
 	return (var)?&var->value : NULL;
 }
 
-extern "C" const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, char const** buf, size_t bufsize)
+extern "C" const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, int inheritcnt, char const** buf, size_t bufsize)
 {
 	size_t bufpos = 0;
 	papuga_RequestVariable const* vl = self->variables;
 	for (; vl; vl = vl->next)
 	{
 		if (bufpos >= bufsize) return NULL;
+		if (inheritcnt >= 0 && vl->inheritcnt > inheritcnt) continue;
 		buf[ bufpos++] = vl->name;
 	}
 	if (bufpos >= bufsize) return NULL;
@@ -290,6 +291,15 @@ ERROR:
 		*errcode = papuga_NoMemError;
 	}
 	return false;
+}
+
+extern "C" const papuga_RequestContext* papuga_RequestHandler_find_context( const papuga_RequestHandler* handler, const char* type, const char* name)
+{
+	if (type && name)
+	{
+		return find_context( handler->contexts, type, name);
+	}
+	return NULL;
 }
 
 extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton)
@@ -543,7 +553,7 @@ extern "C" bool papuga_set_RequestResult( papuga_RequestResult* self, papuga_Req
 	papuga_RequestVariable const* vi = context->variables;
 	for (; vi; vi = vi->next)
 	{
-		if (vi->name[0] == '_' || vi->inherited || vi->value.valuetype == papuga_TypeHostObject) continue;
+		if (vi->name[0] == '_' || vi->inheritcnt > 0 || vi->value.valuetype == papuga_TypeHostObject) continue;
 		curnode->next = alloc_type<papuga_RequestResultNode>( self->allocator);
 		curnode = curnode->next;
 		if (!curnode) return false;

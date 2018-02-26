@@ -40,7 +40,7 @@ typedef struct papuga_RequestVariable
 	struct papuga_RequestVariable* next;		/*< next variable */
 	const char* name;				/*< name of variable associated with this value */
 	papuga_ValueVariant value;			/*< variable value associated with this name */
-	bool inherited;					/*< variable value has been inherited and is not printed as part of the result */
+	int inheritcnt;					/*< counter how many times variable value has been inherited */
 } papuga_RequestVariable;
 
 /*
