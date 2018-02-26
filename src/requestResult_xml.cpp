@@ -454,14 +454,28 @@ static bool Serialization_toxml( StyleType styleType, std::string& out, papuga_S
 			rt &= SerializationIter_toxml_array( styleType, out, &seritr, name, structs, maxDepth, errcode);
 			break;
 		case StructType::Dict:
-			append_tag_open( styleType, out, name);
-			rt &= SerializationIter_toxml_dict( styleType, out, &seritr, structs, maxDepth, errcode);
-			append_tag_close( styleType, out, name);
+			if (name)
+			{
+				append_tag_open( styleType, out, name);
+				rt &= SerializationIter_toxml_dict( styleType, out, &seritr, structs, maxDepth, errcode);
+				append_tag_close( styleType, out, name);
+			}
+			else
+			{
+				rt &= SerializationIter_toxml_dict( styleType, out, &seritr, structs, maxDepth, errcode);
+			}
 			break;
 		case StructType::Struct:
-			append_tag_open( styleType, out, name);
-			rt &= SerializationIter_toxml_struct( styleType, out, &seritr, st.structid, structs, maxDepth, errcode);
-			append_tag_close( styleType, out, name);
+			if (name)
+			{
+				append_tag_open( styleType, out, name);
+				rt &= SerializationIter_toxml_struct( styleType, out, &seritr, st.structid, structs, maxDepth, errcode);
+				append_tag_close( styleType, out, name);
+			}
+			else
+			{
+				rt &= SerializationIter_toxml_struct( styleType, out, &seritr, st.structid, structs, maxDepth, errcode);
+			}
 			break;
 	}
 	if (rt && !papuga_SerializationIter_eof( &seritr))
