@@ -30,18 +30,20 @@ struct OutputContext
 	const papuga_StructInterfaceDescription* structs;
 	papuga_ErrorCode errcode;
 	int maxDepth;
-	int recDepthShowTitleHTML;
+	int invisibleDepth;
 
-	OutputContext( StyleType styleType_, const papuga_StructInterfaceDescription* structs_, int maxDepth_, bool topCollectionNodeVisible)
-		:styleType(styleType_),out(),structs(structs_),errcode(papuga_Ok),maxDepth(maxDepth_)
-		,recDepthShowTitleHTML(topCollectionNodeVisible?maxDepth_:(maxDepth_-1)){}
+	OutputContext( StyleType styleType_, const papuga_StructInterfaceDescription* structs_, int maxDepth_)
+		:styleType(styleType_),out(),structs(structs_),errcode(papuga_Ok),maxDepth(maxDepth_),invisibleDepth(maxDepth_){}
 
+	void htmlSetNextTagInvisible()
+	{
+		invisibleDepth = maxDepth-2;
+	}
 	bool htmlTitleVisible() const
 	{
-		return (maxDepth <= recDepthShowTitleHTML);
+		return maxDepth <= invisibleDepth;
 	}
 };
-
 
 // Forward declarations:
 static bool Serialization_toxml( OutputContext& ctx, const char* name, papuga_Serialization* ser);
@@ -300,6 +302,7 @@ static bool ValueVariant_toxml_node( OutputContext& ctx, const char* name, const
 		}
 		else
 		{
+			ctx.htmlSetNextTagInvisible();
 			return ValueVariant_toxml( ctx, name, value);
 		}
 	}
@@ -533,7 +536,7 @@ static bool Serialization_toxml( OutputContext& ctx, const char* name, papuga_Se
 
 static void* RequestResult_toxml( const papuga_RequestResult* self, StyleType styleType, const char* hdr, const char* tail, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
 {
-	OutputContext ctx( styleType, self->structdefs, PAPUGA_MAX_RECURSION_DEPTH, !self->nodes || self->nodes->next || !self->nodes->name_optional);
+	OutputContext ctx( styleType, self->structdefs, PAPUGA_MAX_RECURSION_DEPTH);
 	const char* rootelem = self->name;
 
 	ctx.out.append( hdr);
