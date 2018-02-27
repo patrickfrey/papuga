@@ -38,7 +38,7 @@ struct OutputContext
 
 	bool htmlTitleVisible() const
 	{
-		return (maxDepth < recDepthShowTitleHTML);
+		return (maxDepth <= recDepthShowTitleHTML);
 	}
 };
 
