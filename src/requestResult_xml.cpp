@@ -161,6 +161,7 @@ static void append_encoded_entities( OutputContext& ctx, const char* str, std::s
 		{
 			ctx.out.append( entity);
 			entity = 0;
+			++si;
 		}
 	}
 }
