@@ -598,12 +598,12 @@ extern "C" void* papuga_RequestResult_tohtml5( const papuga_RequestResult* self,
 	try
 	{
 		std::string hdr;
-		char hdrbuf[ 256];
+		char hdrbuf[ 512];
 
-		std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<head>\n</head>\n<body>\n<meta>\n<charset=\"%s\">\n</meta>\n", papuga_StringEncoding_name( enc));
+		std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html><html>\n<head>\n<meta>\n<charset=\"%s\">\n</meta>\n", papuga_StringEncoding_name( enc));
 		hdr.append( hdrbuf);
 		hdr.append( head);
-		hdr.append( "</head>\n<body>");
+		hdr.append( "</head>\n<body>\n");
 		return RequestResult_toxml( self, StyleHTML, hdr.c_str(), "\n</body>\n</html>", enc, len, err);
 	}
 	catch (const std::bad_alloc&)
