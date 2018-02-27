@@ -600,7 +600,7 @@ extern "C" void* papuga_RequestResult_tohtml5( const papuga_RequestResult* self,
 		std::string hdr;
 		char hdrbuf[ 256];
 
-		std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<head>\n<head>\n<body>\n<meta>\n<charset=\"%s\">\n</meta>\n", papuga_StringEncoding_name( enc));
+		std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<head>\n</head>\n<body>\n<meta>\n<charset=\"%s\">\n</meta>\n", papuga_StringEncoding_name( enc));
 		hdr.append( hdrbuf);
 		hdr.append( head);
 		hdr.append( "</head>\n<body>");
