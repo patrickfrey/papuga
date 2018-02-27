@@ -88,20 +88,6 @@ static void append_tag_close( OutputContext& ctx, const char* name)
 	}
 }
 
-static void append_tag_open_node( OutputContext& ctx, const char* name)
-{
-	switch (ctx.styleType)
-	{
-		case StyleXML:
-			ctx.out.push_back( '<');
-			ctx.out.append( name);
-			ctx.out.push_back( '>');
-			break;
-		case StyleHTML:
-			break;
-	}
-}
-
 static void append_tag_open_close_imm( OutputContext& ctx, const char* name)
 {
 	switch (ctx.styleType)
@@ -609,9 +595,9 @@ static void* RequestResult_toxml( const papuga_RequestResult* self, StyleType st
 	const char* rootelem = self->name;
 
 	ctx.out.append( hdr);
-	if (rootelem)
+	if (rootelem && styleType == StyleXML)
 	{
-		append_tag_open_node( ctx, rootelem);
+		append_tag_open( ctx, rootelem);
 	}
 	papuga_RequestResultNode const* nd = self->nodes;
 	for (; nd; nd = nd->next)
@@ -630,7 +616,7 @@ static void* RequestResult_toxml( const papuga_RequestResult* self, StyleType st
 		*err = ctx.errcode;
 		return NULL;
 	}
-	if (rootelem)
+	if (rootelem && styleType == StyleXML)
 	{
 		append_tag_close( ctx, rootelem);
 	}
