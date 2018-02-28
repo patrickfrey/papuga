@@ -59,15 +59,15 @@ static void append_tag_open( OutputContext& ctx, const char* name)
 			ctx.out.push_back( '>');
 			break;
 		case StyleHTML:
+			ctx.out.append( "<div class=\"");
+			ctx.out.append( name);
+			ctx.out.append( "\">");
 			if (ctx.htmlTitleVisible())
 			{
 				ctx.out.append( "<span class=\"title\">");
 				ctx.out.append( name);
 				ctx.out.append( "</span>");
 			}
-			ctx.out.append( "<div class=\"");
-			ctx.out.append( name);
-			ctx.out.append( "\">");
 			break;
 	}
 }
