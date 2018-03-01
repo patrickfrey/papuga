@@ -70,6 +70,14 @@ void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned
 bool papuga_Allocator_add_free_mem( papuga_Allocator* self, void* mem);
 
 /*
+* @brief Add an allocator ownership to the context of an allocator, to be freed on destruction of this allocator
+* @param[in,out] self pointer to structure 
+* @param[in] allocator pointer to allocator to add ownership to this allocators context, to be freed when this allocator (self) is destroyed
+* @return true on success, false on memory allocation error
+*/
+bool papuga_Allocator_add_free_allocator( papuga_Allocator* self, papuga_Allocator* allocator);
+
+/*
 * @brief Shrink the last memory block allocated, making the freed memory for following allocations available
 * @param[in,out] self pointer to structure
 * @param[in] ptr pointer to allocated block to shrink

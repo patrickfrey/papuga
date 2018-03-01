@@ -157,6 +157,14 @@ bool papuga_Allocator_add_free_mem( papuga_Allocator* self, void* mem)
 	return true;
 }
 
+bool papuga_Allocator_add_free_allocator( papuga_Allocator* self, papuga_Allocator* allocator_ownership)
+{
+	papuga_Allocator* allocator = papuga_Allocator_alloc_Allocator( self);
+	if (!allocator) return false;
+	memcpy( allocator, &allocator_ownership, sizeof( papuga_Allocator));
+	return true;
+}
+
 bool papuga_Allocator_shrink_last_alloc( papuga_Allocator* self, void* ptr, size_t oldsize, size_t newsize)
 {
 	if ((char*)ptr == (self->root.ar + self->root.arsize - oldsize) && newsize <= oldsize)
