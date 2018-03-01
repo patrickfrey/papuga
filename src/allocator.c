@@ -157,7 +157,7 @@ bool papuga_Allocator_add_free_mem( papuga_Allocator* self, void* mem)
 	return true;
 }
 
-bool papuga_Allocator_add_free_allocator( papuga_Allocator* self, papuga_Allocator* allocator_ownership)
+bool papuga_Allocator_add_free_allocator( papuga_Allocator* self, const papuga_Allocator* allocator_ownership)
 {
 	papuga_Allocator* allocator = papuga_Allocator_alloc_Allocator( self);
 	if (!allocator) return false;
