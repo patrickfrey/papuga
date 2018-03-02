@@ -21,7 +21,7 @@
 #include <string>
 #include <cstring>
 
-enum StyleType {StyleHTML,StyleXML};
+enum StyleType {StyleHTML,StyleXML,StyleTEXT};
 
 struct OutputContext
 {
@@ -31,9 +31,10 @@ struct OutputContext
 	papuga_ErrorCode errcode;
 	int maxDepth;
 	int invisibleDepth;
+	std::string indent;
 
 	OutputContext( StyleType styleType_, const papuga_StructInterfaceDescription* structs_, int maxDepth_)
-		:styleType(styleType_),out(),structs(structs_),errcode(papuga_Ok),maxDepth(maxDepth_),invisibleDepth(maxDepth_){}
+		:styleType(styleType_),out(),structs(structs_),errcode(papuga_Ok),maxDepth(maxDepth_),invisibleDepth(maxDepth_),indent(){}
 
 	void htmlSetNextTagInvisible()
 	{
@@ -69,6 +70,15 @@ static void append_tag_open( OutputContext& ctx, const char* name)
 				ctx.out.append( "</span>");
 			}
 			break;
+		case StyleTEXT:
+			if (ctx.htmlTitleVisible())
+			{
+				ctx.out.append( ctx.indent);
+				ctx.out.append( name);
+				ctx.out.push_back( ':');
+				ctx.indent.append( "  ");
+			}
+			break;
 	}
 }
 
@@ -84,6 +94,12 @@ static void append_tag_close( OutputContext& ctx, const char* name)
 		
 		case StyleHTML:
 			ctx.out.append( "</div>");
+			break;
+		case StyleTEXT:
+			if (ctx.indent.size() >= 2)
+			{
+				ctx.indent.resize( ctx.indent.size()-2);
+			}
 			break;
 	}
 }
@@ -102,11 +118,21 @@ static void append_tag_open_close_imm( OutputContext& ctx, const char* name)
 			ctx.out.append( name);
 			ctx.out.append( "\"/>");
 			break;
+		case StyleTEXT:
+			ctx.out.append( ctx.indent);
+			ctx.out.append( name);
+			ctx.out.push_back( ':');
+			break;
 	}
 }
 
 static void append_encoded_entities( OutputContext& ctx, const char* str, std::size_t len)
 {
+	if (ctx.styleType == StyleTEXT)
+	{
+		ctx.out.append( str, len);
+		return;
+	}
 	const char* entity = 0;
 	char const* si = str;
 	const char* se = str + len;
@@ -201,6 +227,12 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 			if (!append_value( ctx, value)) return false;
 			ctx.out.append( "</span>");
 			ctx.out.append( "</div>");
+			break;
+		case StyleTEXT:
+			ctx.out.append( ctx.indent);
+			ctx.out.append( name);
+			ctx.out.append( ": ");
+			if (!append_value( ctx, value)) return false;
 			break;
 	}
 	return true;
@@ -672,6 +704,25 @@ extern "C" void* papuga_RequestResult_tohtml5( const papuga_RequestResult* self,
 		return NULL;
 	}
 }
+
+extern "C" void* papuga_RequestResult_totext( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
+{
+	try
+	{
+		return RequestResult_toxml( self, StyleTEXT, "", "\n", enc, len, err);
+	}
+	catch (const std::bad_alloc&)
+	{
+		*err = papuga_NoMemError;
+		return NULL;
+	}
+	catch (...)
+	{
+		*err = papuga_UncaughtException;
+		return NULL;
+	}
+}
+
 
 
 

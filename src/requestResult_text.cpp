@@ -180,7 +180,7 @@ static void* RequestResult_totext( const papuga_RequestResult* self, papuga_Stri
 		papuga_RequestResultNode const* nd = self->nodes;
 		for (; nd; nd = nd->next)
 		{
-			out << "\n" << indent << nd->name << ":";
+			out << indent << nd->name << ":";
 			if (!ValueVariant_totext( out, indent, nd->value, self->structdefs, *err)) return NULL;
 		}
 		void* rt = papuga::encodeRequestResultString( out.str(), enc, len, err);
