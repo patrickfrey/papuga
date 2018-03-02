@@ -256,7 +256,7 @@ static const papuga_RequestContext* find_context( const RequestContextList* clst
 {
 	RequestContextList const* cl = clst;
 	for (; cl && (0!=std::strcmp( cl->context.type, type) || 0!=std::strcmp( cl->name, name)); cl = cl->next){}
-	return &cl->context;
+	return cl ? &cl->context : NULL;
 }
 
 extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, papuga_Allocator* allocator, const papuga_RequestHandler* handler, const char* type, const char* name, papuga_ErrorCode* errcode)
