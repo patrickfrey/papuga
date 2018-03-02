@@ -230,8 +230,11 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 			break;
 		case StyleTEXT:
 			ctx.out.append( ctx.indent);
-			ctx.out.append( name);
-			ctx.out.append( ": ");
+			if (ctx.htmlTitleVisible())
+			{
+				ctx.out.append( name);
+				ctx.out.append( ": ");
+			}
 			if (!append_value( ctx, value)) return false;
 			break;
 	}
