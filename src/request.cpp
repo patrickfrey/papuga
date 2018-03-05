@@ -31,7 +31,7 @@
 #include <algorithm>
 #include <limits>
 
-#undef PAPUGA_LOWLEVEL_DEBUG
+#define PAPUGA_LOWLEVEL_DEBUG
 
 using namespace papuga;
 
@@ -486,9 +486,27 @@ public:
 				return false;
 			}
 			std::string open_expression( cut_trailing_slashes( scope_expression));
-			std::string close_expression( open_expression + "~");
+			std::string close_expression;
+
+			if (isSelectAttributeExpression( open_expression))
+			{
+				if (select_expression[0])
+				{
+					m_errcode = papuga_SyntaxError;
+					return false;
+				}
+				close_expression = open_expression;
+			}
+			else
+			{
+				close_expression = open_expression + "~";
+			}
 			std::string value_expression;
-			if (select_expression[0] == '/')
+			if (select_expression[0] == '\0')
+			{
+				value_expression = open_expression;
+			}
+			else if (select_expression[0] == '/')
 			{
 				if (select_expression[1] == '/')
 				{
@@ -574,6 +592,14 @@ public:
 	std::size_t maxitemid() const					{return m_maxitemid;}
 
 private:
+	static bool isSelectAttributeExpression( const std::string& expr)
+	{
+		const char* si = expr.c_str();
+		char const* se = si + expr.size();
+		for (; se != si && *(se-1) != '/' && *(se-1) != ']' && *(se-1) != '@'; --se){}
+		return (se != si && *(se-1) == '@');
+	}
+
 	bool checkItemId( int itemid)
 	{
 		if (itemid <= 0 || itemid >= (1<<28))
@@ -1227,7 +1253,10 @@ public:
 					return NULL;
 				}
 			}
-			args->argc = mcdef->nofargs;
+			for (; ai && !papuga_ValueVariant_defined( args->argv+(ai-1)); --ai){}
+			/// ... remove optional arguments at the end of the argument list, to make them replaceable by default values
+
+			args->argc = ai;
 			++m_curr_methodidx;
 			return &m_curr_methodcall;
 		}
