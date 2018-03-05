@@ -4,16 +4,15 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # PYTHON 3.x
 # --------------------------------------
 if (APPLE)
-execute_process( COMMAND  brew  --cellar  python3
+execute_process( COMMAND  which  python3
 			   RESULT_VARIABLE  RET_PYTHON_PATH
-			   OUTPUT_VARIABLE  PYTHON_INSTALL_PATH
+			   OUTPUT_VARIABLE  PYTHON_INSTALL_PROGRAM
 			   OUTPUT_STRIP_TRAILING_WHITESPACE )
 if( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
-set( HINTS_PYTHON_PROGRAM_PATH  "${HINTS_PYTHON_PROGRAM_PATH}  ${PYTHON_INSTALL_PATH}/bin ${PYTHON_INSTALL_PATH}/sbin ${PYTHON_INSTALL_PATH}" )
-MESSAGE( STATUS "Hint found to installation path of python3: '${PYTHON_INSTALL_PATH}' " )
+get_filename_component( HINTS_PYTHON_PROGRAM_PATH "${PYTHON_INSTALL_PROGRAM}" DIRECTORY )
+MESSAGE( STATUS "Found program path of python3: '${PYTHON_INSTALL_PROGRAM}' " )
 else( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
-MESSAGE( STATUS "Call 'brew  --cellar  python3' returns '${RET_PYTHON_PATH}' result '${PYTHON_INSTALL_PATH}' " )
-find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python3" )
+MESSAGE( STATUS "Call 'which  python3' returns '${RET_PYTHON_PATH}' result '${PYTHON_INSTALL_PROGRAM}' " )
 endif( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
 
 execute_process( COMMAND  brew  --prefix  python3
@@ -25,7 +24,6 @@ set( HINTS_PYTHON_PROGRAM_PATH  "${HINTS_PYTHON_PROGRAM_PATH}  ${PYTHON_INSTALL_
 MESSAGE( STATUS "Hint found to installation path of python3: '${PYTHON_INSTALL_PATH}' " )
 else( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
 MESSAGE( STATUS "Call 'brew  --prefix  python3' returns '${RET_PYTHON_PATH}' result '${PYTHON_INSTALL_PATH}' " )
-find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python3" )
 endif( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
 
 find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python3"
