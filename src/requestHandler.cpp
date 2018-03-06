@@ -408,7 +408,6 @@ static bool RequestContext_add_result( papuga_RequestContext* context, const cha
 	}
 	else
 	{
-		bool rt;
 		if (append)
 		{
 			papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( context->allocator);
