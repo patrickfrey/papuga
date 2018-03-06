@@ -54,12 +54,13 @@ struct RequestAutomaton_FunctionDef
 	const char* expression;			///< selecting expression addressing the scope of the request
 	const char* resultvar;			///< variable where the result of the call is stored to, empty if the result is void or dropped
 	const char* selfvar;			///< variable addressing the object of the method call
+	bool appendresult;			///< true, if the result is a list where we append to, false if a previous result is replaced the call
 	papuga_RequestMethodId methodid;	///< identifier of the method to call
 	std::vector<Arg> args;			///< list of references addressing the arguments of the method call
 
 	/// \brief Copy constructor
 	RequestAutomaton_FunctionDef( const RequestAutomaton_FunctionDef& o)
-		:expression(o.expression),resultvar(o.resultvar),selfvar(o.selfvar),args(o.args)
+		:expression(o.expression),resultvar(o.resultvar),selfvar(o.selfvar),appendresult(o.appendresult),args(o.args)
 	{
 		methodid.classid = o.methodid.classid;
 		methodid.functionid = o.methodid.functionid;
@@ -71,8 +72,20 @@ struct RequestAutomaton_FunctionDef
 	/// \param[in] methodid_ identifier of the method to call
 	/// \param[in] args_ list of references addressing the arguments of the method call
 	RequestAutomaton_FunctionDef( const char* expression_, const char* resultvar_, const char* selfvar_, const papuga_RequestMethodId& methodid_, const std::vector<Arg>& args_)
-		:expression(expression_),resultvar(resultvar_),selfvar(selfvar_),args(args_)
+		:expression(expression_)
+		,selfvar(selfvar_)
+		,args(args_)
 	{
+		if (resultvar_&& resultvar_[0]=='+')
+		{
+			resultvar = resultvar_+1;
+			appendresult = true;
+		}
+		else
+		{
+			resultvar = resultvar_;
+			appendresult = false;
+		}
 		methodid.classid = methodid_.classid;
 		methodid.functionid = methodid_.functionid;
 	}

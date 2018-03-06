@@ -92,17 +92,18 @@ struct CallDef
 	const char* selfvarname;
 	const char* resultvarname;
 	CallArgDef* args;
+	bool appendresult;
 	int nofargs;
 	int groupid;
 
-	CallDef( const papuga_RequestMethodId* methodid_, const char* selfvarname_, const char* resultvarname_, CallArgDef* args_, int nofargs_, int groupid_)
-		:selfvarname(selfvarname_),resultvarname(resultvarname_),args(args_),nofargs(nofargs_),groupid(groupid_)
+	CallDef( const papuga_RequestMethodId* methodid_, const char* selfvarname_, const char* resultvarname_, bool appendresult_, CallArgDef* args_, int nofargs_, int groupid_)
+		:selfvarname(selfvarname_),resultvarname(resultvarname_),args(args_),appendresult(appendresult_),nofargs(nofargs_),groupid(groupid_)
 	{
 		methodid.classid = methodid_->classid;
 		methodid.functionid  = methodid_->functionid;
 	}
 	CallDef( const CallDef& o)
-		:selfvarname(o.selfvarname),resultvarname(o.resultvarname),args(o.args),nofargs(o.nofargs),groupid(o.groupid)
+		:selfvarname(o.selfvarname),resultvarname(o.resultvarname),args(o.args),appendresult(o.appendresult),nofargs(o.nofargs),groupid(o.groupid)
 	{
 		methodid.classid = o.methodid.classid;
 		methodid.functionid = o.methodid.functionid;
@@ -211,7 +212,7 @@ public:
 
 	/* @param[in] expression selector of the call scope */
 	/* @param[in] nofargs number of arguments */
-	bool addCall( const char* expression, const papuga_RequestMethodId* method_, const char* selfvarname_, const char* resultvarname_, int nofargs)
+	bool addCall( const char* expression, const papuga_RequestMethodId* method_, const char* selfvarname_, const char* resultvarname_, bool appendresult_, int nofargs)
 	{
 		try
 		{
@@ -270,7 +271,7 @@ public:
 			fprintf( stderr, "automaton add event [%s %d] call expression='%s'\n",
 				 atmRefTypeName(MethodCall), (int)m_calldefs.size(), close_expression.c_str());
 #endif
-			m_calldefs.push_back( CallDef( method_, selfvarname, resultvarname, car, nofargs, m_groupid < 0 ? m_calldefs.size():m_groupid));
+			m_calldefs.push_back( CallDef( method_, selfvarname, resultvarname, appendresult_, car, nofargs, m_groupid < 0 ? m_calldefs.size():m_groupid));
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 		return true;
@@ -854,6 +855,7 @@ static void papuga_init_RequestMethodCall( papuga_RequestMethodCall* self)
 	self->resultvarname = 0;
 	self->methodid.classid = -1;
 	self->methodid.functionid  = -1;
+	self->appendresult = false;
 	self->eventcnt = 0;
 	papuga_init_CallArgs( &self->args, self->membuf, sizeof(self->membuf));
 }
@@ -1237,6 +1239,7 @@ public:
 			m_curr_methodcall.resultvarname = mcnode->def->resultvarname;
 			m_curr_methodcall.methodid.classid = mcnode->def->methodid.classid;
 			m_curr_methodcall.methodid.functionid = mcnode->def->methodid.functionid;
+			m_curr_methodcall.appendresult = mcnode->def->appendresult;
 			m_curr_methodcall.eventcnt = mcnode->scope.from;
 			m_curr_methodcall.argcnt = -1;
 			papuga_init_CallArgs( &m_curr_methodcall.args, m_curr_methodcall.membuf, sizeof(m_curr_methodcall.membuf));
@@ -2021,10 +2024,11 @@ extern "C" bool papuga_RequestAutomaton_add_call(
 		const papuga_RequestMethodId* method,
 		const char* selfvarname,
 		const char* resultvarname,
+		bool appendresult,
 		int nargs)
 {
 	if (method->functionid && !selfvarname) return false;
-	return self->atm.addCall( expression, method, selfvarname, resultvarname, nargs);
+	return self->atm.addCall( expression, method, selfvarname, resultvarname, appendresult, nargs);
 }
 
 extern "C" bool papuga_RequestAutomaton_set_call_arg_var( papuga_RequestAutomaton* self, int idx, const char* varname)

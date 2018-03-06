@@ -24,7 +24,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm)
 	fprintf( stderr, "ATM define function expression='%s', method=[%d,%d], self=%s, result=%s, n=%d\n",
 		 expression, methodid.classid, methodid.functionid, selfvar, resultvar, (int)args.size());
 #endif	
-	if (!papuga_RequestAutomaton_add_call( atm, expression, &methodid, selfvar, resultvar, args.size()))
+	if (!papuga_RequestAutomaton_add_call( atm, expression, &methodid, selfvar, resultvar, appendresult, args.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add function");

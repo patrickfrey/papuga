@@ -33,7 +33,7 @@ execute_process( COMMAND  brew  --cellar  python3
 			   OUTPUT_VARIABLE  PYTHON_INSTALL_PATH
 			   OUTPUT_STRIP_TRAILING_WHITESPACE )
 if( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
-set( HINTS_PYTHON_PROGRAM_PATH  "${HINTS_PYTHON_PROGRAM_PATH}  ${PYTHON_INSTALL_PATH}/bin ${PYTHON_INSTALL_PATH}/sbin ${PYTHON_INSTALL_PATH}" )
+set( HINTS_PYTHON_PROGRAM_PATH  "${HINTS_PYTHON_PROGRAM_PATH}  ${PYTHON_INSTALL_PATH}" )
 MESSAGE( STATUS "Hint (cellar) found to installation path of python3: '${PYTHON_INSTALL_PATH}' " )
 else( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
 MESSAGE( STATUS "Call 'brew  --prefix  python3' returns '${RET_PYTHON_PATH}' result '${PYTHON_INSTALL_PATH}' " )
@@ -44,14 +44,14 @@ execute_process( COMMAND  brew  --prefix  python3
 			   OUTPUT_VARIABLE  PYTHON_INSTALL_PATH
 			   OUTPUT_STRIP_TRAILING_WHITESPACE )
 if( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
-set( HINTS_PYTHON_PROGRAM_PATH  "${HINTS_PYTHON_PROGRAM_PATH}  ${PYTHON_INSTALL_PATH}/bin ${PYTHON_INSTALL_PATH}/sbin ${PYTHON_INSTALL_PATH}" )
+set( HINTS_PYTHON_PROGRAM_PATH  "${HINTS_PYTHON_PROGRAM_PATH}  ${PYTHON_INSTALL_PATH}" )
 MESSAGE( STATUS "Hint (prefix) found to installation path of python3: '${PYTHON_INSTALL_PATH}' " )
 else( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
 MESSAGE( STATUS "Call 'brew  --prefix  python3' returns '${RET_PYTHON_PATH}' result '${PYTHON_INSTALL_PATH}' " )
 endif( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
 
 foreach( _candidate ${HINTS_PYTHON_PROGRAM_PATH} )
-file( GLOB_RECURSE  _prglist  FOLLOW_SYMLINKS  ${candidate}/python )
+file( GLOB  _prglist  "${_candidate}/python"  "${_candidate}/*/python"  "${_candidate}/*/*/python"  "${_candidate}/*/*/*/python")
 foreach( _prg ${_prglist} )
 CHECK_PYTHON3_EXECUTABLE( ${_prg} )
 if( NOT "${PYTHON3_EXECUTABLE}"  STREQUAL "" )

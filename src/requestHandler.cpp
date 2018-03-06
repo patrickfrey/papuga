@@ -382,10 +382,59 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 	}
 }
 
+static bool RequestContext_add_result( papuga_RequestContext* context, const char* resultvarname, papuga_ValueVariant& resultvalue, bool append, papuga_ErrorCode& errcode)
+{
+	papuga_RequestVariable* var = find_list( context->variables, &papuga_RequestVariable::name, resultvarname);
+	if (var)
+	{
+		if (append)
+		{
+			if (var->value.valuetype == papuga_TypeSerialization)
+			{
+				return papuga_Serialization_pushValue( var->value.value.serialization, &resultvalue);
+			}
+			else
+			{
+				errcode = papuga_MixedConstruction;
+				return false;
+			}
+		}
+		else
+		{
+			// ... overwrite if already defined
+			papuga_init_ValueVariant_value( &var->value, &resultvalue);
+			return true;
+		}
+	}
+	else
+	{
+		bool rt;
+		if (append)
+		{
+			papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( context->allocator);
+			if (!ser || !papuga_Serialization_pushValue( ser, &resultvalue))
+			{
+				errcode = papuga_NoMemError;
+				return false;
+			}
+			papuga_ValueVariant rv;
+			papuga_init_ValueVariant_serialization( &rv, ser);
+			return RequestContext_add_variable_shallow_copy( context, resultvarname, &rv);
+			// ... shallow copy, because we get ownership of the allocator context of the call result
+		}
+		else
+		{
+			return RequestContext_add_variable_shallow_copy( context, resultvarname, &resultvalue);
+			// ... shallow copy, because we get ownership of the allocator context of the call result
+		}
+	}
+}
+
 extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_ErrorBuffer* errorbuf, int* errorpos)
 {
 	char membuf_err[ 1024];
 	papuga_ErrorBuffer errorbuf_call;
+	papuga_ErrorCode errcode = papuga_Ok;
 
 	const papuga_ClassDef* classdefs = papuga_Request_classdefs( request);
 	papuga_RequestIterator* itr = papuga_create_RequestIterator( context->allocator, request);
@@ -416,23 +465,11 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			papuga_init_ValueVariant_hostobj( &result, hobj);
 
 			// [2] Assign the result to the result variable:
-			papuga_RequestVariable* var = find_list( context->variables, &papuga_RequestVariable::name, call->resultvarname);
-			if (var)
+			if (!RequestContext_add_result( context, call->resultvarname, result, call->appendresult, errcode))
 			{
-				// ... overwrite if already defined
-				papuga_init_ValueVariant_value( &var->value, &result);
+				break;
 			}
-			else
-			{
-				// ... add create it if not, because we get ownership of the allocator context of the call result, a shallow copy is enough
-				if (!RequestContext_add_variable_shallow_copy( context, call->resultvarname, &result)) 
-				{
-					reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_NoMemError));
-					*errorpos = call->eventcnt;
-					papuga_destroy_RequestIterator( itr);
-					return false;
-				}
-			}
+
 			// [3] Log the call:
 			if (context->logger->logMethodCall)
 			{
@@ -449,17 +486,13 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			papuga_RequestVariable* var = find_list( context->variables, &papuga_RequestVariable::name, call->selfvarname);
 			if (!var)
 			{
-				reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_MissingSelf));
-				*errorpos = call->eventcnt;
-				papuga_destroy_RequestIterator( itr);
-				return false;
+				errcode = papuga_MissingSelf;
+				break;
 			}
 			if (var->value.valuetype != papuga_TypeHostObject || var->value.value.hostObject->classid != call->methodid.classid)
 			{
-				reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_TypeError));
-				*errorpos = call->eventcnt;
-				papuga_destroy_RequestIterator( itr);
-				return false;
+				errcode = papuga_TypeError;
+				break;
 			}
 			// [2] Call the method and report an error on failure:
 			void* self = var->value.value.hostObject->data;
@@ -502,30 +535,15 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					}
 					if (!ser || !sc)
 					{
-						reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_NoMemError));
-						*errorpos = call->eventcnt;
-						papuga_destroy_RequestIterator( itr);
-						return false;
+						errcode = papuga_NoMemError;
+						break;
 					}
 					papuga_init_ValueVariant_serialization( &result, ser);
 				}
 				// [3.2] Assign the result to the result variable:
-				var = find_list( context->variables, &papuga_RequestVariable::name, call->resultvarname);
-				if (var)
+				if (!RequestContext_add_result( context, call->resultvarname, result, call->appendresult, errcode))
 				{
-					// ... overwrite if already defined
-					papuga_init_ValueVariant_value( &var->value, &result);
-				}
-				else
-				{
-					// ... add create it if not, because we get ownership of the allocator context of the call result, a shallow copy is enough
-					if (!RequestContext_add_variable_shallow_copy( context, call->resultvarname, &result)) 
-					{
-						reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( papuga_NoMemError));
-						*errorpos = call->eventcnt;
-						papuga_destroy_RequestIterator( itr);
-						return false;
-					}
+					break;
 				}
 				// [3.3] Log the call
 				if (context->logger->logMethodCall)
@@ -546,7 +564,10 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		}
 	}
 	// Report error if we could not resolve all parts of a method call:
-	papuga_ErrorCode errcode = papuga_RequestIterator_get_last_error( itr, &call);
+	if (errcode != papuga_Ok)
+	{
+		errcode = papuga_RequestIterator_get_last_error( itr, &call);
+	}
 	if (errcode != papuga_Ok)
 	{
 		reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( errcode));

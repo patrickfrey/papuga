@@ -69,6 +69,7 @@ papuga_ErrorCode papuga_RequestAutomaton_last_error( const papuga_RequestAutomat
  * @param[in] method identifier of the method to call
  * @param[in] selfvarname identifier of the owner object for the method to call
  * @param[in] resultvarname identifier to use for the result
+ * @param[in] appendresult true if the result is a list where each result of a call is appended to, false if each call replaces the previous result
  * @param[in] nofargs number of arguments of the call
  */
 bool papuga_RequestAutomaton_add_call(
@@ -77,6 +78,7 @@ bool papuga_RequestAutomaton_add_call(
 		const papuga_RequestMethodId* method,
 		const char* selfvarname,
 		const char* resultvarname,
+		bool appendresult,
 		int nofargs);
 
 /*
@@ -279,6 +281,7 @@ typedef struct papuga_RequestMethodCall
 	const char* selfvarname;			/*< variable referencing the object for the method call */
 	const char* resultvarname;			/*< variable where to write the result to */
 	papuga_RequestMethodId methodid;		/*< method identifier */
+	bool appendresult;				/*< wheter to append or to overwrite result */
 	int eventcnt;					/*< event (scope) counter for reproducing error area */
 	int argcnt;					/*< argument index of erroneous parameter or -1*/
 	papuga_CallArgs args;				/*< arguments of the call */
