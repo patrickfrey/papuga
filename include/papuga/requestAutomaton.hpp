@@ -247,6 +247,11 @@ public:
 		:std::vector<RequestAutomaton_Node>( nodes.begin(), nodes.end()){}
 	RequestAutomaton_NodeList( const RequestAutomaton_NodeList& o)
 		:std::vector<RequestAutomaton_Node>( o){}
+
+	void append( const RequestAutomaton_NodeList& o)
+	{
+		insert( end(), o.begin(), o.end());
+	}
 };
 #endif
 
