@@ -196,14 +196,27 @@ struct RequestAutomaton_Node
 	///\brief Default contructor
 	RequestAutomaton_Node();
 	///\brief Contructor as RequestAutomaton_GroupDef
+	/// \param[in] nodelist_ list of nodes forming a group of functions
 	RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_FunctionDef>& nodes_);
 	///\brief Contructor as RequestAutomaton_FunctionDef
+	/// \param[in] expression_ select expression addressing the scope of this method call definition
+	/// \param[in] resultvar_ variable where the result of the call is stored to, empty or NULL if the result is void or dropped
+	/// \param[in] selfvar_ variable where the result of the call is stored to, empty if the result is void or dropped
+	/// \param[in] methodid_ identifier of the method to call
+	/// \param[in] args_ list of references addressing the arguments of the method call
 	RequestAutomaton_Node( const char* expression_, const char* resultvar_, const char* selfvar_, const papuga_RequestMethodId& methodid_, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args_);
 	///\brief Contructor as RequestAutomaton_StructDef
+	/// \param[in] expression_ select expression addressing the scope of this structure definition
+	/// \param[in] itemid_ item identifier unique in its scope (referencing a value or a structure)
+	/// \param[in] elems_ list of references to the elements of this structure
 	RequestAutomaton_Node( const char* expression_, int itemid_, const std::initializer_list<RequestAutomaton_StructDef::Element>& elems_);
 	///\brief Contructor as RequestAutomaton_ValueDef
+	/// \param[in] scope_expression_ selecting expression addressing the scope of this value definition
+	/// \param[in] select_expression_ selecting expression addressing the value itself
+	/// \param[in] itemid_ identifier given to the item to make it uniquely addressable in the context of its scope
 	RequestAutomaton_Node( const char* scope_expression_, const char* select_expression_, int itemid_);
 	///\brief Contructor from list of predefined nodes (for sharing definitions)
+	/// \param[in] nodelist_ list of nodes
 	RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_);
 
 	///\brief Copy contructor
@@ -246,7 +259,7 @@ public:
 
 	/// \brief Add a method call
 	/// \param[in] expression select expression addressing the scope of this method call definition
-	/// \param[in] resultvar variable where the result of the call is stored to, empty if the result is void or dropped
+	/// \param[in] resultvar variable where the result of the call is stored to, empty or NULL if the result is void or dropped
 	/// \param[in] selfvar variable where the result of the call is stored to, empty if the result is void or dropped
 	/// \param[in] methodid identifier of the method to call
 	/// \param[in] args list of references addressing the arguments of the method call

@@ -146,7 +146,7 @@ RequestAutomaton_Node::RequestAutomaton_Node( const std::initializer_list<Reques
 RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args)
 	:type(Function)
 {
-	value.functiondef = new RequestAutomaton_FunctionDef( expression, resultvar, selfvar, methodid, std::vector<RequestAutomaton_FunctionDef::Arg>( args.begin(), args.end()));
+	value.functiondef = new RequestAutomaton_FunctionDef( expression, resultvar?resultvar:"", selfvar, methodid, std::vector<RequestAutomaton_FunctionDef::Arg>( args.begin(), args.end()));
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, int itemid, const std::initializer_list<RequestAutomaton_StructDef::Element>& elems)
 	:type(Struct)
@@ -247,7 +247,7 @@ void RequestAutomaton::addFunction( const char* expression, const char* resultva
 	std::vector<RequestAutomaton_FunctionDef::Arg> argvec;
 	RequestAutomaton_FunctionDef::Arg const* ai = args;
 	for (; ai->itemid || ai->varname; ++ai) argvec.push_back( *ai);
-	RequestAutomaton_FunctionDef func( expression, resultvar, selfvar, methodid, argvec);
+	RequestAutomaton_FunctionDef func( expression, resultvar?resultvar:"", selfvar, methodid, argvec);
 	func.addToAutomaton( m_atm);
 }
 
