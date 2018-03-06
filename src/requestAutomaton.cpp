@@ -128,6 +128,9 @@ RequestAutomaton_Node::~RequestAutomaton_Node()
 		case Group:
 			delete value.groupdef;
 			break;
+		case NodeList:
+			delete value.nodelist;
+			break;
 	}
 }
 RequestAutomaton_Node::RequestAutomaton_Node()
@@ -155,6 +158,11 @@ RequestAutomaton_Node::RequestAutomaton_Node( const char* scope_expression, cons
 {
 	value.valuedef = new RequestAutomaton_ValueDef( scope_expression, select_expression, itemid);
 }
+RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_)
+	:type(NodeList)
+{
+	value.nodelist = new RequestAutomaton_NodeList( nodelist_);
+}
 RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_Node& o)
 	:type(o.type)
 {
@@ -174,6 +182,9 @@ RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_Node& o)
 			break;
 		case Group:
 			value.groupdef = new RequestAutomaton_GroupDef( *o.value.groupdef);
+			break;
+		case NodeList:
+			value.nodelist = new RequestAutomaton_NodeList( *o.value.nodelist);
 			break;
 	}
 }
@@ -195,6 +206,12 @@ void RequestAutomaton_Node::addToAutomaton( papuga_RequestAutomaton* atm) const
 			break;
 		case Group:
 			value.groupdef->addToAutomaton( atm);
+			break;
+		case NodeList:
+			for (auto node: *value.nodelist)
+			{
+				node.addToAutomaton( atm);
+			}
 			break;
 	}
 }

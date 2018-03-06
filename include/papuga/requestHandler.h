@@ -36,7 +36,7 @@ typedef struct papuga_RequestContext
 	papuga_Allocator* allocator;			/*< allocator for this context */
 	papuga_RequestVariable* variables;		/*< variables defined in the context */
 	papuga_RequestLogger* logger;			/*< logger to use */
-	const char* type;				/*< type identifier of this context used for schema selection papuga_RequestHandler_get_schema */
+	const char* type;				/*< type identifier of this context used for scheme selection papuga_RequestHandler_get_scheme */
 } papuga_RequestContext;
 
 /*
@@ -97,7 +97,7 @@ void papuga_destroy_RequestHandler( papuga_RequestHandler* self);
 /*
  * @brief Add the context (deep copy) to the request handler with the ownership of all host object references
  * @param[in] self this pointer to the request handler
- * @param[in] type type name given to the context used to address it and its schemas
+ * @param[in] type type name given to the context used to address it and its schemes
  * @param[in] name name given to the context used with the type to address it
  * @param[in,out] ctx context copied to handler with the ownership of all host object references moved
  * @param[out] errcode error code in case of error, untouched in case of success
@@ -107,22 +107,22 @@ void papuga_destroy_RequestHandler( papuga_RequestHandler* self);
 bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode);
 
 /*
-* @brief List the names of contexts of a given type
-* @param[in] self this pointer to the request handler
-* @param[in] type type name of the contexts to list
-* @param[in] buf buffer to use for result
-* @param[in] bufsize size of buffer to use for result
-* @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
-*/
+ * @brief List the names of contexts of a given type
+ * @param[in] self this pointer to the request handler
+ * @param[in] type type name of the contexts to list
+ * @param[in] buf buffer to use for result
+ * @param[in] bufsize size of buffer to use for result
+ * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
+ */
 const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize);
 
 /*
-* @brief List the names of context types
-* @param[in] self this pointer to the request handler
-* @param[in] buf buffer to use for result
-* @param[in] bufsize size of buffer to use for result
-* @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
-*/
+ * @brief List the names of context types
+ * @param[in] self this pointer to the request handler
+ * @param[in] buf buffer to use for result
+ * @param[in] bufsize size of buffer to use for result
+ * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
+ */
 const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, char const** buf, size_t bufsize);
 
 /*
@@ -151,33 +151,43 @@ const papuga_RequestContext* papuga_RequestHandler_find_context( const papuga_Re
 /*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler
  * @param[in] self this pointer to the request handler
- * @param[in] type type name name of the context the added schema is valid for
- * @param[in] name name given to the schema
- * @param[in] automaton pointer to automaton of the schema
+ * @param[in] type type name name of the context the added scheme is valid for
+ * @param[in] name name given to the scheme
+ * @param[in] automaton pointer to automaton of the scheme
  * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false on memory allocation error
  */ 
-bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton);
+bool papuga_RequestHandler_add_scheme( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton);
 
 /*
- * @brief Test if a schema definition with a given name exists
+ * @brief Test if a scheme definition with a given name exists
  * @param[in] self this pointer to the request handler
- * @param[in] type type name of the context the schema is valid for
- * @param[in] schema name of the schema queried
- * @return true, if the schema exists, false else
+ * @param[in] type type name of the context the scheme is valid for
+ * @param[in] scheme name of the scheme queried
+ * @return true, if the scheme exists, false else
  */
-bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* type, const char* schema);
+bool papuga_RequestHandler_has_scheme( const papuga_RequestHandler* self, const char* type, const char* scheme);
 
 /*
- * @brief Retrieve a schema for execution of a request
+ * @brief List the schemes defined for a given context type
  * @param[in] self this pointer to the request handler
- * @param[in] type type name of the object that is base of this schema
- * @param[in] name name of the schema (the tuple [type,name] is identifying the schema)
+ * @param[in] type type name of the context the scheme is valid for
+ * @param[in] buf buffer to use for result
+ * @param[in] bufsize size of buffer to use for result
+ * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
+ */
+const char** papuga_RequestHandler_list_schemes( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize);
+
+/*
+ * @brief Retrieve a scheme for execution of a request
+ * @param[in] self this pointer to the request handler
+ * @param[in] type type name of the object that is base of this scheme
+ * @param[in] name name of the scheme (the tuple [type,name] is identifying the scheme)
  * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
  * @return pointer to automaton on success, NULL on failure
  */
-const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode);
+const papuga_RequestAutomaton* papuga_RequestHandler_get_scheme( const papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode);
 
 /*
  * @brief Execute a request

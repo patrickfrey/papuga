@@ -97,6 +97,10 @@ struct RequestAutomaton_StructDef
 			:name(name_),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(max_tag_diff_){}
 		Element( const char* name_, int itemid_)
 			:name(name_),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
+		Element( int itemid_, char resolvechr)
+			:name(NULL),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(1){}
+		Element( int itemid_)
+			:name(NULL),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
 		///\brief Copy constructor
 		Element( const Element& o)
 			:name(o.name),itemid(o.itemid),resolvetype(o.resolvetype),max_tag_diff(o.max_tag_diff){}
@@ -162,6 +166,9 @@ struct RequestAutomaton_GroupDef
 };
 
 #if __cplusplus >= 201103L
+/// \brief Forward declaration
+class RequestAutomaton_NodeList;
+
 /// \class RequestAutomaton_Node
 /// \brief Union of all RequestAutomaton_XXDef types for using in C++ initializer lists
 struct RequestAutomaton_Node
@@ -171,7 +178,8 @@ struct RequestAutomaton_Node
 		Group,
 		Function,
 		Struct,
-		Value
+		Value,
+		NodeList
 	};
 	Type type;
 	union
@@ -180,6 +188,7 @@ struct RequestAutomaton_Node
 		RequestAutomaton_FunctionDef* functiondef;
 		RequestAutomaton_StructDef* structdef;
 		RequestAutomaton_ValueDef* valuedef;
+		RequestAutomaton_NodeList* nodelist;
 	} value;
 
 	///\brief Destructor
@@ -194,12 +203,24 @@ struct RequestAutomaton_Node
 	RequestAutomaton_Node( const char* expression_, int itemid_, const std::initializer_list<RequestAutomaton_StructDef::Element>& elems_);
 	///\brief Contructor as RequestAutomaton_ValueDef
 	RequestAutomaton_Node( const char* scope_expression_, const char* select_expression_, int itemid_);
+	///\brief Contructor from list of predefined nodes (for sharing definitions)
+	RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_);
 
 	///\brief Copy contructor
 	RequestAutomaton_Node( const RequestAutomaton_Node& o);
 	/// \brief Add this node definition to an automaton
 	/// \param[in] atm automaton to add this definition to
 	void addToAutomaton( papuga_RequestAutomaton* atm) const;
+};
+
+class RequestAutomaton_NodeList
+	:public std::vector<RequestAutomaton_Node>
+{
+public:
+	RequestAutomaton_NodeList( const std::initializer_list<RequestAutomaton_Node>& nodes)
+		:std::vector<RequestAutomaton_Node>( nodes.begin(), nodes.end()){}
+	RequestAutomaton_NodeList( const RequestAutomaton_NodeList& o)
+		:std::vector<RequestAutomaton_Node>( o){}
 };
 #endif
 

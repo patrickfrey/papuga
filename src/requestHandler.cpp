@@ -67,18 +67,18 @@ struct RequestContextList
 	papuga_RequestContext context;
 };
 
-struct RequestSchemaList
+struct RequestSchemeList
 {
-	struct RequestSchemaList* next;
-	const char* type;				/*< type name of the context this schema is valid for */
-	const char* name;				/*< name of the schema */
-	const papuga_RequestAutomaton* automaton;	/*< automaton of the schema */
+	struct RequestSchemeList* next;
+	const char* type;				/*< type name of the context this scheme is valid for */
+	const char* name;				/*< name of the scheme */
+	const papuga_RequestAutomaton* automaton;	/*< automaton of the scheme */
 };
 
 struct papuga_RequestHandler
 {
 	RequestContextList* contexts;
-	RequestSchemaList* schemas;
+	RequestSchemeList* schemes;
 	papuga_RequestLogger* logger;
 	papuga_Allocator allocator;
 	char allocator_membuf[ 1<<14];
@@ -159,7 +159,7 @@ extern "C" bool papuga_RequestContext_add_variable( papuga_RequestContext* self,
 	return RequestContext_add_variable( self, name, value, true);
 }
 
-const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name)
+extern "C" const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name)
 {
 	const papuga_RequestVariable* var = find_list( self->variables, &papuga_RequestVariable::name, name);
 	return (var)?&var->value : NULL;
@@ -185,7 +185,7 @@ extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLo
 	papuga_RequestHandler* rt = (papuga_RequestHandler*) std::malloc( sizeof(papuga_RequestHandler));
 	if (!rt) return NULL;
 	rt->contexts = NULL;
-	rt->schemas = NULL;
+	rt->schemes = NULL;
 	rt->logger = logger;
 	papuga_init_Allocator( &rt->allocator, rt->allocator_membuf, sizeof(rt->allocator_membuf));
 	return rt;
@@ -302,32 +302,49 @@ extern "C" const papuga_RequestContext* papuga_RequestHandler_find_context( cons
 	return NULL;
 }
 
-extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton)
+extern "C" bool papuga_RequestHandler_add_scheme( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton)
 {
-	RequestSchemaList* listitem = alloc_type<RequestSchemaList>( &self->allocator);
+	RequestSchemeList* listitem = alloc_type<RequestSchemeList>( &self->allocator);
 	if (!listitem) return false;
 	listitem->type = papuga_Allocator_copy_charp( &self->allocator, type);
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
 	if (!listitem->type || !listitem->name) return false;
 	listitem->automaton = automaton;
-	self->schemas = add_list( self->schemas, listitem);
+	self->schemes = add_list( self->schemes, listitem);
 	return true;
 }
 
-static RequestSchemaList* find_schema( RequestSchemaList* ll, const char* type, const char* name)
+static RequestSchemeList* find_scheme( RequestSchemeList* ll, const char* type, const char* name)
 {
 	for (; ll && (0!=std::strcmp( ll->name, name) || 0!=std::strcmp( ll->type, type)); ll = ll->next){}
 	return ll;
 }
 
-bool papuga_RequestHandler_has_schema( papuga_RequestHandler* self, const char* contextType, const char* schema)
+extern "C" bool papuga_RequestHandler_has_scheme( const papuga_RequestHandler* self, const char* contextType, const char* scheme)
 {
-	return !!find_schema( self->schemas, contextType, schema);
+	return !!find_scheme( self->schemes, contextType, scheme);
 }
 
-extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_schema( const papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode)
+extern "C" const char** papuga_RequestHandler_list_schemes( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize)
 {
-	const RequestSchemaList* sl = find_schema( self->schemas, type?type:"", name);
+	size_t bufpos = 0;
+	RequestSchemeList const* sl = self->schemes;
+	for (; sl; sl = sl->next)
+	{
+		if (0==std::strcmp(type, sl->type))
+		{
+			if (bufpos >= bufsize) return NULL;
+			buf[ bufpos++] = sl->name;
+		}
+	}
+	if (bufpos >= bufsize) return NULL;
+	buf[ bufpos] = NULL;
+	return buf;
+}
+
+extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_scheme( const papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode)
+{
+	const RequestSchemeList* sl = find_scheme( self->schemes, type?type:"", name);
 	if (!sl)
 	{
 		*errcode = papuga_AddressedItemNotFound;

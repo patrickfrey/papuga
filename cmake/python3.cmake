@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # PYTHON 3.x
 # --------------------------------------
 if (APPLE)
-execute_process( COMMAND  which  python3
+execute_process( COMMAND  python3  ${CMAKE_MODULE_PATH}/executable.py )
 			   RESULT_VARIABLE  RET_PYTHON_PATH
 			   OUTPUT_VARIABLE  PYTHON_INSTALL_PROGRAM
 			   OUTPUT_STRIP_TRAILING_WHITESPACE )
