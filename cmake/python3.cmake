@@ -37,6 +37,7 @@ message( STATUS "Result of '${_commandline}': ${_result}" )
 else( ${_rt} STREQUAL "" OR ${_rt} STREQUAL "0" )
 message( STATUS "Call of '${_commandline}' returned ${_rt}" )
 endif( ${_rt} STREQUAL "" OR ${_rt} STREQUAL "0" )
+endmacro( ECHO_COMMAND_RESULT  _commandline )
 
 if (APPLE)
 execute_process( COMMAND  which python3 
