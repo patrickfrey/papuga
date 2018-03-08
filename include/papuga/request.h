@@ -327,11 +327,12 @@ papuga_ErrorCode papuga_RequestIterator_get_last_error( papuga_RequestIterator* 
  * @param[in] self request iterator to get the next method call from
  * @param[in] allocator allocator to use for the result
  * @param[in] enc charset of the result string
+ * @param[in] maxdepth maximum recursion depth for printing structures
  * @param[out] length length of the string in units (1 for UTF-8, 2 for UTF16, etc.)
  * @param[out] errcode error code in case of an error
  * @return pointer to the string built
  */
-const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_StringEncoding enc, size_t* length, papuga_ErrorCode* errcode);
+const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_StringEncoding enc, int maxdepth, size_t* length, papuga_ErrorCode* errcode);
 
 /*
  * @brief Get the name of the result produced by this request (e.g. used as toplevel tag for XML of result)

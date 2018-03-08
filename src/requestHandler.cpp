@@ -557,13 +557,22 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			}
 			else
 			{
+				// Log the call
+				if (context->logger->logMethodCall)
+				{
+					(*context->logger->logMethodCall)( context->logger->self, 4, 
+							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+							papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
+							papuga_LogItemArgc, call->args.argc,
+							papuga_LogItemArgv, &call->args.argv[0]);
+				}
 				// ... not requested, then destroy
 				papuga_destroy_CallResult( &retval);
 			}
 		}
 	}
 	// Report error if we could not resolve all parts of a method call:
-	if (errcode != papuga_Ok)
+	if (errcode == papuga_Ok)
 	{
 		errcode = papuga_RequestIterator_get_last_error( itr, &call);
 	}

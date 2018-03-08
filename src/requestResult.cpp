@@ -19,7 +19,7 @@
 #include <iostream>
 #include <sstream>
 
-extern "C" char* papuga_RequestResult_tostring( const papuga_RequestResult* self, size_t* len)
+extern "C" char* papuga_RequestResult_tostring( const papuga_RequestResult* self, int maxdepth, size_t* len)
 {
 	papuga_ErrorCode errcode = papuga_Ok;
 	try
@@ -40,7 +40,7 @@ extern "C" char* papuga_RequestResult_tostring( const papuga_RequestResult* self
 			}
 			else if (ni->value.valuetype == papuga_TypeSerialization)
 			{
-				dump << papuga::Serialization_tostring( *ni->value.value.serialization, "\t", errcode);
+				dump << papuga::Serialization_tostring( *ni->value.value.serialization, false/*linemode*/, maxdepth, errcode);
 			}
 			else
 			{

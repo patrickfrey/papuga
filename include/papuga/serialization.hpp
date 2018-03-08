@@ -16,20 +16,22 @@ namespace papuga {
 
 /// \brief Print serialization as human readable string
 /// \param[in] value serialization to print to string
-/// \param[in] indent indentiation to use on start of every line
+/// \param[in] linemode true if to print codes line by line, false if to print structure
+/// \param[in] maxdepth maximum depth of elements to print
 /// \param[out] error code returned in case of error
 /// \return result string of empty string in case of error
 /// \note does not throw
-std::string Serialization_tostring( const papuga_Serialization& value, const std::string& indent, papuga_ErrorCode& errcode);
+std::string Serialization_tostring( const papuga_Serialization& value, bool linemode, int maxdepth, papuga_ErrorCode& errcode);
 
 /// \brief Print serialization as human readable string in a deterministic form
 /// \note less performant but nice for testing
 /// \param[in] value serialization to print to string
-/// \param[in] indent indentiation to use on start of every line
+/// \param[in] linemode true if to print codes line by line, false if to print structure
+/// \param[in] maxdepth maximum depth of elements to print
 /// \param[out] error code returned in case of error
 /// \return result string of empty string in case of error
 /// \note does not throw
-std::string Serialization_tostring_deterministic( const papuga_Serialization& value, const std::string& indent, papuga_ErrorCode& errcode);
+std::string Serialization_tostring_deterministic( const papuga_Serialization& value, bool linemode, int maxdepth, papuga_ErrorCode& errcode);
 
 }//namespace
 #endif

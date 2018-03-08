@@ -90,10 +90,11 @@ void* papuga_RequestResult_tohtml5( const papuga_RequestResult* self, papuga_Str
 /*
 * @brief Dump the request result in readable form
 * @param[in] self pointer to structure
+* @param[in] maxdepth maximum recursion depth for printing structures
 * @param[out] len length of the output (UTF-8) in bytes
 * @return the dumped request allocated with malloc on success, NULL on memory allocation error
 */
-char* papuga_RequestResult_tostring( const papuga_RequestResult* self, size_t* len);
+char* papuga_RequestResult_tostring( const papuga_RequestResult* self, int maxdepth, size_t* len);
 
 /*
 * @brief Dump the request result as text/plain

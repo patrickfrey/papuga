@@ -243,20 +243,13 @@ bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, const
 /*
 * @brief Print serialization in readable form as null terminated string, 
 * @param[in] self pointer to structure
+* @param[in] allocator allocator to use for the copy
+* @param[in] linemode true if to print codes line by line, false if to print structure
+* @param[in] maxdepth maximum depth of elements to print
+* @param[out] errcode error code in case of an error
 * @return NULL on memory allocation error, null terminated string with serialization printed, allocated with malloc, to free by the caller, on success
 */
-const char* papuga_Serialization_tostring( const papuga_Serialization* self, papuga_Allocator* allocator);
-
-/*
-* @brief Print a node of a serialization as null terminated string in readable form
-* @param[in] nd node to print in readable form
-* @param[in,out] buffer to use for printing
-* @param[in] bufsize allocation size in bytes of the buffer to use for printing
-* @note this function is intended for debugging purposes
-* @remark prints only untill the end of buffer is reached
-* @return pointer to string with node printed (without exceeding the buffer used)
-*/
-const char* papuga_Serialization_print_node( const papuga_Node* nd, char* buf, size_t bufsize);
+const char* papuga_Serialization_tostring( const papuga_Serialization* self, papuga_Allocator* allocator, bool linemode, int maxdepth, papuga_ErrorCode* errcode);
 
 /*
 * @brief Serialization iterator constructor

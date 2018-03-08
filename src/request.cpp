@@ -17,6 +17,7 @@
 #include "papuga/classdef.h"
 #include "papuga/allocator.h"
 #include "papuga/stack.h"
+#include "papuga/errors.h"
 #include "papuga/errors.hpp"
 #include "textwolf/xmlpathautomatonparse.hpp"
 #include "textwolf/xmlpathselect.hpp"
@@ -1273,7 +1274,7 @@ public:
 			return mcnode;
 		}
 
-		bool printMethodCallNode( std::ostream& out, const MethodCallNode* mcnode)
+		bool printMethodCallNode( std::ostream& out, const MethodCallNode* mcnode, int maxdepth)
 		{
 			const CallDef* mcdef = mcnode->def;
 			int cidx = mcdef->methodid.classid-1;
@@ -1311,9 +1312,10 @@ public:
 					ValueSink sink( &argval, &m_allocator);
 					if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, mcnode->scope, tagLevelRange))
 					{
-						return false;
+						out << "\t[Unresolvable " << (int)m_errcode << " " << papuga_ErrorCode_tostring( m_errcode) << "]" << std::endl;
+						m_errcode = papuga_Ok;
 					}
-					switch (argval.valuetype)
+					else switch (argval.valuetype)
 					{
 						case papuga_TypeVoid:		out << "\tNULL" << std::endl; break;
 						case papuga_TypeDouble:
@@ -1321,7 +1323,7 @@ public:
 						case papuga_TypeBool:
 						case papuga_TypeString:		out << "\t'" << papuga::ValueVariant_tostring( argval, m_errcode) << "'"<< std::endl; break;
 						case papuga_TypeHostObject:	out << "\t[Object " << argval.value.hostObject->classid << "]" << std::endl; break;
-						case papuga_TypeSerialization:	out << papuga::Serialization_tostring( *argval.value.serialization, "\t", m_errcode) << std::endl; break;
+						case papuga_TypeSerialization:	out << papuga::Serialization_tostring( *argval.value.serialization, false/*linemode*/, maxdepth, m_errcode) << std::endl; break;
 						case papuga_TypeIterator:	out << "\t[Iterator]" << std::endl; break;
 					}
 				}
@@ -2197,7 +2199,7 @@ papuga_ErrorCode papuga_RequestIterator_get_last_error( papuga_RequestIterator* 
 	return self->itr.lastError();
 }
 
-extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_StringEncoding enc, std::size_t* length, papuga_ErrorCode* errcode)
+extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_StringEncoding enc, int maxdepth, std::size_t* length, papuga_ErrorCode* errcode)
 {
 	try
 	{
@@ -2206,7 +2208,7 @@ extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papu
 		const MethodCallNode* callnode = 0;
 		while (0 != (callnode = itr.nextNode()))
 		{
-			if (!itr.printMethodCallNode( out, callnode)) break;
+			if (!itr.printMethodCallNode( out, callnode, maxdepth)) break;
 			out << std::endl;
 		}
 		if (*errcode == papuga_Ok)
