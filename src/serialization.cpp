@@ -41,17 +41,17 @@ struct PrintStruct
 	std::ostringstream out;
 	std::string indent;
 	papuga_ErrorCode errcode;
-	int taglevel;
-	int maxdepth;
+	int printlevel;
 	int itemcnt;
+	bool deterministic;
 
-	PrintStruct( PrintMode mode_, const std::string& indent_, int maxdepth_)
-		:mode(mode_),out(),indent(indent_),errcode(papuga_Ok),taglevel(0),maxdepth(maxdepth_),itemcnt(0){}
+	PrintStruct( PrintMode mode_, const std::string& indent_, int printlevel_, bool deterministic_)
+		:mode(mode_),out(),indent(indent_),errcode(papuga_Ok),printlevel(printlevel_),itemcnt(0),deterministic(deterministic_){}
 
 	void printOpen()
 	{
-		++taglevel;
-		if (taglevel <= maxdepth)
+		--printlevel;
+		if (printlevel >= 0)
 		{
 			switch (mode)
 			{
@@ -68,7 +68,7 @@ struct PrintStruct
 					out << "{";
 					break;
 			}
-			if (taglevel == maxdepth)
+			if (printlevel == 0)
 			{
 				switch (mode)
 				{
@@ -85,183 +85,199 @@ struct PrintStruct
 
 	bool printClose()
 	{
-		--taglevel;
-		if (taglevel < 0)
+		++printlevel;
+		if (printlevel >= 0)
 		{
-			errcode = papuga_TypeError;
-			return false;
-		}
-		if (taglevel > maxdepth) return true;
-		switch (mode)
-		{
-			case LineMode:
-				indent.resize( indent.size()-2);
-				out << indent << "close" << std::endl;
-				break;
-			case BracketMode:
-				out << "}";
-				itemcnt++;
-				break;
+			switch (mode)
+			{
+				case LineMode:
+					indent.resize( indent.size()-2);
+					out << indent << "close" << std::endl;
+					break;
+				case BracketMode:
+					out << "}";
+					itemcnt++;
+					break;
+			}
 		}
 		return true;
 	}
 
 	void printName( const std::string& value)
 	{
-		if (taglevel > maxdepth) return;
-		switch (mode)
+		if (printlevel >= 0)
 		{
-			case LineMode:
-				out << indent << "name " << value << std::endl;
-				break;
-			case BracketMode:
-				if (itemcnt)
-				{
-					out << ", ";
-					itemcnt = 0;
-				}
-				out << value << ":";
-				break;
+			switch (mode)
+			{
+				case LineMode:
+					out << indent << "name " << value << std::endl;
+					break;
+				case BracketMode:
+					if (itemcnt)
+					{
+						out << ", ";
+						itemcnt = 0;
+					}
+					out << value << ":";
+					break;
+			}
 		}
 	}
 
 	void printNullValue()
 	{
-		if (taglevel > maxdepth) return;
-		switch (mode)
+		if (printlevel >= 0)
 		{
-			case LineMode:
-				out << indent << "value NULL" << std::endl;
-				break;
-			case BracketMode:
-				if (itemcnt++)
-				{
-					out << ", ";
-				}
-				out << "NULL";
-				break;
+			switch (mode)
+			{
+				case LineMode:
+					out << indent << "value NULL" << std::endl;
+					break;
+				case BracketMode:
+					if (itemcnt++)
+					{
+						out << ", ";
+					}
+					out << "NULL";
+					break;
+			}
 		}
 	}
 
 	void printObject( const char* typenam)
 	{
-		if (taglevel > maxdepth) return;
-		switch (mode)
+		if (printlevel >= 0)
 		{
-			case LineMode:
-				out << indent << "value <" << typenam << ">" << std::endl;
-				break;
-			case BracketMode:
-				if (itemcnt++)
-				{
-					out << ", ";
-				}
-				out << "<" << typenam << ">";
-				break;
+			switch (mode)
+			{
+				case LineMode:
+					out << indent << "value <" << typenam << ">" << std::endl;
+					break;
+				case BracketMode:
+					if (itemcnt++)
+					{
+						out << ", ";
+					}
+					out << "<" << typenam << ">";
+					break;
+			}
 		}
 	}
 
 	void printNumeric( const std::string& value)
 	{
-		if (taglevel > maxdepth) return;
-		switch (mode)
+		if (printlevel >= 0)
 		{
-			case LineMode:
-				out << indent << "value " << value << std::endl;
-				break;
-			case BracketMode:
-				if (itemcnt++)
-				{
-					out << ", ";
-				}
-				out << value;
-				break;
+			switch (mode)
+			{
+				case LineMode:
+					out << indent << "value " << value << std::endl;
+					break;
+				case BracketMode:
+					if (itemcnt++)
+					{
+						out << ", ";
+					}
+					out << value;
+					break;
+			}
 		}
 	}
 
 	void printString( const std::string& value)
 	{
-		if (taglevel > maxdepth) return;
-		switch (mode)
+		if (printlevel >= 0)
 		{
-			case LineMode:
-				out << indent << "value \"" << value << "\"" << std::endl;
-				break;
-			case BracketMode:
-				if (itemcnt++)
-				{
-					out << ", ";
-				}
-				out << "\"" << value << "\"";
-				break;
+			switch (mode)
+			{
+				case LineMode:
+					out << indent << "value \"" << value << "\"" << std::endl;
+					break;
+				case BracketMode:
+					if (itemcnt++)
+					{
+						out << ", ";
+					}
+					out << "\"" << value << "\"";
+					break;
+			}
 		}
 	}
 
 	bool printValue( const papuga_ValueVariant& value)
 	{
-		if (taglevel > maxdepth) return true;
-		if (!papuga_ValueVariant_defined( &value))
+		if (printlevel >= 0)
 		{
-			printNullValue();
-		}
-		else if (!papuga_ValueVariant_isatomic( &value))
-		{
-			if (value.valuetype == papuga_TypeSerialization)
+			if (!papuga_ValueVariant_defined( &value))
 			{
-				printOpen();
-				Serialization_print( *this, value.value.serialization);
-				printClose();
+				printNullValue();
 			}
-			else if (value.valuetype == papuga_TypeHostObject)
+			else if (!papuga_ValueVariant_isatomic( &value))
 			{
-				printObject( papuga_Type_name( value.valuetype));
+				if (value.valuetype == papuga_TypeSerialization)
+				{
+					printOpen();
+					if (!Serialization_print( *this, value.value.serialization)) return false;
+					printClose();
+				}
+				else if (value.valuetype == papuga_TypeHostObject)
+				{
+					printObject( papuga_Type_name( value.valuetype));
+				}
+				else
+				{
+					errcode = papuga_TypeError;
+					return false;
+				}
+			}
+			else if (papuga_ValueVariant_isstring( &value))
+			{
+				printString( ValueVariant_tostring( value, errcode));
 			}
 			else
 			{
-				errcode = papuga_TypeError;
-				return false;
+				printNumeric( ValueVariant_tostring( value, errcode));
 			}
+			return errcode == papuga_Ok;
 		}
-		else if (papuga_ValueVariant_isstring( &value))
-		{
-			printString( ValueVariant_tostring( value, errcode));
-		}
-		else
-		{
-			printNumeric( ValueVariant_tostring( value, errcode));
-		}
-		return errcode == papuga_Ok;
+		return true;
 	}
 
 	void printSubStruct( const std::multimap<std::string,std::string>& map)
 	{
-		std::multimap<std::string,std::string>::const_iterator mi = map.begin(), me = map.end();
-		for (int midx=0; mi != me; ++mi,++midx)
+		if (printlevel >= 0)
 		{
-			if (mode == BracketMode && midx)
+			std::multimap<std::string,std::string>::const_iterator mi = map.begin(), me = map.end();
+			for (int midx=0; mi != me; ++mi,++midx)
 			{
-				out << ", ";
+				if (mode == BracketMode && midx)
+				{
+					out << ", ";
+				}
+				if (!mi->first.empty())
+				{
+					printName( mi->first);
+				}
+				out << mi->second;
 			}
-			if (!mi->first.empty())
-			{
-				printName( mi->first);
-			}
-			out << mi->second;
 		}
 	}
 };
 
-static bool Serialization_print( PrintStruct& ctx, papuga_SerializationIter& seriter)
+static bool SerializationIter_print( PrintStruct& ctx, papuga_SerializationIter& seriter)
 {
+	int taglevel = 0;
 	for (; !papuga_SerializationIter_eof(&seriter); papuga_SerializationIter_skip(&seriter))
 	{
 		switch (papuga_SerializationIter_tag(&seriter))
 		{
 			case papuga_TagOpen:
+				++taglevel;
 				ctx.printOpen();
 				break;
 			case papuga_TagClose:
-				if (ctx.taglevel == 0) return true;
+				--taglevel;
+				if (taglevel < 0) return true;
 				if (!ctx.printClose()) return false;
 				break;
 			case papuga_TagName:
@@ -277,7 +293,7 @@ static bool Serialization_print( PrintStruct& ctx, papuga_SerializationIter& ser
 			}
 		}
 	}
-	if (ctx.taglevel != 0)
+	if (taglevel != 0)
 	{
 		ctx.errcode = papuga_UnexpectedEof;
 		return false;
@@ -285,7 +301,7 @@ static bool Serialization_print( PrintStruct& ctx, papuga_SerializationIter& ser
 	return true;
 }
 
-static bool Serialization_print_det( PrintStruct& ctx, papuga_SerializationIter& seriter)
+static bool SerializationIter_print_det( PrintStruct& ctx, papuga_SerializationIter& seriter)
 {
 	std::multimap<std::string,std::string> map;
 	std::string name;
@@ -295,10 +311,11 @@ static bool Serialization_print_det( PrintStruct& ctx, papuga_SerializationIter&
 		{
 			case papuga_TagOpen:
 			{
-				PrintStruct subctx( ctx.mode, ctx.indent, ctx.maxdepth - ctx.taglevel);
+				PrintStruct subctx( ctx.mode, ctx.indent, ctx.printlevel, ctx.deterministic);
 				subctx.printOpen();
 				papuga_SerializationIter_skip(&seriter);
-				if (!Serialization_print_det( subctx, seriter))
+				bool subrt = (ctx.printlevel >= 0) ? SerializationIter_print_det( subctx, seriter) : SerializationIter_print( subctx, seriter);
+				if (!subrt)
 				{
 					ctx.errcode = subctx.errcode;
 					return false;
@@ -321,7 +338,7 @@ static bool Serialization_print_det( PrintStruct& ctx, papuga_SerializationIter&
 				break;
 			case papuga_TagValue:
 			{
-				PrintStruct subctx( ctx.mode, ctx.indent, ctx.maxdepth - ctx.taglevel);
+				PrintStruct subctx( ctx.mode, ctx.indent, ctx.printlevel, ctx.deterministic);
 				if (!subctx.printValue( *papuga_SerializationIter_value( &seriter)))
 				{
 					ctx.errcode = subctx.errcode;
@@ -346,26 +363,8 @@ static bool Serialization_print( PrintStruct& ctx, const papuga_Serialization* s
 {
 	papuga_SerializationIter seriter;
 	papuga_init_SerializationIter( &seriter, const_cast<papuga_Serialization*>( serialization));
-	if (Serialization_print( ctx, seriter))
-	{
-		if (!papuga_SerializationIter_eof( &seriter))
-		{
-			ctx.errcode = papuga_SyntaxError;
-			return false;
-		}
-		return true;
-	}
-	else
-	{
-		return false;
-	}
-}
-
-static bool Serialization_print_det( PrintStruct& ctx, const papuga_Serialization* serialization)
-{
-	papuga_SerializationIter seriter;
-	papuga_init_SerializationIter( &seriter, const_cast<papuga_Serialization*>( serialization));
-	if (Serialization_print_det( ctx, seriter))
+	bool rt = ctx.deterministic ? SerializationIter_print_det( ctx, seriter) : SerializationIter_print( ctx, seriter);
+	if (rt)
 	{
 		if (!papuga_SerializationIter_eof( &seriter))
 		{
@@ -385,7 +384,7 @@ extern "C" const char* papuga_Serialization_tostring( const papuga_Serialization
 	try
 	{
 		if (!self) return 0;
-		PrintStruct ctx( linemode?LineMode : BracketMode, linemode?"\n":"", maxdepth);
+		PrintStruct ctx( linemode?LineMode : BracketMode, linemode?"\n":"", maxdepth, false/*non deterministic*/);
 		if (!Serialization_print( ctx, self))
 		{
 			*errcode = ctx.errcode;
@@ -404,7 +403,7 @@ std::string papuga::Serialization_tostring( const papuga_Serialization& value, b
 {
 	try
 	{
-		PrintStruct ctx( linemode?LineMode : BracketMode, linemode?"\n":"", maxdepth);
+		PrintStruct ctx( linemode?LineMode : BracketMode, linemode?"\n":"", maxdepth, false/*non deterministic*/);
 		if (!Serialization_print( ctx, &value))
 		{
 			errcode = ctx.errcode;
@@ -423,8 +422,8 @@ std::string papuga::Serialization_tostring_deterministic( const papuga_Serializa
 {
 	try
 	{
-		PrintStruct ctx( linemode?LineMode : BracketMode, linemode?"\n":"", maxdepth);
-		if (!Serialization_print_det( ctx, &value))
+		PrintStruct ctx( linemode?LineMode : BracketMode, linemode?"\n":"", maxdepth, true/*deterministic*/);
+		if (!Serialization_print( ctx, &value))
 		{
 			errcode = ctx.errcode;
 			return std::string();

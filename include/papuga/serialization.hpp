@@ -24,7 +24,8 @@ namespace papuga {
 std::string Serialization_tostring( const papuga_Serialization& value, bool linemode, int maxdepth, papuga_ErrorCode& errcode);
 
 /// \brief Print serialization as human readable string in a deterministic form
-/// \note less performant but nice for testing
+/// \note less performant and not secure () but nice for testing
+/// \remark NOT SECURE, DO NOT USE IN A PRODUCTIVE SYSTEM: You can trigger stack overflows with bad input
 /// \param[in] value serialization to print to string
 /// \param[in] linemode true if to print codes line by line, false if to print structure
 /// \param[in] maxdepth maximum depth of elements to print
