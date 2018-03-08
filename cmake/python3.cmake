@@ -27,6 +27,17 @@ unset( PYTHON3_VERSION )
 endif( ${RET_PYVERSION} STREQUAL "" OR ${RET_PYVERSION} STREQUAL "0")
 endmacro( CHECK_PYTHON3_EXECUTABLE )
 
+macro( ECHO_COMMAND_RESULT  _commandline )
+execute_process( COMMAND  ${_commandline}
+			   RESULT_VARIABLE  _rt
+			   OUTPUT_VARIABLE  _result
+			   OUTPUT_STRIP_TRAILING_WHITESPACE )
+if( ${_rt} STREQUAL "" OR ${_rt} STREQUAL "0" )
+message( STATUS "Result of '${_commandline}': ${_result}" ) 
+else( ${_rt} STREQUAL "" OR ${_rt} STREQUAL "0" )
+message( STATUS "Call of '${_commandline}' returned ${_rt}" )
+endif( ${_rt} STREQUAL "" OR ${_rt} STREQUAL "0" )
+
 if (APPLE)
 execute_process( COMMAND  which python3 
 			   RESULT_VARIABLE  RET_PYTHON_PATH
@@ -46,8 +57,14 @@ execute_process( COMMAND  brew  --prefix  python3
 			   OUTPUT_STRIP_TRAILING_WHITESPACE )
 if( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
 CHECK_PYTHON3_EXECUTABLE( "${PYTHON_INSTALL_PATH}/bin/python" )
+ECHO_COMMAND_RESULT( "ls ${PYTHON_INSTALL_PATH}/bin/python" )
+ECHO_COMMAND_RESULT( "ls ${PYTHON_INSTALL_PATH}/bin/" )
+ECHO_COMMAND_RESULT( "ls ${PYTHON_INSTALL_PATH}/" )
 if( NOT PYTHON3_EXECUTABLE )
 CHECK_PYTHON3_EXECUTABLE( "${PYTHON_INSTALL_PATH}/bin/python3" )
+ECHO_COMMAND_RESULT( "ls ${PYTHON_INSTALL_PATH}/bin/python3" )
+ECHO_COMMAND_RESULT( "ls ${PYTHON_INSTALL_PATH}/bin/" )
+ECHO_COMMAND_RESULT( "ls ${PYTHON_INSTALL_PATH}/" )
 endif( NOT PYTHON3_EXECUTABLE )
 MESSAGE( STATUS "Hint (prefix) found to installation path of python3: '${PYTHON_INSTALL_PATH}' " )
 else( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
@@ -64,6 +81,9 @@ if( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
 file( GLOB  _prglist  "${PYTHON_INSTALL_PATH}/*/bin/python" )
 foreach( _prg ${_prglist} )
 CHECK_PYTHON3_EXECUTABLE( ${_prg} )
+ECHO_COMMAND_RESULT( "ls ${_prg}" )
+ECHO_COMMAND_RESULT( "ls ${PYTHON_INSTALL_PATH}" )
+ECHO_COMMAND_RESULT( "ls ${PYTHON_INSTALL_PATH}/bin" )
 if( PYTHON3_EXECUTABLE )
 break()
 endif( PYTHON3_EXECUTABLE )
