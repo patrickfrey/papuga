@@ -339,7 +339,7 @@ static TestData* createTestData_1()
 		"executing method C1::new();",
 		"executing method C1::m1( 'Hugo');",
 		"executing method C1::delete();",
-		"C1 0 ",
+		"C1 0  <HostObject>",
 		"C1 M1 1 Hugo HUGO",
 		0};
 	data->calls = expected_calls;
@@ -402,7 +402,7 @@ static TestData* createTestData_3()
 		"executing method C1::m1( 'Luzern');",
 		"executing method C1::m1( 'Biel');",
 		"executing method C1::delete();",
-		"C1 0 ",
+		"C1 0  <HostObject>",
 		"C1 M2 1 Bern bern",
 		"C1 M2 1 Luzern luzern",
 		"C1 M2 1 Biel biel",
@@ -450,7 +450,7 @@ static TestData* createTestData_4()
 		"executing method C1::m2( 'Biel');",
 		"executing method C1::m1( 'Biel');",
 		"executing method C1::delete();",
-		"C1 0 ",
+		"C1 0  <HostObject>",
 		"C1 M2 1 Bern bern",
 		"C1 M1 1 Bern BERN",
 		"C1 M2 1 Luzern luzern",
@@ -495,7 +495,7 @@ static TestData* createTestData_5()
 		"executing method C1::m2( <Serialization>);",
 		"executing method C1::m1( <Serialization>);",
 		"executing method C1::delete();",
-		"C1 0 ",
+		"C1 0  <HostObject>",
 		"C1 M2 1 <Serialization> <Serialization>",
 		"C1 M1 1 <Serialization> <Serialization>",
 		0
@@ -547,7 +547,7 @@ static TestData* createTestData_6()
 		"executing method C1::m2( <Serialization>);",
 		"executing method C1::m1( <Serialization>);",
 		"executing method C1::delete();",
-		"C1 0 ",
+		"C1 0  <HostObject>",
 		"C1 M2 1 <Serialization> <Serialization>",
 		"C1 M1 1 <Serialization> <Serialization>",
 		0

@@ -32,7 +32,7 @@
 #include <algorithm>
 #include <limits>
 
-#undef PAPUGA_LOWLEVEL_DEBUG
+#define PAPUGA_LOWLEVEL_DEBUG
 
 using namespace papuga;
 

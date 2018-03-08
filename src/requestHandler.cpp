@@ -454,6 +454,13 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 
 			if (!(self=(*func)( &errorbuf_call, call->args.argc, call->args.argv)))
 			{
+				if (context->logger->logMethodCall)
+				{
+					(*context->logger->logMethodCall)( context->logger->self, 3,
+						papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+						papuga_LogItemArgc, call->args.argc,
+						papuga_LogItemArgv, &call->args.argv[0]);
+				}
 				reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &errorbuf_call));
 				*errorpos = call->eventcnt;
 				papuga_destroy_RequestIterator( itr);
@@ -472,10 +479,11 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			// [3] Log the call:
 			if (context->logger->logMethodCall)
 			{
-				(*context->logger->logMethodCall)( context->logger->self, 3,
+				(*context->logger->logMethodCall)( context->logger->self, 4,
 					papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
 					papuga_LogItemArgc, call->args.argc,
-					papuga_LogItemArgv, &call->args.argv[0]);
+					papuga_LogItemArgv, &call->args.argv[0],
+					papuga_LogItemResult, &result);
 			}
 		}
 		else
@@ -499,6 +507,14 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			papuga_init_CallResult( &retval, context->allocator, false, membuf_err, sizeof(membuf_err));
 			if (!(*func)( self, &retval, call->args.argc, call->args.argv))
 			{
+				if (context->logger->logMethodCall)
+				{
+					(*context->logger->logMethodCall)( context->logger->self, 4,
+							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+							papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
+							papuga_LogItemArgc, call->args.argc,
+							papuga_LogItemArgv, &call->args.argv[0]);
+				}
 				reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &retval.errorbuf));
 				*errorpos = call->eventcnt;
 				papuga_destroy_RequestIterator( itr);
