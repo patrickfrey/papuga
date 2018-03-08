@@ -1,20 +1,15 @@
 language: cpp
-os:
-- linux
-- osx
-dist: trusty
-compiler:
-- clang
-- gcc
 matrix:
   include:
-  - os: osx
-    compiler: clang
-    osx_image: xcode9.1
-  - os: linux
-    compiler: clang
-  - os: linux
-    compiler: gcc
+    - os: osx
+      compiler: clang
+      osx_image: xcode9.1
+    - os: linux
+      dist: trusty
+      compiler: clang
+    - os: linux
+      dist: trusty
+      compiler: gcc
 sudo: required
 branches:
   only:
