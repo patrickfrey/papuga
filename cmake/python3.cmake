@@ -28,37 +28,51 @@ endif( ${RET_PYVERSION} STREQUAL "" OR ${RET_PYVERSION} STREQUAL "0")
 endmacro( CHECK_PYTHON3_EXECUTABLE )
 
 if (APPLE)
-execute_process( COMMAND  brew  --cellar  python3
+execute_process( COMMAND  which python3 
 			   RESULT_VARIABLE  RET_PYTHON_PATH
-			   OUTPUT_VARIABLE  PYTHON_INSTALL_PATH
+			   OUTPUT_VARIABLE  PYTHON_PROGRAM_PATH
 			   OUTPUT_STRIP_TRAILING_WHITESPACE )
 if( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
-set( HINTS_PYTHON_PROGRAM_PATH  "${HINTS_PYTHON_PROGRAM_PATH}  ${PYTHON_INSTALL_PATH}/*/bin" )
-MESSAGE( STATUS "Hint (cellar) found to installation path of python3: '${PYTHON_INSTALL_PATH}' " )
+CHECK_PYTHON3_EXECUTABLE( ${PYTHON_PROGRAM_PATH} )
+MESSAGE( STATUS "Found to program path of python3: '${PYTHON_PROGRAM_PATH}' " )
 else( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
-MESSAGE( STATUS "Call 'brew  --prefix  python3' returns '${RET_PYTHON_PATH}' result '${PYTHON_INSTALL_PATH}' " )
+MESSAGE( STATUS "Call 'which python3' returns '${RET_PYTHON_PATH}' result '${PYTHON_PROGRAM_PATH}' " )
 endif( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
 
+if (NOT PYTHON3_EXECUTABLE)
 execute_process( COMMAND  brew  --prefix  python3
 			   RESULT_VARIABLE  RET_PYTHON_PATH
 			   OUTPUT_VARIABLE  PYTHON_INSTALL_PATH
 			   OUTPUT_STRIP_TRAILING_WHITESPACE )
 if( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
-set( HINTS_PYTHON_PROGRAM_PATH  "${HINTS_PYTHON_PROGRAM_PATH}  ${PYTHON_INSTALL_PATH}" )
+CHECK_PYTHON3_EXECUTABLE( "${PYTHON_INSTALL_PATH}/bin/python" )
+if( NOT PYTHON3_EXECUTABLE )
+CHECK_PYTHON3_EXECUTABLE( "${PYTHON_INSTALL_PATH}/bin/python3" )
+endif( NOT PYTHON3_EXECUTABLE )
 MESSAGE( STATUS "Hint (prefix) found to installation path of python3: '${PYTHON_INSTALL_PATH}' " )
 else( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
 MESSAGE( STATUS "Call 'brew  --prefix  python3' returns '${RET_PYTHON_PATH}' result '${PYTHON_INSTALL_PATH}' " )
 endif( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
+endif (NOT PYTHON3_EXECUTABLE)
 
-foreach( _candidate ${HINTS_PYTHON_PROGRAM_PATH} )
-file( GLOB  _prglist  "${_candidate}/python*" )
+if (NOT PYTHON3_EXECUTABLE)
+execute_process( COMMAND  brew  --cellar  python3
+			   RESULT_VARIABLE  RET_PYTHON_PATH
+			   OUTPUT_VARIABLE  PYTHON_INSTALL_PATH
+			   OUTPUT_STRIP_TRAILING_WHITESPACE )
+if( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
+file( GLOB  _prglist  "${PYTHON_INSTALL_PATH}/*/bin/python" )
 foreach( _prg ${_prglist} )
 CHECK_PYTHON3_EXECUTABLE( ${_prg} )
 if( PYTHON3_EXECUTABLE )
 break()
 endif( PYTHON3_EXECUTABLE )
 endforeach( _prg )
-endforeach( _candidate )
+MESSAGE( STATUS "Hint (cellar) found to installation path of python3: '${PYTHON_INSTALL_PATH}' " )
+else( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
+MESSAGE( STATUS "Call 'brew  --prefix  python3' returns '${RET_PYTHON_PATH}' result '${PYTHON_INSTALL_PATH}' " )
+endif( ${RET_PYTHON_PATH} STREQUAL "" OR ${RET_PYTHON_PATH} STREQUAL "0" )
+endif (NOT PYTHON3_EXECUTABLE)
 
 else (APPLE)
 find_program( PYTHON_EXECUTABLE_ROOT NAMES  "python3" )
