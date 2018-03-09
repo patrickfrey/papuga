@@ -16,10 +16,9 @@
 #include <stdexcept>
 #include <iostream>
 
-#define LOCATION_INFO_VALUE_MAX_LENGTH 32
-#define LOCATION_PRINT_MAX_TAGLEVEL 3
+#define LOCATION_INFO_VALUE_MAX_LENGTH 48
 
-extern "C" const char* papuga_request_error_location( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int errorpos, char* buf, size_t bufsize)
+extern "C" const char* papuga_request_content_tostring( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int scopestart, int maxdepth, char* buf, size_t bufsize)
 {
 	papuga_RequestParser* parser = 0;
 	std::string locinfo;
@@ -34,7 +33,7 @@ extern "C" const char* papuga_request_error_location( papuga_ContentType doctype
 		parser = papuga_create_RequestParser( doctype, encoding, docstr, doclen, &errcode);
 		if (!parser) return NULL;
 
-		while (papuga_RequestElementType_None != (elemtype = papuga_RequestParser_next( parser, &elemval)) && pi < errorpos) ++pi;
+		while (papuga_RequestElementType_None != (elemtype = papuga_RequestParser_next( parser, &elemval)) && pi < scopestart) ++pi;
 		// .... skip to the start position
 
 		// Report location scope until end of next Element
@@ -46,7 +45,7 @@ extern "C" const char* papuga_request_error_location( papuga_ContentType doctype
 					break;
 				case papuga_RequestElementType_Open:
 					++taglevel;
-					if (taglevel <= LOCATION_PRINT_MAX_TAGLEVEL+1)
+					if (taglevel <= maxdepth)
 					{
 						locinfo.append( " ");
 						if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
@@ -59,7 +58,7 @@ extern "C" const char* papuga_request_error_location( papuga_ContentType doctype
 					break;
 				case papuga_RequestElementType_Close:
 					--taglevel;
-					if (taglevel == LOCATION_PRINT_MAX_TAGLEVEL)
+					if (taglevel == maxdepth)
 					{
 						locinfo.append( " ... }");
 					}
@@ -76,7 +75,7 @@ extern "C" const char* papuga_request_error_location( papuga_ContentType doctype
 					elemtype = papuga_RequestParser_next( parser, &elemval);
 					break;
 				case papuga_RequestElementType_AttributeName:
-					if (taglevel <= LOCATION_PRINT_MAX_TAGLEVEL)
+					if (taglevel <= maxdepth)
 					{
 						locinfo.append( " -");
 						if (!papuga::ValueVariant_append_string( locinfo, elemval, errcode))
@@ -89,7 +88,7 @@ extern "C" const char* papuga_request_error_location( papuga_ContentType doctype
 					break;
 				case papuga_RequestElementType_AttributeValue:
 				case papuga_RequestElementType_Value:
-					if (taglevel <= LOCATION_PRINT_MAX_TAGLEVEL)
+					if (taglevel <= maxdepth)
 					{
 						if (elemval.valuetype == papuga_TypeString)
 						{

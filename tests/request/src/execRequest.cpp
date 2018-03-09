@@ -218,7 +218,7 @@ ERROR:
 		{
 			// Evaluate more info about the location of the error, we append the scope of the document to the error message:
 			char locinfobuf[ 4096];
-			const char* locinfo = papuga_request_error_location( doctype, encoding, doc.c_str(), doc.size(), errorpos, locinfobuf, sizeof(locinfobuf));
+			const char* locinfo = papuga_request_content_tostring( doctype, encoding, doc.c_str(), doc.size(), errorpos, 3/*max depth*/, locinfobuf, sizeof(locinfobuf));
 			if (locinfo)
 			{
 				papuga_ErrorBuffer_appendMessage( &errorbuf, " (error scope: %s)", locinfo);

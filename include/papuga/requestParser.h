@@ -176,13 +176,14 @@ bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Req
  * @param[in] encoding character set encoding
  * @param[in] docstr pointer to source
  * @param[in] doclen size of docstr in bytes
- * @param[in] errorpos the error position as ordinal count of request parser events (papuga_RequestParser_next)
+ * @param[in] scopestart the ordinal position of the start of the scope to print (ordinal position means the count of request parser events, calls of papuga_RequestParser_next)
+ * @param[in] maxdepth maximum depth of substructures to print (deeper structures are represented with "...")
  * @param[out] buf buffer for filling with the location info returned
  * @param[in] bufsize size of buffer in bytes
  * @return pointer to printed location info or NULL in case of error
  * @return The document parser structure or NULL in case of failure
  */
-const char* papuga_request_error_location( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int errorpos, char* buf, size_t bufsize);
+const char* papuga_request_content_tostring( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int scopestart, int maxdepth, char* buf, size_t bufsize);
 
 #ifdef __cplusplus
 }
