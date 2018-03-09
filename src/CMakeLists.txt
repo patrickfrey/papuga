@@ -30,7 +30,7 @@ set( source_files_request
 	requestParser_json.cpp
 	requestParser_xml.cpp
 	requestParser_utils.c
-	requestParser_location.cpp
+	requestParser_tostring.cpp
 )
 
 include_directories(
