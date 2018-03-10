@@ -1725,8 +1725,8 @@ public:
 							sink.pushVoid();
 							// ... we get here only if we found a value that matches, but was undefined
 						}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
 						++arrayElementCount;
+#ifdef PAPUGA_LOWLEVEL_DEBUG
 						std::string objdescr = ObjectRef_descr( resolvedObj.objref);
 						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found %s in scope [%d,%d] taglevel %d\n",
 							 papuga_ResolveTypeName(resolvetype), itemid,

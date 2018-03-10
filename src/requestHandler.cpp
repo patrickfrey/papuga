@@ -325,13 +325,35 @@ extern "C" bool papuga_RequestHandler_has_scheme( const papuga_RequestHandler* s
 	return !!find_scheme( self->schemes, contextType, scheme);
 }
 
-extern "C" const char** papuga_RequestHandler_list_schemes( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize)
+static const char** RequestHandler_list_all_schemes( const papuga_RequestHandler* self, char const** buf, size_t bufsize)
 {
 	size_t bufpos = 0;
 	RequestSchemeList const* sl = self->schemes;
 	for (; sl; sl = sl->next)
 	{
-		if (0==std::strcmp(type, sl->type))
+		size_t bi = 0;
+		for (; bi < bufpos && !!std::strcmp(buf[bi],sl->type); ++bi){}
+		if (bi < bufpos) continue;
+		if (bufpos >= bufsize) return NULL;
+		buf[ bufpos++] = sl->name;
+	}
+	if (bufpos >= bufsize) return NULL;
+	buf[ bufpos] = NULL;
+	return buf;
+}
+
+extern "C" const char** papuga_RequestHandler_list_schemes( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize)
+{
+	size_t bufpos = 0;
+	RequestSchemeList const* sl = self->schemes;
+
+	if (!type)
+	{
+		return RequestHandler_list_all_schemes( self, buf, bufsize);
+	}
+	for (; sl; sl = sl->next)
+	{
+		if (!type || 0==std::strcmp(type, sl->type))
 		{
 			if (bufpos >= bufsize) return NULL;
 			buf[ bufpos++] = sl->name;

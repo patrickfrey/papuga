@@ -171,7 +171,7 @@ bool papuga_RequestHandler_has_scheme( const papuga_RequestHandler* self, const 
 /*
  * @brief List the schemes defined for a given context type
  * @param[in] self this pointer to the request handler
- * @param[in] type type name of the context the scheme is valid for
+ * @param[in] type type name of the context the scheme is valid for or NULL, if all scheme identifiers should be returned
  * @param[in] buf buffer to use for result
  * @param[in] bufsize size of buffer to use for result
  * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
