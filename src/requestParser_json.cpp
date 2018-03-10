@@ -10,6 +10,8 @@
 #include "papuga/requestParser.h"
 #include "papuga/valueVariant.h"
 #include "papuga/valueVariant.hpp"
+#include "papuga/allocator.h"
+#include "papuga/constants.h"
 #include "cjson/cJSON.h"
 #include "textwolf/xmlscanner.hpp"
 #include "requestParser_utils.h"
@@ -20,6 +22,8 @@
 #include <iostream>
 
 using namespace papuga;
+
+#undef PAPUGA_LOWLEVEL_DEBUG
 
 struct TextwolfItem
 {
@@ -36,7 +40,20 @@ struct TextwolfItem
 static void papuga_destroy_RequestParser_json( papuga_RequestParser* self);
 static papuga_RequestElementType papuga_RequestParser_json_next( papuga_RequestParser* self, papuga_ValueVariant* value);
 static int papuga_RequestParser_json_position( const papuga_RequestParser* self, char* locbuf, size_t locbufsize);
-static std::vector<TextwolfItem> getTextwolfItems( const cJSON* tree, papuga_ErrorCode* errcode);
+static std::vector<TextwolfItem> getTextwolfItems( papuga_Allocator* allocator, const cJSON* tree, papuga_ErrorCode* errcode);
+
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+static void printTextwolfItemList( std::ostream& out, const char* title, const std::vector<TextwolfItem>& tiar)
+{
+	out << title << ":" << std::endl;
+	std::vector<TextwolfItem>::const_iterator ti = tiar.begin(), te = tiar.end();
+	for (; ti != te; ++ti)
+	{
+		out << textwolf::XMLScannerBase::getElementTypeName( ti->type) << " '" << ti->value << "'" << std::endl;
+	}
+}
+#endif
+
 
 namespace {
 struct JsonTreeRef
@@ -54,14 +71,15 @@ private:
 struct RequestParser_json
 {
 	papuga_RequestParserHeader header;
+	papuga_Allocator* allocator;
 	std::string elembuf;
 	std::string content;
 	JsonTreeRef tree;
 	std::vector<TextwolfItem> items;
 	std::vector<TextwolfItem>::const_iterator iter;
 
-	RequestParser_json( const std::string& content_)
-		:elembuf(),content(content_)
+	RequestParser_json( papuga_Allocator* allocator_, const std::string& content_)
+		:allocator(allocator_),elembuf(),content(content_),tree(),items(),iter()
 	{
 		header.type = papuga_ContentType_JSON;
 		header.errcode = papuga_Ok;
@@ -87,7 +105,10 @@ struct RequestParser_json
 		}
 		else
 		{
-			items = getTextwolfItems( tree, &header.errcode);
+			items = getTextwolfItems( allocator, tree, &header.errcode);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			printTextwolfItemList( std::cerr, "JSON items parsed", items);
+#endif
 		}
 		iter = items.begin();
 	}
@@ -269,8 +290,13 @@ static void getTextwolfValue( std::vector<TextwolfItem>& tiar, cJSON const* nd, 
 	}
 }
 
-static bool getTextwolfItems_( std::vector<TextwolfItem>& itemar, cJSON const* nd, papuga_ErrorCode* errcode)
+static bool getTextwolfItems_( std::vector<TextwolfItem>& itemar, papuga_Allocator* allocator, cJSON const* nd, int depth, papuga_ErrorCode* errcode)
 {
+	if (depth > PAPUGA_MAX_RECURSION_DEPTH)
+	{
+		*errcode = papuga_MaxRecursionDepthReached;
+		return false;
+	}
 	typedef textwolf::XMLScannerBase TX;
 	switch (nd->type & 0x7F)
 	{
@@ -306,20 +332,27 @@ static bool getTextwolfItems_( std::vector<TextwolfItem>& itemar, cJSON const* n
 				for (;chnd; chnd = chnd->next)
 				{
 					itemar.push_back( TextwolfItem( TX::OpenTag, nd->string));
-					if (!getTextwolfItems_( itemar, chnd, errcode)) return false;
+					if (!getTextwolfItems_( itemar, allocator, chnd, depth+1, errcode)) return false;
 					itemar.push_back( TextwolfItem( TX::CloseTag, nd->string));
 				}
 			}
 			else
 			{
-				unsigned int idx=0;
+				unsigned int idx=1;
 				char idxstr[ 64];
-				for (;chnd; chnd = chnd->next)
+				for (;chnd; chnd = chnd->next,++idx)
 				{
-					snprintf( idxstr, sizeof( idxstr), "%u", idx);
-					itemar.push_back( TextwolfItem( TX::OpenTag, idxstr));
-					if (!getTextwolfItems_( itemar, chnd, errcode)) return false;
-					itemar.push_back( TextwolfItem( TX::CloseTag, idxstr));
+					std::size_t idxstrlen = std::snprintf( idxstr, sizeof( idxstr), "%u", idx);
+					char* idxstr_copy = (char*)papuga_Allocator_alloc( allocator, idxstrlen+1, 1);
+					if (!idxstr_copy)
+					{
+						*errcode = papuga_NoMemError;
+						return false;
+					}
+					std::memcpy( idxstr_copy, idxstr, idxstrlen+1);
+					itemar.push_back( TextwolfItem( TX::OpenTag, idxstr_copy));
+					if (!getTextwolfItems_( itemar, allocator, chnd, depth+1, errcode)) return false;
+					itemar.push_back( TextwolfItem( TX::CloseTag, idxstr_copy));
 				}
 			}
 			break;
@@ -332,7 +365,7 @@ static bool getTextwolfItems_( std::vector<TextwolfItem>& itemar, cJSON const* n
 				itemar.push_back( TextwolfItem( TX::OpenTag, nd->string));
 				for (;chnd; chnd = chnd->next)
 				{
-					if (!getTextwolfItems_( itemar, chnd, errcode)) return false;
+					if (!getTextwolfItems_( itemar, allocator, chnd, depth+1, errcode)) return false;
 				}
 				itemar.push_back( TextwolfItem( TX::CloseTag, nd->string));
 			}
@@ -340,7 +373,7 @@ static bool getTextwolfItems_( std::vector<TextwolfItem>& itemar, cJSON const* n
 			{
 				for (;chnd; chnd = chnd->next)
 				{
-					if (!getTextwolfItems_( itemar, chnd, errcode)) return false;
+					if (!getTextwolfItems_( itemar, allocator, chnd, depth+1, errcode)) return false;
 				}
 			}
 			break;
@@ -352,12 +385,12 @@ static bool getTextwolfItems_( std::vector<TextwolfItem>& itemar, cJSON const* n
 	return true;
 }
 
-static std::vector<TextwolfItem> getTextwolfItems( const cJSON* tree, papuga_ErrorCode* errcode)
+static std::vector<TextwolfItem> getTextwolfItems( papuga_Allocator* allocator, const cJSON* tree, papuga_ErrorCode* errcode)
 {
 	std::vector<TextwolfItem> rt;
 	try
 	{
-		if (!getTextwolfItems_( rt, tree, errcode)) return std::vector<TextwolfItem>();
+		if (!getTextwolfItems_( rt, allocator, tree, 0, errcode)) return std::vector<TextwolfItem>();
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -370,9 +403,9 @@ static std::vector<TextwolfItem> getTextwolfItems( const cJSON* tree, papuga_Err
 	return rt;
 }
 
-extern "C" papuga_RequestParser* papuga_create_RequestParser_json( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode)
+extern "C" papuga_RequestParser* papuga_create_RequestParser_json( papuga_Allocator* allocator, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode)
 {
-	papuga_RequestParser* rt = (papuga_RequestParser*)std::calloc( 1, sizeof(papuga_RequestParser));
+	papuga_RequestParser* rt = (papuga_RequestParser*)papuga_Allocator_alloc( allocator, sizeof(papuga_RequestParser), 0/*default alignment*/);
 	if (!rt) return NULL;
 	try
 	{
@@ -388,12 +421,11 @@ extern "C" papuga_RequestParser* papuga_create_RequestParser_json( papuga_String
 			papuga_init_ValueVariant_string_enc( &input, encoding, content, unitsize);
 			contentUTF8 = ValueVariant_tostring( input, *errcode);
 		}
-		new (&rt->impl) RequestParser_json( contentUTF8);
+		new (&rt->impl) RequestParser_json( allocator, contentUTF8);
 	}
 	catch (const std::bad_alloc&)
 	{
 		*errcode = papuga_NoMemError;
-		if (rt) std::free( rt);
 		return NULL;
 	}
 	return rt;
@@ -402,7 +434,6 @@ extern "C" papuga_RequestParser* papuga_create_RequestParser_json( papuga_String
 static void papuga_destroy_RequestParser_json( papuga_RequestParser* self)
 {
 	self->impl.~RequestParser_json();
-	std::free( self);
 }
 
 static papuga_RequestElementType papuga_RequestParser_json_next( papuga_RequestParser* self, papuga_ValueVariant* value)

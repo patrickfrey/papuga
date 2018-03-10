@@ -138,7 +138,7 @@ bool papuga_execute_request(
 	// Init locals:
 	papuga_init_RequestContext( &ctx, &allocator, &logger);
 	papuga_init_ErrorBuffer( &errorbuf, errbuf_mem, sizeof(errbuf_mem));
-	parser = papuga_create_RequestParser( doctype, encoding, doc.c_str(), doc.size(), &errcode);
+	parser = papuga_create_RequestParser( &allocator, doctype, encoding, doc.c_str(), doc.size(), &errcode);
 	if (!parser) goto ERROR;
 	request = papuga_create_Request( atm);
 	if (!request) goto ERROR;
@@ -153,13 +153,10 @@ bool papuga_execute_request(
 	}
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	{
-		papuga_Allocator allocator;
-		papuga_init_Allocator( &allocator, 0, 0);
 		std::size_t requestdumplen;
-		const char* requestdump = papuga_Request_tostring( request, &allocator, papuga_UTF8, &requestdumplen, &errcode);
+		const char* requestdump = papuga_Request_tostring( request, &allocator, papuga_UTF8, 5/*maxdepth*/, &requestdumplen, &errcode);
 		if (!requestdump) throw papuga::error_exception( errcode, "dumping request");
 		std::cerr << "ITEMS REQUEST:\n" << requestdump << std::endl;
-		papuga_destroy_Allocator( &allocator);
 	}
 #endif
 	// Add variables to the request:
@@ -187,7 +184,7 @@ bool papuga_execute_request(
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	{
 		size_t dumplen = 0;
-		char* dumpstr = papuga_RequestResult_tostring( &result, &dumplen);
+		char* dumpstr = papuga_RequestResult_tostring( &result, 5/*maxdepth*/, &dumplen);
 		if (!dumpstr) throw papuga::error_exception( papuga_NoMemError, "dumping result");
 		std::cerr << "RESULT DUMP:\n" << dumpstr << std::endl;
 	}
@@ -217,8 +214,7 @@ ERROR:
 		if (errorpos >= 0)
 		{
 			// Evaluate more info about the location of the error, we append the scope of the document to the error message:
-			char locinfobuf[ 4096];
-			const char* locinfo = papuga_request_content_tostring( doctype, encoding, doc.c_str(), doc.size(), errorpos, 3/*max depth*/, locinfobuf, sizeof(locinfobuf));
+			const char* locinfo = papuga_request_content_tostring( &allocator, doctype, encoding, doc.c_str(), doc.size(), errorpos, 3/*max depth*/, &errcode);
 			if (locinfo)
 			{
 				papuga_ErrorBuffer_appendMessage( &errorbuf, " (error scope: %s)", locinfo);

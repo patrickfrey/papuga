@@ -23,6 +23,7 @@ static inline papuga_ResolveType getResolveType( char resolvechr)
 	switch (resolvechr)
 	{
 		case '*': return papuga_ResolveTypeArray;
+		case '+': return papuga_ResolveTypeArrayNonEmpty;
 		case '?': return papuga_ResolveTypeOptional;
 		case '!': return papuga_ResolveTypeRequired;
 		case '$': return papuga_ResolveTypeInherited;

@@ -101,26 +101,29 @@ typedef struct papuga_RequestParserHeader {
 
 /*
  * @brief Create a document parser for an XML document
+ * @param[in] allocator allocator to use
  * @param[in] encoding character set encoding
  * @param[in] content pointer to source
  * @param[in] size size of src in bytes
  * @param[out] error code set in case of failure
  * @return The document parser structure or NULL in case of failure
  */
-papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
+papuga_RequestParser* papuga_create_RequestParser_xml( papuga_Allocator* allocator, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
 
 /*
  * @brief Create a document parser for a JSON document
+ * @param[in] allocator allocator to use
  * @param[in] encoding character set encoding
  * @param[in] content pointer to source
  * @param[in] size size of src in bytes
  * @param[out] error code set in case of failure
  * @return The document parser structure or NULL in case of failure
  */
-papuga_RequestParser* papuga_create_RequestParser_json( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
+papuga_RequestParser* papuga_create_RequestParser_json( papuga_Allocator* allocator, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
 
 /*
  * @brief Create a document parser for a document depending on a document type
+ * @param[in] allocator allocator to use
  * @param[in] doctype content type
  * @param[in] encoding character set encoding
  * @param[in] content pointer to source
@@ -128,7 +131,7 @@ papuga_RequestParser* papuga_create_RequestParser_json( papuga_StringEncoding en
  * @param[out] error code set in case of failure
  * @return The document parser structure or NULL in case of failure
  */
-papuga_RequestParser* papuga_create_RequestParser( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
+papuga_RequestParser* papuga_create_RequestParser( papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode);
 
 
 /*
@@ -171,19 +174,19 @@ int papuga_RequestParser_get_position( const papuga_RequestParser* self, char* l
 bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Request* request, papuga_ErrorCode* errcode);
 
 /*
- * @brief Get the location scope of an error as string for a decent error message for a processed request
+ * @brief Get the request content as it is seen from a request parser in a scope defined by an ordinal as string
+ * @note intended to be used for location info in error messages or for logging the content of a request
+ * @param[in] allocator allocator to use
  * @param[in] doctype content type
  * @param[in] encoding character set encoding
  * @param[in] docstr pointer to source
  * @param[in] doclen size of docstr in bytes
  * @param[in] scopestart the ordinal position of the start of the scope to print (ordinal position means the count of request parser events, calls of papuga_RequestParser_next)
  * @param[in] maxdepth maximum depth of substructures to print (deeper structures are represented with "...")
- * @param[out] buf buffer for filling with the location info returned
- * @param[in] bufsize size of buffer in bytes
- * @return pointer to printed location info or NULL in case of error
- * @return The document parser structure or NULL in case of failure
+ * @param[out] errcode the error code in case of an error
+ * @return the content structure or NULL in case of failure
  */
-const char* papuga_request_content_tostring( papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int scopestart, int maxdepth, char* buf, size_t bufsize);
+const char* papuga_request_content_tostring( papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int scopestart, int maxdepth, papuga_ErrorCode* errcode);
 
 #ifdef __cplusplus
 }

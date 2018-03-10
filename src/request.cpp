@@ -1701,6 +1701,7 @@ public:
 					}
 				}
 				break;
+				case papuga_ResolveTypeArrayNonEmpty:
 				case papuga_ResolveTypeArray:
 				{
 					ResolvedObject resolvedObj = resolveNearItemInsideScope( scope, taglevelRange, itemid);
@@ -1709,9 +1710,7 @@ public:
 						m_errcode = papuga_NoMemError;
 						return false;
 					}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
 					int arrayElementCount = 0;
-#endif
 					while (resolvedObj.valid())
 					{
 						// We try to get a valid node candidate preferring value nodes if defined
@@ -1744,6 +1743,11 @@ public:
 						 taglevelRange.first, taglevelRange.second,
 						 arrayElementCount);
 #endif
+					if (arrayElementCount == 0 && resolvetype == papuga_ResolveTypeArrayNonEmpty)
+					{
+						m_errcode = papuga_ValueUndefined;
+						return false;
+					}
 					if (!sink.closeSerialization())
 					{
 						m_errcode = papuga_NoMemError;

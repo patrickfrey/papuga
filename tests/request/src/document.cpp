@@ -331,6 +331,8 @@ std::string test::dumpRequest( papuga_ContentType contentType, papuga_StringEnco
 	papuga_ErrorCode errcode = papuga_Ok;
 	papuga_ValueVariant elemval;
 	papuga_RequestElementType elemtype;
+	papuga_Allocator allocator;
+	papuga_init_Allocator( &allocator, 0, 0);
 
 	if (contentType_guessed != contentType) throw std::runtime_error("test document content type differs from guessed value");
 	if (encoding_guessed != encoding) throw std::runtime_error("test document character set encoding differs from guessed value");
@@ -338,8 +340,8 @@ std::string test::dumpRequest( papuga_ContentType contentType, papuga_StringEnco
 	switch (contentType)
 	{
 		case papuga_ContentType_Unknown: throw std::runtime_error("test document content type is unknown");
-		case papuga_ContentType_XML: parser = papuga_create_RequestParser_xml( encoding, content.c_str(), content.size(), &errcode); break;
-		case papuga_ContentType_JSON: parser = papuga_create_RequestParser_json( encoding, content.c_str(), content.size(), &errcode); break;
+		case papuga_ContentType_XML: parser = papuga_create_RequestParser_xml( &allocator, encoding, content.c_str(), content.size(), &errcode); break;
+		case papuga_ContentType_JSON: parser = papuga_create_RequestParser_json( &allocator, encoding, content.c_str(), content.size(), &errcode); break;
 	}
 	if (!parser) throw papuga::error_exception( errcode, "create request from content string");
 	for (
@@ -375,6 +377,8 @@ std::string test::dumpRequest( papuga_ContentType contentType, papuga_StringEnco
 		}
 	}
 	out << "END" << std::endl;
+	papuga_destroy_Allocator( &allocator);
+	//... 'allocator' MEMORY LEAK in case of error
 	return out.str();
 }
 

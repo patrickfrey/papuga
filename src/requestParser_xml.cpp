@@ -10,6 +10,7 @@
 #include "papuga/requestParser.h"
 #include "papuga/valueVariant.h"
 #include "papuga/valueVariant.hpp"
+#include "papuga/allocator.h"
 #include "textwolf/xmlscanner.hpp"
 #include "textwolf/charset.hpp"
 #include "requestParser_utils.h"
@@ -26,6 +27,7 @@ namespace {
 struct RequestParser_xml
 {
 	papuga_RequestParserHeader header;
+	papuga_Allocator* allocator;
 	std::string elembuf;
 	std::string content;
 
@@ -44,8 +46,8 @@ struct RequestParser_xml
 	int taglevel;
 	int tagcnt;
 
-	explicit RequestParser_xml( const std::string& content_)
-		:elembuf(),content(content_),taglevel(0),tagcnt(0)
+	explicit RequestParser_xml( papuga_Allocator* allocator_, const std::string& content_)
+		:allocator(allocator_),elembuf(),content(content_),taglevel(0),tagcnt(0)
 	{
 		header.type = papuga_ContentType_XML;
 		header.errcode = papuga_Ok;
@@ -125,9 +127,9 @@ struct papuga_RequestParser
 	RequestParser_xml impl;
 };
 
-extern "C" papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode)
+extern "C" papuga_RequestParser* papuga_create_RequestParser_xml( papuga_Allocator* allocator, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode)
 {
-	papuga_RequestParser* rt = (papuga_RequestParser*)std::calloc( 1, sizeof(papuga_RequestParser));
+	papuga_RequestParser* rt = (papuga_RequestParser*)papuga_Allocator_alloc( allocator, sizeof(papuga_RequestParser), 0/*default alignment*/);
 	if (!rt) return NULL;
 	try
 	{
@@ -143,12 +145,11 @@ extern "C" papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringE
 			papuga_init_ValueVariant_string_enc( &input, encoding, content, unitsize);
 			contentUTF8 = ValueVariant_tostring( input, *errcode);
 		}
-		new (&rt->impl) RequestParser_xml( contentUTF8);
+		new (&rt->impl) RequestParser_xml( allocator, contentUTF8);
 	}
 	catch (const std::bad_alloc&)
 	{
 		*errcode = papuga_NoMemError;
-		if (rt) std::free( rt);
 		return NULL;
 	}
 	return rt;
@@ -157,7 +158,6 @@ extern "C" papuga_RequestParser* papuga_create_RequestParser_xml( papuga_StringE
 static void papuga_destroy_RequestParser_xml( papuga_RequestParser* self)
 {
 	self->impl.~RequestParser_xml();
-	std::free( self);
 }
 
 static papuga_RequestElementType papuga_RequestParser_xml_next( papuga_RequestParser* self, papuga_ValueVariant* value)
