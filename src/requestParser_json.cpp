@@ -93,14 +93,14 @@ struct RequestParser_json
 		tree = cJSON_Parse( content.c_str(), &ctx);
 		if (!tree)
 		{
-			if (!ctx.position)
+			if (ctx.position < 0)
 			{
 				header.errcode = papuga_NoMemError;
 			}
 			else
 			{
 				header.errcode = papuga_SyntaxError;
-				header.errpos = ctx.position-1;
+				header.errpos = ctx.position;
 			}
 		}
 		else

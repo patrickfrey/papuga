@@ -34,7 +34,7 @@ extern "C"
 #ifdef PF_PATCH_THREADSAFE
 typedef struct cJSON_Context {
 	const unsigned char *json;
-	size_t position;
+	int position;
 } cJSON_Context;
 #endif
 

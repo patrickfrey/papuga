@@ -1084,7 +1084,7 @@ CJSON_PUBLIC(cJSON *) cJSON_ParseWithOpts(const char *value, const char **return
     /* reset error position */
 #ifdef PF_PATCH_THREADSAFE
     ctx->json = NULL;
-    ctx->position = 0;
+    ctx->position = -1;
 #else
     global_error.json = NULL;
     global_error.position = 0;

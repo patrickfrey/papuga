@@ -19,6 +19,7 @@
 #include "papuga/stack.h"
 #include <string>
 #include <cstring>
+#include <cstdlib>
 
 static void* encodeRequestResultString( const std::string& out, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
 {
