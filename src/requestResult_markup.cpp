@@ -17,9 +17,47 @@
 #include "papuga/callResult.h"
 #include "papuga/interfaceDescription.h"
 #include "papuga/stack.h"
-#include "requestResult_utils.hpp"
 #include <string>
 #include <cstring>
+
+static void* encodeRequestResultString( const std::string& out, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
+{
+	if (enc == papuga_UTF8)
+	{
+		void* rt = (void*)std::malloc( out.size()+1);
+		if (!rt)
+		{
+			*err = papuga_NoMemError;
+			return NULL;
+		}
+		*len = out.size();
+		std::memcpy( (char*)rt, out.c_str(), (*len)+1);
+		return rt;
+	}
+	else
+	{
+		papuga_ValueVariant outvalue;
+		papuga_init_ValueVariant_string( &outvalue, out.c_str(), out.size());
+		size_t usize = papuga_StringEncoding_unit_size( enc);
+		size_t rtbufsize = (out.size()+16) * usize;
+		void* rtbuf = std::malloc( rtbufsize);
+		if (!rtbuf)
+		{
+			*err = papuga_NoMemError;
+			return NULL;
+		}
+		const void* rtstr = papuga_ValueVariant_tostring_enc( &outvalue, enc, rtbuf, rtbufsize, len, err);
+		if (!rtstr)
+		{
+			std::free( rtbuf);
+			return NULL;
+		}
+		void* rt = (void*)std::realloc( rtbuf, (*len + 1) * usize);
+		if (!rt) rt = rtbuf;
+		std::memset( (char*)rt + (*len) * usize, 0, usize); //... null termination
+		return rt;
+	}
+}
 
 enum StyleType {StyleHTML,StyleXML,StyleTEXT,StyleJSON};
 
@@ -1058,7 +1096,7 @@ static void* RequestResult_tomarkup( const papuga_RequestResult* self, StyleType
 		append_tag_close_root( ctx, rootelem);
 	}
 	ctx.out.append( tail);
-	void* rt = papuga::encodeRequestResultString( ctx.out, enc, len, &ctx.errcode);
+	void* rt = encodeRequestResultString( ctx.out, enc, len, &ctx.errcode);
 	if (rt) papuga_Allocator_add_free_mem( self->allocator, rt);
 	*err = ctx.errcode;
 	return rt;
