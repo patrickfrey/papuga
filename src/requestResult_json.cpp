@@ -81,12 +81,18 @@ static bool ValueVariant_tojson( std::string& out, const papuga_ValueVariant& va
 				bool isdict = value.value.serialization->structid || papuga_SerializationIter_tag( &subitr) == papuga_TagName;
 
 				out.push_back( isdict?'{':'[');
-				rt &= SerializationIter_tojson( out, &subitr, isdict, value.value.serialization->structid, structs, indent+'\t', errcode);
-				out.push_back( isdict?'}':']');
-
-				if (!papuga_SerializationIter_eof( &subitr))
+				if (SerializationIter_tojson( out, &subitr, isdict, value.value.serialization->structid, structs, indent+'\t', errcode))
 				{
-					errcode = papuga_SyntaxError;
+					out.push_back( isdict?'}':']');
+	
+					if (!papuga_SerializationIter_eof( &subitr))
+					{
+						errcode = papuga_SyntaxError;
+						rt = false;
+					}
+				}
+				else
+				{
 					rt = false;
 				}
 			}
@@ -215,6 +221,11 @@ static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter
 						if (structid)
 						{
 							name = structs[ structid-1].members[ elementcnt].name;
+							if (!name)
+							{
+								errcode = papuga_SyntaxError;
+								goto ERROR;
+							}
 						}
 						else
 						{
@@ -245,6 +256,11 @@ static bool SerializationIter_tojson( std::string& out, papuga_SerializationIter
 						if (structid)
 						{
 							name = structs[ structid-1].members[ elementcnt].name;
+							if (!name)
+							{
+								errcode = papuga_SyntaxError;
+								goto ERROR;
+							}
 						}
 						else
 						{

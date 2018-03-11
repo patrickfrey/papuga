@@ -23,7 +23,6 @@ set( source_files_request
 	requestHandler.cpp
 	requestResult.cpp
 	requestResult_xml.cpp
-	requestResult_json.cpp
 	requestResult_utils.cpp
 	requestAutomaton.cpp
 	requestParser.c
