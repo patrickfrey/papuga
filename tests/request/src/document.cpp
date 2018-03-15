@@ -155,7 +155,7 @@ std::string DocumentNode::tojson( const papuga_StringEncoding& encoding) const
 {
 	std::ostringstream out;
 	out << "{";
-	printNodeListJson( out, std::string("\n") + indentTab(), 0);
+	printNodeListJson( out, std::string("\n"), 0);
 	out << "\n}";
 	out << std::endl;
 	return encodeString( encoding, out.str());

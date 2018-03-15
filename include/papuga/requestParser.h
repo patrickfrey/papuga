@@ -188,6 +188,18 @@ bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Req
  */
 const char* papuga_request_content_tostring( papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int scopestart, int maxdepth, papuga_ErrorCode* errcode);
 
+/*
+ * @brief Initialize value variant from a JSON string
+ * @param[out] self value variant initialized
+ * @param[in] allocator allocator to use
+ * @param[in] encoding character set encoding of content to parse
+ * @param[in] contentstr pointer to source
+ * @param[in] contentlen size of docstr in bytes
+ * @param[out] errcode the error code in case of an error
+ * @return bool true in case of success, false else
+ */
+bool papuga_init_ValueVariant_json( papuga_ValueVariant* self, papuga_Allocator* allocator, papuga_StringEncoding encoding, const char* contentstr, size_t contentlen, papuga_ErrorCode* errcode);
+
 #ifdef __cplusplus
 }
 #endif

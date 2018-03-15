@@ -12,6 +12,7 @@
 #include "papuga/valueVariant.hpp"
 #include "papuga/allocator.h"
 #include "papuga/constants.h"
+#include "papuga/serialization.h"
 #include "cjson/cJSON.h"
 #include "textwolf/xmlscanner.hpp"
 #include "requestParser_utils.h"
@@ -403,6 +404,87 @@ static std::vector<TextwolfItem> getTextwolfItems( papuga_Allocator* allocator, 
 	return rt;
 }
 
+static inline bool serializeJsonName( papuga_Serialization* serialization, cJSON const* nd, bool deep)
+{
+	if (nd->string && nd->string[0] != '-' && nd->string[0] != '#')
+	{
+		const char* name = deep ? papuga_Allocator_copy_charp( serialization->allocator, nd->string) : nd->string;
+		return papuga_Serialization_pushName_charp( serialization, name);
+	}
+	return true;
+}
+
+static bool getJsonSerialization( papuga_Serialization* serialization, cJSON const* nd, int depth, bool deep, papuga_ErrorCode* errcode)
+{
+	bool rt = true;
+	if (depth > PAPUGA_MAX_RECURSION_DEPTH)
+	{
+		*errcode = papuga_MaxRecursionDepthReached;
+		return false;
+	}
+	switch (nd->type & 0x7F)
+	{
+		case cJSON_False:
+			rt &= serializeJsonName( serialization, nd, deep);
+			rt &= papuga_Serialization_pushValue_bool( serialization, false);
+			break;
+		case cJSON_True:
+			rt &= serializeJsonName( serialization, nd, deep);
+			rt &= papuga_Serialization_pushValue_bool( serialization, true);
+			break;
+		case cJSON_NULL:
+			rt &= serializeJsonName( serialization, nd, deep);
+			rt &= papuga_Serialization_pushValue_void( serialization);
+			break;
+		case cJSON_String:
+		case cJSON_Number:
+			rt &= serializeJsonName( serialization, nd, deep);
+			if (!nd->valuestring)
+			{
+				*errcode = papuga_ValueUndefined;
+				return false;
+			}
+			else
+			{
+				const char* valstr = deep ? papuga_Allocator_copy_charp( serialization->allocator, nd->valuestring) : nd->valuestring;
+				rt &= papuga_Serialization_pushValue_charp( serialization, valstr);
+				break;
+			}
+		case cJSON_Array:
+		case cJSON_Object:
+		{
+			cJSON const* chnd = nd->child;
+			if (nd->string)
+			{
+				const char* name = deep ? papuga_Allocator_copy_charp( serialization->allocator, nd->string) : nd->string;
+				rt &= papuga_Serialization_pushName_charp( serialization, name);
+			}
+			bool isroot = papuga_Serialization_empty( serialization);
+			if (!isroot)
+			{
+				rt &= papuga_Serialization_pushOpen( serialization);
+				for (;chnd; chnd = chnd->next)
+				{
+					rt &= getJsonSerialization( serialization, chnd, depth+1, deep, errcode);
+				}
+				rt &= papuga_Serialization_pushClose( serialization);
+			}
+			else
+			{
+				for (;chnd; chnd = chnd->next)
+				{
+					rt &= getJsonSerialization( serialization, chnd, depth+1, deep, errcode);
+				}
+			}
+			break;
+		}
+		default:
+			*errcode = papuga_LogicError;
+			return false;
+	}
+	return rt;
+}
+
 extern "C" papuga_RequestParser* papuga_create_RequestParser_json( papuga_Allocator* allocator, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode)
 {
 	papuga_RequestParser* rt = (papuga_RequestParser*)papuga_Allocator_alloc( allocator, sizeof(papuga_RequestParser), 0/*default alignment*/);
@@ -452,6 +534,51 @@ static int papuga_RequestParser_json_position( const papuga_RequestParser* self,
 {
 	self->impl.getLocationInfo( locbuf, locbufsize);
 	return self->impl.header.errpos;
+}
+
+extern "C" bool papuga_init_ValueVariant_json( papuga_ValueVariant* self, papuga_Allocator* allocator, papuga_StringEncoding encoding, const char* contentstr, size_t contentlen, papuga_ErrorCode* errcode)
+{
+	papuga_init_ValueVariant( self);
+	papuga_Serialization* ser = (papuga_Serialization*)papuga_Allocator_alloc_Serialization( allocator);
+	if (!ser)
+	{
+		*errcode = papuga_NoMemError;
+		return false;
+	}
+	try
+	{
+		JsonTreeRef tree;
+		std::string contentUTF8;
+		if (encoding == papuga_UTF8)
+		{
+			contentUTF8.append( contentstr, contentlen);
+		}
+		else
+		{
+			papuga_ValueVariant input;
+			size_t unitsize = contentlen / papuga_StringEncoding_unit_size( encoding);
+			papuga_init_ValueVariant_string_enc( &input, encoding, contentstr, unitsize);
+			contentUTF8 = ValueVariant_tostring( input, *errcode);
+		}
+		cJSON_Context ctx;
+		tree = cJSON_Parse( contentUTF8.c_str(), &ctx);
+		if (!tree)
+		{
+			*errcode = (ctx.position < 0) ? papuga_NoMemError : papuga_SyntaxError;
+			return false;
+		}
+		bool rt = getJsonSerialization( ser, tree, 0, true/*deep*/, errcode);
+		if (rt)
+		{
+			papuga_init_ValueVariant_serialization( self, ser);
+		}
+		return rt;
+	}
+	catch (const std::bad_alloc&)
+	{
+		*errcode = papuga_NoMemError;
+		return false;
+	}
 }
 
 

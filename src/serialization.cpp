@@ -403,7 +403,7 @@ std::string papuga::Serialization_tostring( const papuga_Serialization& value, b
 {
 	try
 	{
-		PrintStruct ctx( linemode?LineMode : BracketMode, linemode?"\n":"", maxdepth, false/*non deterministic*/);
+		PrintStruct ctx( linemode?LineMode : BracketMode, ""/*indent*/, maxdepth, false/*non deterministic*/);
 		if (!Serialization_print( ctx, &value))
 		{
 			errcode = ctx.errcode;
@@ -422,7 +422,7 @@ std::string papuga::Serialization_tostring_deterministic( const papuga_Serializa
 {
 	try
 	{
-		PrintStruct ctx( linemode?LineMode : BracketMode, linemode?"\n":"", maxdepth, true/*deterministic*/);
+		PrintStruct ctx( linemode?LineMode : BracketMode, ""/*indent*/, maxdepth, true/*deterministic*/);
 		if (!Serialization_print( ctx, &value))
 		{
 			errcode = ctx.errcode;

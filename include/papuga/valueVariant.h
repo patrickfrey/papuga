@@ -152,7 +152,7 @@ extern "C" {
 * @param[in,out] allocator allocator to use for deep copy of string
 * @param[out] len length of the string copied in bytes
 * @param[out] err error code in case of error (untouched if call succeeds)
-* @return the pointer to the first character of the result string
+* @return the pointer to the result string
 */
 const char* papuga_ValueVariant_tostring( const papuga_ValueVariant* self, papuga_Allocator* allocator, size_t* len, papuga_ErrorCode* err);
 

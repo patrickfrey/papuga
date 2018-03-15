@@ -20,6 +20,7 @@
 #include <string>
 #include <cstring>
 #include <cstdlib>
+#include <stdexcept>
 
 static void* encodeRequestResultString( const std::string& out, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
 {
@@ -125,6 +126,21 @@ static void append_tag_close_array_json( OutputContext& ctx)
 {
 	ctx.indent.resize( ctx.indent.size()-1);
 	ctx.out.push_back( ']');
+}
+
+static void append_tag_open_struct( OutputContext& ctx)
+{
+	if (ctx.styleType != StyleJSON) throw std::logic_error("must not get here with other than JSON");
+	ctx.out.append( ctx.indent);
+	ctx.out.append( "{");
+	ctx.indent.push_back( '\t');
+}
+
+static void append_tag_close_struct( OutputContext& ctx)
+{
+	if (ctx.styleType != StyleJSON) throw std::logic_error("must not get here with other than JSON");
+	if (!ctx.indent.empty()) ctx.indent.resize( ctx.indent.size()-1);
+	ctx.out.push_back( '}');
 }
 
 static void append_tag_open( OutputContext& ctx, const char* name)
@@ -236,11 +252,7 @@ static void append_tag_open_root( OutputContext& ctx, const char* name)
 		case StyleTEXT:
 			break;
 		case StyleXML:
-			append_tag_open( ctx, name);
-			break;
 		case StyleJSON:
-			ctx.out.append( "{");
-			ctx.indent.push_back( '\t');
 			append_tag_open( ctx, name);
 			break;
 	}
@@ -254,15 +266,12 @@ static void append_tag_close_root( OutputContext& ctx, const char* name)
 		case StyleTEXT:
 			break;
 		case StyleXML:
-			append_tag_close( ctx, name);
-			break;
 		case StyleJSON:
 			append_tag_close( ctx, name);
-			ctx.indent.resize( ctx.indent.size()-1);
-			ctx.out.append( "\n}");
 			break;
 	}
 }
+
 
 static void append_encoded_entities_xml( OutputContext& ctx, const char* str, std::size_t len)
 {
@@ -698,6 +707,7 @@ static bool getSubStructType( StructType& st, const papuga_SerializationIter* se
 			case papuga_TagValue: st.id = StructType::Array; break;
 			case papuga_TagOpen: st.id = StructType::Array; break;
 			case papuga_TagClose: st.id = StructType::Empty; break;
+			default: st.id = StructType::Empty; break;
 		}
 	}
 	return true;
@@ -793,6 +803,7 @@ static inline bool SerializationIter_tomarkup_elem_fwd( OutputContext& ctx, papu
 		{
 			StructType st;
 			if (!getSubStructType( st, seritr, ctx.errcode)) return false;
+			append_tag_open_struct( ctx);
 			papuga_SerializationIter_skip(seritr);
 
 			switch (st.id)
@@ -815,6 +826,7 @@ static inline bool SerializationIter_tomarkup_elem_fwd( OutputContext& ctx, papu
 				ctx.errcode = papuga_UnexpectedEof;
 				return false;
 			}
+			append_tag_close_struct( ctx);
 			break;
 		}
 	}
@@ -1171,7 +1183,7 @@ extern "C" void* papuga_RequestResult_tojson( const papuga_RequestResult* self, 
 {
 	try
 	{
-		return RequestResult_tomarkup( self, StyleJSON, ""/*hdr*/, "\n"/*tail*/, enc, len, err);
+		return RequestResult_tomarkup( self, StyleJSON, "{"/*hdr*/, "\n}\n"/*tail*/, enc, len, err);
 	}
 	catch (const std::bad_alloc&)
 	{

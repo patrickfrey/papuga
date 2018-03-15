@@ -64,9 +64,9 @@ extern "C" char* papuga_RequestResult_tostring( const papuga_RequestResult* self
 bool papuga_init_RequestResult_single( papuga_RequestResult* self, papuga_Allocator* allocator, const char* rootname, const char* elemname, const papuga_StructInterfaceDescription* structdefs, const papuga_ValueVariant* value)
 {
 	self->allocator = allocator;
-	self->name = papuga_Allocator_copy_charp( allocator, rootname);
+	self->name = rootname ? papuga_Allocator_copy_charp( allocator, rootname) : 0;
 	papuga_RequestResultNode* node = (papuga_RequestResultNode*)papuga_Allocator_alloc( allocator, sizeof(papuga_RequestResultNode), 0);
-	if (!node || !self->name) return false;
+	if (!node || (rootname && !self->name)) return false;
 	self->structdefs = structdefs;
 	self->nodes = node;
 	papuga_init_ValueVariant_value( &node->value, value);
