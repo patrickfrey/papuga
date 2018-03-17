@@ -17,7 +17,6 @@ set( source_files
 	${PROJECT_SOURCE_DIR}/3rdParty/lua/lapi.c
 	${PROJECT_SOURCE_DIR}/3rdParty/lua/lauxlib.c
 	${PROJECT_SOURCE_DIR}/3rdParty/lua/lbaselib.c
-	${PROJECT_SOURCE_DIR}/3rdParty/lua/lbitlib.c
 	${PROJECT_SOURCE_DIR}/3rdParty/lua/lcode.c
 	${PROJECT_SOURCE_DIR}/3rdParty/lua/lcorolib.c
 	${PROJECT_SOURCE_DIR}/3rdParty/lua/lctype.c
