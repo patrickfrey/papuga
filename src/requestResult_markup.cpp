@@ -342,6 +342,7 @@ static void append_encoded_entities_ansi_c( OutputContext& ctx, const char* str,
 				case '\\': entity = "\\\\"; break;
 				default: continue;
 			}
+			break;
 		}
 		ctx.out.append( start, si-start);
 		if (entity)
