@@ -270,11 +270,32 @@ public:
 	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername);
 
 #if __cplusplus >= 201103L
+	struct InheritedDef
+	{
+		std::string type;
+		std::string name_expression;
+		bool required;
+
+		InheritedDef( const std::string& type_, const std::string& name_expression_, bool required_)
+			:type(type_),name_expression(name_expression_),required(required_){}
+		InheritedDef( const InheritedDef& o)
+			:type(o.type),name_expression(o.name_expression),required(o.required){}
+	};
 	/// \brief Constructor defining the whole automaton from an initializer list
-	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername, const std::initializer_list<RequestAutomaton_Node>& nodes);
+	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername,
+				const std::initializer_list<InheritedDef>& inherited,
+				const std::initializer_list<RequestAutomaton_Node>& nodes);
 #endif
 	/// \brief Destructor
 	~RequestAutomaton();
+
+	/// \brief Define the declaration of a context this scheme is dependent on
+	/// \param[in] type the type name of the context inherited
+	/// \param[in] expression select expression addressing the name of the context inherited
+	/// \param[in] required true if the inherited context is mandatory
+	/// \remark Only available if this automaton has been constructed as empty
+	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
+	void addInheritContext( const char* typenam, const char* expression, bool required);
 
 	/// \brief Add a method call
 	/// \param[in] expression select expression addressing the scope of this method call definition

@@ -328,7 +328,7 @@ static TestData* createTestData_1()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, "person",
+		g_classdefs, g_structdefs, "person", {},
 		{
 			{"/doc/person", "@name", (int)PersonName},
 			{"/doc/person", "()", (int)PersonContent},
@@ -363,7 +363,7 @@ static TestData* createTestData_2()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, "list",
+		g_classdefs, g_structdefs, "list", {},
 		{}
 		);
 	static const char* expected_calls[] = {0};
@@ -386,7 +386,7 @@ static TestData* createTestData_3()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, "list",
+		g_classdefs, g_structdefs, "list", {},
 		{
 			{"/doc/city", "()", (int)CityName},
 			{"/doc", "obj", 0, C1::constructor(), {} },
@@ -432,7 +432,7 @@ static TestData* createTestData_4()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, "list",
+		g_classdefs, g_structdefs, "list", {},
 		{
 			{"/doc/city", "()", (int)CityName},
 			{"/doc", "obj", 0, C1::constructor(), {} },
@@ -481,7 +481,7 @@ static TestData* createTestData_5()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, "list",
+		g_classdefs, g_structdefs, "list", {},
 		{
 			{"/doc/city", "()", CityName},
 			{"/doc", "obj", 0, C1::constructor(), {} },
@@ -528,7 +528,7 @@ static TestData* createTestData_6()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, "result",
+		g_classdefs, g_structdefs, "result", {},
 		{
 			{"/tree", TreeNode, {{"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
 			{"/tree", "()", TreeNode},

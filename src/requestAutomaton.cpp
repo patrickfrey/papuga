@@ -224,14 +224,23 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papu
 }
 
 #if __cplusplus >= 201103L
-RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername, const std::initializer_list<RequestAutomaton_Node>& nodes)
+RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername,
+					const std::initializer_list<InheritedDef>& inherited,
+					const std::initializer_list<RequestAutomaton_Node>& nodes)
 	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername))
 {
 	if (!m_atm) throw std::bad_alloc();
-	std::initializer_list<RequestAutomaton_Node>::const_iterator ni = nodes.begin(), ne = nodes.end();
-	for (; ni != ne; ++ni)
+	for (auto hi : inherited)
 	{
-		ni->addToAutomaton( m_atm);
+		if (!papuga_RequestAutomaton_inherit_from( m_atm, hi.type.c_str(), hi.name_expression.c_str(), hi.required))
+		{
+			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
+			if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add inherit from");
+		}
+	}
+	for (auto ni : nodes)
+	{
+		ni.addToAutomaton( m_atm);
 	}
 	papuga_RequestAutomaton_done( m_atm);
 }
@@ -249,6 +258,19 @@ void RequestAutomaton::addFunction( const char* expression, const char* resultva
 	for (; ai->itemid || ai->varname; ++ai) argvec.push_back( *ai);
 	RequestAutomaton_FunctionDef func( expression, resultvar?resultvar:"", selfvar, methodid, argvec);
 	func.addToAutomaton( m_atm);
+}
+
+void RequestAutomaton::addInheritContext( const char* typenam, const char* expression, bool required)
+{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	fprintf( stderr, "ATM define inherit context type=%s, expression='%s', required=%s\n",
+		 typenam, expression, required ? "yes":"no");
+#endif	
+	if (!papuga_RequestAutomaton_inherit_from( m_atm, typenam, expression, required))
+	{
+		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
+		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add inherit context");
+	}
 }
 
 void RequestAutomaton::addStruct( const char* expression, int itemid, const RequestAutomaton_StructDef::Element* elems)
