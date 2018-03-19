@@ -63,8 +63,21 @@ void papuga_destroy_RequestAutomaton( papuga_RequestAutomaton* self);
 papuga_ErrorCode papuga_RequestAutomaton_last_error( const papuga_RequestAutomaton* self);
 
 /*
+ * @brief Declare a dependency to a context where all variables are inherited from
+ * @param[in,out] self automaton changed
+ * @param[in] type type name of the context to inherit from
+ * @param[in] name_expression xpath expression (abbreviated syntax of xpath) bound to the name of the context to inherit from
+ * @param[in] required true if the inheritance declaration in mandatory
+ */
+bool papuga_RequestAutomaton_inherit_from(
+		papuga_RequestAutomaton* self,
+		const char* type,
+		const char* name_expression,
+		bool required);
+
+/*
  * @brief Add a method call
- * @param[in,out] self automaton manipulated
+ * @param[in,out] self automaton changed
  * @param[in] expression xpath expression (abbreviated syntax of xpath) bound to the method to call
  * @param[in] method identifier of the method to call
  * @param[in] selfvarname identifier of the owner object for the method to call
@@ -83,7 +96,7 @@ bool papuga_RequestAutomaton_add_call(
 
 /*
  * @brief Define a variable reference as argument to the last method call added
- * @param[in,out] self automaton manipulated
+ * @param[in,out] self automaton changed
  * @param[in] idx index of the argument to set, starting with 0
  * @param[in] varname identifier of the variable to use as argument
  * @return true on success, false on failure (index out of range or memory allocation error)
@@ -113,7 +126,7 @@ const char* papuga_ResolveTypeName( papuga_ResolveType resolvetype);
 
 /*
  * @brief Define an argument to the last method call as item in the document processed
- * @param[in,out] self automaton manipulated
+ * @param[in,out] self automaton changed
  * @param[in] idx index of the argument to set, starting with 0
  * @param[in] itemid identifier of the item
  * @param[in] resolvetype defines the way an addressed item is resolved and constructed
@@ -144,7 +157,7 @@ bool papuga_RequestAutomaton_close_group( papuga_RequestAutomaton* self);
 
 /*
  * @brief Add a structure built from elements or structures in the document processed
- * @param[in,out] self automaton manipulated
+ * @param[in,out] self automaton changed
  * @param[in] expression xpath expression (abbreviated syntax of xpath) bound to the structure
  * @param[in] itemid identifier for the item referenced by method call arguments or structures
  * @param[in] nofmembers number of elements of the structure
@@ -157,7 +170,7 @@ bool papuga_RequestAutomaton_add_structure(
 
 /*
  * @brief Define an element of the last structure added
- * @param[in,out] self automaton manipulated
+ * @param[in,out] self automaton changed
  * @param[in] idx index of the element to set, starting with 0
  * @param[in] name identifier naming the structure element added or NULL if the element does not get a name (for arrays)
  * @param[in] itemid identifier of the structure or value associated with the element added
@@ -175,7 +188,7 @@ bool papuga_RequestAutomaton_set_structure_element(
 
 /*
  * @brief Define an atomic value in the document processed
- * @param[in,out] self automaton manipulated
+ * @param[in,out] self automaton changed
  * @param[in] scope_expression xpath expression (abbreviated syntax of xpath) defining the scope of the value
  * @param[in] select_expression xpath expression relative to the select expression (abbreviated syntax of xpath) selecting the value
  * @param[in] itemid identifier for the item referenced by method call arguments or structures
@@ -188,7 +201,7 @@ bool papuga_RequestAutomaton_add_value(
 
 /*
  * @brief Declare building of the automaton terminated
- * @param[in,out] self automaton manipulated
+ * @param[in,out] self automaton changed
  * @return true on success, false on failure
  * @remark It is not allowed to manipulate the automaton anymore after this call
  */
@@ -266,6 +279,23 @@ bool papuga_Request_done( papuga_Request* self);
  * @return the error code
  */
 papuga_ErrorCode papuga_Request_last_error( const papuga_Request* self);
+
+/*
+ * @brief Describes a context inherited by name
+ */
+typedef struct papuga_RequestInheritedContextDef
+{
+	const char* type;
+	const char* name;
+} papuga_RequestInheritedContextDef;
+
+/*
+ * @brief Get the list of inherited context definitions by type and name
+ * @param[in] self request to get the list from
+ * @param[out] errcode error code in case of error
+ * @return the {NULL,NULL} terminated array of inherited context definitions or NULL if definition incomplete or another error occurred
+ */
+const papuga_RequestInheritedContextDef* papuga_Request_get_inherited_contextdefs( const papuga_Request* self, papuga_ErrorCode* errcode);
 
 /*
  * @brief Get the class definitions of a request for refering to the method calls

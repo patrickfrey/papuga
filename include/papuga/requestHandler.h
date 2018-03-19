@@ -36,7 +36,6 @@ typedef struct papuga_RequestContext
 	papuga_Allocator* allocator;			/*< allocator for this context */
 	papuga_RequestVariable* variables;		/*< variables defined in the context */
 	papuga_RequestLogger* logger;			/*< logger to use */
-	const char* type;				/*< type identifier of this context used for scheme selection papuga_RequestHandler_get_scheme */
 } papuga_RequestContext;
 
 /*
@@ -82,6 +81,16 @@ const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_Requ
 const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, int max_inheritcnt, char const** buf, size_t bufsize);
 
 /*
+ * @brief Inherit all non local variables from another context
+ * @param[in,out] self this pointer
+ * @param[in] context to inherit from 
+ * @param[out] errcode error code in case of error, untouched in case of success
+ * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
+ * @return true on success, false on failure
+ */
+bool papuga_RequestContext_inherit( papuga_RequestContext* self, const papuga_RequestContext* context, papuga_ErrorCode* errcode);
+
+/*
  * @brief Creates a request handler
  * @param[in] logger logger interface to use
  * @return pointer to request handler
@@ -124,19 +133,6 @@ const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* s
  * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
  */
 const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, char const** buf, size_t bufsize);
-
-/*
- * @brief Defines a new context for requests inherited from another context addressed by type and name in the request handler
- * @param[out] self this pointer to the request context initialized
- * @param[in] allocator allocator to use
- * @param[in] handler request handler to get the parent context from
- * @param[in] type type name of the context to select and inherit from
- * @param[in] name name of the context to select and inherit from
- * @param[out] errcode error code in case of error, untouched in case of success
- * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
- * @return true on success, false on failure
- */
-bool papuga_init_RequestContext_child( papuga_RequestContext* self, papuga_Allocator* allocator, const papuga_RequestHandler* handler, const char* type, const char* name, papuga_ErrorCode* errcode);
 
 /*
  * @brief Find a stored context

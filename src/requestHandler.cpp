@@ -63,7 +63,8 @@ static void foreach_list( TYPE* lst, MEMBERTYPE TYPE::*member, void (*action)( M
 struct RequestContextList
 {
 	struct RequestContextList* next;
-	const char* name;				/*< name of the context to address it as parent of a new context */
+	const char* type;				/*< type of the context to identify it */
+	const char* name;				/*< name of the context to identify it */
 	papuga_RequestContext context;
 };
 
@@ -90,7 +91,6 @@ extern "C" void papuga_init_RequestContext( papuga_RequestContext* self, papuga_
 	self->errcode = papuga_Ok;
 	self->variables = NULL;
 	self->logger = logger;
-	self->type = "";
 }
 
 extern "C" papuga_ErrorCode papuga_RequestContext_last_error( const papuga_RequestContext* self)
@@ -128,7 +128,12 @@ ERROR:
 	return false;
 }
 
-static papuga_RequestVariable* copyRequestVariables( papuga_Allocator* allocator, papuga_RequestVariable* variables, int inheritincr, bool moveobj, papuga_ErrorCode* errcode)
+static bool isLocalVariable( const char* name)
+{
+	return name[0] == '_';
+}
+
+static papuga_RequestVariable* copyRequestVariables( papuga_Allocator* allocator, papuga_RequestVariable* variables, int inheritincr, bool moveObject, bool filterLocals, papuga_ErrorCode* errcode)
 {
 	papuga_RequestVariable root;
 	root.next = NULL;
@@ -136,6 +141,7 @@ static papuga_RequestVariable* copyRequestVariables( papuga_Allocator* allocator
 	papuga_RequestVariable* vl = variables;
 	for (; vl != 0; vl = vl->next)
 	{
+		if (filterLocals && isLocalVariable( vl->name)) continue;
 		cur->next = alloc_type<papuga_RequestVariable>( allocator);
 		cur = cur->next;
 		if (!cur) goto ERROR;
@@ -143,7 +149,7 @@ static papuga_RequestVariable* copyRequestVariables( papuga_Allocator* allocator
 		if (!cur->name) goto ERROR;
 		cur->next = 0;
 		cur->inheritcnt = vl->inheritcnt + inheritincr;
-		if (!papuga_Allocator_deepcopy_value( allocator, &cur->value, &vl->value, moveobj, errcode)) goto ERROR;
+		if (!papuga_Allocator_deepcopy_value( allocator, &cur->value, &vl->value, moveObject, errcode)) goto ERROR;
 	}
 	return root.next;
 ERROR:
@@ -180,6 +186,36 @@ extern "C" const char** papuga_RequestContext_list_variables( const papuga_Reque
 	return buf;
 }
 
+extern "C" bool papuga_RequestContext_inherit( papuga_RequestContext* self, const papuga_RequestContext* context, papuga_ErrorCode* errcode)
+{
+	if (!self->variables)
+	{
+		self->variables = copyRequestVariables( self->allocator, context->variables, 1/*inheritincr*/, false/*moveObject*/, true/*filterLocals*/, errcode);
+		if (!self->variables) return false;
+	}
+	else
+	{
+		papuga_RequestVariable* vl = self->variables;
+		for (; vl->next; vl=vl->next){}
+		vl->next = copyRequestVariables( self->allocator, context->variables, 1/*inheritincr*/, false/*moveObject*/, true/*filterLocals*/, errcode);
+		if (!vl->next) return false;
+		papuga_RequestVariable const* tl = self->variables;
+		for (; tl != vl->next; tl = tl->next)
+		{
+			papuga_RequestVariable const* ol = vl->next;
+			for (; ol; ol = ol->next)
+			{
+				if (std::strcmp( ol->name, tl->name) == 0)
+				{
+					*errcode = papuga_DuplicateDefinition;
+					return false;
+				}
+			}
+		}
+	}
+	return true;
+}
+
 extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger)
 {
 	papuga_RequestHandler* rt = (papuga_RequestHandler*) std::malloc( sizeof(papuga_RequestHandler));
@@ -202,12 +238,10 @@ extern "C" bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, 
 	RequestContextList* listitem = alloc_type<RequestContextList>( &self->allocator);
 	if (!listitem) goto ERROR;
 	papuga_init_RequestContext( &listitem->context, &self->allocator, self->logger);
-	listitem->context.type = papuga_Allocator_copy_charp( &self->allocator, type);
+	listitem->type = papuga_Allocator_copy_charp( &self->allocator, type);
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
-	listitem->context.variables = copyRequestVariables( &self->allocator, ctx->variables, 0, true, errcode);
-	if (!listitem->name
-		|| (!listitem->context.variables && ctx->variables)
-		|| (!listitem->context.type && ctx->type)) goto ERROR;
+	listitem->context.variables = copyRequestVariables( &self->allocator, ctx->variables, 0, true/*moveObject*/, true/*filterLocals*/, errcode);
+	if (!listitem->type || !listitem->name || (!listitem->context.variables && ctx->variables)) goto ERROR;
 	self->contexts = add_list( self->contexts, listitem);
 	return true;
 ERROR:
@@ -224,7 +258,7 @@ extern "C" const char** papuga_RequestHandler_list_contexts( const papuga_Reques
 	RequestContextList const* cl = self->contexts;
 	for (; cl; cl = cl->next)
 	{
-		if (!type || 0==std::strcmp(type, cl->context.type))
+		if (!type || 0==std::strcmp(type, cl->type))
 		{
 			if (bufpos >= bufsize) return NULL;
 			buf[ bufpos++] = cl->name;
@@ -242,10 +276,10 @@ extern "C" const char** papuga_RequestHandler_list_context_types( const papuga_R
 	for (; cl; cl = cl->next)
 	{
 		size_t bi = 0;
-		for (; bi < bufpos && !!std::strcmp(buf[bi],cl->context.type); ++bi){}
+		for (; bi < bufpos && !!std::strcmp( buf[bi],cl->type); ++bi){}
 		if (bi < bufpos) continue;
 		if (bufpos >= bufsize) return NULL;
-		buf[ bufpos++] = cl->context.type;
+		buf[ bufpos++] = cl->type;
 	}
 	if (bufpos >= bufsize) return NULL;
 	buf[ bufpos] = NULL;
@@ -255,42 +289,8 @@ extern "C" const char** papuga_RequestHandler_list_context_types( const papuga_R
 static const papuga_RequestContext* find_context( const RequestContextList* clst, const char* type, const char* name)
 {
 	RequestContextList const* cl = clst;
-	for (; cl && (0!=std::strcmp( cl->context.type, type) || 0!=std::strcmp( cl->name, name)); cl = cl->next){}
+	for (; cl && (0!=std::strcmp( cl->type, type) || 0!=std::strcmp( cl->name, name)); cl = cl->next){}
 	return cl ? &cl->context : NULL;
-}
-
-extern "C" bool papuga_init_RequestContext_child( papuga_RequestContext* self, papuga_Allocator* allocator, const papuga_RequestHandler* handler, const char* type, const char* name, papuga_ErrorCode* errcode)
-{
-	const papuga_RequestContext* parent_context;
-	if (type && name)
-	{
-		parent_context = find_context( handler->contexts, type, name);
-		if (!parent_context)
-		{
-			*errcode = papuga_AddressedItemNotFound;
-			goto ERROR;
-		}
-		papuga_init_RequestContext( self, allocator, handler->logger);
-		self->variables = copyRequestVariables( self->allocator, parent_context->variables, 1, false, errcode);
-		self->type = papuga_Allocator_copy_charp( self->allocator, parent_context->type);
-		if (!self->variables || !self->type) goto ERROR;
-	}
-	else if (!type && !name)
-	{
-		papuga_init_RequestContext( self, allocator, handler->logger);
-	}
-	else
-	{
-		*errcode = papuga_AddressedItemNotFound;
-		goto ERROR;
-	}
-	return true;
-ERROR:
-	if (*errcode == papuga_Ok)
-	{
-		*errcode = papuga_NoMemError;
-	}
-	return false;
 }
 
 extern "C" const papuga_RequestContext* papuga_RequestHandler_find_context( const papuga_RequestHandler* handler, const char* type, const char* name)
@@ -637,7 +637,7 @@ extern "C" bool papuga_set_RequestResult( papuga_RequestResult* self, papuga_Req
 	papuga_RequestVariable const* vi = context->variables;
 	for (; vi; vi = vi->next)
 	{
-		if (vi->name[0] == '_' || vi->inheritcnt > 0 || vi->value.valuetype == papuga_TypeHostObject) continue;
+		if (isLocalVariable( vi->name) || vi->inheritcnt > 0 || vi->value.valuetype == papuga_TypeHostObject) continue;
 		curnode->next = alloc_type<papuga_RequestResultNode>( self->allocator);
 		curnode = curnode->next;
 		if (!curnode) return false;

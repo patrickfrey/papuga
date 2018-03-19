@@ -137,12 +137,12 @@ struct CallDef
 };
 
 typedef int AtmRef;
-enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall};
+enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom};
 enum {MaxAtmRefType=MethodCall};
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 static const char* atmRefTypeName( AtmRefType t)
 {
-	const char* ar[ MaxAtmRefType+1] = {"InstantiateValue","CollectValue","CloseStruct","MethodCall"};
+	const char* ar[ MaxAtmRefType+1] = {"InstantiateValue","CollectValue","CloseStruct","MethodCall","InheritFrom"};
 	return ar[t];
 }
 #endif
@@ -179,7 +179,8 @@ public:
 	explicit AutomatonDescription( const papuga_ClassDef* classdefs_, const char* resultname_)
 		:m_classdefs(classdefs_),m_resultname(resultname_)
 		,m_nof_classdefs(nofClassDefs(classdefs_))
-		,m_calldefs(),m_structdefs(),m_valuedefs(),m_atm(),m_maxitemid(0)
+		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs()
+		,m_atm(),m_maxitemid(0)
 		,m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
 	{
 		papuga_init_Allocator( &m_allocator, m_allocatorbuf, sizeof(m_allocatorbuf));
@@ -211,6 +212,22 @@ public:
 		return NULL;
 	}
 
+	bool inheritFrom( const char* type, const char* name_expression, bool required)
+	{
+		try
+		{
+			int evid = AtmRef_get( InheritFrom, m_inheritdefs.size());
+			m_inheritdefs.push_back( InheritFromDef( type, required));
+			if (0!=m_atm.addExpression( evid, name_expression, std::strlen(name_expression)))
+			{
+				m_errcode = papuga_SyntaxError;
+				return false;
+			}
+		}
+		CATCH_LOCAL_EXCEPTION(m_errcode,false)
+		return true;
+	}
+	
 	/* @param[in] expression selector of the call scope */
 	/* @param[in] nofargs number of arguments */
 	bool addCall( const char* expression, const papuga_RequestMethodId* method_, const char* selfvarname_, const char* resultvarname_, bool appendresult_, int nofargs)
@@ -267,7 +284,11 @@ public:
 			if (m_errcode != papuga_Ok) return false;
 
 			int evid = AtmRef_get( MethodCall, m_calldefs.size());
-			m_atm.addExpression( evid, close_expression.c_str(), close_expression.size());
+			if (0!=m_atm.addExpression( evid, close_expression.c_str(), close_expression.size()))
+			{
+				m_errcode = papuga_SyntaxError;
+				return false;
+			}
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 			fprintf( stderr, "automaton add event [%s %d] call expression='%s'\n",
 				 atmRefTypeName(MethodCall), (int)m_calldefs.size(), close_expression.c_str());
@@ -398,7 +419,11 @@ public:
 			}
 			std::memset( mar, 0, mm);
 			int evid = AtmRef_get( CloseStruct, m_structdefs.size());
-			m_atm.addExpression( evid, close_expression.c_str(), close_expression.size());
+			if (0!=m_atm.addExpression( evid, close_expression.c_str(), close_expression.size()))
+			{
+				m_errcode = papuga_SyntaxError;
+				return false;
+			}
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 			fprintf( stderr, "automaton add event [%s %d] structure close expression='%s'\n",
 				 atmRefTypeName(CloseStruct), (int)m_structdefs.size(), close_expression.c_str());
@@ -530,8 +555,16 @@ public:
 			}
 			int evid_inst = AtmRef_get( InstantiateValue, m_valuedefs.size());
 			int evid_coll = AtmRef_get( CollectValue, m_valuedefs.size());
-			m_atm.addExpression( evid_inst, value_expression.c_str(), value_expression.size());
-			m_atm.addExpression( evid_coll, close_expression.c_str(), close_expression.size());
+			if (0!=m_atm.addExpression( evid_inst, value_expression.c_str(), value_expression.size()))
+			{
+				m_errcode = papuga_SyntaxError;
+				return false;
+			}
+			if (0!=m_atm.addExpression( evid_coll, close_expression.c_str(), close_expression.size()))
+			{
+				m_errcode = papuga_SyntaxError;
+				return false;
+			}
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 			fprintf( stderr, "automaton add event [%s %d] instantiate value expression='%s'\n",
 				 atmRefTypeName( InstantiateValue), (int)m_valuedefs.size(), value_expression.c_str());
@@ -587,9 +620,21 @@ public:
 		return true;
 	}
 
+	struct InheritFromDef
+	{
+		std::string type;
+		bool required;
+
+		InheritFromDef( const std::string& type_, bool required_)
+			:type(type_),required(required_){}
+		InheritFromDef( const InheritFromDef& o)
+			:type(o.type),required(o.required){}
+	};
+
 	const std::vector<CallDef>& calldefs() const			{return m_calldefs;}
 	const std::vector<StructDef>& structdefs() const		{return m_structdefs;}
 	const std::vector<ValueDef>& valuedefs() const			{return m_valuedefs;}
+	const std::vector<InheritFromDef>& inheritdefs() const		{return m_inheritdefs;}
 	const XMLPathSelectAutomaton& atm() const			{return m_atm;}
 	std::size_t maxitemid() const					{return m_maxitemid;}
 
@@ -630,6 +675,7 @@ private:
 	std::vector<CallDef> m_calldefs;
 	std::vector<StructDef> m_structdefs;
 	std::vector<ValueDef> m_valuedefs;
+	std::vector<InheritFromDef> m_inheritdefs;
 	papuga_Allocator m_allocator;
 	XMLPathSelectAutomaton m_atm;
 	std::size_t m_maxitemid;
@@ -994,8 +1040,15 @@ public:
 	explicit AutomatonContext( const AutomatonDescription* atm_)
 		:m_atm(atm_),m_atmstate(&atm_->atm()),m_scopecnt(0),m_scopestack()
 		,m_valuenodes(),m_values(),m_structs(),m_scopeobjmap( atm_->maxitemid()+1, ScopeObjMap()),m_methodcalls()
+		,m_maskOfRequiredInheritedContexts(getRequiredInheritedContextsMask(atm_)),m_nofInheritedContexts(0)
 		,m_done(false),m_errcode(papuga_Ok)
 	{
+		if (m_atm->inheritdefs().size() >= MaxNofInheritedContexts)
+		{
+			throw std::bad_alloc();
+		}
+		m_inheritedContexts[ 0].type = 0;
+		m_inheritedContexts[ 0].name = 0;
 		papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
 		m_scopestack.reserve( 32);
 		m_scopestack.push_back( 0);
@@ -1189,6 +1242,15 @@ public:
 	const char* resultname() const
 	{
 		return m_atm->resultname();
+	}
+	const papuga_RequestInheritedContextDef* getRequiredInheritedContextsDefs( papuga_ErrorCode& errcode) const
+	{
+		if (m_maskOfRequiredInheritedContexts)
+		{
+			errcode = papuga_ValueUndefined;
+			return NULL;
+		}
+		return m_inheritedContexts;
 	}
 
 	class Iterator
@@ -1843,6 +1905,11 @@ private:
 		int evidx = AtmRef_index( ev);
 		switch (AtmRef_type( ev))
 		{
+			case InheritFrom:
+			{
+				pushInheritedContext( evidx, evalue);
+				break;
+			}
 			case InstantiateValue:
 			{
 #ifdef PAPUGA_LOWLEVEL_DEBUG
@@ -1961,6 +2028,56 @@ private:
 		}
 	};
 
+	static int getRequiredInheritedContextsMask( const AutomatonDescription* atm)
+	{
+		int rt = 0;
+		std::vector<AutomatonDescription::InheritFromDef>::const_iterator hi = atm->inheritdefs().begin(), he = atm->inheritdefs().end();
+		for (int hidx=0; hi != he; ++hi,++hidx)
+		{
+			if (hi->required)
+			{
+				rt |= (1 << hidx);
+			}
+		}
+		return rt;
+	}
+
+	bool pushInheritedContext( int idx, const papuga_ValueVariant* value)
+	{
+		if (m_nofInheritedContexts >= MaxNofInheritedContexts)
+		{
+			m_errcode = papuga_BufferOverflowError;
+			return false;
+		}
+		if (idx >= (int)m_atm->inheritdefs().size())
+		{
+			m_errcode = papuga_LogicError;
+			return false;
+		}
+		if (!papuga_ValueVariant_isstring( value))
+		{
+			m_errcode = papuga_TypeError;
+			return false;
+		}
+		char* contextname = papuga_Allocator_copy_string( &m_allocator, value->value.string, value->length);
+		if (!contextname)
+		{
+			m_errcode = papuga_NoMemError;
+			return false;
+		}
+		const AutomatonDescription::InheritFromDef& idef = m_atm->inheritdefs()[ idx];
+		m_inheritedContexts[ m_nofInheritedContexts].type = idef.type.c_str();
+		m_inheritedContexts[ m_nofInheritedContexts].name = contextname;
+		if (idef.required)
+		{
+			m_maskOfRequiredInheritedContexts &= ~(1 << idx);
+		}
+		++m_nofInheritedContexts;
+		m_inheritedContexts[ m_nofInheritedContexts].type = NULL;
+		m_inheritedContexts[ m_nofInheritedContexts].name = NULL;
+		return true;
+	}
+
 private:
 	typedef textwolf::XMLPathSelect<textwolf::charset::UTF8> AutomatonState;
 
@@ -1975,6 +2092,10 @@ private:
 	std::vector<const StructDef*> m_structs;
 	std::vector<ScopeObjMap> m_scopeobjmap;
 	std::vector<MethodCallNode> m_methodcalls;
+	enum {MaxNofInheritedContexts=31};
+	int m_maskOfRequiredInheritedContexts;
+	int m_nofInheritedContexts;
+	papuga_RequestInheritedContextDef m_inheritedContexts[ MaxNofInheritedContexts+1];
 	bool m_done;
 	papuga_ErrorCode m_errcode;
 	EventStack m_event_stacks[ MaxAtmRefType+1];
@@ -2022,6 +2143,15 @@ extern "C" void papuga_destroy_RequestAutomaton( papuga_RequestAutomaton* self)
 extern "C" papuga_ErrorCode papuga_RequestAutomaton_last_error( const papuga_RequestAutomaton* self)
 {
 	return self->atm.lastError();
+}
+
+extern "C" bool papuga_RequestAutomaton_inherit_from(
+		papuga_RequestAutomaton* self,
+		const char* type,
+		const char* name_expression,
+		bool required)
+{
+	return self->atm.inheritFrom( type, name_expression, required);
 }
 
 extern "C" bool papuga_RequestAutomaton_add_call(
@@ -2118,6 +2248,11 @@ extern "C" void papuga_destroy_Request( papuga_Request* self)
 {
 	self->ctx.~AutomatonContext();
 	std::free( self);
+}
+
+extern "C" const papuga_RequestInheritedContextDef* papuga_Request_get_inherited_contextdefs( const papuga_Request* self, papuga_ErrorCode* errcode)
+{
+	return self->ctx.getRequiredInheritedContextsDefs( *errcode);
 }
 
 extern "C" const papuga_ClassDef* papuga_Request_classdefs( const papuga_Request* self)
