@@ -866,7 +866,7 @@ static inline bool SerializationIter_tomarkup_named_elem( OutputContext& ctx, pa
 			switch (st.id)
 			{
 				case StructType::Empty:
-					append_null_value( ctx);
+					append_tag_open_close_imm( ctx, name);
 					break;
 				case StructType::Array:
 					rt &= SerializationIter_tomarkup_array( ctx, seritr, name);
@@ -1021,6 +1021,7 @@ static bool Serialization_tomarkup( OutputContext& ctx, const char* name, papuga
 	switch (st.id)
 	{
 		case StructType::Empty:
+			append_tag_open_close_imm( ctx, name);
 			break;
 		case StructType::Array:
 			rt &= SerializationIter_tomarkup_array( ctx, &seritr, name);
