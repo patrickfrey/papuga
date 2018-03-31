@@ -20,10 +20,9 @@ case $OS in
 
 	Darwin)
 		brew update
+		brew upgrade
 		brew upgrade cmake
 		brew upgrade boost
-		brew upgrade python
-		brew upgrade homebrew
 		brew tap homebrew/homebrew-php
 		brew install gettext || true
 		brew install php72 || true
