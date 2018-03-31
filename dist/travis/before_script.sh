@@ -23,6 +23,7 @@ case $OS in
 		brew upgrade cmake
 		brew upgrade boost
 		brew upgrade python
+		brew upgrade homebrew
 		brew tap homebrew/homebrew-php
 		brew install gettext || true
 		brew install php72 || true
