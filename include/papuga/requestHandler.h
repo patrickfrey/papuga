@@ -116,6 +116,16 @@ void papuga_destroy_RequestHandler( papuga_RequestHandler* self);
 bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode);
 
 /*
+ * @brief Destroy a context defined if it exists
+ * @param[in] self this pointer to the request handler
+ * @param[in] type type name given to the context used to address it and its schemes
+ * @param[in] name name given to the context used with the type to address it
+ * @remark Not thread safe, synchronization has to be done by the caller
+ * @return true on success, false if the addressed context does not exist
+ */
+bool papuga_RequestHandler_destroy_context( papuga_RequestHandler* self, const char* type, const char* name);
+
+/*
  * @brief List the names of contexts of a given type
  * @param[in] self this pointer to the request handler
  * @param[in] type type name of the contexts to list

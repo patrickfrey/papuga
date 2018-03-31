@@ -233,13 +233,59 @@ extern "C" void papuga_destroy_RequestHandler( papuga_RequestHandler* self)
 	std::free( self);
 }
 
+static RequestContextList* delete_context_list_elem( RequestContextList*& clst, const char* type, const char* name)
+{
+	RequestContextList* cl = clst;
+	if (0==std::strcmp( cl->type, type) && 0==std::strcmp( cl->name, name)) {clst = clst->next; return cl;}
+	for (; cl->next && (0!=std::strcmp( cl->next->type, type) || 0!=std::strcmp( cl->next->name, name)); cl = cl->next){}
+	if (cl->next)
+	{
+		RequestContextList* rt = cl->next;
+		cl->next = rt->next;
+		return rt;
+	}
+	return NULL;
+}
+
+static const papuga_RequestContext* find_context( const RequestContextList* clst, const char* type, const char* name)
+{
+	RequestContextList const* cl = clst;
+	for (; cl && (0!=std::strcmp( cl->type, type) || 0!=std::strcmp( cl->name, name)); cl = cl->next){}
+	return cl ? &cl->context : NULL;
+}
+
+extern "C" bool papuga_RequestHandler_destroy_context( papuga_RequestHandler* self, const char* type, const char* name)
+{
+	RequestContextList* cl = delete_context_list_elem( self->contexts, type, name);
+	if (cl)
+	{
+		papuga_RequestVariable* vl = cl->context.variables;
+		for (; vl; vl = vl->next)
+		{
+			if (vl->value.valuetype == papuga_TypeHostObject)
+			{
+				papuga_Allocator_destroy_HostObject( &self->allocator, vl->value.value.hostObject);
+			}
+			else if (vl->value.valuetype == papuga_TypeIterator)
+			{
+				papuga_Allocator_destroy_Iterator( &self->allocator, vl->value.value.iterator);
+			}
+		}
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 extern "C" bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode)
 {
 	RequestContextList* listitem = alloc_type<RequestContextList>( &self->allocator);
 	if (!listitem) goto ERROR;
-	papuga_init_RequestContext( &listitem->context, &self->allocator, self->logger);
 	listitem->type = papuga_Allocator_copy_charp( &self->allocator, type);
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
+	papuga_init_RequestContext( &listitem->context, &self->allocator, self->logger);
 	listitem->context.variables = copyRequestVariables( &self->allocator, ctx->variables, 0, true/*moveObject*/, true/*filterLocals*/, errcode);
 	if (!listitem->type || !listitem->name || (!listitem->context.variables && ctx->variables)) goto ERROR;
 	self->contexts = add_list( self->contexts, listitem);
@@ -284,13 +330,6 @@ extern "C" const char** papuga_RequestHandler_list_context_types( const papuga_R
 	if (bufpos >= bufsize) return NULL;
 	buf[ bufpos] = NULL;
 	return buf;
-}
-
-static const papuga_RequestContext* find_context( const RequestContextList* clst, const char* type, const char* name)
-{
-	RequestContextList const* cl = clst;
-	for (; cl && (0!=std::strcmp( cl->type, type) || 0!=std::strcmp( cl->name, name)); cl = cl->next){}
-	return cl ? &cl->context : NULL;
 }
 
 extern "C" const papuga_RequestContext* papuga_RequestHandler_find_context( const papuga_RequestHandler* handler, const char* type, const char* name)

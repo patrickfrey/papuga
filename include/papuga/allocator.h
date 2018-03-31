@@ -148,6 +148,28 @@ papuga_Iterator* papuga_Allocator_alloc_Iterator( papuga_Allocator* self, void* 
 papuga_Allocator* papuga_Allocator_alloc_Allocator( papuga_Allocator* self);
 
 /*
+* @brief Explicit destruction of an host object conrolled by the allocator (just calling the destructor, not freeing all the memory)
+* @param[in] self pointer to allocator structure
+* @param[in] hobj pointer host object to free
+*/
+void papuga_Allocator_destroy_HostObject( papuga_Allocator* self, papuga_HostObject* hobj);
+
+/*
+* @brief Explicit destruction of an iterator object conrolled by the allocator (just calling the destructor, not freeing all the memory)
+* @param[in] self pointer to allocator structure
+* @param[in] hitr pointer iterator object to free
+*/
+void papuga_Allocator_destroy_Iterator( papuga_Allocator* self, papuga_Iterator* hitr);
+
+/*
+* @brief Explicit destruction of an allocator conrolled by the first allocator (just calling the destructor, not freeing all the memory)
+* @param[in] self pointer to allocator structure
+* @param[in] al pointer allocator object to free
+*/
+void papuga_Allocator_destroy_Allocator( papuga_Allocator* self, papuga_Allocator* al);
+
+
+/*
 * @brief Make a deep copy of a variant value in this allocator, with ownership of of unshareable objects kept in source or moved to dest, depending on a parameter flag
 * @param[in] self pointer to allocator structure where to allocate the deep copy
 * @param[in] dest where to write result of deep copy

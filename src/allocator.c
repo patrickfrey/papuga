@@ -70,6 +70,84 @@ void papuga_destroy_ReferenceHeader( papuga_ReferenceHeader* hdritr)
 	}
 }
 
+void papuga_Allocator_destroy_HostObject( papuga_Allocator* self, papuga_HostObject* hobj)
+{
+	papuga_ReferenceHeader* hdrpred = NULL;
+	papuga_ReferenceHeader* hdritr = self->reflist;
+	for (; hdritr != NULL; hdrpred = hdritr, hdritr = hdritr->next)
+	{
+		if (hdritr->type == papuga_RefTypeHostObject)
+		{
+			papuga_ReferenceHostObject* obj = (papuga_ReferenceHostObject*)hdritr;
+			if (hobj == &obj->hostObject)
+			{
+				papuga_destroy_HostObject( &obj->hostObject);
+				if (hdrpred)
+				{
+					hdrpred->next = hdritr->next;
+				}
+				else
+				{
+					self->reflist = hdritr->next;
+				}
+				break;
+			}
+		}
+	}
+}
+
+void papuga_Allocator_destroy_Iterator( papuga_Allocator* self, papuga_Iterator* hitr)
+{
+	papuga_ReferenceHeader* hdrpred = NULL;
+	papuga_ReferenceHeader* hdritr = self->reflist;
+	for (; hdritr != NULL; hdrpred = hdritr, hdritr = hdritr->next)
+	{
+		if (hdritr->type == papuga_RefTypeIterator)
+		{
+			papuga_ReferenceIterator* obj = (papuga_ReferenceIterator*)hdritr;
+			if (hitr == &obj->iterator)
+			{
+				papuga_destroy_Iterator( &obj->iterator);
+				if (hdrpred)
+				{
+					hdrpred->next = hdritr->next;
+				}
+				else
+				{
+					self->reflist = hdritr->next;
+				}
+				break;
+			}
+		}
+	}
+}
+
+void papuga_Allocator_destroy_Allocator( papuga_Allocator* self, papuga_Allocator* al)
+{
+	papuga_ReferenceHeader* hdrpred = NULL;
+	papuga_ReferenceHeader* hdritr = self->reflist;
+	for (; hdritr != NULL; hdrpred = hdritr, hdritr = hdritr->next)
+	{
+		if (hdritr->type == papuga_RefTypeAllocator)
+		{
+			papuga_ReferenceAllocator* obj = (papuga_ReferenceAllocator*)hdritr;
+			if (al == &obj->allocator)
+			{
+				papuga_destroy_Allocator( &obj->allocator);
+				if (hdrpred)
+				{
+					hdrpred->next = hdritr->next;
+				}
+				else
+				{
+					self->reflist = hdritr->next;
+				}
+				break;
+			}
+		}
+	}
+}
+
 void papuga_destroy_AllocatorNode( papuga_AllocatorNode* self)
 {
 	papuga_AllocatorNode* itr;
