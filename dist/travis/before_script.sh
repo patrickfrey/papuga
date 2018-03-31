@@ -23,8 +23,8 @@ case $OS in
 		brew upgrade cmake
 		brew upgrade boost
 		brew upgrade python
-		brew upgrade php
 		brew install gettext || true
+		brew install php@7 || true
 		# make sure cmake finds the brew version of gettext
 		brew link --force gettext || true
 		;;
