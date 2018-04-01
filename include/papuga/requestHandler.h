@@ -39,6 +39,16 @@ typedef struct papuga_RequestContext
 } papuga_RequestContext;
 
 /*
+ * @brief Describes a method and its parameters
+ */
+typedef struct papuga_RequestMethodDescription
+{
+
+	papuga_RequestMethodId id;			/*< method identifier */
+	int* paramtypes;				/*< 0 terminated list of parameter type identifiers */
+} papuga_RequestMethodDescription;
+
+/*
  * @brief Creates a new context for handling a request
  * @param[in] self this pointer to the object to initialize
  * @param[in] allocator allocator to use
@@ -85,7 +95,7 @@ const char** papuga_RequestContext_list_variables( const papuga_RequestContext* 
  * @param[in,out] self this pointer
  * @param[in] context to inherit from 
  * @param[out] errcode error code in case of error, untouched in case of success
- * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
+ * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false on failure
  */
 bool papuga_RequestContext_inherit( papuga_RequestContext* self, const papuga_RequestContext* context, papuga_ErrorCode* errcode);
@@ -95,7 +105,7 @@ bool papuga_RequestContext_inherit( papuga_RequestContext* self, const papuga_Re
  * @param[in] logger logger interface to use
  * @return pointer to request handler
  */
-papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger);
+papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger, const papuga_ClassDef* classdefs);
 
 /*
  * @brief Destroys a request handler
@@ -149,7 +159,6 @@ const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandl
  * @param[in] handler request handler to get the context from
  * @param[in] type type name of the context to find
  * @param[in] name name of the context to find
- * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
  * @return pointer to the found context on success, NULL if not found
  */
 const papuga_RequestContext* papuga_RequestHandler_find_context( const papuga_RequestHandler* handler, const char* type, const char* name);
@@ -164,15 +173,6 @@ const papuga_RequestContext* papuga_RequestHandler_find_context( const papuga_Re
  * @return true on success, false on memory allocation error
  */ 
 bool papuga_RequestHandler_add_scheme( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton);
-
-/*
- * @brief Test if a scheme definition with a given name exists
- * @param[in] self this pointer to the request handler
- * @param[in] type type name of the context the scheme is valid for
- * @param[in] scheme name of the scheme queried
- * @return true, if the scheme exists, false else
- */
-bool papuga_RequestHandler_has_scheme( const papuga_RequestHandler* self, const char* type, const char* scheme);
 
 /*
  * @brief List the schemes defined for a given context type
@@ -190,10 +190,28 @@ const char** papuga_RequestHandler_list_schemes( const papuga_RequestHandler* se
  * @param[in] type type name of the object that is base of this scheme
  * @param[in] name name of the scheme (the tuple [type,name] is identifying the scheme)
  * @param[out] errcode error code in case of error, untouched in case of success
- * @remark Thread safe, if writers (papuga_RequestHandler_add_.. and papuga_RequestHandler_allow_..) are synchronized
- * @return pointer to automaton on success, NULL on failure
+ * @return pointer to automaton on success, NULL if not found
  */
-const papuga_RequestAutomaton* papuga_RequestHandler_get_scheme( const papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode);
+const papuga_RequestAutomaton* papuga_RequestHandler_get_scheme( const papuga_RequestHandler* self, const char* type, const char* name);
+
+/*
+ * @brief Attach a method addressed by name with parameter description to an object class
+ * @param[in] self this pointer to the request handler
+ * @param[in] name name of the method (HTTP request method in a request)
+ * @param[in] descr pointer to description of the method
+ * @remark Not thread safe, synchronization has to be done by the caller
+ * @return true on success, false on memory allocation error
+ */
+bool papuga_RequestHandler_add_method( papuga_RequestHandler* self, const char* name, const papuga_RequestMethodDescription* descr);
+
+/*
+ * @brief Get the identifier and the parameter description of a method addressed by name to an object class
+ * @param[in] self this pointer to the request handler
+ * @param[in] classid identifier of the object class (owner of the method)
+ * @param[in] methodname name of the method (HTTP request method in a request)
+ * @return pointer to method identifier, NULL if not found
+ */
+const papuga_RequestMethodDescription* papuga_RequestHandler_get_method( const papuga_RequestHandler* self, int classid, const char* methodname);
 
 /*
  * @brief Execute a request

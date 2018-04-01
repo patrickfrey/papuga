@@ -62,7 +62,7 @@ static void foreach_list( TYPE* lst, MEMBERTYPE TYPE::*member, void (*action)( M
 
 struct RequestContextList
 {
-	struct RequestContextList* next;
+	struct RequestContextList* next;		/*< pointer next element in the single linked list */
 	const char* type;				/*< type of the context to identify it */
 	const char* name;				/*< name of the context to identify it */
 	papuga_RequestContext context;
@@ -70,16 +70,25 @@ struct RequestContextList
 
 struct RequestSchemeList
 {
-	struct RequestSchemeList* next;
+	struct RequestSchemeList* next;			/*< pointer next element in the single linked list */
 	const char* type;				/*< type name of the context this scheme is valid for */
 	const char* name;				/*< name of the scheme */
 	const papuga_RequestAutomaton* automaton;	/*< automaton of the scheme */
+};
+
+struct RequestMethodList
+{
+	struct RequestMethodList* next;			/*< pointer next element in the single linked list */
+	const char* name;				/*< name of the scheme */
+	papuga_RequestMethodDescription method;		/*< method description */
 };
 
 struct papuga_RequestHandler
 {
 	RequestContextList* contexts;
 	RequestSchemeList* schemes;
+	RequestMethodList** classmethodmap;
+	int classmethodmapsize;
 	papuga_RequestLogger* logger;
 	papuga_Allocator allocator;
 	char allocator_membuf[ 1<<14];
@@ -216,10 +225,21 @@ extern "C" bool papuga_RequestContext_inherit( papuga_RequestContext* self, cons
 	return true;
 }
 
-extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger)
+static int nofClassDefs( const papuga_ClassDef* classdefs)
 {
-	papuga_RequestHandler* rt = (papuga_RequestHandler*) std::malloc( sizeof(papuga_RequestHandler));
+	papuga_ClassDef const* ci = classdefs;
+	int classcnt = 0;
+	for (; ci->name; ++ci,++classcnt){}
+	return classcnt;
+}
+
+extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger, const papuga_ClassDef* classdefs)
+{
+	int nn = classdefs ? nofClassDefs( classdefs) : 0;
+	papuga_RequestHandler* rt = (papuga_RequestHandler*) std::calloc( sizeof(papuga_RequestHandler) + nn * sizeof(RequestMethodList*), 1);
 	if (!rt) return NULL;
+	rt->classmethodmap = (RequestMethodList**)(void*)(rt + 1);
+	rt->classmethodmapsize = nn;
 	rt->contexts = NULL;
 	rt->schemes = NULL;
 	rt->logger = logger;
@@ -359,11 +379,6 @@ static RequestSchemeList* find_scheme( RequestSchemeList* ll, const char* type, 
 	return ll;
 }
 
-extern "C" bool papuga_RequestHandler_has_scheme( const papuga_RequestHandler* self, const char* contextType, const char* scheme)
-{
-	return !!find_scheme( self->schemes, contextType, scheme);
-}
-
 static const char** RequestHandler_list_all_schemes( const papuga_RequestHandler* self, char const** buf, size_t bufsize)
 {
 	size_t bufpos = 0;
@@ -403,15 +418,35 @@ extern "C" const char** papuga_RequestHandler_list_schemes( const papuga_Request
 	return buf;
 }
 
-extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_scheme( const papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode)
+extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_scheme( const papuga_RequestHandler* self, const char* type, const char* name)
 {
 	const RequestSchemeList* sl = find_scheme( self->schemes, type?type:"", name);
-	if (!sl)
-	{
-		*errcode = papuga_AddressedItemNotFound;
-		return NULL;
-	}
-	return sl->automaton;
+	return sl ? sl->automaton : NULL;
+}
+
+extern "C" bool papuga_RequestHandler_add_method( papuga_RequestHandler* self, const char* name, const papuga_RequestMethodDescription* method)
+{
+	int nofparams = 0;
+	if (method->id.classid == 0 || method->id.classid > self->classmethodmapsize) return false;
+	while (method->paramtypes[nofparams]) ++nofparams;
+	RequestMethodList** mlst = self->classmethodmap + (method->id.classid-1);
+	RequestMethodList* listitem = alloc_type<RequestMethodList>( &self->allocator);
+	if (!listitem) return false;
+	std::memcpy( &listitem->method, method, sizeof( listitem->method));
+	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
+	listitem->method.paramtypes = (int*)papuga_Allocator_alloc( &self->allocator, (nofparams+1) * sizeof(int), sizeof(int));
+	if (!listitem->name || !listitem->method.paramtypes) return false;
+	std::memcpy( listitem->method.paramtypes, (const void*)method->paramtypes, (nofparams+1) * sizeof(int));
+	*mlst = add_list( *mlst, listitem);
+	return true;
+}
+
+extern "C" const papuga_RequestMethodDescription* papuga_RequestHandler_get_method( const papuga_RequestHandler* self, int classid, const char* name)
+{
+	if (classid == 0 || classid > self->classmethodmapsize) return NULL;
+	RequestMethodList const* mlst = self->classmethodmap[ classid-1];
+	RequestMethodList const* ml = find_list( mlst, &RequestMethodList::name, name);
+	return ml ? &ml->method : NULL;
 }
 
 static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Request* request, const papuga_RequestMethodCall* call, const char* msg)
