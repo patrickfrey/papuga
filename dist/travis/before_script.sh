@@ -22,7 +22,8 @@ case $OS in
 		brew update
 		brew upgrade cmake
 		brew upgrade boost
-		brew tap homebrew/php
+		brew upgrade python
+		brew tap homebrew/homebrew-php
 		brew install gettext || true
 		brew install php70 || true
 		# make sure cmake finds the brew version of gettext
