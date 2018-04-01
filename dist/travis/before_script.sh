@@ -22,9 +22,9 @@ case $OS in
 		brew update
 		brew upgrade cmake
 		brew upgrade boost
-		brew tap homebrew/homebrew-php
+		brew tap homebrew/php
 		brew install gettext || true
-		brew install php72 || true
+		brew install php70 || true
 		# make sure cmake finds the brew version of gettext
 		brew link --force gettext || true
 		;;
