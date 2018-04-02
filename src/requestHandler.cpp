@@ -449,6 +449,22 @@ extern "C" const papuga_RequestMethodDescription* papuga_RequestHandler_get_meth
 	return ml ? &ml->method : NULL;
 }
 
+const char** papuga_RequestHandler_list_methods( const papuga_RequestHandler* self, int classid, char const** buf, size_t bufsize)
+{
+	if (classid == 0 || classid > self->classmethodmapsize) return NULL;
+	size_t bufpos = 0;
+	RequestMethodList const* ml = self->classmethodmap[ classid-1];
+
+	for (; ml; ml = ml->next)
+	{
+		if (bufpos >= bufsize) return NULL;
+		buf[ bufpos++] = ml->name;
+	}
+	if (bufpos >= bufsize) return NULL;
+	buf[ bufpos] = NULL;
+	return buf;
+}
+
 static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Request* request, const papuga_RequestMethodCall* call, const char* msg)
 {
 	const papuga_ClassDef* classdef = papuga_Request_classdefs( request);

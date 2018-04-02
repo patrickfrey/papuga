@@ -46,6 +46,10 @@ typedef struct papuga_RequestMethodDescription
 
 	papuga_RequestMethodId id;			/*< method identifier */
 	int* paramtypes;				/*< 0 terminated list of parameter type identifiers */
+	int httpstatus_success;				/*< HTTP status code in case of success */
+	const char* resulttype;				/*< NULL in case of content, HTTP header variable name else */
+	const char* result_rootelem;			/*< root element name for mapping result */
+	const char* result_listelem;			/*< list element name for mapping result in case of an array */
 } papuga_RequestMethodDescription;
 
 /*
@@ -212,6 +216,15 @@ bool papuga_RequestHandler_add_method( papuga_RequestHandler* self, const char* 
  * @return pointer to method identifier, NULL if not found
  */
 const papuga_RequestMethodDescription* papuga_RequestHandler_get_method( const papuga_RequestHandler* self, int classid, const char* methodname);
+
+/*
+ * @brief List the methods defined for a given class
+ * @param[in] self this pointer to the request handler
+ * @param[in] buf buffer to use for result
+ * @param[in] bufsize size of buffer to use for result
+ * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
+ */
+const char** papuga_RequestHandler_list_methods( const papuga_RequestHandler* self, int classid, char const** buf, size_t bufsize);
 
 /*
  * @brief Execute a request
