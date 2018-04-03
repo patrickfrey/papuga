@@ -171,7 +171,7 @@ ERROR:
 
 extern "C" bool papuga_RequestContext_add_variable( papuga_RequestContext* self, const char* name, papuga_ValueVariant* value)
 {
-	return RequestContext_add_variable( self, name, value, true);
+	return RequestContext_add_variable( self, name, value, true/*moveobj*/);
 }
 
 extern "C" const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name)
