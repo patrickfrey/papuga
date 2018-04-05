@@ -21,6 +21,7 @@
 #include "private/unordered_map.hpp"
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <vector>
 #include <list>
 #include <unordered_map>
