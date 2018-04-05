@@ -25,6 +25,7 @@
 #include <list>
 #include <unordered_map>
 #include <stdexcept>
+#include <cstdio>
 
 /* @brief Hook for GETTEXT */
 #define _TXT(x) x
