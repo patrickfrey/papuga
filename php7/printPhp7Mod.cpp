@@ -243,7 +243,7 @@ static void define_main(
 		"PHP_MINFO_FUNCTION({modulename})",
 		"{",
 		"php_info_print_table_start();"
-		"php_info_print_table_row(2, \"strus library support\", \"enabled\");",
+		"php_info_print_table_row(2, \"papuga library support\", \"enabled\");",
 		"php_info_print_table_end();",
 		"}",
 		"const zend_function_entry {modulename}_functions[] = {",
@@ -282,7 +282,6 @@ void papuga::printPhp7ModSource(
 		"#define PHP_{MODULENAME}_EXTNAME \"{modulename}\"",
 		"#define PHP_{MODULENAME}_VERSION \"{release}\"",
 		"#include \"papuga/lib/php7_dev.h\"",
-		"#include \"strus/bindingObjects.h\"",
 		"#include \"papuga.h\"",
 		"",
 		"/* PHP & Zend includes: */",

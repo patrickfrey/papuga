@@ -13,7 +13,6 @@
 #define _PAPUGA_REQUEST_HANDLER_H_INCLUDED
 #include "papuga/typedefs.h"
 #include "papuga/request.h"
-#include "papuga/requestResult.h"
 #include "papuga/requestLogger.h"
 
 #ifdef __cplusplus
@@ -25,25 +24,11 @@ extern "C" {
  */
 typedef struct papuga_RequestHandler papuga_RequestHandler;
 
-typedef void (*papuga_LoggerProcedure)( int nofItems, ...);
-
-/*
- * @brief Defines the context of a request
- */
-typedef struct papuga_RequestContext
-{
-	papuga_ErrorCode errcode;			/*< last error in the request context */
-	papuga_Allocator* allocator;			/*< allocator for this context */
-	papuga_RequestVariable* variables;		/*< variables defined in the context */
-	papuga_RequestLogger* logger;			/*< logger to use */
-} papuga_RequestContext;
-
 /*
  * @brief Describes a method and its parameters
  */
 typedef struct papuga_RequestMethodDescription
 {
-
 	papuga_RequestMethodId id;			/*< method identifier */
 	int* paramtypes;				/*< 0 terminated list of parameter type identifiers */
 	int httpstatus_success;				/*< HTTP status code in case of success */
@@ -54,18 +39,23 @@ typedef struct papuga_RequestMethodDescription
 
 /*
  * @brief Creates a new context for handling a request
- * @param[in] self this pointer to the object to initialize
- * @param[in] allocator allocator to use
- * @param[in] logger logger interface to use
+ * @return the request context created or NULL in case of a memory allocation error
  */
-void papuga_init_RequestContext( papuga_RequestContext* self, papuga_Allocator* allocator, papuga_RequestLogger* logger);
+papuga_RequestContext* papuga_create_RequestContext();
+
+/*
+ * @brief Destroys a request context
+ * @param[in] self this pointer to the request context to destroy
+ */
+void papuga_destroy_RequestContext( papuga_RequestContext* self);
 
 /*
  * @brief Get the last error in the request
  * @param[in] self this pointer to the object to get the error from
+ * @param[in] clear true if the error should be cleared
  * @return error code of last error
  */
-papuga_ErrorCode papuga_RequestContext_last_error( const papuga_RequestContext* self);
+papuga_ErrorCode papuga_RequestContext_last_error( papuga_RequestContext* self, bool clear);
 
 /*
  * @brief Add a variable (deep copy) to the context, moving ownership of host object references to context
@@ -98,18 +88,17 @@ const char** papuga_RequestContext_list_variables( const papuga_RequestContext* 
  * @brief Inherit all non local variables from another context
  * @param[in,out] self this pointer
  * @param[in] context to inherit from 
- * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false on failure
  */
-bool papuga_RequestContext_inherit( papuga_RequestContext* self, const papuga_RequestContext* context, papuga_ErrorCode* errcode);
+bool papuga_RequestContext_inherit( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* type, const char* name);
 
 /*
  * @brief Creates a request handler
- * @param[in] logger logger interface to use
+ * @param[in] classdefs interface description of structures and classes
  * @return pointer to request handler
  */
-papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger, const papuga_ClassDef* classdefs);
+papuga_RequestHandler* papuga_create_RequestHandler( const papuga_ClassDef* classdefs);
 
 /*
  * @brief Destroys a request handler
@@ -118,16 +107,16 @@ papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logge
 void papuga_destroy_RequestHandler( papuga_RequestHandler* self);
 
 /*
- * @brief Add the context (deep copy) to the request handler with the ownership of all host object references
+ * @brief Transfer the context (with ownership) to the request handler
  * @param[in] self this pointer to the request handler
  * @param[in] type type name given to the context used to address it and its schemes
  * @param[in] name name given to the context used with the type to address it
- * @param[in,out] ctx context copied to handler with the ownership of all host object references moved
+ * @param[in,out] context context moved with ownership to handler
  * @param[out] errcode error code in case of error, untouched in case of success
  * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false on failure
  */
-bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode);
+bool papuga_RequestHandler_transfer_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_RequestContext* context, papuga_ErrorCode* errcode);
 
 /*
  * @brief Destroy a context defined if it exists
@@ -135,37 +124,9 @@ bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char*
  * @param[in] type type name given to the context used to address it and its schemes
  * @param[in] name name given to the context used with the type to address it
  * @remark Not thread safe, synchronization has to be done by the caller
- * @return true on success, false if the addressed context does not exist
+ * @return true on success, false if the addressed context does not exist or in case of an error
  */
-bool papuga_RequestHandler_destroy_context( papuga_RequestHandler* self, const char* type, const char* name);
-
-/*
- * @brief List the names of contexts of a given type
- * @param[in] self this pointer to the request handler
- * @param[in] type type name of the contexts to list
- * @param[in] buf buffer to use for result
- * @param[in] bufsize size of buffer to use for result
- * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
- */
-const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize);
-
-/*
- * @brief List the names of context types
- * @param[in] self this pointer to the request handler
- * @param[in] buf buffer to use for result
- * @param[in] bufsize size of buffer to use for result
- * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
- */
-const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, char const** buf, size_t bufsize);
-
-/*
- * @brief Find a stored context
- * @param[in] handler request handler to get the context from
- * @param[in] type type name of the context to find
- * @param[in] name name of the context to find
- * @return pointer to the found context on success, NULL if not found
- */
-const papuga_RequestContext* papuga_RequestHandler_find_context( const papuga_RequestHandler* handler, const char* type, const char* name);
+bool papuga_RequestHandler_destroy_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode);
 
 /*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler
@@ -234,16 +195,16 @@ const char** papuga_RequestHandler_list_methods( const papuga_RequestHandler* se
  * @param[out] errorpos position in case of an error counted in request parser events (to reproduce the error location you have to rescan the source)
  * @return true on success, false on failure
  */
-bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_ErrorBuffer* errorbuf, int* errorpos);
+bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_RequestLogger* logger, papuga_ErrorBuffer* errorbuf, int* errorpos);
 
 /*
- * @brief Initialize the result of a request
- * @param[out] self this pointer to the request result initialized
+ * @brief Initialize the result of a request as value variant
+ * @param[in,out] self serialization where to serialize the request result in a context to
  * @param[in] context context of the request execution
  * @param[in] request content of the request
  * @return true on success, false on out of memory
  */
-bool papuga_set_RequestResult( papuga_RequestResult* self, papuga_RequestContext* context, const papuga_Request* request);
+bool papuga_Serialization_serialize_request_result( papuga_Serialization* self, papuga_RequestContext* context, const papuga_Request* request);
 
 #ifdef __cplusplus
 }

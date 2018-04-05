@@ -12,6 +12,7 @@
 * @file valueVariant.h
 */
 #include "papuga/typedefs.h"
+#include "papuga/interfaceDescription.h"
 #include <stdio.h>
 
 #ifdef __cplusplus
@@ -255,6 +256,106 @@ int papuga_StringEncoding_unit_size( papuga_StringEncoding encoding);
 * @return true on success, false if papuga_ValueVariant_tostring failed (out of memory)
 */
 bool papuga_ValueVariant_print( FILE* out, const papuga_ValueVariant* val);
+
+
+/*
+* @brief Dump the value variant in readable form
+* @param[in] self pointer to structure
+* @param[in] allocator allocator to use
+* @param[in] structdefs structure descriptions
+* @param[in] rootname name of root element
+* @param[out] len length of the output (UTF-8) in bytes
+* @return the dumped request allocated with malloc on success, NULL on memory allocation error
+*/
+char* papuga_ValueVariant_todump(
+		const papuga_ValueVariant* self,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		const char* rootname,
+		size_t* len);
+
+/*
+* @brief Map a value variant to XML in a defined encoding
+* @param[in] self pointer to structure
+* @param[in] allocator allocator to use
+* @param[in] structdefs structure descriptions
+* @param[in] enc encoding of the output
+* @param[in] rootname name of root element
+* @param[in] elemname optional name of element in case of an array
+* @param[out] len length of the output in character units, depending on the encoding specified
+* @param[out] err error code in case of error (untouched if call succeeds)
+* @return the dumped XML (allocated in result allocator) on success, NULL on failure
+*/
+void* papuga_ValueVariant_toxml(
+		const papuga_ValueVariant* self,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		papuga_StringEncoding enc,
+		const char* rootname,
+		const char* elemname,
+		size_t* len,
+		papuga_ErrorCode* err);
+
+/*
+* @brief Map a value variant to HTML5 div style in a defined encoding with some injected meta data
+* @param[in] self pointer to structure
+* @param[in] allocator allocator to use
+* @param[in] structdefs structure descriptions
+* @param[in] enc encoding of the output
+* @param[in] rootname name of root element
+* @param[in] elemname optional name of element in case of an array
+* @param[out] len length of the output in character units, depending on the encoding specified
+* @param[out] err error code in case of error (untouched if call succeeds)
+* @return the dumped HTML (allocated in result allocator) on success, NULL on failure
+*/
+void* papuga_ValueVariant_tohtml5(
+		const papuga_ValueVariant* self,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		papuga_StringEncoding enc,
+		const char* rootname,
+		const char* elemname,
+		const char* head,
+		size_t* len,
+		papuga_ErrorCode* err);
+
+/*
+* @brief Map a value variant to JSON in a defined encoding
+* @param[in] self pointer to structure
+* @param[in] allocator allocator to use
+* @param[in] structdefs structure descriptions
+* @param[in] enc encoding of the output
+* @param[in] rootname name of root element
+* @param[out] len length of the output in character units, depending on the encoding specified
+* @param[out] err error code in case of error (untouched if call succeeds)
+* @return the dumped JSON (allocated in result allocator) on success, NULL on failure
+*/
+void* papuga_ValueVariant_tojson(
+		const papuga_ValueVariant* self,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		papuga_StringEncoding enc,
+		const char* rootname,
+		size_t* len,
+		papuga_ErrorCode* err);
+
+/*
+* @brief Dump a value variant as text/plain
+* @param[in] self pointer to structure
+* @param[in] enc encoding of the output text
+* @param[out] len length of the output in character units, depending on the encoding specified
+* @param[out] err error code in case of error (untouched if call succeeds)
+* @return the dumped text allocated with malloc on success, NULL on memory allocation error
+*/
+void* papuga_ValueVariant_totext(
+		const papuga_ValueVariant* self,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		papuga_StringEncoding enc,
+		const char* rootname,
+		const char* elemname,
+		size_t* len,
+		papuga_ErrorCode* err);
 
 #ifdef __cplusplus
 }

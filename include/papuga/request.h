@@ -21,6 +21,7 @@ extern "C" {
 
 typedef struct papuga_RequestAutomaton papuga_RequestAutomaton;
 typedef struct papuga_Request papuga_Request;
+typedef struct papuga_RequestContext papuga_RequestContext;
 
 /*
  * @brief Defines an identifier for a method
@@ -30,18 +31,6 @@ typedef struct papuga_RequestMethodId
 	int classid;					/*< index of object class starting with 1 */
 	int functionid ;				/*< index of method function in class starting with 1 */
 } papuga_RequestMethodId;
-
-/*
- * @brief Defines a list of variables of a request
- * @remark A request does not need too many variables, maybe 2 or 3, so a list is fine for search
- */
-typedef struct papuga_RequestVariable
-{
-	struct papuga_RequestVariable* next;		/*< next variable */
-	const char* name;				/*< name of variable associated with this value */
-	papuga_ValueVariant value;			/*< variable value associated with this name */
-	int inheritcnt;					/*< counter how many times variable value has been inherited */
-} papuga_RequestVariable;
 
 /*
  * @brief Create an automaton to configure
@@ -341,7 +330,7 @@ void papuga_destroy_RequestIterator( papuga_RequestIterator* self);
  * @param[in] varlist pointer to current list of variables
  * @return pointer to the method call description (temporary, only valid until the next one is fetched)
  */
-const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestVariable* varlist);
+const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestContext* context);
 
 /*
  * @brief Get the last error of the iterator with a pointer to the method call that failed, if available

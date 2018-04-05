@@ -6,9 +6,9 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 /// \brief Expand a request result as XML
-/// \file requestResult_xml.cpp
-#include "papuga/requestResult.h"
+/// \file valueVariant_markup.cpp
 #include "papuga/serialization.h"
+#include "papuga/serialization.hpp"
 #include "papuga/valueVariant.hpp"
 #include "papuga/valueVariant.h"
 #include "papuga/allocator.h"
@@ -21,6 +21,8 @@
 #include <cstring>
 #include <cstdlib>
 #include <stdexcept>
+#include <iostream>
+#include <sstream>
 
 static void* encodeRequestResultString( const std::string& out, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
 {
@@ -765,17 +767,23 @@ static bool ValueVariant_tomarkup_node( OutputContext& ctx, const char* name, co
 			case papuga_TagOpen: stid = StructType::Array; break;
 			case papuga_TagClose: stid = StructType::Empty; break;
 		}
-		if (stid != StructType::Array)
+		switch (stid)
 		{
-			return ValueVariant_tomarkup_fwd( ctx, value);
+			case StructType::Array:
+				ctx.setNextTagInvisible();
+				return ValueVariant_tomarkup( ctx, name, value);
+			case StructType::Dict:
+			case StructType::Struct:
+				return ValueVariant_tomarkup_fwd( ctx, value);
+			case StructType::Empty:
+				return true;
 		}
-		else
-		{
-			ctx.setNextTagInvisible();
-			return ValueVariant_tomarkup( ctx, name, value);
-		}
+		return true;
 	}
-	return ValueVariant_tomarkup( ctx, name, value);
+	else
+	{
+		return ValueVariant_tomarkup( ctx, name, value);
+	}
 }
 
 static inline bool SerializationIter_tomarkup_elem_fwd( OutputContext& ctx, papuga_SerializationIter* seritr)
@@ -1078,53 +1086,58 @@ static bool Serialization_tomarkup_fwd( OutputContext& ctx, papuga_Serialization
 	return rt;
 }
 
-static void* RequestResult_tomarkup( const papuga_RequestResult* self, StyleType styleType, const char* hdr, const char* tail, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
+static void* ValueVariant_tomarkup(
+		const papuga_ValueVariant* self,
+		StyleType styleType,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		papuga_StringEncoding enc,
+		const char* rootname,
+		const char* elemname,
+		const char* hdr,
+		const char* tail,
+		size_t* len,
+		papuga_ErrorCode* err)
 {
-	OutputContext ctx( styleType, self->structdefs, PAPUGA_MAX_RECURSION_DEPTH);
-	const char* rootelem = self->name;
+	OutputContext ctx( styleType, structdefs, PAPUGA_MAX_RECURSION_DEPTH);
 
 	ctx.out.append( hdr);
-	if (rootelem)
+	if (rootname)
 	{
-		append_tag_open_root( ctx, rootelem);
+		append_tag_open_root( ctx, rootname);
 	}
-	papuga_RequestResultNode const* nd = self->nodes;
-	for (; nd; nd = nd->next)
-	{
-		if (ctx.array_separator && nd != self->nodes) ctx.out.append( ctx.array_separator);
-		if (nd->name_optional)
-		{
-			if (!ValueVariant_tomarkup_node( ctx, nd->name, nd->value)) break;
-		}
-		else
-		{
-			if (!ValueVariant_tomarkup( ctx, nd->name, nd->value)) break;
-		}
-	}
-	if (nd)
+	if (!ValueVariant_tomarkup_node( ctx, elemname, *self))
 	{
 		*err = ctx.errcode;
 		return NULL;
 	}
-	if (rootelem)
+	if (rootname)
 	{
-		append_tag_close_root( ctx, rootelem);
+		append_tag_close_root( ctx, rootname);
 	}
 	ctx.out.append( tail);
 	void* rt = encodeRequestResultString( ctx.out, enc, len, &ctx.errcode);
-	if (rt) papuga_Allocator_add_free_mem( self->allocator, rt);
+	if (rt) papuga_Allocator_add_free_mem( allocator, rt);
 	*err = ctx.errcode;
 	return rt;
 }
 
-extern "C" void* papuga_RequestResult_toxml( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
+extern "C" void* papuga_ValueVariant_toxml(
+		const papuga_ValueVariant* self,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		papuga_StringEncoding enc,
+		const char* rootname,
+		const char* elemname,
+		size_t* len,
+		papuga_ErrorCode* err)
 {
 	try
 	{
 		char hdrbuf[ 256];
 	
 		std::snprintf( hdrbuf, sizeof(hdrbuf), "<?xml version=\"1.0\" encoding=\"%s\" standalone=\"yes\"?>\n", papuga_StringEncoding_name( enc));
-		return RequestResult_tomarkup( self, StyleXML, hdrbuf, "\n", enc, len, err);
+		return ValueVariant_tomarkup( self, StyleXML, allocator, structdefs, enc, rootname, elemname, hdrbuf, "\n", len, err);
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -1138,7 +1151,16 @@ extern "C" void* papuga_RequestResult_toxml( const papuga_RequestResult* self, p
 	}
 }
 
-extern "C" void* papuga_RequestResult_tohtml5( const papuga_RequestResult* self, papuga_StringEncoding enc, const char* head, size_t* len, papuga_ErrorCode* err)
+extern "C" void* papuga_ValueVariant_tohtml5(
+		const papuga_ValueVariant* self,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		papuga_StringEncoding enc,
+		const char* rootname,
+		const char* elemname,
+		const char* head,
+		size_t* len,
+		papuga_ErrorCode* err)
 {
 	try
 	{
@@ -1149,7 +1171,7 @@ extern "C" void* papuga_RequestResult_tohtml5( const papuga_RequestResult* self,
 		hdr.append( hdrbuf);
 		hdr.append( head);
 		hdr.append( "</head>\n<body>\n");
-		return RequestResult_tomarkup( self, StyleHTML, hdr.c_str(), "\n</body>\n</html>", enc, len, err);
+		return ValueVariant_tomarkup( self, StyleHTML, allocator, structdefs, enc, rootname, elemname, hdrbuf, "\n</body>\n</html>", len, err);
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -1163,11 +1185,19 @@ extern "C" void* papuga_RequestResult_tohtml5( const papuga_RequestResult* self,
 	}
 }
 
-extern "C" void* papuga_RequestResult_totext( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
+extern "C" void* papuga_ValueVariant_totext(
+		const papuga_ValueVariant* self,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		papuga_StringEncoding enc,
+		const char* rootname,
+		const char* elemname,
+		size_t* len,
+		papuga_ErrorCode* err)
 {
 	try
 	{
-		return RequestResult_tomarkup( self, StyleTEXT, ""/*hdr*/, "\n"/*tail*/, enc, len, err);
+		return ValueVariant_tomarkup( self, StyleTEXT, allocator, structdefs, enc, rootname, elemname, ""/*hdr*/, "\n"/*tail*/, len, err);
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -1181,11 +1211,18 @@ extern "C" void* papuga_RequestResult_totext( const papuga_RequestResult* self, 
 	}
 }
 
-extern "C" void* papuga_RequestResult_tojson( const papuga_RequestResult* self, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
+extern "C" void* papuga_ValueVariant_tojson(
+		const papuga_ValueVariant* self,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		papuga_StringEncoding enc,
+		const char* rootname,
+		size_t* len,
+		papuga_ErrorCode* err)
 {
 	try
 	{
-		return RequestResult_tomarkup( self, StyleJSON, "{"/*hdr*/, "\n}\n"/*tail*/, enc, len, err);
+		return ValueVariant_tomarkup( self, StyleJSON, allocator, structdefs, enc, rootname, NULL, "{"/*hdr*/, "\n}\n"/*tail*/, len, err);
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -1199,6 +1236,48 @@ extern "C" void* papuga_RequestResult_tojson( const papuga_RequestResult* self, 
 	}
 }
 
+extern "C" char* papuga_ValueVariant_todump(
+		const papuga_ValueVariant* self,
+		papuga_Allocator* allocator,
+		const papuga_StructInterfaceDescription* structdefs,
+		const char* rootname,
+		size_t* len)
+{
+	papuga_ErrorCode errcode = papuga_Ok;
+	try
+	{
+		std::ostringstream dump;
+		dump << "ROOT " << rootname << "\n";
+		if (!papuga_ValueVariant_defined( self))
+		{
+			dump << "\tNULL\n";
+		}
+		else if (papuga_ValueVariant_isatomic( self))
+		{
+			dump << "\t" << papuga::ValueVariant_tostring( *self, errcode);
+		}
+		else if (self->valuetype == papuga_TypeSerialization)
+		{
+			dump << papuga::Serialization_tostring( *self->value.serialization, false/*linemode*/, PAPUGA_MAX_RECURSION_DEPTH, errcode);
+		}
+		else
+		{
+			dump << "\t<" << papuga_Type_name(self->valuetype) << ">\n";
+		}
+		std::string res( dump.str());
+		char* rt = (char*)std::malloc( res.size() +1);
+		if (!rt) return NULL;
+		papuga_Allocator_add_free_mem( allocator, rt);
+		std::memcpy( rt, res.c_str(), res.size() +1);
+		*len = res.size();
+		return rt;
+	}
+	catch (const std::bad_alloc&)
+	{
+		return NULL;
+	}
+	
+}
 
 
 

@@ -8,6 +8,7 @@
 /// \brief Automaton to execute papuga XML and JSON requests
 /// \file request.cpp
 #include "papuga/request.h"
+#include "papuga/requestHandler.h"
 #include "papuga/serialization.h"
 #include "papuga/serialization.hpp"
 #include "papuga/allocator.h"
@@ -1288,7 +1289,7 @@ public:
 			papuga_destroy_Allocator( &m_allocator);
 		}
 
-		papuga_RequestMethodCall* next( const papuga_RequestVariable* varlist)
+		papuga_RequestMethodCall* next( const papuga_RequestContext* context)
 		{
 			if (!m_ctx) return NULL;
 			const MethodCallNode* mcnode = m_ctx->methodCallNode( m_curr_methodidx);
@@ -1313,7 +1314,7 @@ public:
 			for (; ai != ae; ++ai)
 			{
 				papuga_init_ValueVariant( args->argv + ai);
-				if (!setCallArgValue( args->argv[ai], mcdef->args[ai], mcnode->scope, mcnode->taglevel, varlist))
+				if (!setCallArgValue( args->argv[ai], mcdef->args[ai], mcnode->scope, mcnode->taglevel, context))
 				{
 					m_curr_methodcall.argcnt = ai;
 					return NULL;
@@ -1821,18 +1822,17 @@ public:
 			return true;
 		}
 
-		bool setCallArgValue( papuga_ValueVariant& arg, const CallArgDef& argdef, const Scope& scope, int taglevel, const papuga_RequestVariable* varlist)
+		bool setCallArgValue( papuga_ValueVariant& arg, const CallArgDef& argdef, const Scope& scope, int taglevel, const papuga_RequestContext* context)
 		{
 			if (argdef.varname)
 			{
-				papuga_RequestVariable const* vl = varlist;
-				while (vl && 0!=std::strcmp(vl->name, argdef.varname)) vl=vl->next;
-				if (!vl)
+				const papuga_ValueVariant* value = papuga_RequestContext_get_variable( context, argdef.varname);
+				if (!value)
 				{
 					m_errcode = papuga_ValueUndefined;
 					return false;
 				}
-				papuga_init_ValueVariant_value( &arg, &vl->value);
+				papuga_init_ValueVariant_value( &arg, value);
 			}
 			else
 			{
@@ -2327,9 +2327,9 @@ extern "C" void papuga_destroy_RequestIterator( papuga_RequestIterator* self)
 	self->itr.~Iterator();
 }
 
-extern "C" const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestVariable* varlist)
+extern "C" const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestContext* context)
 {
-	return self->itr.next( varlist);
+	return self->itr.next( context);
 }
 
 papuga_ErrorCode papuga_RequestIterator_get_last_error( papuga_RequestIterator* self, const papuga_RequestMethodCall** call)

@@ -436,7 +436,6 @@ void papuga::printPython3ModSource(
 		"#define PYTHON_{MODULENAME}_EXTNAME \"{modulename}\"",
 		"#define PYTHON_{MODULENAME}_VERSION \"{release}\"",
 		"#include \"papuga/lib/python3_dev.h\"",
-		"#include \"strus/bindingObjects.h\"",
 		"#include \"papuga.h\"",
 		"/* Python includes: */",
 		"#include <Python.h>",

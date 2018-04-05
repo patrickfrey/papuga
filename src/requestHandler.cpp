@@ -11,15 +11,20 @@
 */
 #include "papuga/requestHandler.h"
 #include "papuga/request.h"
-#include "papuga/requestResult.h"
 #include "papuga/classdef.h"
 #include "papuga/allocator.h"
 #include "papuga/serialization.h"
 #include "papuga/valueVariant.h"
 #include "papuga/errors.h"
 #include "papuga/callResult.h"
+#include "private/shared_ptr.hpp"
+#include "private/unordered_map.hpp"
 #include <cstdlib>
 #include <cstring>
+#include <vector>
+#include <list>
+#include <unordered_map>
+#include <stdexcept>
 
 /* @brief Hook for GETTEXT */
 #define _TXT(x) x
@@ -60,14 +65,6 @@ static void foreach_list( TYPE* lst, MEMBERTYPE TYPE::*member, void (*action)( M
 	for (; lst; lst = lst->next) (*action)( &(lst->*member));
 }
 
-struct RequestContextList
-{
-	struct RequestContextList* next;		/*< pointer next element in the single linked list */
-	const char* type;				/*< type of the context to identify it */
-	const char* name;				/*< name of the context to identify it */
-	papuga_RequestContext context;
-};
-
 struct RequestSchemeList
 {
 	struct RequestSchemeList* next;			/*< pointer next element in the single linked list */
@@ -83,147 +80,269 @@ struct RequestMethodList
 	papuga_RequestMethodDescription method;		/*< method description */
 };
 
-struct papuga_RequestHandler
+struct RequestVariable
 {
-	RequestContextList* contexts;
-	RequestSchemeList* schemes;
-	RequestMethodList** classmethodmap;
-	int classmethodmapsize;
-	papuga_RequestLogger* logger;
+	RequestVariable()
+	{
+		init();
+		name = "";
+	}
+	explicit RequestVariable( const char* name_)
+	{
+		init();
+		name = papuga_Allocator_copy_charp( &allocator, name_);
+		if (!name) throw std::bad_alloc();
+	}
+	~RequestVariable()
+	{
+		papuga_destroy_Allocator( &allocator);
+	}
+
 	papuga_Allocator allocator;
-	char allocator_membuf[ 1<<14];
+	const char* name;				/*< name of variable associated with this value */
+	papuga_ValueVariant value;			/*< variable value associated with this name */
+	int inheritcnt;					/*< counter how many times variable value has been inherited */
+	int allocatormem[ 128];				/*< memory buffer used for allocator */
+
+private:
+	void init()
+	{
+		papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
+		name = NULL;
+		papuga_init_ValueVariant( &value);
+		inheritcnt = 0;
+	}
 };
 
-extern "C" void papuga_init_RequestContext( papuga_RequestContext* self, papuga_Allocator* allocator, papuga_RequestLogger* logger)
-{
-	self->allocator = allocator;
-	self->errcode = papuga_Ok;
-	self->variables = NULL;
-	self->logger = logger;
-}
-
-extern "C" papuga_ErrorCode papuga_RequestContext_last_error( const papuga_RequestContext* self)
-{
-	return self->errcode;
-}
-
-static bool RequestContext_add_variable_shallow_copy( papuga_RequestContext* self, const char* name, papuga_ValueVariant* value)
-{
-	papuga_RequestVariable* varstruct = alloc_type<papuga_RequestVariable>( self->allocator);
-	if (!varstruct) return false;
-	varstruct->name = papuga_Allocator_copy_charp( self->allocator, name);
-	if (!varstruct->name) return false;
-	papuga_init_ValueVariant_value( &varstruct->value, value);
-	varstruct->inheritcnt = 0;
-	self->variables = add_list( self->variables, varstruct);
-	return true;
-}
-
-static bool RequestContext_add_variable( papuga_RequestContext* self, const char* name, papuga_ValueVariant* value, bool moveobj)
-{
-	papuga_RequestVariable* varstruct = alloc_type<papuga_RequestVariable>( self->allocator);
-	if (!varstruct) goto ERROR;
-	varstruct->name = papuga_Allocator_copy_charp( self->allocator, name);
-	if (!varstruct->name) goto ERROR;
-	if (!papuga_Allocator_deepcopy_value( self->allocator, &varstruct->value, value, moveobj, &self->errcode)) goto ERROR;
-	varstruct->inheritcnt = 0;
-	self->variables = add_list( self->variables, varstruct);
-	return true;
-ERROR:
-	if (self->errcode == papuga_Ok)
-	{
-		self->errcode = papuga_NoMemError;
-	}
-	return false;
-}
+typedef papuga::shared_ptr<RequestVariable> RequestVariableRef;
 
 static bool isLocalVariable( const char* name)
 {
 	return name[0] == '_';
 }
 
-static papuga_RequestVariable* copyRequestVariables( papuga_Allocator* allocator, papuga_RequestVariable* variables, int inheritincr, bool moveObject, bool filterLocals, papuga_ErrorCode* errcode)
+/*
+ * @brief Defines a map of variables of a request as list
+ * @remark A request does not need too many variables, maybe 2 or 3, so a list is fine for search
+ */
+struct RequestVariableMap
 {
-	papuga_RequestVariable root;
-	root.next = NULL;
-	papuga_RequestVariable* cur = &root;
-	papuga_RequestVariable* vl = variables;
-	for (; vl != 0; vl = vl->next)
-	{
-		if (filterLocals && isLocalVariable( vl->name)) continue;
-		cur->next = alloc_type<papuga_RequestVariable>( allocator);
-		cur = cur->next;
-		if (!cur) goto ERROR;
-		cur->name = papuga_Allocator_copy_charp( allocator, vl->name);
-		if (!cur->name) goto ERROR;
-		cur->next = 0;
-		cur->inheritcnt = vl->inheritcnt + inheritincr;
-		if (!papuga_Allocator_deepcopy_value( allocator, &cur->value, &vl->value, moveObject, errcode)) goto ERROR;
-	}
-	return root.next;
-ERROR:
-	if (*errcode == papuga_Ok)
-	{
-		*errcode = papuga_NoMemError;
-	}
-	return NULL;
-}
+public:
+	RequestVariableMap()
+		:m_impl(){}
+	RequestVariableMap( const RequestVariableMap& o)
+		:m_impl(o.m_impl){}
+	~RequestVariableMap(){}
 
-extern "C" bool papuga_RequestContext_add_variable( papuga_RequestContext* self, const char* name, papuga_ValueVariant* value)
-{
-	return RequestContext_add_variable( self, name, value, true/*moveobj*/);
-}
-
-extern "C" const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name)
-{
-	const papuga_RequestVariable* var = find_list( self->variables, &papuga_RequestVariable::name, name);
-	return (var)?&var->value : NULL;
-}
-
-extern "C" const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, int max_inheritcnt, char const** buf, size_t bufsize)
-{
-	size_t bufpos = 0;
-	papuga_RequestVariable const* vl = self->variables;
-	for (; vl; vl = vl->next)
+	void add( const RequestVariableRef& var)
 	{
-		if (bufpos >= bufsize) return NULL;
-		if (max_inheritcnt >= 0 && vl->inheritcnt > max_inheritcnt) continue;
-		buf[ bufpos++] = vl->name;
+		m_impl.push_back( var);
 	}
-	if (bufpos >= bufsize) return NULL;
-	buf[ bufpos] = NULL;
-	return buf;
-}
-
-extern "C" bool papuga_RequestContext_inherit( papuga_RequestContext* self, const papuga_RequestContext* context, papuga_ErrorCode* errcode)
-{
-	if (!self->variables)
+	void append( const RequestVariableMap& map)
 	{
-		self->variables = copyRequestVariables( self->allocator, context->variables, 1/*inheritincr*/, false/*moveObject*/, true/*filterLocals*/, errcode);
-		if (!self->variables) return false;
+		m_impl.insert( m_impl.end(), map.m_impl.begin(), map.m_impl.end());
 	}
-	else
+	bool merge( const RequestVariableMap& map)
 	{
-		papuga_RequestVariable* vl = self->variables;
-		for (; vl->next; vl=vl->next){}
-		vl->next = copyRequestVariables( self->allocator, context->variables, 1/*inheritincr*/, false/*moveObject*/, true/*filterLocals*/, errcode);
-		if (!vl->next) return false;
-		papuga_RequestVariable const* tl = self->variables;
-		for (; tl != vl->next; tl = tl->next)
+		std::vector<RequestVariableRef>::const_iterator vi = m_impl.begin(), ve = m_impl.end();
+		for (; vi != ve; ++vi)
 		{
-			papuga_RequestVariable const* ol = vl->next;
-			for (; ol; ol = ol->next)
+			if (findVariable( vi->get()->name)) return false;
+			add( *vi);
+		}
+		return true;
+	}
+
+	typedef std::vector<RequestVariableRef>::const_iterator const_iterator;
+	const_iterator begin() const
+	{
+		return m_impl.begin();
+	}
+	const_iterator end() const
+	{
+		return m_impl.end();
+	}
+	void removeLocalVariables()
+	{
+		std::vector<RequestVariableRef>::iterator vi = m_impl.begin(), ve = m_impl.end();
+		while (vi != ve)
+		{
+			if (isLocalVariable( vi->get()->name))
 			{
-				if (std::strcmp( ol->name, tl->name) == 0)
-				{
-					*errcode = papuga_DuplicateDefinition;
-					return false;
-				}
+				m_impl.erase( vi);
+			}
+			else
+			{
+				++vi;
 			}
 		}
 	}
-	return true;
+	const papuga_ValueVariant* findVariable( const char* name) const
+	{
+		std::vector<RequestVariableRef>::const_iterator vi = m_impl.begin(), ve = m_impl.end();
+		for (; vi != ve; ++vi) if (0==std::strcmp( vi->get()->name, name)) break;
+		return (vi == ve) ? NULL : &vi->get()->value;
+	}
+	RequestVariableRef getOrCreate( const char* name)
+	{
+		std::vector<RequestVariableRef>::const_iterator vi = m_impl.begin(), ve = m_impl.end();
+		for (; vi != ve; ++vi) if (0==std::strcmp( vi->get()->name, name)) break;
+		if (vi == ve)
+		{
+			RequestVariableRef rt( new RequestVariable( name));
+			add( rt);
+			return rt;
+		}
+		else
+		{
+			return *vi;
+		}
+	}
+	const char** listVariables( int max_inheritcnt, char const** buf, size_t bufsize) const
+	{
+		size_t bufpos = 0;
+		std::vector<RequestVariableRef>::const_iterator vi = m_impl.begin(), ve = m_impl.end();
+		for (; vi != ve; ++vi)
+		{
+			if (bufpos >= bufsize) return NULL;
+			if (max_inheritcnt >= 0 && vi->get()->inheritcnt > max_inheritcnt) continue;
+			buf[ bufpos++] = vi->get()->name;
+		}
+		if (bufpos >= bufsize) return NULL;
+		buf[ bufpos] = NULL;
+		return buf;
+	}
+
+private:
+	std::vector<RequestVariableRef> m_impl;
+};
+
+typedef papuga::shared_ptr<RequestVariableMap> RequestVariableMapRef;
+
+
+/*
+ * @brief Defines the context of a request
+ */
+struct papuga_RequestContext
+{
+	papuga_ErrorCode errcode;		/*< last error in the request context */
+	RequestVariableMap varmap;		/*< map of variables defined in this context */
+
+	papuga_RequestContext()
+		:errcode(papuga_Ok),varmap(){}
+	papuga_RequestContext( const papuga_RequestContext& o)
+		:errcode(o.errcode),varmap(o.varmap){}
+	~papuga_RequestContext(){}
+};
+
+struct SymKey
+{
+	const char* str;
+	std::size_t len;
+
+	SymKey()
+		:str(0),len(0){}
+	SymKey( const char* str_, std::size_t len_)
+		:str(str_),len(len_){}
+	SymKey( const SymKey& o)
+		:str(o.str),len(o.len){}
+
+	static SymKey create( char* keybuf, std::size_t keybufsize, const char* type, const char* name)
+	{
+		std::size_t keysize = std::snprintf( keybuf, keybufsize, "%s::%s", type, name);
+		if (keybufsize <= keysize) throw std::bad_alloc();
+		return SymKey( keybuf, keybufsize);
+	}
+};
+struct MapSymKeyEqual
+{
+	bool operator()( const SymKey& a, const SymKey& b) const
+	{
+		return a.len == b.len && std::memcmp( a.str, b.str, a.len) == 0;
+	}
+};
+struct SymKeyHashFunc
+{
+	int operator()( const SymKey& key)const
+	{
+		static const int har[16] = {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53};
+		int hh = key.len + 1013 + key.len;
+		unsigned char const* ki = (unsigned char const*)key.str;
+		const unsigned char* ke = ki + key.len;
+		int kidx = 0;
+		for (; ki < ke; ++ki,++kidx)
+		{
+			hh = ((hh << 3) + (hh >> 7)) * har[ (hh+kidx) & 15] + har[ hh >> 4];
+		}
+		return hh;
+	}
+};
+
+typedef papuga::shared_ptr<papuga_RequestContext> RequestContextRef;
+typedef papuga::unordered_map<SymKey,RequestContextRef,SymKeyHashFunc,MapSymKeyEqual> RequestContextTab;
+struct RequestContextMap
+{
+	RequestContextTab tab;
+	std::list<std::string> keylist;
+
+	RequestContextMap()
+		:tab(),keylist(){}
+	RequestContextMap( const RequestContextMap& o)
+		:tab(),keylist()
+	{
+		RequestContextTab::const_iterator ti = tab.begin(), te = tab.end();
+		for (; ti != te; ++ti)
+		{
+			const SymKey& key = ti->first;
+			keylist.push_back( std::string( key.str, key.len));
+			SymKey keycopy( keylist.back().c_str(), keylist.back().size());
+			tab[ keycopy] = ti->second;
+		}
+	}
+	RequestContextRef& create( const SymKey& key)
+	{
+		keylist.push_back( std::string( key.str, key.len));
+		SymKey kk( keylist.back().c_str(), keylist.back().size());
+		return tab[ kk];
+	}
+	const papuga_RequestContext* operator[]( const SymKey& key) const
+	{
+		RequestContextTab::const_iterator mi = tab.find( key);
+		return mi == tab.end() ? NULL : mi->second.get();
+	}
+};
+
+typedef papuga::shared_ptr<RequestContextMap> RequestContextMapRef;
+
+// \brief Add with ownership
+static void RequestContextMap_transfer( RequestContextMapRef& cm, const char* type, const char* name, papuga_RequestContext* context)
+{
+	// Updates in the context map are very rare, so a copy of the whole map on an update is feasible and avoids a lock on read
+	char keybuf[ 256];
+	SymKey key = SymKey::create( keybuf, sizeof(keybuf), type, name);
+	RequestContextMapRef cm_ref( cm);
+	RequestContextMapRef cm_copy( new RequestContextMap( *cm_ref));
+	RequestContextRef& elem = cm_copy->create( key);
+	elem.reset( context);
+	elem->varmap.removeLocalVariables();
+	cm = cm_copy;
 }
+
+static bool RequestContextMap_delete( RequestContextMapRef& cm, const char* type, const char* name)
+{
+	// Updates in the context map are very rare, so a copy of the whole map on a delete is feasible and avoids a lock on read
+	char keybuf[ 256];
+	SymKey key = SymKey::create( keybuf, sizeof(keybuf), type, name);
+	RequestContextMapRef cm_ref( cm);
+	RequestContextMapRef cm_copy( new RequestContextMap( *cm_ref));
+	if (cm_copy->tab.erase( key) > 0)
+	{
+		cm = cm_copy;
+		return true;
+	}
+	return false;
+}
+
 
 static int nofClassDefs( const papuga_ClassDef* classdefs)
 {
@@ -233,132 +352,144 @@ static int nofClassDefs( const papuga_ClassDef* classdefs)
 	return classcnt;
 }
 
-extern "C" papuga_RequestHandler* papuga_create_RequestHandler( papuga_RequestLogger* logger, const papuga_ClassDef* classdefs)
+struct papuga_RequestHandler
 {
-	int nn = classdefs ? nofClassDefs( classdefs) : 0;
-	papuga_RequestHandler* rt = (papuga_RequestHandler*) std::calloc( sizeof(papuga_RequestHandler) + nn * sizeof(RequestMethodList*), 1);
-	if (!rt) return NULL;
-	rt->classmethodmap = (RequestMethodList**)(void*)(rt + 1);
-	rt->classmethodmapsize = nn;
-	rt->contexts = NULL;
-	rt->schemes = NULL;
-	rt->logger = logger;
-	papuga_init_Allocator( &rt->allocator, rt->allocator_membuf, sizeof(rt->allocator_membuf));
-	return rt;
-}
+	RequestContextMapRef contextmap;
+	RequestSchemeList* schemes;
+	RequestMethodList** classmethodmap;
+	int classmethodmapsize;
+	const papuga_ClassDef* classdefs;
+	papuga_Allocator allocator;
+	int allocator_membuf[ 1024];
 
-extern "C" void papuga_destroy_RequestHandler( papuga_RequestHandler* self)
-{
-	papuga_destroy_Allocator( &self->allocator);
-	std::free( self);
-}
-
-static RequestContextList* delete_context_list_elem( RequestContextList*& clst, const char* type, const char* name)
-{
-	RequestContextList* cl = clst;
-	if (0==std::strcmp( cl->type, type) && 0==std::strcmp( cl->name, name)) {clst = clst->next; return cl;}
-	for (; cl->next && (0!=std::strcmp( cl->next->type, type) || 0!=std::strcmp( cl->next->name, name)); cl = cl->next){}
-	if (cl->next)
+	explicit papuga_RequestHandler( const papuga_ClassDef* classdefs_)
+		:contextmap(),schemes(NULL),classmethodmap(NULL),classmethodmapsize(nofClassDefs(classdefs_))
 	{
-		RequestContextList* rt = cl->next;
-		cl->next = rt->next;
-		return rt;
+		papuga_init_Allocator( &allocator, allocator_membuf, sizeof(allocator_membuf));
+		std::size_t classmethodmapmem = (classmethodmapsize+1) * sizeof(RequestMethodList*);
+		classmethodmap = (RequestMethodList**)papuga_Allocator_alloc( &allocator, classmethodmapmem, sizeof(RequestMethodList*));
+		if (!classmethodmap) throw std::bad_alloc();
+		std::memset( classmethodmap, 0, classmethodmapmem);
 	}
-	return NULL;
-}
 
-static const papuga_RequestContext* find_context( const RequestContextList* clst, const char* type, const char* name)
-{
-	RequestContextList const* cl = clst;
-	for (; cl && (0!=std::strcmp( cl->type, type) || 0!=std::strcmp( cl->name, name)); cl = cl->next){}
-	return cl ? &cl->context : NULL;
-}
-
-extern "C" bool papuga_RequestHandler_destroy_context( papuga_RequestHandler* self, const char* type, const char* name)
-{
-	RequestContextList* cl = delete_context_list_elem( self->contexts, type, name);
-	if (cl)
+	~papuga_RequestHandler()
 	{
-		papuga_RequestVariable* vl = cl->context.variables;
-		for (; vl; vl = vl->next)
-		{
-			if (vl->value.valuetype == papuga_TypeHostObject)
-			{
-				papuga_Allocator_destroy_HostObject( &self->allocator, vl->value.value.hostObject);
-			}
-			else if (vl->value.valuetype == papuga_TypeIterator)
-			{
-				papuga_Allocator_destroy_Iterator( &self->allocator, vl->value.value.iterator);
-			}
-		}
-		return true;
+		papuga_destroy_Allocator( &allocator);
+	}
+};
+
+extern "C" papuga_RequestContext* papuga_create_RequestContext()
+{
+	return new (std::nothrow)papuga_RequestContext();
+}
+
+extern "C" void papuga_destroy_RequestContext( papuga_RequestContext* self)
+{
+	delete self;
+}
+
+extern "C" papuga_ErrorCode papuga_RequestContext_last_error( papuga_RequestContext* self, bool clear)
+{
+	if (clear)
+	{
+		papuga_ErrorCode rt = self->errcode; self->errcode = papuga_Ok; return rt;
 	}
 	else
 	{
+		return self->errcode;
+	}
+}
+
+extern "C" bool papuga_RequestContext_add_variable( papuga_RequestContext* self, const char* name, papuga_ValueVariant* value)
+{
+	try
+	{
+		RequestVariableRef varref = self->varmap.getOrCreate( name);
+		return papuga_Allocator_deepcopy_value( &varref->allocator, &varref->value, value, true/*movehostobj*/, &self->errcode);
+	}
+	catch (...)
+	{
+		self->errcode = papuga_NoMemError;
 		return false;
 	}
 }
 
-extern "C" bool papuga_RequestHandler_add_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_RequestContext* ctx, papuga_ErrorCode* errcode)
+extern "C" const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name)
 {
-	RequestContextList* listitem = alloc_type<RequestContextList>( &self->allocator);
-	if (!listitem) goto ERROR;
-	listitem->type = papuga_Allocator_copy_charp( &self->allocator, type);
-	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
-	papuga_init_RequestContext( &listitem->context, &self->allocator, self->logger);
-	listitem->context.variables = copyRequestVariables( &self->allocator, ctx->variables, 0, true/*moveObject*/, true/*filterLocals*/, errcode);
-	if (!listitem->type || !listitem->name || (!listitem->context.variables && ctx->variables)) goto ERROR;
-	self->contexts = add_list( self->contexts, listitem);
-	return true;
-ERROR:
-	if (*errcode == papuga_Ok)
+	return self->varmap.findVariable( name);
+}
+
+extern "C" const char** papuga_RequestContext_list_variables( const papuga_RequestContext* self, int max_inheritcnt, char const** buf, size_t bufsize)
+{
+	return self->varmap.listVariables( max_inheritcnt, buf, bufsize);
+}
+
+extern "C" bool papuga_RequestContext_inherit( papuga_RequestContext* self, const papuga_RequestHandler* handler, const char* type, const char* name)
+{
+	try
+	{
+		char keybuf[ 256];
+		SymKey key = SymKey::create( keybuf, sizeof(keybuf), type, name);
+	
+		RequestContextMapRef contextmap( handler->contextmap);	//... keep instance of context map alive until job is done
+		const papuga_RequestContext* context = (*contextmap)[ key];
+
+		if (!context)
+		{
+			self->errcode = papuga_AddressedItemNotFound;
+			return false;
+		}
+		if (!self->varmap.merge( context->varmap))
+		{
+			self->errcode = papuga_DuplicateDefinition;
+			return false;
+		}
+		return true;
+	}
+	catch (...)
+	{
+		self->errcode = papuga_NoMemError;
+		return false;
+	}
+}
+
+extern "C" papuga_RequestHandler* papuga_create_RequestHandler( const papuga_ClassDef* classdefs)
+{
+	return new (std::nothrow)papuga_RequestHandler( classdefs);
+}
+
+extern "C" void papuga_destroy_RequestHandler( papuga_RequestHandler* self)
+{
+	delete self;
+}
+
+extern "C" bool papuga_RequestHandler_destroy_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode)
+{
+	try
+	{
+		return RequestContextMap_delete( self->contextmap, type, name);
+	}
+	catch (...)
 	{
 		*errcode = papuga_NoMemError;
+		return false;
 	}
-	return false;
+	return true;
 }
 
-extern "C" const char** papuga_RequestHandler_list_contexts( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize)
+extern "C" bool papuga_RequestHandler_transfer_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_RequestContext* context, papuga_ErrorCode* errcode)
 {
-	size_t bufpos = 0;
-	RequestContextList const* cl = self->contexts;
-	for (; cl; cl = cl->next)
+	try
 	{
-		if (!type || 0==std::strcmp(type, cl->type))
-		{
-			if (bufpos >= bufsize) return NULL;
-			buf[ bufpos++] = cl->name;
-		}
+		RequestContextMap_transfer( self->contextmap, type, name, context);
+		return true;
 	}
-	if (bufpos >= bufsize) return NULL;
-	buf[ bufpos] = NULL;
-	return buf;
-}
-
-extern "C" const char** papuga_RequestHandler_list_context_types( const papuga_RequestHandler* self, char const** buf, size_t bufsize)
-{
-	size_t bufpos = 0;
-	RequestContextList const* cl = self->contexts;
-	for (; cl; cl = cl->next)
+	catch (...)
 	{
-		size_t bi = 0;
-		for (; bi < bufpos && !!std::strcmp( buf[bi],cl->type); ++bi){}
-		if (bi < bufpos) continue;
-		if (bufpos >= bufsize) return NULL;
-		buf[ bufpos++] = cl->type;
+		*errcode = papuga_NoMemError;
+		return false;
 	}
-	if (bufpos >= bufsize) return NULL;
-	buf[ bufpos] = NULL;
-	return buf;
-}
-
-extern "C" const papuga_RequestContext* papuga_RequestHandler_find_context( const papuga_RequestHandler* handler, const char* type, const char* name)
-{
-	if (type && name)
-	{
-		return find_context( handler->contexts, type, name);
-	}
-	return NULL;
+	return true;
 }
 
 extern "C" bool papuga_RequestHandler_add_scheme( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton)
@@ -386,7 +517,7 @@ static const char** RequestHandler_list_all_schemes( const papuga_RequestHandler
 	for (; sl; sl = sl->next)
 	{
 		size_t bi = 0;
-		for (; bi < bufpos && !!std::strcmp(buf[bi],sl->type); ++bi){}
+		for (; bi < bufpos && 0!=std::strcmp(buf[bi],sl->type); ++bi){}
 		if (bi < bufpos) continue;
 		if (bufpos >= bufsize) return NULL;
 		buf[ bufpos++] = sl->name;
@@ -494,162 +625,163 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 	}
 }
 
-static bool RequestContext_add_result( papuga_RequestContext* context, const char* resultvarname, papuga_ValueVariant& resultvalue, bool append, papuga_ErrorCode& errcode)
+static bool RequestVariable_add_result( RequestVariableRef& var, papuga_ValueVariant& resultvalue, bool appendresult, papuga_ErrorCode& errcode)
 {
-	papuga_RequestVariable* var = find_list( context->variables, &papuga_RequestVariable::name, resultvarname);
-	if (var)
+	if (appendresult)
 	{
-		if (append)
+		if (!papuga_ValueVariant_defined( &var->value))
 		{
-			if (var->value.valuetype == papuga_TypeSerialization)
-			{
-				return papuga_Serialization_pushValue( var->value.value.serialization, &resultvalue);
-			}
-			else
-			{
-				errcode = papuga_MixedConstruction;
-				return false;
-			}
+			papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( &var->allocator);
+			if (!ser) throw std::bad_alloc();
+			papuga_init_ValueVariant_serialization( &var->value, ser);
+		}
+		if (var->value.valuetype == papuga_TypeSerialization)
+		{
+			if (!papuga_Serialization_pushValue( var->value.value.serialization, &resultvalue)) throw std::bad_alloc();
 		}
 		else
 		{
-			// ... overwrite if already defined
-			papuga_init_ValueVariant_value( &var->value, &resultvalue);
-			return true;
+			errcode = papuga_MixedConstruction;
+			return false;
 		}
 	}
 	else
 	{
-		if (append)
-		{
-			papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( context->allocator);
-			if (!ser || !papuga_Serialization_pushValue( ser, &resultvalue))
-			{
-				errcode = papuga_NoMemError;
-				return false;
-			}
-			papuga_ValueVariant rv;
-			papuga_init_ValueVariant_serialization( &rv, ser);
-			return RequestContext_add_variable_shallow_copy( context, resultvarname, &rv);
-			// ... shallow copy, because we get ownership of the allocator context of the call result
-		}
-		else
-		{
-			return RequestContext_add_variable_shallow_copy( context, resultvarname, &resultvalue);
-			// ... shallow copy, because we get ownership of the allocator context of the call result
-		}
+		papuga_init_ValueVariant_value( &var->value, &resultvalue);
 	}
+	return true;
 }
 
-extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_ErrorBuffer* errorbuf, int* errorpos)
+extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_RequestLogger* logger, papuga_ErrorBuffer* errorbuf, int* errorpos)
 {
-	char membuf_err[ 1024];
-	papuga_ErrorBuffer errorbuf_call;
-	papuga_ErrorCode errcode = papuga_Ok;
+	papuga_RequestIterator* itr = 0;
+	papuga_Allocator exec_allocator;
+	int membuf_allocator[ 1024];
+	papuga_init_Allocator( &exec_allocator, &membuf_allocator, sizeof(membuf_allocator));
+	
+	try
+	{
+		char membuf_err[ 1024];
+		papuga_ErrorBuffer errorbuf_call;
+		papuga_ErrorCode errcode = papuga_Ok;
 
-	const papuga_ClassDef* classdefs = papuga_Request_classdefs( request);
-	papuga_RequestIterator* itr = papuga_create_RequestIterator( context->allocator, request);
-	if (!itr)
-	{
-		papuga_ErrorBuffer_reportError( errorbuf, _TXT("error handling request: %s"), papuga_ErrorCode_tostring( papuga_NoMemError));
-		return false;
-	}
-	papuga_init_ErrorBuffer( &errorbuf_call, membuf_err, sizeof(membuf_err));
-	const papuga_RequestMethodCall* call;
-	while (!!(call = papuga_RequestIterator_next_call( itr, context->variables)))
-	{
-		if (call->methodid.functionid == 0)
+		const papuga_ClassDef* classdefs = papuga_Request_classdefs( request);
+		itr = papuga_create_RequestIterator( &exec_allocator, request);
+		if (!itr)
 		{
-			// [1] Call the constructor
-			const papuga_ClassConstructor func = classdefs[ call->methodid.classid-1].constructor;
-			void* self;
-
-			if (!(self=(*func)( &errorbuf_call, call->args.argc, call->args.argv)))
-			{
-				if (context->logger->logMethodCall)
-				{
-					(*context->logger->logMethodCall)( context->logger->self, 3,
-						papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
-						papuga_LogItemArgc, call->args.argc,
-						papuga_LogItemArgv, &call->args.argv[0]);
-				}
-				reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &errorbuf_call));
-				*errorpos = call->eventcnt;
-				papuga_destroy_RequestIterator( itr);
-				return false;
-			}
-			papuga_HostObject* hobj = papuga_Allocator_alloc_HostObject( context->allocator, call->methodid.classid, self, classdefs[ call->methodid.classid-1].destructor);
-			papuga_ValueVariant result;
-			papuga_init_ValueVariant_hostobj( &result, hobj);
-
-			// [2] Assign the result to the result variable:
-			if (!RequestContext_add_result( context, call->resultvarname, result, call->appendresult, errcode))
-			{
-				break;
-			}
-
-			// [3] Log the call:
-			if (context->logger->logMethodCall)
-			{
-				(*context->logger->logMethodCall)( context->logger->self, 4,
-					papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
-					papuga_LogItemArgc, call->args.argc,
-					papuga_LogItemArgv, &call->args.argv[0],
-					papuga_LogItemResult, &result);
-			}
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT("error handling request: %s"), papuga_ErrorCode_tostring( papuga_NoMemError));
+			return false;
 		}
-		else
+		papuga_init_ErrorBuffer( &errorbuf_call, membuf_err, sizeof(membuf_err));
+		const papuga_RequestMethodCall* call;
+
+		while (!!(call = papuga_RequestIterator_next_call( itr, context)))
 		{
-			// [1] Get the method and the object of the method to call:
-			const papuga_ClassMethod func = classdefs[ call->methodid.classid-1].methodtable[ call->methodid.functionid-1];
-			papuga_RequestVariable* var = find_list( context->variables, &papuga_RequestVariable::name, call->selfvarname);
-			if (!var)
-			{
-				errcode = papuga_MissingSelf;
-				break;
-			}
-			if (var->value.valuetype != papuga_TypeHostObject || var->value.value.hostObject->classid != call->methodid.classid)
-			{
-				errcode = papuga_TypeError;
-				break;
-			}
-			// [2] Call the method and report an error on failure:
-			void* self = var->value.value.hostObject->data;
-			papuga_CallResult retval;
-			papuga_init_CallResult( &retval, context->allocator, false, membuf_err, sizeof(membuf_err));
-			if (!(*func)( self, &retval, call->args.argc, call->args.argv))
-			{
-				if (context->logger->logMethodCall)
-				{
-					(*context->logger->logMethodCall)( context->logger->self, 4,
-							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
-							papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
-							papuga_LogItemArgc, call->args.argc,
-							papuga_LogItemArgv, &call->args.argv[0]);
-				}
-				reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &retval.errorbuf));
-				*errorpos = call->eventcnt;
-				papuga_destroy_RequestIterator( itr);
-				return false;
-			}
-			// [3] Fetch the result(s) if required (stored as variable):
+			RequestVariableRef var;
 			if (call->resultvarname)
 			{
-				// [3.1] We build a shallow copy of the result, because the allocator of the result is the one of the context:
-				papuga_ValueVariant result;
+				var = context->varmap.getOrCreate( call->resultvarname);
+			}
+			else
+			{
+				var.reset( new RequestVariable());
+			}
+			if (call->methodid.functionid == 0)
+			{
+				// [1] Call the constructor
+				const papuga_ClassConstructor func = classdefs[ call->methodid.classid-1].constructor;
+				void* self;
+	
+				if (!(self=(*func)( &errorbuf_call, call->args.argc, call->args.argv)))
+				{
+					if (logger->logMethodCall)
+					{
+						(*logger->logMethodCall)( logger->self, 3,
+							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+							papuga_LogItemArgc, call->args.argc,
+							papuga_LogItemArgv, &call->args.argv[0]);
+					}
+					reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &errorbuf_call));
+					*errorpos = call->eventcnt;
+					papuga_destroy_RequestIterator( itr);
+					return false;
+				}
+				// [2] Assign the result value to a variant type variable:
+				papuga_Deleter destroy_hobj = classdefs[ call->methodid.classid-1].destructor;
+				papuga_HostObject* hobj = papuga_Allocator_alloc_HostObject( &var->allocator, call->methodid.classid, self, destroy_hobj);
+				if (!hobj)
+				{
+					destroy_hobj( self);
+					throw std::bad_alloc();
+				}
+				papuga_ValueVariant resultvalue;
+				papuga_init_ValueVariant_hostobj( &resultvalue, hobj);
+
+				// [3] Add the result to the result variable:
+				if (!RequestVariable_add_result( var, resultvalue, call->appendresult, errcode))
+				{
+					break;
+				}
+
+				// [4] Log the call:
+				if (logger->logMethodCall)
+				{
+					(*logger->logMethodCall)( logger->self, 4,
+						papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+						papuga_LogItemArgc, call->args.argc,
+						papuga_LogItemArgv, &call->args.argv[0],
+						papuga_LogItemResult, &resultvalue);
+				}
+			}
+			else
+			{
+				// [1] Get the method and the object of the method to call:
+				const papuga_ClassMethod func = classdefs[ call->methodid.classid-1].methodtable[ call->methodid.functionid-1];
+				const papuga_ValueVariant* selfvalue = context->varmap.findVariable( call->selfvarname);
+				if (!selfvalue)
+				{
+					errcode = papuga_MissingSelf;
+					break;
+				}
+				if (selfvalue->valuetype != papuga_TypeHostObject || selfvalue->value.hostObject->classid != call->methodid.classid)
+				{
+					errcode = papuga_TypeError;
+					break;
+				}
+				// [2] Call the method and report an error on failure:
+				void* self = selfvalue->value.hostObject->data;
+				papuga_CallResult retval;
+				papuga_init_CallResult( &retval, &var->allocator, false/*ownership*/, membuf_err, sizeof(membuf_err));
+				if (!(*func)( self, &retval, call->args.argc, call->args.argv))
+				{
+					if (logger->logMethodCall)
+					{
+						(*logger->logMethodCall)( logger->self, 4,
+								papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+								papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
+								papuga_LogItemArgc, call->args.argc,
+								papuga_LogItemArgv, &call->args.argv[0]);
+					}
+					reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &retval.errorbuf));
+					*errorpos = call->eventcnt;
+					papuga_destroy_RequestIterator( itr);
+					return false;
+				}
+				// [3] Fetch the result(s) if required (stored as variable):
+				papuga_ValueVariant resultvalue;
 				if (retval.nofvalues == 0)
 				{
-					papuga_init_ValueVariant( &result);
+					papuga_init_ValueVariant( &resultvalue);
 				}
 				else if (retval.nofvalues == 1)
 				{
-					papuga_init_ValueVariant_value( &result, &retval.valuear[0]);
+					papuga_init_ValueVariant_value( &resultvalue, &retval.valuear[0]);
 				}
 				else
 				{
 					// ... handle multiple return values as a serialization:
 					int vi = 0, ve = retval.nofvalues;
-					papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( context->allocator);
+					papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( &var->allocator);
 					bool sc = true;
 					if (ser)
 					{
@@ -665,79 +797,71 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 						errcode = papuga_NoMemError;
 						break;
 					}
-					papuga_init_ValueVariant_serialization( &result, ser);
+					papuga_init_ValueVariant_serialization( &resultvalue, ser);
 				}
-				// [3.2] Assign the result to the result variable:
-				if (!RequestContext_add_result( context, call->resultvarname, result, call->appendresult, errcode))
+				// [4] Add the result to the result variable:
+				if (!RequestVariable_add_result( var, resultvalue, call->appendresult, errcode))
 				{
 					break;
 				}
-				// [3.3] Log the call
-				if (context->logger->logMethodCall)
+				// [5] Log the call
+				if (logger->logMethodCall)
 				{
-					(*context->logger->logMethodCall)( context->logger->self, 5, 
-							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
-							papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
-							papuga_LogItemArgc, call->args.argc,
-							papuga_LogItemArgv, &call->args.argv[0],
-							papuga_LogItemResult, &result);
+					if (papuga_ValueVariant_defined( &resultvalue))
+					{
+						(*logger->logMethodCall)( logger->self, 5, 
+									papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+									papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
+									papuga_LogItemArgc, call->args.argc,
+									papuga_LogItemArgv, &call->args.argv[0],
+									papuga_LogItemResult, &resultvalue);
+					}
+					else
+					{
+						(*logger->logMethodCall)( logger->self, 4, 
+								papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+								papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
+								papuga_LogItemArgc, call->args.argc,
+								papuga_LogItemArgv, &call->args.argv[0]);
+					}
 				}
-			}
-			else
-			{
-				// Log the call
-				if (context->logger->logMethodCall)
-				{
-					(*context->logger->logMethodCall)( context->logger->self, 4, 
-							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
-							papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
-							papuga_LogItemArgc, call->args.argc,
-							papuga_LogItemArgv, &call->args.argv[0]);
-				}
-				// ... not requested, then destroy
-				papuga_destroy_CallResult( &retval);
 			}
 		}
-	}
-	// Report error if we could not resolve all parts of a method call:
-	if (errcode == papuga_Ok)
-	{
-		errcode = papuga_RequestIterator_get_last_error( itr, &call);
-	}
-	if (errcode != papuga_Ok)
-	{
-		reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( errcode));
-		*errorpos = call->eventcnt;
+		// Report error if we could not resolve all parts of a method call:
+		if (errcode == papuga_Ok)
+		{
+			errcode = papuga_RequestIterator_get_last_error( itr, &call);
+		}
+		if (errcode != papuga_Ok)
+		{
+			reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( errcode));
+			*errorpos = call->eventcnt;
+			papuga_destroy_RequestIterator( itr);
+			return false;
+		}
 		papuga_destroy_RequestIterator( itr);
+		return true;
+	}
+	catch (const std::exception& err)
+	{
+		if (itr) papuga_destroy_RequestIterator( itr);
+		papuga_ErrorBuffer_reportError( errorbuf, _TXT("error handling request: %s"), err.what());
 		return false;
 	}
-	papuga_destroy_RequestIterator( itr);
-	return true;
 }
 
-extern "C" bool papuga_set_RequestResult( papuga_RequestResult* self, papuga_RequestContext* context, const papuga_Request* request)
+extern "C" bool papuga_Serialization_serialize_request_result( papuga_Serialization* self, papuga_RequestContext* context, const papuga_Request* request)
 {
-	self->allocator = context->allocator;
-	self->name = papuga_Request_resultname( request);
-	self->structdefs = papuga_Request_struct_descriptions( request);
-	self->nodes = NULL;
-	papuga_RequestResultNode rootnode;
-	rootnode.next = NULL;
-	papuga_RequestResultNode* curnode = &rootnode;
-	papuga_RequestVariable const* vi = context->variables;
-	for (; vi; vi = vi->next)
+	bool rt = true;
+	RequestVariableMap::const_iterator vi = context->varmap.begin(), ve = context->varmap.end();
+	for (; vi != ve; ++vi)
 	{
-		if (isLocalVariable( vi->name) || vi->inheritcnt > 0 || vi->value.valuetype == papuga_TypeHostObject) continue;
-		curnode->next = alloc_type<papuga_RequestResultNode>( self->allocator);
-		curnode = curnode->next;
-		if (!curnode) return false;
-		curnode->next = NULL;
-		curnode->name = vi->name;
-		curnode->name_optional = false;
-		papuga_init_ValueVariant_value( &curnode->value, &vi->value);
+		if (isLocalVariable( (*vi)->name) || (*vi)->inheritcnt > 0 || (*vi)->value.valuetype == papuga_TypeHostObject) continue;
+		rt &= papuga_Serialization_pushName_charp( self, (*vi)->name);
+		rt &= papuga_Serialization_pushValue( self, &(*vi)->value);
 	}
-	self->nodes = rootnode.next;
-	return true;
+	return rt;
 }
+
 
 

@@ -15,14 +15,13 @@ set( source_files
 	errors.cpp
 	valueVariant.cpp
 	valueVariant.c
+	valueVariant_markup.cpp
 	serialization.cpp
 )
 
 set( source_files_request
 	request.cpp
 	requestHandler.cpp
-	requestResult.cpp
-	requestResult_markup.cpp
 	requestAutomaton.cpp
 	requestParser.c
 	requestParser_json.cpp
@@ -33,7 +32,7 @@ set( source_files_request
 
 include_directories(
 	"${Intl_INCLUDE_DIRS}"
-	"${PROJECT_SOURCE_DIR}/src"
+	"${PROJECT_SOURCE_DIR}/include"
 	"${PROJECT_SOURCE_DIR}/3rdParty/textwolf/include"
 	"${PROJECT_SOURCE_DIR}/3rdParty/cjson/include"
 	"${PAPUGA_INCLUDE_DIRS}"

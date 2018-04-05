@@ -627,7 +627,8 @@ static void executeTest( int tidx, const TestData& test)
 		if (!papuga_execute_request( test.atm->impl(), doctype, enc, content, test.var, errcode, resout, logout))
 		{
 			LOG_TEST_CONTENT( "ERROR", resout);
-			throw papuga::error_exception( errcode, "executing test request");
+			std::string errmsg( std::string("executing test request: ") + resout);
+			throw papuga::error_exception( errcode, errmsg.c_str());
 		}
 		else
 		{
