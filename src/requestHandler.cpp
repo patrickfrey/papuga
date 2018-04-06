@@ -47,25 +47,6 @@ static TYPE* add_list( TYPE* lst, TYPE* elem)
 	vv->next = elem;
 	return lst;
 }
-template <typename TYPE>
-static TYPE* find_list( TYPE* lst, const char* TYPE::*member, const char* name)
-{
-	TYPE* ll = lst;
-	for (; ll && 0!=std::strcmp( ll->*member, name); ll = ll->next){}
-	return ll;
-}
-template <typename TYPE>
-static const TYPE* find_list( const TYPE* lst, const char* TYPE::*member, const char* name)
-{
-	TYPE const* ll = lst;
-	for (; ll && 0!=std::strcmp( ll->*member, name); ll = ll->next){}
-	return ll;
-}
-template <typename TYPE, typename MEMBERTYPE>
-static void foreach_list( TYPE* lst, MEMBERTYPE TYPE::*member, void (*action)( MEMBERTYPE* self))
-{
-	for (; lst; lst = lst->next) (*action)( &(lst->*member));
-}
 
 struct RequestSchemeList
 {
@@ -574,11 +555,11 @@ extern "C" bool papuga_RequestHandler_add_method( papuga_RequestHandler* self, c
 	return true;
 }
 
-extern "C" const papuga_RequestMethodDescription* papuga_RequestHandler_get_method( const papuga_RequestHandler* self, int classid, const char* name)
+extern "C" const papuga_RequestMethodDescription* papuga_RequestHandler_get_method( const papuga_RequestHandler* self, int classid, const char* name, bool with_content)
 {
 	if (classid == 0 || classid > self->classmethodmapsize) return NULL;
-	RequestMethodList const* mlst = self->classmethodmap[ classid-1];
-	RequestMethodList const* ml = find_list( mlst, &RequestMethodList::name, name);
+	RequestMethodList const* ml = self->classmethodmap[ classid-1];
+	for (; ml && ml->method.has_content == with_content && 0!=std::strcmp( ml->name, name); ml = ml->next){}
 	return ml ? &ml->method : NULL;
 }
 

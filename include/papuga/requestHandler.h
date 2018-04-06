@@ -31,6 +31,7 @@ typedef struct papuga_RequestMethodDescription
 {
 	papuga_RequestMethodId id;			/*< method identifier */
 	int* paramtypes;				/*< 0 terminated list of parameter type identifiers */
+	bool has_content;				/*< true, if the method accepts or rejects content or parameters passed with the request */
 	int httpstatus_success;				/*< HTTP status code in case of success */
 	const char* resulttype;				/*< NULL in case of content, HTTP header variable name else */
 	const char* result_rootelem;			/*< root element name for mapping result */
@@ -176,7 +177,7 @@ bool papuga_RequestHandler_add_method( papuga_RequestHandler* self, const char* 
  * @param[in] methodname name of the method (HTTP request method in a request)
  * @return pointer to method identifier, NULL if not found
  */
-const papuga_RequestMethodDescription* papuga_RequestHandler_get_method( const papuga_RequestHandler* self, int classid, const char* methodname);
+const papuga_RequestMethodDescription* papuga_RequestHandler_get_method( const papuga_RequestHandler* self, int classid, const char* methodname, bool with_content);
 
 /*
  * @brief List the methods defined for a given class

@@ -757,7 +757,7 @@ static bool ValueVariant_tomarkup_node( OutputContext& ctx, const char* name, co
 {
 	if (value.valuetype == papuga_TypeSerialization)
 	{
-		StructType::Id stid;
+		StructType::Id stid = StructType::Empty;
 		papuga_SerializationIter seritr;
 		papuga_init_SerializationIter( &seritr, value.value.serialization);
 		switch (papuga_SerializationIter_tag( &seritr))
