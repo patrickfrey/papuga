@@ -179,15 +179,24 @@ static int isPowerOfTwo (unsigned int x)
 	return (((x & (~x + 1)) == x));
 }
 struct MaxAlignStruct {int _;};
-#define MAXALIGN	(sizeof(struct MaxAlignStruct))
+#define MAXALIGN	64
 #define STDBLOCKSIZE	4096
 #define MAXBLOCKSIZE	(1<<31)
+
+static unsigned int getPointerOfsAligned( void* ptr, size_t ofs)
+{
+	return (unsigned int)(uintptr_t)((char*)ptr + ofs) & (MAXALIGN-1);
+}
+static unsigned int getPointerAlignIncr( void* ptr, size_t ofs, unsigned int alignment)
+{
+	return (alignment + MAXALIGN - getPointerOfsAligned( ptr, ofs)) & (MAXALIGN-1);
+}
 
 void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned int alignment)
 {
 	void* rt;
 	papuga_AllocatorNode* next;
-
+	unsigned int alignmentofs;
 	if (alignment == 0) alignment = MAXALIGN;
 	if (!isPowerOfTwo( alignment)
 		|| alignment > MAXALIGN
@@ -195,7 +204,7 @@ void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned
 		|| blocksize >= MAXBLOCKSIZE) return 0;
 	if (self->root.ar != NULL)
 	{
-		unsigned int alignmentofs = (alignment - (self->root.arsize & (alignment-1))) & (MAXALIGN-1);
+		alignmentofs = getPointerAlignIncr( self->root.ar, self->root.arsize, alignment);
 		if (self->root.allocsize - self->root.arsize >= blocksize + alignmentofs)
 		{
 			self->root.arsize += alignmentofs;
@@ -211,15 +220,16 @@ void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned
 	}
 	/* Allocate new block: */
 	self->root.allocsize = STDBLOCKSIZE;
-	while (self->root.allocsize < blocksize)
+	while (self->root.allocsize < blocksize + alignment)
 	{
 		self->root.allocsize *= 2;
 	}
 	self->root.ar = (char*)malloc( self->root.allocsize);
 	if (self->root.ar == NULL) return NULL;
 	self->root.allocated = true;
-	self->root.arsize = blocksize;
-	return self->root.ar;
+	alignmentofs = getPointerAlignIncr( self->root.ar, 0, alignment);
+	self->root.arsize = alignmentofs + blocksize;
+	return self->root.ar + alignmentofs;
 }
 
 bool papuga_Allocator_add_free_mem( papuga_Allocator* self, void* mem)
