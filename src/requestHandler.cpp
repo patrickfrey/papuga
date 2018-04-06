@@ -232,9 +232,9 @@ struct SymKey
 
 	static SymKey create( char* keybuf, std::size_t keybufsize, const char* type, const char* name)
 	{
-		std::size_t keysize = std::snprintf( keybuf, keybufsize, "%s::%s", type, name);
+		std::size_t keysize = std::snprintf( keybuf, keybufsize, "%s/%s", type, name);
 		if (keybufsize <= keysize) throw std::bad_alloc();
-		return SymKey( keybuf, keybufsize);
+		return SymKey( keybuf, keysize);
 	}
 };
 struct MapSymKeyEqual
@@ -255,7 +255,8 @@ struct SymKeyHashFunc
 		int kidx = 0;
 		for (; ki < ke; ++ki,++kidx)
 		{
-			hh = ((hh << 3) + (hh >> 7)) * har[ (hh+kidx) & 15] + har[ hh >> 4];
+			int aa = (*ki+hh+kidx) & 0xFF;
+			hh = ((hh << 3) + (hh >> 7)) * har[ aa & 15] + har[ (aa >> 4) & 15];
 		}
 		return hh;
 	}
@@ -346,7 +347,7 @@ struct papuga_RequestHandler
 	int allocator_membuf[ 1024];
 
 	explicit papuga_RequestHandler( const papuga_ClassDef* classdefs_)
-		:contextmap(),schemes(NULL),classmethodmap(NULL),classmethodmapsize(nofClassDefs(classdefs_))
+		:contextmap(new RequestContextMap()),schemes(NULL),classmethodmap(NULL),classmethodmapsize(nofClassDefs(classdefs_)),classdefs(classdefs_)
 	{
 		papuga_init_Allocator( &allocator, allocator_membuf, sizeof(allocator_membuf));
 		std::size_t classmethodmapmem = (classmethodmapsize+1) * sizeof(RequestMethodList*);
@@ -363,7 +364,15 @@ struct papuga_RequestHandler
 
 extern "C" papuga_RequestContext* papuga_create_RequestContext()
 {
-	return new (std::nothrow)papuga_RequestContext();
+	try
+	{
+		return new papuga_RequestContext();
+	}
+	catch (...)
+	{
+		return NULL;
+	}
+
 }
 
 extern "C" void papuga_destroy_RequestContext( papuga_RequestContext* self)
@@ -438,7 +447,14 @@ extern "C" bool papuga_RequestContext_inherit( papuga_RequestContext* self, cons
 
 extern "C" papuga_RequestHandler* papuga_create_RequestHandler( const papuga_ClassDef* classdefs)
 {
-	return new (std::nothrow)papuga_RequestHandler( classdefs);
+	try
+	{
+		return new papuga_RequestHandler( classdefs);
+	}
+	catch (...)
+	{
+		return NULL;
+	}
 }
 
 extern "C" void papuga_destroy_RequestHandler( papuga_RequestHandler* self)
