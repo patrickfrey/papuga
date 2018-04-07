@@ -127,7 +127,7 @@ public:
 	}
 	bool merge( const RequestVariableMap& map)
 	{
-		std::vector<RequestVariableRef>::const_iterator vi = m_impl.begin(), ve = m_impl.end();
+		std::vector<RequestVariableRef>::const_iterator vi = map.m_impl.begin(), ve = map.m_impl.end();
 		for (; vi != ve; ++vi)
 		{
 			if (findVariable( vi->get()->name)) return false;
@@ -266,33 +266,35 @@ typedef papuga::shared_ptr<papuga_RequestContext> RequestContextRef;
 typedef papuga::unordered_map<SymKey,RequestContextRef,SymKeyHashFunc,MapSymKeyEqual> RequestContextTab;
 struct RequestContextMap
 {
-	RequestContextTab tab;
 	std::list<std::string> keylist;
+	RequestContextTab tab;
 
+	~RequestContextMap(){}
 	RequestContextMap()
-		:tab(),keylist(){}
+		:keylist(),tab(){}
 	RequestContextMap( const RequestContextMap& o)
-		:tab(),keylist()
+		:keylist(),tab()
 	{
 		RequestContextTab::const_iterator ti = tab.begin(), te = tab.end();
 		for (; ti != te; ++ti)
 		{
-			const SymKey& key = ti->first;
-			keylist.push_back( std::string( key.str, key.len));
-			SymKey keycopy( keylist.back().c_str(), keylist.back().size());
-			tab[ keycopy] = ti->second;
+			tab[ allocKey( ti->first)] = ti->second;
 		}
 	}
-	RequestContextRef& create( const SymKey& key)
+	void addOwnership( const SymKey& key, papuga_RequestContext* context)
 	{
-		keylist.push_back( std::string( key.str, key.len));
-		SymKey kk( keylist.back().c_str(), keylist.back().size());
-		return tab[ kk];
+		tab[ allocKey( key)].reset( context);
 	}
 	const papuga_RequestContext* operator[]( const SymKey& key) const
 	{
 		RequestContextTab::const_iterator mi = tab.find( key);
 		return mi == tab.end() ? NULL : mi->second.get();
+	}
+private:
+	SymKey allocKey( const SymKey& key)
+	{
+		keylist.push_back( std::string( key.str, key.len));
+		return SymKey( keylist.back().c_str(), keylist.back().size());
 	}
 };
 
@@ -306,9 +308,8 @@ static void RequestContextMap_transfer( RequestContextMapRef& cm, const char* ty
 	SymKey key = SymKey::create( keybuf, sizeof(keybuf), type, name);
 	RequestContextMapRef cm_ref( cm);
 	RequestContextMapRef cm_copy( new RequestContextMap( *cm_ref));
-	RequestContextRef& elem = cm_copy->create( key);
-	elem.reset( context);
-	elem->varmap.removeLocalVariables();
+	cm_copy->addOwnership( key, context);
+	context->varmap.removeLocalVariables();
 	cm = cm_copy;
 }
 
