@@ -15,6 +15,7 @@
 #include "papuga/allocator.h"
 #include "papuga/serialization.h"
 #include "papuga/valueVariant.h"
+#include "papuga/valueVariant.hpp"
 #include "papuga/errors.h"
 #include "papuga/callResult.h"
 #include "private/shared_ptr.hpp"
@@ -216,6 +217,18 @@ struct papuga_RequestContext
 	papuga_RequestContext( const papuga_RequestContext& o)
 		:errcode(o.errcode),varmap(o.varmap){}
 	~papuga_RequestContext(){}
+
+	std::string tostring() const
+	{
+		std::ostringstream out;
+		RequestVariableMap::const_iterator vi = varmap.begin(), ve = varmap.end();
+		for (; vi != ve; ++vi)
+		{
+			papuga_ErrorCode errcode_local = papuga_Ok;
+			out << (*vi)->name << "=" << papuga::ValueVariant_tostring( (*vi)->value, errcode_local) << std::endl;
+		}
+		return out.str();
+	}
 };
 
 struct SymKey
@@ -275,7 +288,7 @@ struct RequestContextMap
 	RequestContextMap( const RequestContextMap& o)
 		:keylist(),tab()
 	{
-		RequestContextTab::const_iterator ti = tab.begin(), te = tab.end();
+		RequestContextTab::const_iterator ti = o.tab.begin(), te = o.tab.end();
 		for (; ti != te; ++ti)
 		{
 			tab[ allocKey( ti->first)] = ti->second;
@@ -290,6 +303,19 @@ struct RequestContextMap
 		RequestContextTab::const_iterator mi = tab.find( key);
 		return mi == tab.end() ? NULL : mi->second.get();
 	}
+
+	std::string tostring() const
+	{
+		std::ostringstream out;
+		RequestContextTab::const_iterator ci = tab.begin(), ce = tab.end();
+		for (; ci != ce; ++ci)
+		{
+			out << std::string(ci->first.str,ci->first.len) << ":" << std::endl;
+			out << ci->second->tostring() << std::endl;
+		}
+		return out.str();
+	}
+
 private:
 	SymKey allocKey( const SymKey& key)
 	{
@@ -658,7 +684,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 	papuga_Allocator exec_allocator;
 	int membuf_allocator[ 1024];
 	papuga_init_Allocator( &exec_allocator, &membuf_allocator, sizeof(membuf_allocator));
-	
+
 	try
 	{
 		char membuf_err[ 1024];
@@ -862,6 +888,5 @@ extern "C" bool papuga_Serialization_serialize_request_result( papuga_Serializat
 	}
 	return rt;
 }
-
 
 
