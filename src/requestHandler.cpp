@@ -28,6 +28,8 @@
 #include <unordered_map>
 #include <stdexcept>
 #include <cstdio>
+#include <iostream>
+#include <sstream>
 
 /* @brief Hook for GETTEXT */
 #define _TXT(x) x
