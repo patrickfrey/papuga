@@ -9,7 +9,11 @@
 #define _STRUS_INTERNATIONALIZATION_H_INCLUDED
 #include <libintl.h>
 
+#ifdef __cplusplus
+#define _TXT(STRING) const_cast<const char*>(gettext(STRING))
+#else
 #define _TXT(STRING) gettext(STRING)
+#endif
 
 #ifdef __cplusplus
 extern "C" {
