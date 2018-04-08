@@ -1171,7 +1171,7 @@ extern "C" void* papuga_ValueVariant_tohtml5(
 		hdr.append( hdrbuf);
 		hdr.append( head);
 		hdr.append( "</head>\n<body>\n");
-		return ValueVariant_tomarkup( self, StyleHTML, allocator, structdefs, enc, rootname, elemname, hdrbuf, "\n</body>\n</html>", len, err);
+		return ValueVariant_tomarkup( self, StyleHTML, allocator, structdefs, enc, rootname, elemname, hdr.c_str(), "\n</body>\n</html>", len, err);
 	}
 	catch (const std::bad_alloc&)
 	{
