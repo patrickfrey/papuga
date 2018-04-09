@@ -304,6 +304,8 @@ void* papuga_ValueVariant_toxml(
 * @param[in] enc encoding of the output
 * @param[in] rootname name of root element
 * @param[in] elemname optional name of element in case of an array
+* @param[in] head additionl elements in the HTML head, e.g. style, or NULL if not defined
+* @param[in] href_base to declare as document root for links or NULL if not defined
 * @param[out] len length of the output in character units, depending on the encoding specified
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the dumped HTML (allocated in result allocator) on success, NULL on failure
@@ -316,6 +318,7 @@ void* papuga_ValueVariant_tohtml5(
 		const char* rootname,
 		const char* elemname,
 		const char* head,
+		const char* href_base,
 		size_t* len,
 		papuga_ErrorCode* err);
 

@@ -87,7 +87,6 @@ struct RequestVariable
 	papuga_Allocator allocator;
 	const char* name;				/*< name of variable associated with this value */
 	papuga_ValueVariant value;			/*< variable value associated with this name */
-	int inheritcnt;					/*< counter how many times variable value has been inherited */
 	int allocatormem[ 128];				/*< memory buffer used for allocator */
 
 private:
@@ -96,11 +95,22 @@ private:
 		papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
 		name = NULL;
 		papuga_init_ValueVariant( &value);
-		inheritcnt = 0;
 	}
 };
 
-typedef papuga::shared_ptr<RequestVariable> RequestVariableRef;
+struct RequestVariableRef
+{
+	papuga::shared_ptr<RequestVariable> ptr;	/*< pointer to variable */
+	int inheritcnt;					/*< counter of inheritance */
+
+	RequestVariableRef( const char* name)
+		:ptr(new RequestVariable(name)),inheritcnt(0){}
+	RequestVariableRef( const RequestVariableRef& o, bool incrementInheritCnt=false)
+		:ptr(o.ptr),inheritcnt(o.inheritcnt)
+	{
+		if (incrementInheritCnt) ++inheritcnt;
+	}
+};
 
 static bool isLocalVariable( const char* name)
 {
@@ -120,9 +130,10 @@ public:
 		:m_impl(o.m_impl){}
 	~RequestVariableMap(){}
 
-	void add( const RequestVariableRef& var)
+	RequestVariable* create( const char* name)
 	{
-		m_impl.push_back( var);
+		m_impl.push_back( RequestVariableRef( name));
+		return m_impl.back().ptr.get();
 	}
 	void append( const RequestVariableMap& map)
 	{
@@ -133,8 +144,8 @@ public:
 		std::vector<RequestVariableRef>::const_iterator vi = map.m_impl.begin(), ve = map.m_impl.end();
 		for (; vi != ve; ++vi)
 		{
-			if (findVariable( vi->get()->name)) return false;
-			add( *vi);
+			if (findVariable( vi->ptr->name)) return false;
+			m_impl.push_back( RequestVariableRef( *vi, true));
 		}
 		return true;
 	}
@@ -153,7 +164,7 @@ public:
 		std::vector<RequestVariableRef>::iterator vi = m_impl.begin(), ve = m_impl.end();
 		while (vi != ve)
 		{
-			if (isLocalVariable( vi->get()->name))
+			if (isLocalVariable( vi->ptr->name))
 			{
 				m_impl.erase( vi);
 			}
@@ -166,22 +177,20 @@ public:
 	const papuga_ValueVariant* findVariable( const char* name) const
 	{
 		std::vector<RequestVariableRef>::const_iterator vi = m_impl.begin(), ve = m_impl.end();
-		for (; vi != ve; ++vi) if (0==std::strcmp( vi->get()->name, name)) break;
-		return (vi == ve) ? NULL : &vi->get()->value;
+		for (; vi != ve; ++vi) if (0==std::strcmp( vi->ptr->name, name)) break;
+		return (vi == ve) ? NULL : &vi->ptr->value;
 	}
-	RequestVariableRef getOrCreate( const char* name)
+	RequestVariable* getOrCreate( const char* name)
 	{
 		std::vector<RequestVariableRef>::const_iterator vi = m_impl.begin(), ve = m_impl.end();
-		for (; vi != ve; ++vi) if (0==std::strcmp( vi->get()->name, name)) break;
+		for (; vi != ve; ++vi) if (0==std::strcmp( vi->ptr->name, name)) break;
 		if (vi == ve)
 		{
-			RequestVariableRef rt( new RequestVariable( name));
-			add( rt);
-			return rt;
+			return create( name);
 		}
 		else
 		{
-			return *vi;
+			return vi->ptr.get();
 		}
 	}
 	const char** listVariables( int max_inheritcnt, char const** buf, size_t bufsize) const
@@ -191,14 +200,13 @@ public:
 		for (; vi != ve; ++vi)
 		{
 			if (bufpos >= bufsize) return NULL;
-			if (max_inheritcnt >= 0 && vi->get()->inheritcnt > max_inheritcnt) continue;
-			buf[ bufpos++] = vi->get()->name;
+			if (max_inheritcnt >= 0 && vi->inheritcnt > max_inheritcnt) continue;
+			buf[ bufpos++] = vi->ptr->name;
 		}
 		if (bufpos >= bufsize) return NULL;
 		buf[ bufpos] = NULL;
 		return buf;
 	}
-
 private:
 	std::vector<RequestVariableRef> m_impl;
 };
@@ -227,7 +235,7 @@ struct papuga_RequestContext
 		for (; vi != ve; ++vi)
 		{
 			papuga_ErrorCode errcode_local = papuga_Ok;
-			out << (*vi)->name << "=" << papuga::ValueVariant_tostring( (*vi)->value, errcode_local) << std::endl;
+			out << vi->ptr->name << "=" << papuga::ValueVariant_tostring( vi->ptr->value, errcode_local) << std::endl;
 		}
 		return out.str();
 	}
@@ -299,6 +307,7 @@ struct RequestContextMap
 	void addOwnership( const SymKey& key, papuga_RequestContext* context)
 	{
 		tab[ allocKey( key)].reset( context);
+		
 	}
 	const papuga_RequestContext* operator[]( const SymKey& key) const
 	{
@@ -425,8 +434,8 @@ extern "C" bool papuga_RequestContext_add_variable( papuga_RequestContext* self,
 {
 	try
 	{
-		RequestVariableRef varref = self->varmap.getOrCreate( name);
-		return papuga_Allocator_deepcopy_value( &varref->allocator, &varref->value, value, true/*movehostobj*/, &self->errcode);
+		RequestVariable* var = self->varmap.getOrCreate( name);
+		return papuga_Allocator_deepcopy_value( &var->allocator, &var->value, value, true/*movehostobj*/, &self->errcode);
 	}
 	catch (...)
 	{
@@ -653,19 +662,19 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 	}
 }
 
-static bool RequestVariable_add_result( RequestVariableRef& var, papuga_ValueVariant& resultvalue, bool appendresult, papuga_ErrorCode& errcode)
+static bool RequestVariable_add_result( RequestVariable& var, papuga_ValueVariant& resultvalue, bool appendresult, papuga_ErrorCode& errcode)
 {
 	if (appendresult)
 	{
-		if (!papuga_ValueVariant_defined( &var->value))
+		if (!papuga_ValueVariant_defined( &var.value))
 		{
-			papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( &var->allocator);
+			papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( &var.allocator);
 			if (!ser) throw std::bad_alloc();
-			papuga_init_ValueVariant_serialization( &var->value, ser);
+			papuga_init_ValueVariant_serialization( &var.value, ser);
 		}
-		if (var->value.valuetype == papuga_TypeSerialization)
+		if (var.value.valuetype == papuga_TypeSerialization)
 		{
-			if (!papuga_Serialization_pushValue( var->value.value.serialization, &resultvalue)) throw std::bad_alloc();
+			if (!papuga_Serialization_pushValue( var.value.value.serialization, &resultvalue)) throw std::bad_alloc();
 		}
 		else
 		{
@@ -675,7 +684,7 @@ static bool RequestVariable_add_result( RequestVariableRef& var, papuga_ValueVar
 	}
 	else
 	{
-		papuga_init_ValueVariant_value( &var->value, &resultvalue);
+		papuga_init_ValueVariant_value( &var.value, &resultvalue);
 	}
 	return true;
 }
@@ -705,14 +714,14 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 
 		while (!!(call = papuga_RequestIterator_next_call( itr, context)))
 		{
-			RequestVariableRef var;
+			RequestVariable* var;
 			if (call->resultvarname)
 			{
 				var = context->varmap.getOrCreate( call->resultvarname);
 			}
 			else
 			{
-				var.reset( new RequestVariable());
+				var = NULL;
 			}
 			if (call->methodid.functionid == 0)
 			{
@@ -734,31 +743,41 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					papuga_destroy_RequestIterator( itr);
 					return false;
 				}
-				// [2] Assign the result value to a variant type variable:
-				papuga_Deleter destroy_hobj = classdefs[ call->methodid.classid-1].destructor;
-				papuga_HostObject* hobj = papuga_Allocator_alloc_HostObject( &var->allocator, call->methodid.classid, self, destroy_hobj);
-				if (!hobj)
+				// [2] Assign the result value to a variant type variable and log the call:
+				if (var)
 				{
-					destroy_hobj( self);
-					throw std::bad_alloc();
-				}
-				papuga_ValueVariant resultvalue;
-				papuga_init_ValueVariant_hostobj( &resultvalue, hobj);
+					papuga_Deleter destroy_hobj = classdefs[ call->methodid.classid-1].destructor;
+					papuga_HostObject* hobj = papuga_Allocator_alloc_HostObject( &var->allocator, call->methodid.classid, self, destroy_hobj);
+					if (!hobj)
+					{
+						destroy_hobj( self);
+						throw std::bad_alloc();
+					}
+					papuga_ValueVariant resultvalue;
+					papuga_init_ValueVariant_hostobj( &resultvalue, hobj);
 
-				// [3] Add the result to the result variable:
-				if (!RequestVariable_add_result( var, resultvalue, call->appendresult, errcode))
-				{
-					break;
+					if (!RequestVariable_add_result( *var, resultvalue, call->appendresult, errcode))
+					{
+						break;
+					}
+					if (logger->logMethodCall)
+					{
+						(*logger->logMethodCall)( logger->self, 4,
+							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+							papuga_LogItemArgc, call->args.argc,
+							papuga_LogItemArgv, &call->args.argv[0],
+							papuga_LogItemResult, &resultvalue);
+					}
 				}
-
-				// [4] Log the call:
-				if (logger->logMethodCall)
+				else
 				{
-					(*logger->logMethodCall)( logger->self, 4,
-						papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
-						papuga_LogItemArgc, call->args.argc,
-						papuga_LogItemArgv, &call->args.argv[0],
-						papuga_LogItemResult, &resultvalue);
+					if (logger->logMethodCall)
+					{
+						(*logger->logMethodCall)( logger->self, 3,
+							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+							papuga_LogItemArgc, call->args.argc,
+							papuga_LogItemArgv, &call->args.argv[0]);
+					}
 				}
 			}
 			else
@@ -779,7 +798,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				// [2] Call the method and report an error on failure:
 				void* self = selfvalue->value.hostObject->data;
 				papuga_CallResult retval;
-				papuga_init_CallResult( &retval, &var->allocator, false/*ownership*/, membuf_err, sizeof(membuf_err));
+				papuga_init_CallResult( &retval, var ? &var->allocator : &exec_allocator, false/*ownership*/, membuf_err, sizeof(membuf_err));
 				if (!(*func)( self, &retval, call->args.argc, call->args.argv))
 				{
 					if (logger->logMethodCall)
@@ -796,62 +815,73 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					return false;
 				}
 				// [3] Fetch the result(s) if required (stored as variable):
-				papuga_ValueVariant resultvalue;
-				if (retval.nofvalues == 0)
+				if (var)
 				{
-					papuga_init_ValueVariant( &resultvalue);
-				}
-				else if (retval.nofvalues == 1)
-				{
-					papuga_init_ValueVariant_value( &resultvalue, &retval.valuear[0]);
-				}
-				else
-				{
-					// ... handle multiple return values as a serialization:
-					int vi = 0, ve = retval.nofvalues;
-					papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( &var->allocator);
-					bool sc = true;
-					if (ser)
+					papuga_ValueVariant resultvalue;
+					if (retval.nofvalues == 0)
 					{
-						sc &= papuga_Serialization_pushOpen( ser);
-						for (; vi < ve; ++vi)
-						{
-							sc &= papuga_Serialization_pushValue( ser, retval.valuear + vi);
-						}
-						sc &= papuga_Serialization_pushClose( ser);
+						papuga_init_ValueVariant( &resultvalue);
 					}
-					if (!ser || !sc)
+					else if (retval.nofvalues == 1)
 					{
-						errcode = papuga_NoMemError;
-						break;
-					}
-					papuga_init_ValueVariant_serialization( &resultvalue, ser);
-				}
-				// [4] Add the result to the result variable:
-				if (!RequestVariable_add_result( var, resultvalue, call->appendresult, errcode))
-				{
-					break;
-				}
-				// [5] Log the call
-				if (logger->logMethodCall)
-				{
-					if (papuga_ValueVariant_defined( &resultvalue))
-					{
-						(*logger->logMethodCall)( logger->self, 5, 
-									papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
-									papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
-									papuga_LogItemArgc, call->args.argc,
-									papuga_LogItemArgv, &call->args.argv[0],
-									papuga_LogItemResult, &resultvalue);
+						papuga_init_ValueVariant_value( &resultvalue, &retval.valuear[0]);
 					}
 					else
 					{
-						(*logger->logMethodCall)( logger->self, 4, 
-								papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
-								papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
-								papuga_LogItemArgc, call->args.argc,
-								papuga_LogItemArgv, &call->args.argv[0]);
+						// ... handle multiple return values as a serialization:
+						int vi = 0, ve = retval.nofvalues;
+						papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( &var->allocator);
+						bool sc = true;
+						if (ser)
+						{
+							sc &= papuga_Serialization_pushOpen( ser);
+							for (; vi < ve; ++vi)
+							{
+								sc &= papuga_Serialization_pushValue( ser, retval.valuear + vi);
+							}
+							sc &= papuga_Serialization_pushClose( ser);
+						}
+						if (!ser || !sc)
+						{
+							errcode = papuga_NoMemError;
+							break;
+						}
+						papuga_init_ValueVariant_serialization( &resultvalue, ser);
 					}
+					// [4] Add the result to the result variable:
+					if (!RequestVariable_add_result( *var, resultvalue, call->appendresult, errcode))
+					{
+						break;
+					}
+					// [5] Log the call
+					if (logger->logMethodCall)
+					{
+						if (papuga_ValueVariant_defined( &resultvalue))
+						{
+							(*logger->logMethodCall)( logger->self, 5, 
+										papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+										papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
+										papuga_LogItemArgc, call->args.argc,
+										papuga_LogItemArgv, &call->args.argv[0],
+										papuga_LogItemResult, &resultvalue);
+						}
+						else
+						{
+							(*logger->logMethodCall)( logger->self, 4, 
+									papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+									papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
+									papuga_LogItemArgc, call->args.argc,
+									papuga_LogItemArgv, &call->args.argv[0]);
+						}
+					}
+				}
+				else
+				{
+					(*logger->logMethodCall)( logger->self, 4, 
+							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
+							papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
+							papuga_LogItemArgc, call->args.argc,
+							papuga_LogItemArgv, &call->args.argv[0]);
 				}
 			}
 		}
@@ -884,9 +914,9 @@ extern "C" bool papuga_Serialization_serialize_request_result( papuga_Serializat
 	RequestVariableMap::const_iterator vi = context->varmap.begin(), ve = context->varmap.end();
 	for (; vi != ve; ++vi)
 	{
-		if (isLocalVariable( (*vi)->name) || (*vi)->inheritcnt > 0 || (*vi)->value.valuetype == papuga_TypeHostObject) continue;
-		rt &= papuga_Serialization_pushName_charp( self, (*vi)->name);
-		rt &= papuga_Serialization_pushValue( self, &(*vi)->value);
+		if (isLocalVariable( vi->ptr->name) || vi->inheritcnt > 0 || vi->ptr->value.valuetype == papuga_TypeHostObject) continue;
+		rt &= papuga_Serialization_pushName_charp( self, vi->ptr->name);
+		rt &= papuga_Serialization_pushValue( self, &vi->ptr->value);
 	}
 	return rt;
 }

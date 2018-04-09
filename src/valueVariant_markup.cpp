@@ -24,6 +24,11 @@
 #include <iostream>
 #include <sstream>
 
+static bool isEqual( const char* name, const char* oth)
+{
+	return (name[0] == oth[0] && 0==std::strcmp( name, oth));
+}
+
 static void* encodeRequestResultString( const std::string& out, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
 {
 	if (enc == papuga_UTF8)
@@ -397,6 +402,37 @@ static bool append_value( OutputContext& ctx, const papuga_ValueVariant& value)
 	return true;
 }
 
+static bool append_value_basename( OutputContext& ctx, const papuga_ValueVariant& value)
+{
+	if (value.valuetype == papuga_TypeString)
+	{
+		char const* pt;
+		std::size_t ptlen;
+		std::string utf8string;
+		if ((papuga_StringEncoding)value.encoding == papuga_UTF8)
+		{
+			pt = value.value.string;
+			ptlen = value.length;
+		}
+		else
+		{
+			if (!papuga::ValueVariant_append_string( utf8string, value, ctx.errcode)) return false;
+			pt = utf8string.c_str();
+			ptlen = utf8string.size();
+		}
+		char const* ptstart = pt;
+		char const* pti = std::strchr( pt, '/');
+		for (; pti; pt=pti+1,pti=std::strchr( pt, '/')){}
+		ptlen -= pt - ptstart;
+		append_encoded_entities_as_string( ctx, pt, ptlen);
+	}
+	else
+	{
+		if (!papuga::ValueVariant_append_string( ctx.out, value, ctx.errcode)) return false;
+	}
+	return true;
+}
+
 static void append_null_value( OutputContext& ctx)
 {
 	switch (ctx.styleType)
@@ -427,15 +463,28 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 			ctx.out.append( "<div class=\"");
 			ctx.out.append( name);
 			ctx.out.append( "\">");
-			if (ctx.titleVisible())
+			if (isEqual( name, PAPUGA_HTML_LINK_ELEMENT))
 			{
-				ctx.out.append( "<span class=\"name\">");
-				ctx.out.append( name);
+				ctx.out.append( "<a href=\"");
+				if (!append_value( ctx, value)) return false;
+				ctx.out.append( "\">");
+				ctx.out.append( "<span class=\"value\">");
+				if (!append_value_basename( ctx, value)) return false;
+				ctx.out.append( "</span>");
+				ctx.out.append( "</a>");
+			}
+			else
+			{
+				if (ctx.titleVisible())
+				{
+					ctx.out.append( "<span class=\"name\">");
+					ctx.out.append( name);
+					ctx.out.append( "</span>");
+				}
+				ctx.out.append( "<span class=\"value\">");
+				if (!append_value( ctx, value)) return false;
 				ctx.out.append( "</span>");
 			}
-			ctx.out.append( "<span class=\"value\">");
-			if (!append_value( ctx, value)) return false;
-			ctx.out.append( "</span>");
 			ctx.out.append( "</div>");
 			break;
 		case StyleTEXT:
@@ -1159,6 +1208,7 @@ extern "C" void* papuga_ValueVariant_tohtml5(
 		const char* rootname,
 		const char* elemname,
 		const char* head,
+		const char* href_base,
 		size_t* len,
 		papuga_ErrorCode* err)
 {
@@ -1167,9 +1217,19 @@ extern "C" void* papuga_ValueVariant_tohtml5(
 		std::string hdr;
 		char hdrbuf[ 512];
 
-		std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"%s\"/>\n", papuga_StringEncoding_name( enc));
+		if (href_base)
+		{
+			std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"%s\"/>\n<base href=\"%s\"/>\n", papuga_StringEncoding_name( enc), href_base);
+		}
+		else
+		{
+			std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"%s\"/>\n", papuga_StringEncoding_name( enc));
+		}
 		hdr.append( hdrbuf);
-		hdr.append( head);
+		if (head)
+		{
+			hdr.append( head);
+		}
 		hdr.append( "</head>\n<body>\n");
 		return ValueVariant_tomarkup( self, StyleHTML, allocator, structdefs, enc, rootname, elemname, hdr.c_str(), "\n</body>\n</html>", len, err);
 	}

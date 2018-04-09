@@ -13,14 +13,20 @@
 */
 
 /*
-* @brief Maximum number of elements printed for serialized iterator contents in XML,JSON,etc.
-*/
+ * @brief Maximum number of elements printed for serialized iterator contents in XML,JSON,etc.
+ */
 #define PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH 100
 
 /*
-* @brief Maximum depth of recursion in recursive expansions with a small per iteration footprint (<= 256 bytes) on the stack (like XML,JSON mapping)
-*/
+ * @brief Maximum depth of recursion in recursive expansions (like XML,JSON mapping) to avoid stack overflow
+ */
 #define PAPUGA_MAX_RECURSION_DEPTH 200
 
+/*
+ * @brief Name of element mapped to a link in case of HTML output
+ */
+#define PAPUGA_HTML_LINK_ELEMENT "link"
+
 #endif
+
 
