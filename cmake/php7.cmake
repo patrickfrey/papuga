@@ -92,49 +92,10 @@ endif( PHPCANDIDATE AND NOT PHPCANDIDATE STREQUAL "PHPCANDIDATE-NOTFOUND" )
 endif (NOT PHP7_EXECUTABLE)
 endmacro( EXEC_FIND_PROGRAM  _prgname )
 
-if (APPLE)
-if (NOT PHP7_EXECUTABLE)
-execute_process( COMMAND  brew  --prefix  php70
-			   RESULT_VARIABLE  RET_PHP_PATH
-			   OUTPUT_VARIABLE  PHP_INSTALL_PATH
-			   OUTPUT_STRIP_TRAILING_WHITESPACE )
-if( ${RET_PHP_PATH} STREQUAL "" OR ${RET_PHP_PATH} STREQUAL "0" )
-CHECK_PHP7_EXECUTABLE( "${PHP_INSTALL_PATH}/bin/php" )
-CHECK_PHP7_EXECUTABLE( "${PHP_INSTALL_PATH}/bin/php7" )
-CHECK_PHP7_EXECUTABLE( "${PHP_INSTALL_PATH}/bin/php70" )
-CHECK_PHP7_EXECUTABLE( "${PHP_INSTALL_PATH}/bin/php71" )
-else( ${RET_PHP_PATH} STREQUAL "" OR ${RET_PHP_PATH} STREQUAL "0" )
-MESSAGE( STATUS "Call 'brew  --prefix  php7' returns '${RET_PHP_PATH}' result '${PHP_INSTALL_PATH}' " )
-endif( ${RET_PHP_PATH} STREQUAL "" OR ${RET_PHP_PATH} STREQUAL "0" )
-endif (NOT PHP7_EXECUTABLE)
-
-if (NOT PHP7_EXECUTABLE)
-execute_process( COMMAND  brew  --cellar  php7
-			   RESULT_VARIABLE  RET_PHP_PATH
-			   OUTPUT_VARIABLE  PHP_INSTALL_PATH
-			   OUTPUT_STRIP_TRAILING_WHITESPACE )
-if( ${RET_PHP_PATH} STREQUAL "" OR ${RET_PHP_PATH} STREQUAL "0" )
-file( GLOB  _prglist  "${PHP_INSTALL_PATH}/*/bin/php" )
-foreach( _prg ${_prglist} )
-CHECK_PHP7_EXECUTABLE( ${_prg} )
-if( PHP7_EXECUTABLE )
-break()
-endif( PHP7_EXECUTABLE )
-endforeach( _prg )
-MESSAGE( STATUS "Hint (cellar) found to installation path of php7: '${PHP_INSTALL_PATH}' " )
-else( ${RET_PHP_PATH} STREQUAL "" OR ${RET_PHP_PATH} STREQUAL "0" )
-MESSAGE( STATUS "Call 'brew  --cellar  php7' returns '${RET_PHP_PATH}' result '${PHP_INSTALL_PATH}' " )
-endif( ${RET_PHP_PATH} STREQUAL "" OR ${RET_PHP_PATH} STREQUAL "0" )
-endif (NOT PHP7_EXECUTABLE)
-
-else (APPLE)
-
 foreach( PHPVERSION "7.9" "7.8" "7.7" "7.6" "7.5" "7.4" "7.3" "7.2" "7.1" "7.0" "7" "" )
 EXEC_FIND_PROGRAM( "php${PHPVERSION}" )
 EXEC_FIND_BY_COMMAND( "which" "php${PHPVERSION}" )
 endforeach( PHPVERSION "7.9" "7.8" "7.7" "7.6" "7.5" "7.4" "7.3" "7.2" "7.1" "7.0" "7" "" )
-
-endif (APPLE)
 
 if( PHP7_EXECUTABLE )
 MESSAGE( STATUS "PHP 7.x executable: ${PHP7_EXECUTABLE}" )
