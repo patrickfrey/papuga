@@ -57,7 +57,7 @@ static void define_method(
 				"return NULL;",
 			"}",
 			"papuga_init_Allocator( &allocator, membuf_retv, sizeof(membuf_retv));",
-			"papuga_init_CallResult( &retstruct, &allocator, true, membuf_err, sizeof(membuf_err));",
+			"papuga_init_CallResult( &retstruct, &allocator, true/*allocator ownership*/, membuf_err, sizeof(membuf_err));",
 			"if (!{funcname}( self, &retstruct, argstruct.argc, argstruct.argv))",
 			"{",
 				"msg = papuga_CallResult_lastError( &retstruct);",

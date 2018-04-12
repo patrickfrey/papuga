@@ -589,7 +589,7 @@ static bool Iterator_tomarkup( OutputContext& ctx, const char* name, papuga_Iter
 	papuga_init_Allocator( &allocator, result_mem, sizeof(result_mem));
 	try
 	{
-		papuga_init_CallResult( &result, &allocator, false, error_mem, sizeof(error_mem));
+		papuga_init_CallResult( &result, &allocator, false/*allocator ownership*/, error_mem, sizeof(error_mem));
 		
 		while (itercnt++ < PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH && rt && iterator->getNext( iterator->data, &result))
 		{
@@ -597,12 +597,11 @@ static bool Iterator_tomarkup( OutputContext& ctx, const char* name, papuga_Iter
 			papuga_destroy_CallResult( &result);
 			papuga_destroy_Allocator( &allocator);
 			papuga_init_Allocator( &allocator, result_mem, sizeof(result_mem));
-			papuga_init_CallResult( &result, &allocator, false, error_mem, sizeof(error_mem));
+			papuga_init_CallResult( &result, &allocator, false/*allocator ownership*/, error_mem, sizeof(error_mem));
 		}
 	}
 	catch (...)
 	{
-		papuga_destroy_Allocator( &allocator);
 		ctx.errcode = papuga_NoMemError;
 		rt = false;
 	}
@@ -611,6 +610,7 @@ static bool Iterator_tomarkup( OutputContext& ctx, const char* name, papuga_Iter
 		ctx.errcode = papuga_IteratorFailed;
 		rt = false;
 	}
+	papuga_destroy_Allocator( &allocator);
 	++ctx.maxDepth;
 	return rt;
 }

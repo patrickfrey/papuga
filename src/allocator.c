@@ -386,7 +386,7 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 			int itercnt = 0;
 
 			papuga_init_Allocator( &iter_allocator, result_buf, sizeof(result_buf));
-			papuga_init_CallResult( &result, &iter_allocator, true, error_buf, sizeof(error_buf));
+			papuga_init_CallResult( &result, &iter_allocator, true/*allocator ownership*/, error_buf, sizeof(error_buf));
 			while (itercnt++ < PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH && iterator->getNext( iterator->data, &result))
 			{
 				bool sc = papuga_Serialization_pushOpen( dest);
@@ -399,13 +399,15 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 				papuga_destroy_CallResult( &result);
 				if (!sc) goto ERROR;
 				papuga_init_Allocator( &iter_allocator, result_buf, sizeof(result_buf));
-				papuga_init_CallResult( &result, &iter_allocator, true, error_buf, sizeof(error_buf));
+				papuga_init_CallResult( &result, &iter_allocator, true/*allocator ownership*/, error_buf, sizeof(error_buf));
 			}
 			if (papuga_CallResult_hasError( &result))
 			{
+				papuga_destroy_CallResult( &result);
 				*errcode = papuga_IteratorFailed;
 				goto ERROR;
 			}
+			papuga_destroy_CallResult( &result);
 		}
 	}
 	return true;

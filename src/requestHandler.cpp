@@ -707,6 +707,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		if (!itr)
 		{
 			papuga_ErrorBuffer_reportError( errorbuf, _TXT("error handling request: %s"), papuga_ErrorCode_tostring( papuga_NoMemError));
+			papuga_destroy_Allocator( &exec_allocator);
 			return false;
 		}
 		papuga_init_ErrorBuffer( &errorbuf_call, membuf_err, sizeof(membuf_err));
@@ -741,6 +742,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &errorbuf_call));
 					*errorpos = call->eventcnt;
 					papuga_destroy_RequestIterator( itr);
+					papuga_destroy_Allocator( &exec_allocator);
 					return false;
 				}
 				// [2] Assign the result value to a variant type variable and log the call:
@@ -812,6 +814,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &retval.errorbuf));
 					*errorpos = call->eventcnt;
 					papuga_destroy_RequestIterator( itr);
+					papuga_destroy_Allocator( &exec_allocator);
 					return false;
 				}
 				// [3] Fetch the result(s) if required (stored as variable):
@@ -895,14 +898,17 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( errcode));
 			*errorpos = call->eventcnt;
 			papuga_destroy_RequestIterator( itr);
+			papuga_destroy_Allocator( &exec_allocator);
 			return false;
 		}
 		papuga_destroy_RequestIterator( itr);
+		papuga_destroy_Allocator( &exec_allocator);
 		return true;
 	}
 	catch (const std::exception& err)
 	{
 		if (itr) papuga_destroy_RequestIterator( itr);
+		papuga_destroy_Allocator( &exec_allocator);
 		papuga_ErrorBuffer_reportError( errorbuf, _TXT("error handling request: %s"), err.what());
 		return false;
 	}

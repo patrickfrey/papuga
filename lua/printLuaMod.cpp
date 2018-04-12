@@ -100,7 +100,7 @@ static void define_method(
 			"papuga_lua_error( ls, \"{nsclassname}.{methodname}\", arg.errcode);",
 		"}",
 		"papuga_init_Allocator( &allocator, membuf_retv, sizeof(membuf_retv));",
-		"papuga_init_CallResult( &retval, &allocator, true, membuf_err, sizeof(membuf_err));",
+		"papuga_init_CallResult( &retval, &allocator, true/*allocator ownership*/, membuf_err, sizeof(membuf_err));",
 		"if (!{funcname}( arg.self, &retval, arg.argc, arg.argv)) goto ERROR_CALL;",
 		"papuga_destroy_CallArgs( &arg);",
 		"rt = papuga_lua_move_CallResult( ls, &retval, &g_classentrymap, &arg.errcode);",

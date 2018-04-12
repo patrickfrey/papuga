@@ -985,11 +985,11 @@ static bool iteratorFetchNext( IteratorObject* iobj, papuga_ErrorBuffer* errbuf)
 	papuga_Allocator allocator;
 	papuga_CallResult retstruct;
 	char membuf[ 4096];
-	char msgbuf[ 128];
+	char msgbuf[ 256];
 	const char* msg;
 
 	papuga_init_Allocator( &allocator, membuf, sizeof(membuf));
-	papuga_init_CallResult( &retstruct, &allocator, true, msgbuf, sizeof(msgbuf));
+	papuga_init_CallResult( &retstruct, &allocator, true/*allocator ownership*/, msgbuf, sizeof(msgbuf));
 
 	if (iobj->eof && iobj->idx) return false;
 	if (iobj->iterator.getNext( iobj->iterator.data, &retstruct))
@@ -1019,6 +1019,7 @@ static bool iteratorFetchNext( IteratorObject* iobj, papuga_ErrorBuffer* errbuf)
 		}
 		else
 		{
+			papuga_destroy_CallResult( &retstruct);
 			iobj->idx += 1;
 		}
 		iobj->eof = true;
