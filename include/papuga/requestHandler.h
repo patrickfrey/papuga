@@ -155,7 +155,6 @@ const char** papuga_RequestHandler_list_schemes( const papuga_RequestHandler* se
  * @param[in] self this pointer to the request handler
  * @param[in] type type name of the object that is base of this scheme
  * @param[in] name name of the scheme (the tuple [type,name] is identifying the scheme)
- * @param[out] errcode error code in case of error, untouched in case of success
  * @return pointer to automaton on success, NULL if not found
  */
 const papuga_RequestAutomaton* papuga_RequestHandler_get_scheme( const papuga_RequestHandler* self, const char* type, const char* name);
