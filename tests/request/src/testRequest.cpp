@@ -434,11 +434,11 @@ static TestData* createTestData_4()
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, "list", {},
 		{
-			{"/doc/city", "()", (int)CityName},
+			{"/doc/{city,town}", "()", (int)CityName},
 			{"/doc", "obj", 0, C1::constructor(), {} },
 			{{
-				{"/doc/city", "lo", "obj", C1::m2(), {{(int)CityName}} },
-				{"/doc/city", "hi", "obj", C1::m1(), {{(int)CityName}} }
+				{"/doc/{city,town}", "lo", "obj", C1::m2(), {{(int)CityName}} },
+				{"/doc/{city,town}", "hi", "obj", C1::m1(), {{(int)CityName}} }
 			}}
 		});
 	static const char* expected_calls[] = {
