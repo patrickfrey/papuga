@@ -11,6 +11,8 @@
 #include "papuga/classdef.h"
 #include "papuga/request.h"
 #include "papuga/errors.hpp"
+#include "papuga/errors.h"
+#include "private/internationalization.h"
 #include <stdexcept>
 #include <cstdio>
 
@@ -27,7 +29,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm)
 	if (!papuga_RequestAutomaton_add_call( atm, expression, &methodid, selfvar, resultvar, appendresult, args.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add function");
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add function, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
 	}
 	std::vector<RequestAutomaton_FunctionDef::Arg>::const_iterator ai = args.begin(), ae = args.end();
 	for (int aidx=0; ai != ae; ++ai,++aidx)
@@ -37,7 +39,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm)
 			if (!papuga_RequestAutomaton_set_call_arg_var( atm, aidx, ai->varname))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-				if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add variable call arg");
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add variable call arg, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
 			}
 		}
 		else
@@ -45,7 +47,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm)
 			if (!papuga_RequestAutomaton_set_call_arg_item( atm, aidx, ai->itemid, ai->resolvetype, ai->max_tag_diff))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-				if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add item call arg");
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add item call arg, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
 			}
 		}
 	}
@@ -59,7 +61,7 @@ void RequestAutomaton_StructDef::addToAutomaton( papuga_RequestAutomaton* atm) c
 	if (!papuga_RequestAutomaton_add_structure( atm, expression, itemid, elems.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add structure");
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add structure, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
 	}
 	std::vector<RequestAutomaton_StructDef::Element>::const_iterator ei = elems.begin(), ee = elems.end();
 	for (int eidx=0; ei != ee; ++ei,++eidx)
@@ -67,7 +69,7 @@ void RequestAutomaton_StructDef::addToAutomaton( papuga_RequestAutomaton* atm) c
 		if (!papuga_RequestAutomaton_set_structure_element( atm, eidx, ei->name, ei->itemid, ei->resolvetype, ei->max_tag_diff))
 		{
 			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-			if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add structure element");
+			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add structure element, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
 		}
 	}
 }
@@ -80,7 +82,7 @@ void RequestAutomaton_ValueDef::addToAutomaton( papuga_RequestAutomaton* atm) co
 	if (!papuga_RequestAutomaton_add_value( atm, scope_expression, select_expression, itemid))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add value");
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add value, scope expression %s select expression %s: %s"), scope_expression, select_expression, papuga_ErrorCode_tostring(errcode));
 	}
 }
 
@@ -92,7 +94,7 @@ void RequestAutomaton_GroupDef::addToAutomaton( papuga_RequestAutomaton* atm) co
 	if (!papuga_RequestAutomaton_open_group( atm))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton open group");
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton open group: %s"), papuga_ErrorCode_tostring(errcode));
 	}
 	std::vector<RequestAutomaton_FunctionDef>::const_iterator ni = nodes.begin(), ne = nodes.end();
 	for (; ni != ne; ++ni)
@@ -105,7 +107,7 @@ void RequestAutomaton_GroupDef::addToAutomaton( papuga_RequestAutomaton* atm) co
 	if (!papuga_RequestAutomaton_close_group( atm))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton close group");
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton close group: %s"), papuga_ErrorCode_tostring(errcode));
 	}
 }
 
@@ -235,7 +237,7 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papu
 		if (!papuga_RequestAutomaton_inherit_from( m_atm, hi.type.c_str(), hi.name_expression.c_str(), hi.required))
 		{
 			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
-			if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add inherit from");
+			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add inherit from: %s"), papuga_ErrorCode_tostring(errcode));
 		}
 	}
 	for (auto ni : nodes)
@@ -269,7 +271,7 @@ void RequestAutomaton::addInheritContext( const char* typenam, const char* expre
 	if (!papuga_RequestAutomaton_inherit_from( m_atm, typenam, expression, required))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
-		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton add inherit context");
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add inherit context, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
 	}
 }
 
@@ -293,7 +295,7 @@ void RequestAutomaton::openGroup()
 	if (!papuga_RequestAutomaton_open_group( m_atm))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
-		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton open group");
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton open group: %s"), papuga_ErrorCode_tostring(errcode));
 	}
 }
 
@@ -302,7 +304,7 @@ void RequestAutomaton::closeGroup()
 	if (!papuga_RequestAutomaton_close_group( m_atm))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
-		if (errcode != papuga_Ok) throw error_exception( errcode, "request automaton close group");
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton close group: %s"), papuga_ErrorCode_tostring(errcode));
 	}
 }
 
