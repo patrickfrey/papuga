@@ -37,7 +37,10 @@ typedef struct papuga_RequestMethodId
 * \param[in] classdefs class definitions referred to in host object references
  * @return The automaton structure
  */
-papuga_RequestAutomaton* papuga_create_RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* resultname);
+papuga_RequestAutomaton* papuga_create_RequestAutomaton(
+		const papuga_ClassDef* classdefs,
+		const papuga_StructInterfaceDescription* structdefs,
+		const char* resultname);
 
 /*
  * @brief Destroy an automaton

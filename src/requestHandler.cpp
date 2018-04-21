@@ -500,7 +500,7 @@ extern "C" void papuga_destroy_RequestHandler( papuga_RequestHandler* self)
 	delete self;
 }
 
-extern "C" bool papuga_RequestHandler_destroy_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode)
+extern "C" bool papuga_RequestHandler_remove_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode)
 {
 	try
 	{

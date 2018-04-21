@@ -127,7 +127,7 @@ bool papuga_RequestHandler_transfer_context( papuga_RequestHandler* self, const 
  * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false if the addressed context does not exist or in case of an error
  */
-bool papuga_RequestHandler_destroy_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode);
+bool papuga_RequestHandler_remove_context( papuga_RequestHandler* self, const char* type, const char* name, papuga_ErrorCode* errcode);
 
 /*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler
