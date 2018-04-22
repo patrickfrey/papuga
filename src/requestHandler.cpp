@@ -543,7 +543,7 @@ extern "C" bool papuga_RequestHandler_add_scheme( papuga_RequestHandler* self, c
 
 static RequestSchemeList* find_scheme( RequestSchemeList* ll, const char* type, const char* name)
 {
-	for (; ll && (0!=std::strcmp( ll->name, name) || 0!=std::strcmp( ll->type, type)); ll = ll->next){}
+	for (; ll; ll = ll->next){if ((ll->name[0]+ll->type[0]) == (name[0]+type[0]) && 0==std::strcmp( ll->name, name) && 0==std::strcmp( ll->type, type)) break;}
 	return ll;
 }
 
@@ -554,7 +554,7 @@ static const char** RequestHandler_list_all_schemes( const papuga_RequestHandler
 	for (; sl; sl = sl->next)
 	{
 		size_t bi = 0;
-		for (; bi < bufpos && 0!=std::strcmp(buf[bi],sl->type); ++bi){}
+		for (; bi < bufpos; ++bi){if (0==std::strcmp(buf[bi],sl->type)) break;}
 		if (bi < bufpos) continue;
 		if (bufpos >= bufsize) return NULL;
 		buf[ bufpos++] = sl->name;
@@ -613,7 +613,7 @@ extern "C" const papuga_RequestMethodDescription* papuga_RequestHandler_get_meth
 {
 	if (classid == 0 || classid > self->classmethodmapsize) return NULL;
 	RequestMethodList const* ml = self->classmethodmap[ classid-1];
-	for (; ml && ml->method.has_content == with_content && 0!=std::strcmp( ml->name, name); ml = ml->next){}
+	for (; ml; ml = ml->next){if (ml->method.has_content == with_content && ml->name[0] == name[0] && 0==std::strcmp( ml->name, name)) break;}
 	return ml ? &ml->method : NULL;
 }
 
