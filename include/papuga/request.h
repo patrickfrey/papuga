@@ -307,6 +307,7 @@ typedef struct papuga_RequestMethodCall
 	bool appendresult;				/*< wheter to append or to overwrite result */
 	int eventcnt;					/*< event (scope) counter for reproducing error area */
 	int argcnt;					/*< argument index of erroneous parameter or -1*/
+	const char* argpath;				/*< path of the error in the erroneous parameter or NULL */
 	papuga_CallArgs args;				/*< arguments of the call */
 	char membuf[ 4096];				/*< local memory buffer for allocator */
 } papuga_RequestMethodCall;
@@ -343,7 +344,6 @@ const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_Request
  * @return pointer to the method call description (temporary, only valid until the next one is fetched)
  */
 papuga_ErrorCode papuga_RequestIterator_get_last_error( papuga_RequestIterator* self, const papuga_RequestMethodCall** call);
-
 
 /*
  * @brief Map a request to a readable string of method calls without variables resolved for inspection

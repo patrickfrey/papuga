@@ -159,9 +159,12 @@ struct RequestParser_json
 								++stk.back();
 							}
 							out << "-" << start->value << "=";
+							break;
 						case tx::TagAttribValue:
 							out << "\"" << start->value << "\"";
+							break;
 						case tx::OpenTag:
+							out << "\"" << start->value << "\"";
 							if (!stk.empty())
 							{
 								if (stk.back() > 0) out << ", ";
@@ -169,6 +172,7 @@ struct RequestParser_json
 							}
 							stk.push_back( 0);
 							out << "{";
+							break;
 						case tx::CloseTag:
 						case tx::CloseTagIm:
 							if (!stk.empty())
@@ -176,6 +180,7 @@ struct RequestParser_json
 								stk.pop_back();
 							}
 							out << "}";
+							break;
 						case tx::Content:
 							if (!stk.empty())
 							{
@@ -183,6 +188,7 @@ struct RequestParser_json
 								++stk.back();
 							}
 							out << "\"" << start->value << "\"";
+							break;
 					}
 				}
 				std::string outstr( out.str());

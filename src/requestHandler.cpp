@@ -642,7 +642,7 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 		const char* methodname = classdef[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1];
 		if (call->argcnt >= 0)
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d of the method %s->%s::%s: %s"), call->argcnt+1, call->selfvarname, classname, methodname, msg);
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d %s of the method %s->%s::%s: %s"), call->argcnt+1, call->argpath?call->argpath:"", call->selfvarname, classname, methodname, msg);
 		}
 		else
 		{
@@ -653,7 +653,7 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 	{
 		if (call->argcnt >= 0)
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d of the constructor of %s: %s"), call->argcnt+1, classname, msg);
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d %s of the constructor of %s: %s"), call->argcnt+1, call->argpath?call->argpath:"", classname, msg);
 		}
 		else
 		{

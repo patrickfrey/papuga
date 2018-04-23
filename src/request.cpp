@@ -139,7 +139,7 @@ struct CallDef
 
 typedef int AtmRef;
 enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom};
-enum {MaxAtmRefType=MethodCall};
+enum {MaxAtmRefType=InheritFrom};
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 static const char* atmRefTypeName( AtmRefType t)
 {
@@ -1264,6 +1264,8 @@ public:
 			:m_ctx(0)
 			,m_resolvers()
 			,m_curr_methodidx(0)
+			,m_errpath()
+			,m_errpathstr()
 			,m_errcode(errcode_)
 		{
 			papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
@@ -1273,6 +1275,8 @@ public:
 			:m_ctx(ctx_)
 			,m_resolvers(ctx_->scopeobjmap().size(),ScopeObjItr())
 			,m_curr_methodidx(0)
+			,m_errpath()
+			,m_errpathstr()
 			,m_errcode(papuga_Ok)
 		{
 			papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
@@ -1291,41 +1295,65 @@ public:
 
 		papuga_RequestMethodCall* next( const papuga_RequestContext* context)
 		{
-			if (!m_ctx) return NULL;
-			const MethodCallNode* mcnode = m_ctx->methodCallNode( m_curr_methodidx);
-			if (!mcnode)
+			try
 			{
-				std::memset( &m_curr_methodcall, 0, sizeof(m_curr_methodcall));
-				m_curr_methodcall.eventcnt = -1;
-				return NULL;
-			}
-			m_curr_methodcall.selfvarname = mcnode->def->selfvarname;
-			m_curr_methodcall.resultvarname = mcnode->def->resultvarname;
-			m_curr_methodcall.methodid.classid = mcnode->def->methodid.classid;
-			m_curr_methodcall.methodid.functionid = mcnode->def->methodid.functionid;
-			m_curr_methodcall.appendresult = mcnode->def->appendresult;
-			m_curr_methodcall.eventcnt = mcnode->scope.from;
-			m_curr_methodcall.argcnt = -1;
-			papuga_init_CallArgs( &m_curr_methodcall.args, m_curr_methodcall.membuf, sizeof(m_curr_methodcall.membuf));
-
-			const CallDef* mcdef = mcnode->def;
-			papuga_CallArgs* args = &m_curr_methodcall.args;
-			int ai = 0, ae = mcdef->nofargs;
-			for (; ai != ae; ++ai)
-			{
-				papuga_init_ValueVariant( args->argv + ai);
-				if (!setCallArgValue( args->argv[ai], mcdef->args[ai], mcnode->scope, mcnode->taglevel, context))
+				if (!m_ctx) return NULL;
+				const MethodCallNode* mcnode = m_ctx->methodCallNode( m_curr_methodidx);
+				if (!mcnode)
 				{
-					m_curr_methodcall.argcnt = ai;
+					std::memset( &m_curr_methodcall, 0, sizeof(m_curr_methodcall));
+					m_curr_methodcall.eventcnt = -1;
 					return NULL;
 				}
+				m_curr_methodcall.selfvarname = mcnode->def->selfvarname;
+				m_curr_methodcall.resultvarname = mcnode->def->resultvarname;
+				m_curr_methodcall.methodid.classid = mcnode->def->methodid.classid;
+				m_curr_methodcall.methodid.functionid = mcnode->def->methodid.functionid;
+				m_curr_methodcall.appendresult = mcnode->def->appendresult;
+				m_curr_methodcall.eventcnt = mcnode->scope.from;
+				m_curr_methodcall.argcnt = -1;
+				m_curr_methodcall.argpath = NULL;
+				papuga_init_CallArgs( &m_curr_methodcall.args, m_curr_methodcall.membuf, sizeof(m_curr_methodcall.membuf));
+	
+				const CallDef* mcdef = mcnode->def;
+				papuga_CallArgs* args = &m_curr_methodcall.args;
+				int ai = 0, ae = mcdef->nofargs;
+				for (; ai != ae; ++ai)
+				{
+					papuga_init_ValueVariant( args->argv + ai);
+					if (!setCallArgValue( args->argv[ai], mcdef->args[ai], mcnode->scope, mcnode->taglevel, context))
+					{
+						std::vector<std::string>::const_iterator ei = m_errpath.begin(), ee = m_errpath.end();
+						for (; ei != ee; ++ei)
+						{
+							if (!m_errpathstr.empty()) m_errpathstr.push_back('/');
+							m_errpathstr.append( *ei);
+						}
+						if (!m_errpath.empty())
+						{
+							m_curr_methodcall.argpath = m_errpathstr.c_str();
+						}
+						m_curr_methodcall.argcnt = ai;
+						return NULL;
+					}
+				}
+				for (; ai && !papuga_ValueVariant_defined( args->argv+(ai-1)); --ai){}
+				/// ... remove optional arguments at the end of the argument list, to make them replaceable by default values
+	
+				args->argc = ai;
+				++m_curr_methodidx;
+				return &m_curr_methodcall;
 			}
-			for (; ai && !papuga_ValueVariant_defined( args->argv+(ai-1)); --ai){}
-			/// ... remove optional arguments at the end of the argument list, to make them replaceable by default values
-
-			args->argc = ai;
-			++m_curr_methodidx;
-			return &m_curr_methodcall;
+			catch (const std::bad_alloc&)
+			{
+				m_errcode = papuga_NoMemError;
+				return NULL;
+			}
+			catch (...)
+			{
+				m_errcode = papuga_UncaughtException;
+				return NULL;
+			}
 		}
 
 		const MethodCallNode* nextNode()
@@ -1599,9 +1627,7 @@ public:
 				sink.pushName( stdef->members[ mi].name);
 				if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange))
 				{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-					std::cerr << "resolving structure member '" << stdef->members[ mi].name << "' failed." << std::endl;
-#endif
+					m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
 					return false;
 				}
 			}
@@ -1829,6 +1855,7 @@ public:
 				const papuga_ValueVariant* value = papuga_RequestContext_get_variable( context, argdef.varname);
 				if (!value)
 				{
+					m_errpath.insert( m_errpath.begin(), std::string("variable ") + argdef.varname);
 					m_errcode = papuga_ValueUndefined;
 					return false;
 				}
@@ -1853,6 +1880,8 @@ public:
 		int m_curr_methodidx;
 		papuga_Allocator m_allocator;
 		char m_allocator_membuf[ 4096];
+		std::vector<std::string> m_errpath;
+		std::string m_errpathstr;
 		papuga_ErrorCode m_errcode;
 	};
 
