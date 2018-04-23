@@ -144,8 +144,15 @@ public:
 		std::vector<RequestVariableRef>::const_iterator vi = map.m_impl.begin(), ve = map.m_impl.end();
 		for (; vi != ve; ++vi)
 		{
-			if (findVariable( vi->ptr->name)) return false;
-			m_impl.push_back( RequestVariableRef( *vi, true));
+			const papuga_ValueVariant* var = findVariable( vi->ptr->name);
+			if (var)
+			{
+				if (var != &vi->ptr->value) return false;
+			}
+			else
+			{
+				m_impl.push_back( RequestVariableRef( *vi, true));
+			}
 		}
 		return true;
 	}
@@ -878,7 +885,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 						}
 					}
 				}
-				else
+				else if (logger->logMethodCall)
 				{
 					(*logger->logMethodCall)( logger->self, 4, 
 							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,

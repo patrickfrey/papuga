@@ -173,7 +173,7 @@ static void append_tag_open( OutputContext& ctx, const char* name)
 		case StyleTEXT:
 			if (ctx.titleVisible())
 			{
-				ctx.out.append( ctx.indent);
+				if (!ctx.out.empty()) ctx.out.append( ctx.indent);
 				ctx.out.append( name);
 				ctx.out.push_back( ':');
 				ctx.indent.append( "  ");
@@ -238,7 +238,7 @@ static void append_tag_open_close_imm( OutputContext& ctx, const char* name)
 			ctx.out.append( "\"/>");
 			break;
 		case StyleTEXT:
-			ctx.out.append( ctx.indent);
+			if (!ctx.out.empty()) ctx.out.append( ctx.indent);
 			ctx.out.append( name);
 			ctx.out.push_back( ':');
 			break;
@@ -488,7 +488,7 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 			ctx.out.append( "</div>");
 			break;
 		case StyleTEXT:
-			ctx.out.append( ctx.indent);
+			if (!ctx.out.empty()) ctx.out.append( ctx.indent);
 			if (ctx.titleVisible())
 			{
 				ctx.out.append( name);
