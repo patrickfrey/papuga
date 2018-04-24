@@ -263,7 +263,6 @@ bool papuga_ValueVariant_print( FILE* out, const papuga_ValueVariant* val);
 * @param[in] self pointer to structure
 * @param[in] allocator allocator to use
 * @param[in] structdefs structure descriptions
-* @param[in] rootname name of root element
 * @param[out] len length of the output (UTF-8) in bytes
 * @return the dumped request allocated with malloc on success, NULL on memory allocation error
 */
@@ -271,7 +270,6 @@ char* papuga_ValueVariant_todump(
 		const papuga_ValueVariant* self,
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
-		const char* rootname,
 		size_t* len);
 
 /*

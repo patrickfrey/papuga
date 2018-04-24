@@ -1300,14 +1300,12 @@ extern "C" char* papuga_ValueVariant_todump(
 		const papuga_ValueVariant* self,
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
-		const char* rootname,
 		size_t* len)
 {
 	papuga_ErrorCode errcode = papuga_Ok;
 	try
 	{
 		std::ostringstream dump;
-		dump << "ROOT " << rootname << "\n";
 		if (!papuga_ValueVariant_defined( self))
 		{
 			dump << "\tNULL\n";
