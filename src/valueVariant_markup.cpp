@@ -235,7 +235,7 @@ static void append_tag_open_close_imm( OutputContext& ctx, const char* name)
 		case StyleHTML:
 			ctx.out.append( "<div class=\"");
 			ctx.out.append( name);
-			ctx.out.append( "\"/>");
+			ctx.out.append( "\"></div>");
 			break;
 		case StyleTEXT:
 			if (!ctx.out.empty()) ctx.out.append( ctx.indent);

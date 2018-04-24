@@ -10,17 +10,26 @@
 /// \brief Some functions on value variant using C++ features like STL
 /// \file valueVariant.hpp
 #include "papuga/typedefs.h"
+#include "papuga/interfaceDescription.h"
 #include <string>
 
 namespace papuga {
 
-/// \brief Convert variant value to string, if possible
+/// \brief Convert an atomic variant value to string 
 /// \param[in] value variant value to convert
 /// \param[out] error code returned in case of error
 /// \return result string of empty string in case of error
 /// \note does not throw
 /// \remark only converting atomic values, not handling structures
 std::string ValueVariant_tostring( const papuga_ValueVariant& value, papuga_ErrorCode& errcode);
+
+/// \brief Dump a value variant value including serializations to string
+/// \param[in] value variant value to convert
+/// \param[out] error code returned in case of error
+/// \return result string of empty string in case of error
+/// \note does not throw
+/// \remark only converting atomic values, not handling structures
+std::string ValueVariant_todump( const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structdefs, papuga_ErrorCode& errcode);
 
 /// \brief Append value variant to a string, if possible
 /// \param[in,out] dest where to append result to
