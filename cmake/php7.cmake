@@ -4,7 +4,6 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # PHP 7.x
 # --------------------------------------
 macro( CHECK_PHP7_EXECUTABLE  _candidate )
-if( NOT PHP7_EXECUTABLE )
 execute_process( COMMAND  ${_candidate}  ${CMAKE_CURRENT_LIST_DIR}/version.php
 			   RESULT_VARIABLE  RET_PHPVERSION 
 			   ERROR_VARIABLE  STDERR_PHPVERSION
@@ -47,7 +46,6 @@ unset( PHP7_EXECUTABLE )
 unset( PHP7_CONFIG_EXECUTABLE )
 unset( PHP7_VERSION )
 endif( ${RET_PHPVERSION} STREQUAL "" OR ${RET_PHPVERSION} STREQUAL "0" )
-endif( NOT PHP7_EXECUTABLE )
 endmacro( CHECK_PHP7_EXECUTABLE )
 
 macro( ECHO_COMMAND_RESULT )
@@ -61,6 +59,10 @@ else( ${_rt} STREQUAL "" OR ${_rt} STREQUAL "0" )
 message( STATUS "Call of '${ARGN}' returned ${_rt}" )
 endif( ${_rt} STREQUAL "" OR ${_rt} STREQUAL "0" )
 endmacro( ECHO_COMMAND_RESULT )
+
+if( PHP7_EXECUTABLE )
+CHECK_PHP7_EXECUTABLE( ${PHP7_EXECUTABLE} )
+endif( PHP7_EXECUTABLE )
 
 macro( EXEC_FIND_BY_COMMAND )
 if (NOT PHP7_EXECUTABLE)

@@ -4,7 +4,6 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # PYTHON 3.x
 # --------------------------------------
 macro( CHECK_PYTHON3_EXECUTABLE  _candidate )
-if( NOT PYTHON3_EXECUTABLE )
 execute_process( COMMAND  ${_candidate}  ${CMAKE_CURRENT_LIST_DIR}/version.py
 			   RESULT_VARIABLE  RET_PYVERSION
 			   ERROR_VARIABLE  STDERR_PYVERSION
@@ -26,7 +25,6 @@ else( ${RET_PYVERSION} STREQUAL "" OR ${RET_PYVERSION} STREQUAL "0")
 unset( PYTHON3_EXECUTABLE )
 unset( PYTHON3_VERSION )
 endif( ${RET_PYVERSION} STREQUAL "" OR ${RET_PYVERSION} STREQUAL "0")
-endif( NOT PYTHON3_EXECUTABLE )
 endmacro( CHECK_PYTHON3_EXECUTABLE )
 
 macro( ECHO_COMMAND_RESULT )
@@ -40,6 +38,10 @@ else( ${_rt} STREQUAL "" OR ${_rt} STREQUAL "0" )
 message( STATUS "Call of '${ARGN}' returned ${_rt}" )
 endif( ${_rt} STREQUAL "" OR ${_rt} STREQUAL "0" )
 endmacro( ECHO_COMMAND_RESULT )
+
+if( PYTHON3_EXECUTABLE )
+CHECK_PYTHON3_EXECUTABLE( ${PYTHON3_EXECUTABLE} )
+endif( PYTHON3_EXECUTABLE )
 
 macro( EXEC_FIND_BY_COMMAND )
 if (NOT PYTHON3_EXECUTABLE)
