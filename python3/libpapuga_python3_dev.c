@@ -1204,6 +1204,10 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 			{
 				rt = PyUnicode_FromStringAndSize( value->value.string, value->length);
 			}
+			else if ((papuga_StringEncoding)value->encoding == papuga_Binary)
+			{
+				rt = PyByteArray_FromStringAndSize( value->value.string, value->length);
+			}
 			else
 			{
 				size_t len;
