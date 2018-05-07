@@ -407,6 +407,12 @@ static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_A
 			papuga_init_ValueVariant( value);
 		}
 	}
+	else if (PyByteArray_Check( pyobj))
+	{
+		char* str = PyByteArray_AS_STRING( pyobj);
+		Py_ssize_t strsize = PyByteArray_GET_SIZE( pyobj);
+		papuga_init_ValueVariant_string( value, str, strsize);
+	}
 	else if (PyUnicode_Check( pyobj))
 	{
 		Py_ssize_t utf8bytes;
