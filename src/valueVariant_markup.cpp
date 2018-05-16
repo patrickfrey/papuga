@@ -402,37 +402,6 @@ static bool append_value( OutputContext& ctx, const papuga_ValueVariant& value)
 	return true;
 }
 
-static bool append_value_basename( OutputContext& ctx, const papuga_ValueVariant& value)
-{
-	if (value.valuetype == papuga_TypeString)
-	{
-		char const* pt;
-		std::size_t ptlen;
-		std::string utf8string;
-		if ((papuga_StringEncoding)value.encoding == papuga_UTF8)
-		{
-			pt = value.value.string;
-			ptlen = value.length;
-		}
-		else
-		{
-			if (!papuga::ValueVariant_append_string( utf8string, value, ctx.errcode)) return false;
-			pt = utf8string.c_str();
-			ptlen = utf8string.size();
-		}
-		char const* ptstart = pt;
-		char const* pti = std::strchr( pt, '/');
-		for (; pti; pt=pti+1,pti=std::strchr( pt, '/')){}
-		ptlen -= pt - ptstart;
-		append_encoded_entities_as_string( ctx, pt, ptlen);
-	}
-	else
-	{
-		if (!papuga::ValueVariant_append_string( ctx.out, value, ctx.errcode)) return false;
-	}
-	return true;
-}
-
 static void append_null_value( OutputContext& ctx)
 {
 	switch (ctx.styleType)
@@ -469,7 +438,7 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 				if (!append_value( ctx, value)) return false;
 				ctx.out.append( "\">");
 				ctx.out.append( "<span class=\"value\">");
-				if (!append_value_basename( ctx, value)) return false;
+				if (!append_value( ctx, value)) return false;
 				ctx.out.append( "</span>");
 				ctx.out.append( "</a>");
 			}
