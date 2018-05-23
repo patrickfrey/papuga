@@ -21,6 +21,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <stdexcept>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 
