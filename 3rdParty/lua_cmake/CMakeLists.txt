@@ -62,6 +62,10 @@ link_directories(
 # LIBRARIES
 # ------------------------------
 add_library( papuga_lua STATIC ${source_files} )
+find_library( LIBDL_LIBRARY dl )
+if( LIBDL_LIBRARY )
+        target_link_libraries( papuga_lua  ${LIBDL_LIBRARY} )
+endif()
 
 # ------------------------------
 # INSTALLATION
