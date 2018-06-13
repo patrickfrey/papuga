@@ -23,7 +23,7 @@ include_directories(
 link_directories(
 	"${FMT_LIBRARY_DIRS}"
 	"${PAPUGA_LIBRARY_DIRS}"
-	"${PHP7_LIBRARY_DIRS}"
+	${PHP7_LIBRARY_DIRS}
 )
 
 # ------------------------------
