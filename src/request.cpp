@@ -57,8 +57,8 @@ struct StructMemberDef
 
 	StructMemberDef( const char* name_, int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
 		:name(name_),itemid(itemid_),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
-	StructMemberDef( const StructMemberDef& o)
-		:name(o.name),itemid(o.itemid),resolvetype(o.resolvetype),max_tag_diff(o.max_tag_diff){}
+	void assign( const StructMemberDef& o)
+		{name=o.name;itemid=o.itemid;resolvetype=o.resolvetype;max_tag_diff=o.max_tag_diff;}
 };
 
 struct StructDef
@@ -84,8 +84,8 @@ struct CallArgDef
 		:varname(varname_),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
 	CallArgDef( int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
 		:varname(0),itemid(itemid_),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
-	CallArgDef( const CallArgDef& o)
-		:varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype),max_tag_diff(o.max_tag_diff){}
+	void assign( const CallArgDef& o)
+		{varname=o.varname;itemid=o.itemid;resolvetype=o.resolvetype;max_tag_diff=o.max_tag_diff;}
 };
 
 struct CallDef

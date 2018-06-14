@@ -186,7 +186,7 @@ int main( int argc, const char** argv)
 				}
 				outs.close();
 			}
-			catch (std::ofstream::failure e)
+			catch (const std::ofstream::failure& e)
 			{
 				char buf[ 2048];
 				std::snprintf( buf, sizeof(buf), "error in output to file: %s", e.what());
