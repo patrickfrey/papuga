@@ -55,6 +55,8 @@ struct StructMemberDef
 	papuga_ResolveType resolvetype;
 	int max_tag_diff;
 
+	StructMemberDef()
+		:name(0),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
 	StructMemberDef( const char* name_, int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
 		:name(name_),itemid(itemid_),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
 	void assign( const StructMemberDef& o)
@@ -80,6 +82,8 @@ struct CallArgDef
 	papuga_ResolveType resolvetype;
 	int max_tag_diff;
 
+	CallArgDef()
+		:varname(0),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
 	CallArgDef( const char* varname_)
 		:varname(varname_),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
 	CallArgDef( int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
@@ -272,13 +276,13 @@ public:
 			CallArgDef* car = NULL;
 			if (nofargs)
 			{
-				car = (CallArgDef*)papuga_Allocator_alloc( &m_allocator, mm, 0);
-				if (!car)
+				void* carmem = papuga_Allocator_alloc( &m_allocator, mm, 0);
+				if (!carmem)
 				{
 					m_errcode = papuga_NoMemError;
 					return false;
 				}
-				std::memset( car, 0, mm);
+				car = new (carmem) CallArgDef[ nofargs];
 			}
 			const char* selfvarname = copyIfDefined( selfvarname_);
 			const char* resultvarname = copyIfDefined( resultvarname_);
@@ -412,13 +416,13 @@ public:
 			std::string open_expression( cut_trailing_slashes( expression));
 			std::string close_expression( open_expression + "~");
 			int mm = nofmembers * sizeof(StructMemberDef);
-			StructMemberDef* mar = (StructMemberDef*)papuga_Allocator_alloc( &m_allocator, mm, 0);
-			if (!mar)
+			void* marmem = papuga_Allocator_alloc( &m_allocator, mm, 0);
+			if (!marmem)
 			{
 				m_errcode = papuga_NoMemError;
 				return false;
 			}
-			std::memset( mar, 0, mm);
+			StructMemberDef* mar = new (marmem) StructMemberDef[ nofmembers];
 			int evid = AtmRef_get( CloseStruct, m_structdefs.size());
 			if (0!=m_atm.addExpression( evid, close_expression.c_str(), close_expression.size()))
 			{
