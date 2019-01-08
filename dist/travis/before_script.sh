@@ -9,24 +9,32 @@ case $OS in
 		sudo apt-get update -qq
 		sudo apt-get install -y \
 			cmake \
-			libboost-all-dev \
-			python3-dev
-		sudo apt-get install -y language-pack-en-base
-		sudo locale-gen en_US.UTF-8
-		sudo LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 add-apt-repository -y ppa:ondrej/php
-		sudo LC_ALL=en_US.UTF-8 apt-get update
-		sudo LC_ALL=en_US.UTF-8 apt-get install -y php7.0 php7.0-dev
+			libboost-all-dev
+		if test "x$PAPUGA_WITH_PYTHON" = "xYES"; then
+			sudo apt-get install -y python3-dev
+		fi
+		if test "x$PAPUGA_WITH_PHP" = "xYES"; then
+			sudo apt-get install -y language-pack-en-base
+			sudo locale-gen en_US.UTF-8
+			sudo LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 add-apt-repository -y ppa:ondrej/php
+			sudo LC_ALL=en_US.UTF-8 apt-get update
+			sudo LC_ALL=en_US.UTF-8 apt-get install -y php7.0 php7.0-dev
+		fi
 		;;
 
 	Darwin)
 		brew update
 		brew upgrade cmake
 		brew upgrade boost
-		brew upgrade python
-		brew tap homebrew/homebrew-php
-		brew install gettext || true
-		brew install php70 || true
+		if test "x$PAPUGA_WITH_PYTHON" = "xYES"; then
+			brew upgrade python
+		fi
+		if test "x$PAPUGA_WITH_PHP" = "xYES"; then
+			brew tap homebrew/homebrew-php
+			brew install php70 || true
+		fi
 		# make sure cmake finds the brew version of gettext
+		brew install gettext || true
 		brew link --force gettext || true
 		;;
 
