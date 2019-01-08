@@ -70,11 +70,6 @@ setup_env() {
 			;;
 		
 		Darwin)
-			if test "X$CC" = "Xgcc"; then
-				# gcc on OSX is a mere frontend to clang, force using gcc 4.8
-				export CXX=g++-4.8
-				export CC=gcc-4.8
-			fi
 			# forcing brew versions (of gettext) over Mac versions
 			export CFLAGS="-I/usr/local"
 			export CXXFLAGS="-I/usr/local"
@@ -91,5 +86,5 @@ setup_env() {
 setup_env
 
 # build the package itself
-build_project "-DWITH_PYTHON=YES -DWITH_PHP=YES"
+build_project "-DWITH_PYTHON=${PAPUGA_WITH_PYTHON} -DWITH_PHP=${PAPUGA_WITH_PHP} -DWITH_LUA=${PAPUGA_WITH_LUA}"
 
