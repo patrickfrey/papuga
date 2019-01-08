@@ -27,7 +27,7 @@ case $OS in
 		brew upgrade cmake
 		brew upgrade boost
 		if test "x$PAPUGA_WITH_PHP" = "xYES"; then
-			brew install openssl php70 || true
+			brew install openssl php71 || true
 		fi
 		# make sure cmake finds the brew version of gettext
 		brew install gettext || true
