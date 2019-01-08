@@ -47,6 +47,15 @@ MESSAGE( STATUS  "Python3 bindings generation is not enabled. Start cmake with -
 set( PAPUGA_LANGUAGE_SUPPORT_PYTHON3  0 )
 ENDIF (WITH_PYTHON STREQUAL "YES")
 
+IF (WITH_LUA STREQUAL "YES")
+MESSAGE( STATUS  "Lua bindings enabled." )
+set( PAPUGA_LANGUAGE_SUPPORT_LUA  1 )
+include( cmake/lua.cmake )
+ELSE (WITH_LUA STREQUAL "YES")
+MESSAGE( STATUS  "Lua bindings generation is not enabled. Start cmake with -DWITH_LUA=\"YES\" to enable it." )
+set( PAPUGA_LANGUAGE_SUPPORT_LUA  0 )
+ENDIF (WITH_LUA STREQUAL "YES")
+
 set( PAPUGA_GETTEXT_PACKAGE "papuga-dom" )	 #... 1st parameter of bindtextdomain(...)
 set( PAPUGA_GETTEXT_LOCALEDIR "" )			 #... 2nd parameter of bindtextdomain(...)
 configure_file( "${PROJECT_SOURCE_DIR}/src/internationalization.c.in"           "${CMAKE_CURRENT_BINARY_DIR}/src/internationalization.c"  @ONLY )
@@ -58,24 +67,36 @@ enable_testing()
 # Path declarations:
 set( FMT_INCLUDE_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/fmt_4_1" )
 set( FMT_LIBRARY_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/fmt_build" )
-set( LUA_INCLUDE_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/lua" )
-set( LUA_LIBRARY_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/lua_cmake" )
 set( TEXTWOLF_INCLUDE_DIRS                 "${PROJECT_SOURCE_DIR}/3rdParty/textwolf/include" )
 set( PAPUGA_INCLUDE_DIRS                      "${CMAKE_CURRENT_BINARY_DIR}/include"  "${PROJECT_SOURCE_DIR}/include" )
 set( PAPUGA_SOURCE_DIRS                      "${PROJECT_SOURCE_DIR}/src" )
 set( PAPUGA_LIBRARY_DIRS                      "${CMAKE_CURRENT_BINARY_DIR}/src" )
-set( PAPUGA_PHP7_SOURCE_DIRS            "${PROJECT_SOURCE_DIR}/php7" )
-set( PAPUGA_PHP7_LIBRARY_DIRS            "${CMAKE_CURRENT_BINARY_DIR}/php7" )
-set( PAPUGA_PYTHON3_SOURCE_DIRS     "${PROJECT_SOURCE_DIR}/python3" )
-set( PAPUGA_PYTHON3_LIBRARY_DIRS     "${CMAKE_CURRENT_BINARY_DIR}/python3" )
+
+IF (WITH_LUA STREQUAL "YES")
+set( LUA_INCLUDE_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/lua" )
+set( LUA_LIBRARY_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/lua_cmake" )
 set( PAPUGA_LUA_SOURCE_DIRS              "${PROJECT_SOURCE_DIR}/lua" )
 set( PAPUGA_LUA_LIBRARY_DIRS              "${CMAKE_CURRENT_BINARY_DIR}/lua" )
+ENDIF (WITH_LUA STREQUAL "YES")
+
+IF (WITH_PHP STREQUAL "YES")
+set( PAPUGA_PHP7_SOURCE_DIRS            "${PROJECT_SOURCE_DIR}/php7" )
+set( PAPUGA_PHP7_LIBRARY_DIRS            "${CMAKE_CURRENT_BINARY_DIR}/php7" )
+ENDIF (WITH_PHP STREQUAL "YES")
+
+IF (WITH_PYTHON STREQUAL "YES")
+set( PAPUGA_PYTHON3_SOURCE_DIRS     "${PROJECT_SOURCE_DIR}/python3" )
+set( PAPUGA_PYTHON3_LIBRARY_DIRS     "${CMAKE_CURRENT_BINARY_DIR}/python3" )
+ENDIF (WITH_PYTHON STREQUAL "YES")
 
 # Subdirectories:
 add_subdirectory( 3rdParty )
 add_subdirectory( src )
 add_subdirectory( utils )
+
+IF (WITH_LUA STREQUAL "YES")
 add_subdirectory( lua )
+ENDIF (WITH_LUA STREQUAL "YES")
 
 IF (WITH_PYTHON STREQUAL "YES")
 add_subdirectory( python3 )

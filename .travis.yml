@@ -1,14 +1,76 @@
 language: cpp
 matrix:
   include:
-    - os: osx
-      compiler: clang
-    - os: linux
-      dist: trusty
-      compiler: clang
-    - os: linux
-      dist: trusty
-      compiler: gcc
+  - name: "OSX, Python 3.4, C++ clang"
+    os: osx
+    compiler: clang
+    python: 3.4
+    env PAPUGA_WITH_PYTHON=YES
+    env PAPUGA_WITH_PHP=NO
+    env PAPUGA_WITH_LUA=NO
+  - name: "OSX, PHP 7.1, C++ clang"
+    os: osx
+    compiler: clang
+    php: 7.1
+    env PAPUGA_WITH_PYTHON=NO
+    env PAPUGA_WITH_PHP=YES
+    env PAPUGA_WITH_LUA=NO
+  - name: "OSX, Lua 5.2, C++ clang"
+    os: osx
+    compiler: clang
+    lua: 5.2
+    env PAPUGA_WITH_PYTHON=NO
+    env PAPUGA_WITH_PHP=NO
+    env PAPUGA_WITH_LUA=YES
+  - name: "Linux trusty, Python 3.4, C++ clang"
+    os: linux
+    dist: trusty
+    compiler: clang
+    python: 3.4
+    env PAPUGA_WITH_PYTHON=YES
+    env PAPUGA_WITH_PHP=NO
+    env PAPUGA_WITH_LUA=NO
+  - name: "Linux trusty, PHP 7.1, C++ clang"
+    os: linux
+    dist: trusty
+    compiler: clang
+    php: 7.1
+    env PAPUGA_WITH_PYTHON=NO
+    env PAPUGA_WITH_PHP=YES
+    env PAPUGA_WITH_LUA=NO
+  - name: "Linux trusty, Lua 5.2, C++ clang"
+    os: linux
+    dist: trusty
+    compiler: clang
+    lua: 5.2
+    env PAPUGA_WITH_PYTHON=NO
+    env PAPUGA_WITH_PHP=NO
+    env PAPUGA_WITH_LUA=YES
+  - name: "Linux trusty, Python 3.4, C++ gcc"
+    os: linux
+    dist: trusty
+    compiler: gcc
+    python: 3.4
+    env PAPUGA_WITH_PYTHON=YES
+    env PAPUGA_WITH_PHP=NO
+    env PAPUGA_WITH_LUA=NO
+  - name: "Linux trusty, PHP 7.1, C++ gcc"
+    os: linux
+    dist: trusty
+    compiler: gcc
+    php: 7.1
+    env PAPUGA_WITH_PYTHON=NO
+    env PAPUGA_WITH_PHP=YES
+    env PAPUGA_WITH_LUA=NO
+  - name: "Linux trusty, Lua 5.2, C++ gcc"
+    os: linux
+    dist: trusty
+    compiler: gcc
+    lua: 5.2
+    env PAPUGA_WITH_PYTHON=NO
+    env PAPUGA_WITH_PHP=NO
+    env PAPUGA_WITH_LUA=YES
+
 sudo: required
 branches:
   only:
