@@ -26,9 +26,6 @@ case $OS in
 		brew update
 		brew upgrade cmake
 		brew upgrade boost
-		if test "x$PAPUGA_WITH_PYTHON" = "xYES"; then
-			brew upgrade python
-		fi
 		if test "x$PAPUGA_WITH_PHP" = "xYES"; then
 			brew install php70 || true
 		fi
