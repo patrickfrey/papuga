@@ -30,7 +30,6 @@ case $OS in
 			brew upgrade python
 		fi
 		if test "x$PAPUGA_WITH_PHP" = "xYES"; then
-			brew tap homebrew/homebrew-php
 			brew install php70 || true
 		fi
 		# make sure cmake finds the brew version of gettext
