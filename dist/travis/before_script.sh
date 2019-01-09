@@ -14,6 +14,7 @@ case $OS in
 			sudo apt-get install -y python3-dev
 		fi
 		if test "x$PAPUGA_WITH_PHP" = "xYES"; then
+			sudo apt-get install -y libssl-dev
 			sudo apt-get install -y language-pack-en-base
 			sudo locale-gen en_US.UTF-8
 			sudo LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 add-apt-repository -y ppa:ondrej/php
