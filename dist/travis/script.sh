@@ -22,40 +22,16 @@ build_project() {
 			;;
 	
 		Darwin)
-			if test "X$CC" = "Xgcc"; then
-				# gcc on OSX is a mere frontend to clang, force using gcc 4.8
-				export CXX=g++-4.8
-				export CC=gcc-4.8
-				# forcing brew versions (of gettext) over Mac versions
-				export CFLAGS=-I/usr/local
-				export CXXFLAGS=-I/usr/local
-				export LDFLAGS=-L/usr/local/lib
-				mkdir build
-				cd build
-				cmake \
-					-DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release \
-					-DCMAKE_CXX_FLAGS=-g -G 'Unix Makefiles' $prj_cmakeflags \
-					..
-				make VERBOSE=1
-				make VERBOSE=1 CTEST_OUTPUT_ON_FAILURE=1 test
-				sudo make VERBOSE=1 install
-				cd ..
-			else
-				# forcing brew versions (of gettext) over Mac versions
-				export CFLAGS=-I/usr/local
-				export CXXFLAGS=-I/usr/local
-				export LDFLAGS=-L/usr/local/lib
-				mkdir build
-				cd build
-				cmake \
-					-DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release \
-					-DCMAKE_CXX_FLAGS=-g -G Xcode $prj_cmakeflags \
-					..
-				xcodebuild -configuration Release -target ALL_BUILD
-				xcodebuild -configuration Release -target RUN_TESTS
-				sudo xcodebuild -configuration Release -target install
-				cd ..
-			fi
+			mkdir build
+			cd build
+			cmake \
+				-DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release \
+				-DCMAKE_CXX_FLAGS=-g -G Xcode $prj_cmakeflags \
+				..
+			xcodebuild -configuration Release -target ALL_BUILD
+			xcodebuild -configuration Release -target RUN_TESTS
+			sudo xcodebuild -configuration Release -target install
+			cd ..
 			;;
 			
 		*)
@@ -86,5 +62,6 @@ setup_env() {
 setup_env
 
 # build the package itself
+echo "BUILD papuga WITH -DWITH_PHP=${PAPUGA_WITH_PHP} -DWITH_PYTHON=${PAPUGA_WITH_PYTHON} -DWITH_LUA=${PAPUGA_WITH_LUA}"
 build_project "-DWITH_PYTHON=${PAPUGA_WITH_PYTHON} -DWITH_PHP=${PAPUGA_WITH_PHP} -DWITH_LUA=${PAPUGA_WITH_LUA}"
 
