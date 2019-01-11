@@ -122,11 +122,11 @@ int main( int argc, const char* argv[])
 		errcnt += (int)!testToString<int64_t>( ++testidx, 0);
 		errcnt += (int)!testToString<int64_t>( ++testidx, 1);
 		errcnt += (int)!testToString<int64_t>( ++testidx, 1U);
-		errcnt += (int)!testToString<int64_t>( ++testidx, 1ULL << 16);
+		errcnt += (int)!testToString<int64_t>( ++testidx, 1UL << 16);
 		errcnt += (int)!testToString<int64_t>( ++testidx, +12212);
 		errcnt += (int)!testToString<int64_t>( ++testidx, -31312);
-		errcnt += (int)!testToString<int64_t>( ++testidx, 1ULL << 32);
-		errcnt += (int)!testToString<int64_t>( ++testidx, 1ULL << 63);
+		errcnt += (int)!testToString<int64_t>( ++testidx, (uint64_t)1 << 32);
+		errcnt += (int)!testToString<int64_t>( ++testidx, (uint64_t)1 << 63);
 		errcnt += (int)!testToString<int64_t>( ++testidx, +99170709832174L);
 		errcnt += (int)!testToString<int64_t>( ++testidx, -921391321311323L);
 		errcnt += (int)!testToString<int64_t>( ++testidx, std::numeric_limits<unsigned int>::max());
