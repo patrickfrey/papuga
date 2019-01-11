@@ -54,6 +54,7 @@ static void LOG_TEST_CONTENT( const std::string& title, const std::string& conte
 #define LOG_TEST_CONTENT( TITLE, CONTENT)
 #endif
 
+#if __cplusplus >= 201103L
 static std::string mapCallList( const char** calllist)
 {
 	std::string rt;
@@ -84,6 +85,7 @@ static std::string mapDocument( const papuga::test::Document& doc, papuga_String
 	}
 	return rt;
 }
+#endif
 
 class ObjectC1
 {
