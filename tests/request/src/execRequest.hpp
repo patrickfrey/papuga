@@ -10,7 +10,6 @@
 /// \brief Function to execute a request
 /// \file execRequest.hpp
 #include "papuga.h"
-#include <cstdbool>
 #include <string>
 
 struct RequestVariable
