@@ -331,6 +331,7 @@ static bool serializeIndirect( papuga_Serialization* ser, zval* langval, const p
 	return serializeValue( ser, Z_INDIRECT_P( langval), cemap, errcode);
 }
 
+
 static bool serializeValue( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	switch (Z_TYPE_P(langval))
@@ -339,7 +340,12 @@ static bool serializeValue( papuga_Serialization* ser, zval* langval, const papu
 		case IS_FALSE: if (!papuga_Serialization_pushValue_bool( ser, false)) goto ERRNOMEM; return true;
 		case IS_TRUE: if (!papuga_Serialization_pushValue_bool( ser, true)) goto ERRNOMEM; return true;
 		case IS_LONG: if (!papuga_Serialization_pushValue_int( ser, Z_LVAL_P( langval))) goto ERRNOMEM; return true;
+#ifdef IS_CONSTANT
 		case IS_CONSTANT:
+#endif
+#ifdef IS_CONSTANT_AST
+		case IS_CONSTANT_AST:
+#endif
 		case IS_STRING: if (!papuga_Serialization_pushValue_string( ser, Z_STRVAL_P( langval), Z_STRLEN_P( langval))) goto ERRNOMEM; return true;
 		case IS_DOUBLE: if (!papuga_Serialization_pushValue_double( ser, Z_DVAL_P( langval))) goto ERRNOMEM; return true;
 		case IS_NULL: if (!papuga_Serialization_pushValue_void( ser)) goto ERRNOMEM; return true;
