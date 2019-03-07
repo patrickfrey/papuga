@@ -455,7 +455,12 @@ static bool initValue( papuga_ValueVariant* hostval, papuga_Allocator* allocator
 		case IS_FALSE: papuga_init_ValueVariant_bool( hostval, false); return true;
 		case IS_TRUE: papuga_init_ValueVariant_bool( hostval, true); return true;
 		case IS_LONG: papuga_init_ValueVariant_int( hostval, Z_LVAL_P( langval)); return true;
+#ifdef IS_CONSTANT
 		case IS_CONSTANT:
+#endif
+#ifdef IS_CONSTANT_AST
+		case IS_CONSTANT_AST:
+#endif
 		case IS_STRING: papuga_init_ValueVariant_string( hostval, Z_STRVAL_P( langval), Z_STRLEN_P( langval)); return true;
 		case IS_DOUBLE: papuga_init_ValueVariant_double( hostval, Z_DVAL_P( langval)); return true;
 		case IS_NULL: papuga_init_ValueVariant( hostval); return true;

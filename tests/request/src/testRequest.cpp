@@ -12,7 +12,6 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
-#include <cmath>
 #include <vector>
 #include <sstream>
 #include <iostream>

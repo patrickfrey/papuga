@@ -198,7 +198,7 @@ std::vector<RandomValue> createRandomSerialization( unsigned int size)
 		}
 		if (val.value()._tag == papuga_TagOpen)
 		{
-			if (bcnt > (1 << (int)sqrt( g_random.get( 1, 10))))
+			if (bcnt > (1 << (int)std::sqrt( g_random.get( 1, 10))))
 			{
 				--si;
 				continue;
