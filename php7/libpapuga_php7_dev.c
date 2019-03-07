@@ -1417,7 +1417,13 @@ static void initIteratorZendClassEntry()
 	INIT_CLASS_ENTRY(tmp_ce, "PapugaIterator", g_iterator_methods);
 	g_zend_class_entry_iterator = zend_register_internal_class( &tmp_ce TSRMLS_CC);
 	g_zend_class_entry_iterator->get_iterator = &zend_papuga_get_iterator;
+#if PAPUGA_LANGUAGE_VERSION_PHP7 < 70300
 	g_zend_class_entry_iterator->iterator_funcs.funcs = &g_iterator_funcs;
+#else
+	// PF:NOTE We maybe do not have to set this. See https://raw.githubusercontent.com/php/php-src/PHP-7.3/UPGRADING.INTERNALS:
+	//	"You don't have to set its value, setting parent.funcs in the get_iterator function is enough."
+	g_zend_class_entry_iterator->iterator_funcs_ptr.funcs = &g_iterator_funcs;
+#endif
 	zend_class_implements( g_zend_class_entry_iterator TSRMLS_CC, 1, zend_ce_traversable);
 }
 
