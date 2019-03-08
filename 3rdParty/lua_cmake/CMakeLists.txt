@@ -9,6 +9,8 @@ endif( APPLE )
 if( UNIX )
 set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_LINUX -DLUA_WITHOUT_GPL" )
 endif( UNIX )
+# Disable non standard C jump tables for indirect goto
+set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLUA_USE_JUMPTABLE=0" )
 
 # --------------------------------------
 # SOURCES AND INCLUDES
