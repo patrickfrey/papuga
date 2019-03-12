@@ -15,21 +15,31 @@
 #include "private/internationalization.h"
 #include <stdexcept>
 #include <cstdio>
+#include <cstring>
 
 #undef PAPUGA_LOWLEVEL_DEBUG
 
 using namespace papuga;
 
-void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm) const
+static void validateRootExpression( const char* rootexpr)
 {
+	if (!rootexpr[0] && rootexpr[ std::strlen(rootexpr)-1] == '/')
+	{
+		throw papuga::runtime_error( _TXT("invalid path '%s' as node root path (slash at end of path)"), rootexpr);
+	}
+}
+
+void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const
+{
+	std::string fullexpr = rootexpr + expression;
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	fprintf( stderr, "ATM define function expression='%s', method=[%d,%d], self=%s, result=%s, n=%d\n",
-		 expression, methodid.classid, methodid.functionid, selfvar, resultvar, (int)args.size());
-#endif	
-	if (!papuga_RequestAutomaton_add_call( atm, expression, &methodid, selfvar, resultvar, appendresult, args.size()))
+		 fullexpr.c_str(), methodid.classid, methodid.functionid, selfvar, resultvar, (int)args.size());
+#endif
+	if (!papuga_RequestAutomaton_add_call( atm, fullexpr.c_str(), &methodid, selfvar, resultvar, appendresult, args.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add function, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add function, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 	}
 	std::vector<RequestAutomaton_FunctionDef::Arg>::const_iterator ai = args.begin(), ae = args.end();
 	for (int aidx=0; ai != ae; ++ai,++aidx)
@@ -39,7 +49,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm)
 			if (!papuga_RequestAutomaton_set_call_arg_var( atm, aidx, ai->varname))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add variable call arg, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add variable call arg, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 			}
 		}
 		else
@@ -47,21 +57,22 @@ void RequestAutomaton_FunctionDef::addToAutomaton( papuga_RequestAutomaton* atm)
 			if (!papuga_RequestAutomaton_set_call_arg_item( atm, aidx, ai->itemid, ai->resolvetype, ai->max_tag_diff))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add item call arg, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add item call arg, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 			}
 		}
 	}
 }
 
-void RequestAutomaton_StructDef::addToAutomaton( papuga_RequestAutomaton* atm) const
+void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const
 {
+	std::string fullexpr = rootexpr + expression;
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define structure expression='%s', itemid=%d, n=%d\n", expression, itemid, (int)elems.size());
+	fprintf( stderr, "ATM define structure expression='%s', itemid=%d, n=%d\n", fullexpr.c_str(), itemid, (int)elems.size());
 #endif	
-	if (!papuga_RequestAutomaton_add_structure( atm, expression, itemid, elems.size()))
+	if (!papuga_RequestAutomaton_add_structure( atm, fullexpr.c_str(), itemid, elems.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add structure, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add structure, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 	}
 	std::vector<RequestAutomaton_StructDef::Element>::const_iterator ei = elems.begin(), ee = elems.end();
 	for (int eidx=0; ei != ee; ++ei,++eidx)
@@ -69,24 +80,26 @@ void RequestAutomaton_StructDef::addToAutomaton( papuga_RequestAutomaton* atm) c
 		if (!papuga_RequestAutomaton_set_structure_element( atm, eidx, ei->name, ei->itemid, ei->resolvetype, ei->max_tag_diff))
 		{
 			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add structure element, expression %s: %s"), expression, papuga_ErrorCode_tostring(errcode));
+			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add structure element, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 		}
 	}
 }
 
-void RequestAutomaton_ValueDef::addToAutomaton( papuga_RequestAutomaton* atm) const
+void RequestAutomaton_ValueDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const
 {
+	std::string scope_fullexpr = rootexpr + scope_expression;
+	std::string select_fullexpr = rootexpr + select_expression;
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define value scope='%s', select=%s, id=%d\n", scope_expression, select_expression, itemid);
+	fprintf( stderr, "ATM define value scope='%s', select=%s, id=%d\n", scope_fullexpr.c_str(), select_fullexpr.c_str(), itemid);
 #endif	
-	if (!papuga_RequestAutomaton_add_value( atm, scope_expression, select_expression, itemid))
+	if (!papuga_RequestAutomaton_add_value( atm, scope_fullexpr.c_str(), select_fullexpr.c_str(), itemid))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add value, scope expression %s select expression %s: %s"), scope_expression, select_expression, papuga_ErrorCode_tostring(errcode));
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add value, scope expression %s select expression %s: %s"), scope_fullexpr.c_str(), select_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 	}
 }
 
-void RequestAutomaton_GroupDef::addToAutomaton( papuga_RequestAutomaton* atm) const
+void RequestAutomaton_GroupDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const
 {
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	fprintf( stderr, "ATM start group\n");
@@ -99,7 +112,7 @@ void RequestAutomaton_GroupDef::addToAutomaton( papuga_RequestAutomaton* atm) co
 	std::vector<RequestAutomaton_FunctionDef>::const_iterator ni = nodes.begin(), ne = nodes.end();
 	for (; ni != ne; ++ni)
 	{
-		ni->addToAutomaton( atm);
+		ni->addToAutomaton( rootexpr, atm);
 	}
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	fprintf( stderr, "ATM end group\n");
@@ -198,16 +211,16 @@ void RequestAutomaton_Node::addToAutomaton( papuga_RequestAutomaton* atm) const
 		case Empty:
 			break;
 		case Function:
-			value.functiondef->addToAutomaton( atm);
+			value.functiondef->addToAutomaton( rootexpr, atm);
 			break;
 		case Struct:
-			value.structdef->addToAutomaton( atm);
+			value.structdef->addToAutomaton( rootexpr, atm);
 			break;
 		case Value:
-			value.valuedef->addToAutomaton( atm);
+			value.valuedef->addToAutomaton( rootexpr, atm);
 			break;
 		case Group:
-			value.groupdef->addToAutomaton( atm);
+			value.groupdef->addToAutomaton( rootexpr, atm);
 			break;
 		case NodeList:
 			for (auto node: *value.nodelist)
@@ -216,6 +229,20 @@ void RequestAutomaton_Node::addToAutomaton( papuga_RequestAutomaton* atm) const
 			}
 			break;
 	}
+}
+
+RequestAutomaton_Node& RequestAutomaton_Node::root( const char* rootexpr_)
+{
+	if (type == NodeList)
+	{
+		for (auto node: *value.nodelist) node.root( rootexpr_);
+	}
+	else
+	{
+		validateRootExpression( rootexpr_);
+		rootexpr = rootexpr_ + rootexpr;
+	}
+	return *this;
 }
 #endif
 
@@ -259,7 +286,7 @@ void RequestAutomaton::addFunction( const char* expression, const char* resultva
 	RequestAutomaton_FunctionDef::Arg const* ai = args;
 	for (; ai->itemid || ai->varname; ++ai) argvec.push_back( *ai);
 	RequestAutomaton_FunctionDef func( expression, resultvar?resultvar:"", selfvar, methodid, argvec);
-	func.addToAutomaton( m_atm);
+	func.addToAutomaton( m_rootexpr, m_atm);
 }
 
 void RequestAutomaton::addInheritContext( const char* typenam, const char* expression, bool required)
@@ -281,13 +308,13 @@ void RequestAutomaton::addStruct( const char* expression, int itemid, const Requ
 	RequestAutomaton_StructDef::Element const* ei = elems;
 	for (; ei->name; ++ei) elemvec.push_back( *ei);
 	RequestAutomaton_StructDef st( expression, itemid, elemvec);
-	st.addToAutomaton( m_atm);
+	st.addToAutomaton( m_rootexpr, m_atm);
 }
 
 void RequestAutomaton::addValue( const char* scope_expression, const char* select_expression, int itemid)
 {
 	RequestAutomaton_ValueDef val( scope_expression, select_expression, itemid);
-	val.addToAutomaton( m_atm);
+	val.addToAutomaton( m_rootexpr, m_atm);
 }
 
 void RequestAutomaton::openGroup()
@@ -305,6 +332,25 @@ void RequestAutomaton::closeGroup()
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton close group: %s"), papuga_ErrorCode_tostring(errcode));
+	}
+}
+
+void RequestAutomaton::openRoot( const char* expr)
+{
+	m_rootstk.push_back( m_rootexpr.size());
+	m_rootexpr.append( expr);
+}
+
+void RequestAutomaton::closeRoot()
+{
+	if (!m_rootstk.empty())
+	{
+		m_rootexpr.resize( m_rootstk.back());
+		m_rootstk.pop_back();
+	}
+	else
+	{
+		throw std::runtime_error( _TXT("request automaton close root invalid"));
 	}
 }
 

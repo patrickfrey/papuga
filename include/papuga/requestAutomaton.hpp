@@ -13,8 +13,8 @@
 #include "papuga/classdef.h"
 #include "papuga/request.h"
 #include <string>
-#include <stdexcept>
 #include <vector>
+#include <stdexcept>
 
 namespace papuga {
 
@@ -91,8 +91,9 @@ struct RequestAutomaton_FunctionDef
 		methodid.functionid = methodid_.functionid;
 	}
 	/// \brief Add this method call definition to an automaton
+	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	void addToAutomaton( papuga_RequestAutomaton* atm) const;
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const;
 };
 
 /// \brief Request structure definition 
@@ -135,8 +136,9 @@ struct RequestAutomaton_StructDef
 		:expression(expression_),itemid(itemid_),elems(elems_){}
 
 	/// \brief Add this structure definition to an automaton
+	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	void addToAutomaton( papuga_RequestAutomaton* atm) const;
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const;
 };
 
 /// \brief Request atomic value definition 
@@ -157,8 +159,9 @@ struct RequestAutomaton_ValueDef
 		:scope_expression(scope_expression_),select_expression(select_expression_),itemid(itemid_){}
 
 	/// \brief Add this value definition to an automaton
+	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	void addToAutomaton( papuga_RequestAutomaton* atm) const;
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const;
 };
 
 /// \brief Request grouping of functions definitions
@@ -175,8 +178,9 @@ struct RequestAutomaton_GroupDef
 		:nodes(nodes_){}
 
 	/// \brief Add this group definition to an automaton
+	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	void addToAutomaton( papuga_RequestAutomaton* atm) const;
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const;
 };
 
 #if __cplusplus >= 201103L
@@ -204,6 +208,7 @@ struct RequestAutomaton_Node
 		RequestAutomaton_ValueDef* valuedef;
 		RequestAutomaton_NodeList* nodelist;
 	} value;
+	std::string rootexpr;
 
 	///\brief Destructor
 	~RequestAutomaton_Node();
@@ -238,6 +243,10 @@ struct RequestAutomaton_Node
 	/// \brief Add this node definition to an automaton
 	/// \param[in] atm automaton to add this definition to
 	void addToAutomaton( papuga_RequestAutomaton* atm) const;
+
+	/// \brief Define selection expression for the context of the node
+	/// \param[in] rootexpr_ selection expression defined as the context (all paths are relative to the context)
+	RequestAutomaton_Node& root( const char* rootexpr_);
 };
 
 class RequestAutomaton_NodeList
@@ -249,9 +258,18 @@ public:
 	RequestAutomaton_NodeList( const RequestAutomaton_NodeList& o)
 		:std::vector<RequestAutomaton_Node>( o){}
 
+	/// \brief Append an other node list (join lists)
 	void append( const RequestAutomaton_NodeList& o)
 	{
 		insert( end(), o.begin(), o.end());
+	}
+
+	/// \brief Define selection expression for the context of the node
+	/// \param[in] rootexpr_ selection expression defined as the context (all paths are relative to the context)
+	RequestAutomaton_NodeList& root( const char* rootexpr_)
+	{
+		for (auto node: *this) node.root( rootexpr_);
+		return *this;
 	}
 };
 #endif
@@ -333,6 +351,11 @@ public:
 	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
 	void closeGroup();
 
+	/// \brief Open a new sub expression to for the root context
+	void openRoot( const char* expr);
+	/// \brief Close the current open root expression
+	void closeRoot();
+
 	/// \brief Finish the automaton definition
 	/// \remark Only available if this automaton has been constructed as empty
 	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
@@ -344,6 +367,8 @@ public:
 
 private:
 	papuga_RequestAutomaton* m_atm;			///< automaton definition
+	std::string m_rootexpr;				///< current root expression
+	std::vector<int> m_rootstk;			///< stack for open close root expressions
 };
 
 
