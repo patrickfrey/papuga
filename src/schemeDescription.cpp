@@ -19,17 +19,15 @@
 
 static bool isDelimiter( char ch)
 {
-	if (ch == '/') return true;
-	if (ch == '@') return true;
-	if (ch == '[') return true;
+	static const char* brk = "/@[](){}#=";
 	if (ch == '\0') return true;
-	if (ch == ' ') return true;
-	return false;
+	if ((unsigned char)ch < 32) return true;
+	return 0!=std::strchr(brk,ch);
 }
 
 static char const* skipBrackets( char const* src)
 {
-	sb = *src++;
+	char sb = *src++;
 	char eb = '\0';
 	if (sb == '(') eb = ')';
 	else if (sb == '[') eb = ']';
@@ -44,9 +42,44 @@ static char const* skipBrackets( char const* src)
 	return ++src;
 }
 
+std::string parseToken( char const*& src)
+{
+	const char* start = src;
+	for (;*src && !isDelimiter(*src); ++src){};
+	return std::string( start, src-start);
+}
+
+std::string parseString( char const*& src)
+{
+	std::string rt;
+	char eb = *src++;
+	for (; *src && *src != eb; ++src)
+	{
+		if (*src == '\\')
+		{
+			++src;
+			switch (*src)
+			{
+				case 'n': rt.push_back( '\n'); break;
+				case 't': rt.push_back( '\t'); break;
+				case 'b': rt.push_back( '\b'); break;
+				case 'r': rt.push_back( '\r'); break;
+				case '\0': throw std::runtime_error("syntax error");
+				default: rt.push_back( *src); break;
+			}
+		}
+		else
+		{
+			rt.push_back( *src);
+		}
+	}
+	if (*src != eb) throw std::runtime_error("syntax error");
+	return rt;
+}
+
 static char const* skipElement( char const* src)
 {
-	for (; !isDelimiter(src); ++src){}
+	for (; !isDelimiter( *src); ++src){}
 	return src;
 }
 
@@ -72,8 +105,15 @@ public:
 	TreeNode& operator = (TreeNode&& o)
 		{name=std::move(o.name); valueType=o.valueType; resolveType=o.resolveType; examples=std::move(o.examples); chld=std::move(o.chld); return *this;}
 #endif
+	TreeNode( const std::string& name_, papuga_Type valueType_, papuga_ResolveType resolveType_, const std::vector<std::string>& examples_=std::vector<std::string>())
+		:name(name_),valueType(valueType_),resolveType(resolveType_),examples(examples_),chld()
+	{}
 	TreeNode( const std::string& name_, papuga_Type valueType_, papuga_ResolveType resolveType_, const char** examples_)
 		:name(name_),valueType(valueType_),resolveType(resolveType_),examples(),chld()
+	{
+		addExamples( examples_);
+	}
+	void addExamples( const char** examples_)
 	{
 		if (examples_)
 		{
@@ -84,58 +124,137 @@ public:
 			}
 		}
 	}
+
 	void addChild( const TreeNode& o)
 	{
 		chld.push_back( o);
 	}
-	std::vector<TreeNode>::iterator findNode( const std::string& name)
+	std::vector<TreeNode>::iterator findNode( const std::string& name_)
 	{
 		std::vector<TreeNode>::iterator ci = chld.begin(), ce = chld.end();
 		for (; ci != ce; ++ci)
 		{
-			if (name == ci->name) return ci;
+			if (name_ == ci->name) return ci;
 		}
 		return chld.end();
 	}
 
-	bool addElement( const char* expression, papuga_Type valueType, papuga_ResolveType resolveType, const char** examples)
+	void addConditionElements( const char* src)
 	{
-		char const* ei = expression;
-		char const* start = ei;
-		if (*ei == '@')
+		while (*src == '[')
 		{
-			ei = skipElement( ++ei);
-			std::string name( start, ei-start);
-			if (*ei == '/')
+			++src;
+			for (;;)
 			{
-				++ei;
-				if (*ei == '/')
+				for (;*src && (unsigned char)*src <= 32; ++src){}
+				char const* start = src;
+				if (*src == '@') ++src;
+				src = skipElement( ++src);
+				std::string condAttrName( start, src-start);
+				std::vector<std::string> condExamples;
+				for (;*src && (unsigned char)*src <= 32; ++src){}
+				if (*src == '=')
 				{
-					return false;
+					++src;
+					for (;*src && (unsigned char)*src <= 32; ++src){}
+					if (*src == '\'' || *src == '\"')
+					{
+						condExamples.push_back( parseString( src));
+					}
+					else
+					{
+						condExamples.push_back( parseToken( src));
+					}
+					for (;*src && (unsigned char)*src <= 32; ++src){}
 				}
-				std::vector<TreeNode>::iterator ni = findNode( name);
+				std::vector<TreeNode>::iterator ni = findNode( condAttrName);
 				if (ni == chld.end())
 				{
-					chld.push_back( TreeNode( name, papuga_TypeVoid, papuga_ResolveTypeRequired, NULL/*examples*/));
-					ni = chld.end();
-					--ni;
+					chld.push_back( TreeNode( condAttrName, papuga_TypeVoid, papuga_ResolveTypeRequired, condExamples));
 				}
-				ni->addElement( ei, valueType, resolveType, examples);
+				else
+				{
+					ni->examples.insert( ni->examples.end(), condExamples.begin(), condExamples.end());
+				}
+				if (*src == ',')
+				{
+					++src;
+				}
+				else
+				{
+					break;
+				}
 			}
-			else if (*ei == '@')
+			if (*src == ']')
 			{
-				!!!!! HIE WIITER !!!!!
+				++src;
+				for (;*src && (unsigned char)*src <= 32; ++src){}
+			}
+			else
+			{
+				throw std::runtime_error( "syntax error");
 			}
 		}
-		if (expression[0] == '/' && expression[1] == '/')
+	}
+
+	bool addFollow( const char* expression_, papuga_Type valueType_, papuga_ResolveType resolveType_, const char** examples_)
+	{
+		bool isAttribute = !name.empty() && name[0] == '@';
+		char const* ei = expression_;
+		if (*ei == '[')
 		{
-			unresolved = true;
-			return;
+			addConditionElements( ei);
+			ei = skipBrackets( ei);
 		}
-		if (expression[0] == '/')
+		if (*ei == '/')
 		{
-			
+			if (isAttribute) throw std::runtime_error("syntax error");
+			++ei;
+			if (*ei == '/')
+			{
+				return false;
+			}
+			return addElement( ei, valueType_, resolveType_, examples_);
 		}
+		else if (*ei == '@')
+		{
+			if (isAttribute) throw std::runtime_error("syntax error");
+			return addElement( ei, valueType_, resolveType_, examples_);
+		}
+		else if (*ei == '(' || *ei == '\0')
+		{
+			valueType = valueType_;
+			resolveType = resolveType_;
+			addExamples( examples_);
+			return true;
+		}
+		else
+		{
+			throw std::runtime_error("syntax error");
+		}
+	}
+
+	bool addElement( const char* expression_, papuga_Type valueType_, papuga_ResolveType resolveType_, const char** examples_)
+	{
+		char const* ei = expression_;
+		char const* start = ei;
+		bool isAttribute = false;
+		if (*ei == '@')
+		{
+			++ei;
+			isAttribute = true;
+		}
+		ei = skipElement( ++ei);
+		
+		std::string nodename( start, ei-start);
+		std::vector<TreeNode>::iterator ni = findNode( nodename);
+		if (ni == chld.end())
+		{
+			chld.push_back( TreeNode( name, papuga_TypeVoid, papuga_ResolveTypeRequired));
+			ni = chld.end();
+			--ni;
+		}
+		return ni->addFollow( ei, valueType_, resolveType_, examples_);
 	}
 };
 
@@ -153,14 +272,27 @@ public:
 
 	void addElement( const char* expression, papuga_Type valueType, papuga_ResolveType resolveType, const char** examples)
 	{
-		char const* src = expression;
-		if (std::strstr( expression, "//"))
+		if (expression[0] == '/')
 		{
-			unresolved.push_back( TreeNode( expression, valueType, resolveType, examples));
+			if (expression[1] == '/')
+			{
+				unresolved.push_back( TreeNode( expression, valueType, resolveType, examples));
+			}
+			else
+			{
+				if (isDelimiter( expression[ 1]))
+				{
+					tree.addFollow( expression+1, valueType, resolveType, examples);
+				}
+				else
+				{
+					tree.addElement( expression+1, valueType, resolveType, examples);
+				}
+			}
 		}
 		else
 		{
-			
+			tree.addFollow( expression, valueType, resolveType, examples);
 		}
 	}
 };
@@ -202,6 +334,7 @@ extern "C" bool papuga_SchemeDescription_add_element( papuga_SchemeDescription* 
 {
 	try
 	{
+		self->impl.addElement( expression, valueType, resolveType, examples);
 		self->impl.lasterr = papuga_Ok;
 		return true;
 	}
