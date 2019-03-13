@@ -90,28 +90,29 @@ class TreeNode
 {
 public:
 	std::string name;
+	bool isAttribute;
 	papuga_Type valueType;
 	papuga_ResolveType resolveType;
 	std::vector<std::string> examples;
 	std::vector<TreeNode> chld;
 
 	TreeNode()
-		:name(),valueType(papuga_TypeVoid),resolveType(papuga_ResolveTypeRequired),examples(),chld(){}
+		:name(),isAttribute(false),valueType(papuga_TypeVoid),resolveType(papuga_ResolveTypeRequired),examples(),chld(){}
 	TreeNode( const TreeNode& o)
-		:name(o.name),valueType(o.valueType),resolveType(o.resolveType),examples(o.examples),chld(o.chld){}
+		:name(o.name),isAttribute(o.isAttribute),valueType(o.valueType),resolveType(o.resolveType),examples(o.examples),chld(o.chld){}
 	TreeNode& operator = (const TreeNode& o)
-		{name=o.name; valueType=o.valueType; resolveType=o.resolveType; examples=o.examples; chld=o.chld; return *this;}
+		{name=o.name; isAttribute=o.isAttribute; valueType=o.valueType; resolveType=o.resolveType; examples=o.examples; chld=o.chld; return *this;}
 #if __cplusplus >= 201103L
 	TreeNode( TreeNode&& o)
-		:name(std::move(o.name)),valueType(o.valueType),resolveType(o.resolveType),examples(std::move(o.examples)),chld(std::move(o.chld)){}
+		:name(std::move(o.name)),isAttribute(o.isAttribute),valueType(o.valueType),resolveType(o.resolveType),examples(std::move(o.examples)),chld(std::move(o.chld)){}
 	TreeNode& operator = (TreeNode&& o)
-		{name=std::move(o.name); valueType=o.valueType; resolveType=o.resolveType; examples=std::move(o.examples); chld=std::move(o.chld); return *this;}
+		{name=std::move(o.name); isAttribute=o.isAttribute; valueType=o.valueType; resolveType=o.resolveType; examples=std::move(o.examples); chld=std::move(o.chld); return *this;}
 #endif
-	TreeNode( const std::string& name_, papuga_Type valueType_, papuga_ResolveType resolveType_, const std::vector<std::string>& examples_=std::vector<std::string>())
-		:name(name_),valueType(valueType_),resolveType(resolveType_),examples(examples_),chld()
+	TreeNode( const std::string& name_, bool isAttribute_, papuga_Type valueType_, papuga_ResolveType resolveType_, const std::vector<std::string>& examples_=std::vector<std::string>())
+		:name(name_),isAttribute(isAttribute_),valueType(valueType_),resolveType(resolveType_),examples(examples_),chld()
 	{}
-	TreeNode( const std::string& name_, papuga_Type valueType_, papuga_ResolveType resolveType_, const char** examples_)
-		:name(name_),valueType(valueType_),resolveType(resolveType_),examples(),chld()
+	TreeNode( const std::string& name_, bool isAttribute_, papuga_Type valueType_, papuga_ResolveType resolveType_, const char** examples_)
+		:name(name_),isAttribute(isAttribute_),valueType(valueType_),resolveType(resolveType_),examples(),chld()
 	{
 		addExamples( examples_);
 	}
@@ -129,6 +130,7 @@ public:
 
 	void addChild( const TreeNode& o)
 	{
+		if (isAttribute) throw std::runtime_error("syntax error");
 		chld.push_back( o);
 	}
 	std::vector<TreeNode>::iterator findNode( const std::string& name_)
@@ -149,9 +151,11 @@ public:
 			for (;;)
 			{
 				for (;*src && (unsigned char)*src <= 32; ++src){}
+				bool condIsAttribute = false;
+				if (*src == '@') {++src; condIsAttribute = true;}
 				char const* start = src;
-				if (*src == '@') ++src;
-				src = skipElement( ++src);
+				src = skipElement( src);
+				if (start == src) throw std::runtime_error("syntax error");
 				std::string condAttrName( start, src-start);
 				std::vector<std::string> condExamples;
 				for (;*src && (unsigned char)*src <= 32; ++src){}
@@ -172,10 +176,11 @@ public:
 				std::vector<TreeNode>::iterator ni = findNode( condAttrName);
 				if (ni == chld.end())
 				{
-					chld.push_back( TreeNode( condAttrName, papuga_TypeVoid, papuga_ResolveTypeRequired, condExamples));
+					chld.push_back( TreeNode( condAttrName, condIsAttribute, papuga_TypeVoid, papuga_ResolveTypeRequired, condExamples));
 				}
 				else
 				{
+					if (ni->isAttribute != condIsAttribute) throw std::runtime_error("syntax error");
 					ni->examples.insert( ni->examples.end(), condExamples.begin(), condExamples.end());
 				}
 				if (*src == ',')
@@ -201,7 +206,6 @@ public:
 
 	bool addFollow( const char* expression_, papuga_Type valueType_, papuga_ResolveType resolveType_, const char** examples_)
 	{
-		bool isAttribute = !name.empty() && name[0] == '@';
 		char const* ei = expression_;
 		if (*ei == '[')
 		{
@@ -239,33 +243,126 @@ public:
 	bool addElement( const char* expression_, papuga_Type valueType_, papuga_ResolveType resolveType_, const char** examples_)
 	{
 		char const* ei = expression_;
-		char const* start = ei;
+		bool nodeIsAttribute = false;
 		if (*ei == '@')
 		{
+			nodeIsAttribute = true;
 			++ei;
 		}
-		ei = skipElement( ++ei);
+		char const* start = ei;
+		ei = skipElement( ei);
 		
 		std::string nodename( start, ei-start);
 		std::vector<TreeNode>::iterator ni = findNode( nodename);
 		if (ni == chld.end())
 		{
-			chld.push_back( TreeNode( nodename, papuga_TypeVoid, papuga_ResolveTypeRequired));
+			chld.push_back( TreeNode( nodename, nodeIsAttribute, papuga_TypeVoid, papuga_ResolveTypeRequired));
 			ni = chld.end();
 			--ni;
+		}
+		else
+		{
+			if (ni->isAttribute != nodeIsAttribute) throw std::runtime_error("syntax error");
 		}
 		return ni->addFollow( ei, valueType_, resolveType_, examples_);
 	}
 
+	static const char* schemaAtomTypeName( papuga_Type tp)
+	{
+		switch (tp)
+		{
+			case papuga_TypeVoid: break;
+			case papuga_TypeDouble: return "xs:decimal";
+			case papuga_TypeInt: return "xs:integer";
+			case papuga_TypeBool: return "xs:boolean";
+			case papuga_TypeString: return "xs:string";
+			case papuga_TypeHostObject: break;
+			case papuga_TypeSerialization: break;
+			case papuga_TypeIterator: break;
+		}
+		return NULL;
+	}
+
+	std::string elementUseSpecifier() const
+	{
+		switch (resolveType)
+		{
+			case papuga_ResolveTypeRequired:
+				return " minOccurs=\"1\"";
+			case papuga_ResolveTypeOptional:
+				return " minOccurs=\"0\"";
+			case papuga_ResolveTypeInherited:
+			case papuga_ResolveTypeArray:
+				return " minOccurs=\"0\" maxOccurs=\"16777216\"";
+			case papuga_ResolveTypeArrayNonEmpty:
+				return " minOccurs=\"1\" maxOccurs=\"16777216\"";
+		}
+	}
+	std::string attributeUseSpecifier() const
+	{
+		switch (resolveType)
+		{
+			case papuga_ResolveTypeRequired:
+				return " use=\"required\"";
+			case papuga_ResolveTypeOptional:
+				return "";
+			case papuga_ResolveTypeInherited:
+			case papuga_ResolveTypeArray:
+			case papuga_ResolveTypeArrayNonEmpty:
+				return "";
+		}
+	}
+
 	void printSchemaElements( std::ostream& out) const
 	{
+		switch (valueType)
+		{
+			case papuga_TypeVoid:
+			{
+				std::vector<TreeNode>::const_iterator ci = chld.begin(), ce = chld.end();
+				out << "<xs:element name=\"" << name << "\"" << elementUseSpecifier() << ">\n";
+				out << "<xs:complexType>\n";
+				for (; ci != ce; ++ci)
+				{
+					if (ci->isAttribute) ci->printSchemaElements( out);
+				}
+				out << "<xs:any>\n";
+				for (; ci != ce; ++ci)
+				{
+					if (!ci->isAttribute) ci->printSchemaElements( out);
+				}
+				out << "</xs:any>\n";
+				out << "</xs:complexType>\n";
+				out << "</xs:element>\n";
+				break;
+			}
+			case papuga_TypeDouble:
+			case papuga_TypeInt:
+			case papuga_TypeBool:
+			case papuga_TypeString:
+				if (isAttribute)
+				{
+					out << "<xs:attribute name=\"" << name << "\" type=\"" << schemaAtomTypeName( valueType) << attributeUseSpecifier() << "\"/>\n";
+				}
+				else
+				{
+					out << "<xs:element name=\"" << name << "\" type=\"" << schemaAtomTypeName( valueType) << elementUseSpecifier() << "\"/>\n";
+				}
+				break;
+			case papuga_TypeHostObject:
+				throw std::runtime_error("logic error");
+			case papuga_TypeSerialization:
+				throw std::runtime_error("logic error");
+			case papuga_TypeIterator:
+				throw std::runtime_error("logic error");
+		}
 	}
 };
 
 class SchemeDescription
 {
 public:
-	papuga_ErrorCode lasterr;
+	mutable papuga_ErrorCode lasterr;
 	TreeNode tree;
 	std::vector<TreeNode> unresolved;
 	std::string text;
@@ -280,7 +377,7 @@ public:
 		{
 			if (expression[1] == '/')
 			{
-				unresolved.push_back( TreeNode( expression, valueType, resolveType, examples));
+				unresolved.push_back( TreeNode( expression, false, valueType, resolveType, examples));
 			}
 			else
 			{
@@ -350,10 +447,22 @@ extern "C" papuga_ErrorCode papuga_SchemeDescription_last_error( const papuga_Sc
 	return self->impl.lasterr;
 }
 
+static papuga_ErrorCode getExceptionError( const char* name)
+{
+	if (0==std::strcmp( name, "syntax error")) return papuga_SyntaxError;
+	if (0==std::strcmp( name, "logic error")) return papuga_LogicError;
+	return papuga_TypeError;
+}
+
 extern "C" bool papuga_SchemeDescription_add_element( papuga_SchemeDescription* self, const char* expression, papuga_Type valueType, papuga_ResolveType resolveType, const char** examples)
 {
 	try
 	{
+		if (!self->impl.text.empty())
+		{
+			self->impl.lasterr = papuga_ExecutionOrder;
+			return false;
+		}
 		self->impl.addElement( expression, valueType, resolveType, examples);
 		self->impl.lasterr = papuga_Ok;
 		return true;
@@ -363,9 +472,9 @@ extern "C" bool papuga_SchemeDescription_add_element( papuga_SchemeDescription* 
 		self->impl.lasterr = papuga_NoMemError;
 		return false;
 	}
-	catch (const std::runtime_error&)
+	catch (const std::runtime_error& err)
 	{
-		self->impl.lasterr = papuga_SyntaxError;
+		self->impl.lasterr = getExceptionError( err.what());
 		return false;
 	}
 }
@@ -374,6 +483,9 @@ extern "C" bool papuga_SchemeDescription_finish( papuga_SchemeDescription* self)
 {
 	try
 	{
+		if (!self->impl.text.empty()) return true;
+		self->impl.text = self->impl.buildSchemaText();
+		self->impl.example = self->impl.buildExample();
 		self->impl.lasterr = papuga_Ok;
 		return true;
 	}
@@ -382,20 +494,30 @@ extern "C" bool papuga_SchemeDescription_finish( papuga_SchemeDescription* self)
 		self->impl.lasterr = papuga_NoMemError;
 		return false;
 	}
-	catch (const std::runtime_error&)
+	catch (const std::runtime_error& err)
 	{
-		self->impl.lasterr = papuga_SyntaxError;
+		self->impl.lasterr = getExceptionError( err.what());
 		return false;
 	}
 }
 
 extern "C" const char* papuga_SchemeDescription_get_text( const papuga_SchemeDescription* self)
 {
+	if (self->impl.text.empty())
+	{
+		self->impl.lasterr = papuga_ExecutionOrder;
+		return NULL;
+	}
 	return self->impl.text.c_str();
 }
 
 extern "C" const char* papuga_SchemeDescription_get_example( const papuga_SchemeDescription* self)
 {
+	if (self->impl.example.empty())
+	{
+		self->impl.lasterr = papuga_ExecutionOrder;
+		return NULL;
+	}
 	return self->impl.example.c_str();
 }
 

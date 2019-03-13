@@ -42,6 +42,7 @@ papuga_ErrorCode papuga_SchemeDescription_last_error( const papuga_SchemeDescrip
 
 /*
  * @brief Add an element (structure or atom) to the scheme description
+ * @remark not threadsafe
  * @param[in] self scheme description to add element to
  * @param[in] expression select expression of the element
  * @param[in] valueType in case of an atomic value or papuga_TypeVoid else
@@ -52,6 +53,7 @@ bool papuga_SchemeDescription_add_element( papuga_SchemeDescription* self, const
 
 /*
  * @brief Declare a description of a scheme to be finished
+ * @remark not threadsafe
  * @param[in] self scheme description to close for further input
  * @note After this operation no more elements can be added
  */
@@ -59,6 +61,7 @@ bool papuga_SchemeDescription_finish( papuga_SchemeDescription* self);
 
 /*
  * @brief Get the description of the scheme as text
+ * @remark not threadsafe
  * @param[in] self scheme description to get the description of
  * @return the description of the scheme as text
  */
