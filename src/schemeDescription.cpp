@@ -240,11 +240,9 @@ public:
 	{
 		char const* ei = expression_;
 		char const* start = ei;
-		bool isAttribute = false;
 		if (*ei == '@')
 		{
 			++ei;
-			isAttribute = true;
 		}
 		ei = skipElement( ++ei);
 		
@@ -252,7 +250,7 @@ public:
 		std::vector<TreeNode>::iterator ni = findNode( nodename);
 		if (ni == chld.end())
 		{
-			chld.push_back( TreeNode( name, papuga_TypeVoid, papuga_ResolveTypeRequired));
+			chld.push_back( TreeNode( nodename, papuga_TypeVoid, papuga_ResolveTypeRequired));
 			ni = chld.end();
 			--ni;
 		}
