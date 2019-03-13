@@ -16,6 +16,8 @@
 #include <stdexcept>
 #include <cstring>
 #include <cstdlib>
+#include <iostream>
+#include <sstream>
 
 static bool isDelimiter( char ch)
 {
@@ -256,6 +258,10 @@ public:
 		}
 		return ni->addFollow( ei, valueType_, resolveType_, examples_);
 	}
+
+	void printSchemaElements( std::ostream& out) const
+	{
+	}
 };
 
 class SchemeDescription
@@ -294,6 +300,22 @@ public:
 		{
 			tree.addFollow( expression, valueType, resolveType, examples);
 		}
+	}
+	std::string buildExample() const
+	{
+		return std::string();
+	}
+	std::string buildSchemaText() const
+	{
+		std::ostringstream out;
+		out << "<?xml version=\"1.0\"?>\n";
+		out << "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">\n";
+
+		out << "<xs:element name=\"" << tree.name << "\">\n";
+		out << "</xs:element>\n";
+		tree.printSchemaElements( out);
+		out << "</xs:schema>\n";
+		return out.str();
 	}
 };
 
