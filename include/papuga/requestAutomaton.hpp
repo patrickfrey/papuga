@@ -150,16 +150,17 @@ struct RequestAutomaton_ValueDef
 	const char* scope_expression;	///< selecting expression addressing the scope of this value definition
 	const char* select_expression;	///< selecting expression addressing the value itself
 	int itemid;			///< identifier given to the item to make it uniquely addressable in the context of its scope
+	const char* examples;		///< semicolon ';' separated list of examples or NULL if no examples defined
 
 	/// \brief Copy constructor
 	RequestAutomaton_ValueDef( const RequestAutomaton_ValueDef& o)
-		:scope_expression(o.scope_expression),select_expression(o.select_expression),itemid(o.itemid){}
+		:scope_expression(o.scope_expression),select_expression(o.select_expression),itemid(o.itemid),examples(o.examples){}
 	/// \brief Constructor
 	/// \param[in] scope_expression_ selecting expression addressing the scope of this value definition
 	/// \param[in] select_expression_ selecting expression addressing the value itself
 	/// \param[in] itemid_ identifier given to the item to make it uniquely addressable in the context of its scope
-	RequestAutomaton_ValueDef( const char* scope_expression_, const char* select_expression_, int itemid_)
-		:scope_expression(scope_expression_),select_expression(select_expression_),itemid(itemid_){}
+	RequestAutomaton_ValueDef( const char* scope_expression_, const char* select_expression_, int itemid_, const char* examples_)
+		:scope_expression(scope_expression_),select_expression(select_expression_),itemid(itemid_),examples(examples_){}
 
 	/// \brief Add this value definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
@@ -238,7 +239,8 @@ struct RequestAutomaton_Node
 	/// \param[in] scope_expression_ selecting expression addressing the scope of this value definition
 	/// \param[in] select_expression_ selecting expression addressing the value itself
 	/// \param[in] itemid_ identifier given to the item to make it uniquely addressable in the context of its scope
-	RequestAutomaton_Node( const char* scope_expression_, const char* select_expression_, int itemid_);
+	/// \param[in] examples semicolon ';' separated list of examples or NULL if no examples defined
+	RequestAutomaton_Node( const char* scope_expression_, const char* select_expression_, int itemid_, const char* examples=0);
 	///\brief Contructor from list of predefined nodes (for sharing definitions)
 	/// \param[in] nodelist_ list of nodes
 	RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_);
@@ -344,8 +346,9 @@ public:
 	/// \param[in] scope_expression selecting expression addressing the scope of this value definition
 	/// \param[in] select_expression selecting expression addressing the value itself
 	/// \param[in] itemid identifier given to the item to make it uniquely addressable in the context of its scope
+	/// \param[in] examples semicolon ';' separated list of examples or NULL if no examples defined
 	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
-	void addValue( const char* scope_expression, const char* select_expression, int itemid);
+	void addValue( const char* scope_expression, const char* select_expression, int itemid, const char* examples);
 
 	/// \brief Open a method call group definition
 	/// \remark Only available if this automaton has been constructed as empty

@@ -41,6 +41,11 @@ void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, 
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add function, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 	}
+	if (!papuga_SchemeDescription_add_element( descr, -1/*id*/, fullexpr.c_str(), papuga_TypeVoid, NULL/*examples*/))
+	{
+		papuga_ErrorCode errcode = papuga_SchemeDescription_last_error( descr);
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("scheme description add element, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+	}
 	std::vector<RequestAutomaton_FunctionDef::Arg>::const_iterator ai = args.begin(), ae = args.end();
 	for (int aidx=0; ai != ae; ++ai,++aidx)
 	{
@@ -74,6 +79,11 @@ void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, pa
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add structure, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 	}
+	if (!papuga_SchemeDescription_add_element( descr, itemid, fullexpr.c_str(), papuga_TypeVoid, NULL/*examples*/))
+	{
+		papuga_ErrorCode errcode = papuga_SchemeDescription_last_error( descr);
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("scheme description add element, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+	}
 	std::vector<RequestAutomaton_StructDef::Element>::const_iterator ei = elems.begin(), ee = elems.end();
 	for (int eidx=0; ei != ee; ++ei,++eidx)
 	{
@@ -81,6 +91,11 @@ void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, pa
 		{
 			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add structure element, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+		}
+		if (!papuga_SchemeDescription_add_relation( descr, itemid, ei->itemid, ei->resolvetype))
+		{
+			papuga_ErrorCode errcode = papuga_SchemeDescription_last_error( descr);
+			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("scheme description add structure element, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 		}
 	}
 }
@@ -96,6 +111,16 @@ void RequestAutomaton_ValueDef::addToAutomaton( const std::string& rootexpr, pap
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add value, scope expression %s select expression %s: %s"), scope_fullexpr.c_str(), select_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+	}
+	if (!papuga_SchemeDescription_add_element( descr, -1/*id*/, scope_fullexpr.c_str(), papuga_TypeVoid, NULL/*examples*/))
+	{
+		papuga_ErrorCode errcode = papuga_SchemeDescription_last_error( descr);
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("scheme description add element, expression %s: %s"), scope_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+	}
+	if (!papuga_SchemeDescription_add_element( descr, itemid, select_fullexpr.c_str(), papuga_TypeVoid, examples))
+	{
+		papuga_ErrorCode errcode = papuga_SchemeDescription_last_error( descr);
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("scheme description add element, expression %s: %s"), select_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 	}
 }
 
@@ -168,10 +193,10 @@ RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, int itemid
 {
 	value.structdef = new RequestAutomaton_StructDef( expression, itemid, std::vector<RequestAutomaton_StructDef::Element>( elems.begin(), elems.end()));
 }
-RequestAutomaton_Node::RequestAutomaton_Node( const char* scope_expression, const char* select_expression, int itemid)
+RequestAutomaton_Node::RequestAutomaton_Node( const char* scope_expression, const char* select_expression, int itemid, const char* examples)
 	:type(Value)
 {
-	value.valuedef = new RequestAutomaton_ValueDef( scope_expression, select_expression, itemid);
+	value.valuedef = new RequestAutomaton_ValueDef( scope_expression, select_expression, itemid, examples);
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_)
 	:type(NodeList)
@@ -325,9 +350,9 @@ void RequestAutomaton::addStruct( const char* expression, int itemid, const Requ
 	st.addToAutomaton( m_rootexpr, m_atm, m_descr);
 }
 
-void RequestAutomaton::addValue( const char* scope_expression, const char* select_expression, int itemid)
+void RequestAutomaton::addValue( const char* scope_expression, const char* select_expression, int itemid, const char* examples)
 {
-	RequestAutomaton_ValueDef val( scope_expression, select_expression, itemid);
+	RequestAutomaton_ValueDef val( scope_expression, select_expression, itemid, examples);
 	val.addToAutomaton( m_rootexpr, m_atm, m_descr);
 }
 
