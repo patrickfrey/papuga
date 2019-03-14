@@ -297,6 +297,7 @@ public:
 			case papuga_ResolveTypeArrayNonEmpty:
 				return " minOccurs=\"1\" maxOccurs=\"unbounded\"";
 		}
+		return std::string();
 	}
 	std::string attributeUseSpecifier() const
 	{
@@ -305,12 +306,13 @@ public:
 			case papuga_ResolveTypeRequired:
 				return " use=\"required\"";
 			case papuga_ResolveTypeOptional:
-				return "";
+				break;
 			case papuga_ResolveTypeInherited:
 			case papuga_ResolveTypeArray:
 			case papuga_ResolveTypeArrayNonEmpty:
-				return "";
+				break;
 		}
+		return std::string();
 	}
 
 	void printSchemaElements( std::ostream& out) const
