@@ -19,6 +19,21 @@
 #include <iostream>
 #include <sstream>
 
+class SyntaxErrorException
+	:public std::runtime_error
+{
+public:
+	SyntaxErrorException() :std::runtime_error("syntax error"){}
+};
+
+class LogicErrorException
+	:public std::runtime_error
+{
+public:
+	LogicErrorException() :std::runtime_error("logic error"){}
+};
+
+
 static bool isDelimiter( char ch)
 {
 	static const char* brk = "/@[](){}#=";
@@ -34,13 +49,13 @@ static char const* skipBrackets( char const* src)
 	if (sb == '(') eb = ')';
 	else if (sb == '[') eb = ']';
 	else if (sb == '{') eb = '}';
-	else throw std::runtime_error("syntax error");
+	else throw SyntaxErrorException();
 
 	for (; *src && *src != eb; ++src)
 	{
-		if (*src == sb) throw std::runtime_error("syntax error");
+		if (*src == sb) throw SyntaxErrorException();
 	}
-	if (*src != eb) throw std::runtime_error("syntax error");
+	if (*src != eb) throw SyntaxErrorException();
 	return ++src;
 }
 
@@ -66,7 +81,7 @@ std::string parseString( char const*& src)
 				case 't': rt.push_back( '\t'); break;
 				case 'b': rt.push_back( '\b'); break;
 				case 'r': rt.push_back( '\r'); break;
-				case '\0': throw std::runtime_error("syntax error");
+				case '\0': throw SyntaxErrorException();
 				default: rt.push_back( *src); break;
 			}
 		}
@@ -75,7 +90,7 @@ std::string parseString( char const*& src)
 			rt.push_back( *src);
 		}
 	}
-	if (*src != eb) throw std::runtime_error("syntax error");
+	if (*src != eb) throw SyntaxErrorException();
 	return rt;
 }
 
@@ -139,7 +154,7 @@ public:
 
 	void addChild( const TreeNode& o)
 	{
-		if (isAttribute) throw std::runtime_error("syntax error");
+		if (isAttribute) throw SyntaxErrorException();
 		chld.push_back( o);
 	}
 	std::vector<TreeNode>::iterator findNode( const std::string& name_)
@@ -164,7 +179,7 @@ public:
 				if (*src == '@') {++src; condIsAttribute = true;}
 				char const* start = src;
 				src = skipElement( src);
-				if (start == src) throw std::runtime_error("syntax error");
+				if (start == src) throw SyntaxErrorException();
 				std::string condAttrName( start, src-start);
 				std::vector<std::string> condExamples;
 				for (;*src && (unsigned char)*src <= 32; ++src){}
@@ -189,7 +204,7 @@ public:
 				}
 				else
 				{
-					if (ni->isAttribute != condIsAttribute) throw std::runtime_error("syntax error");
+					if (ni->isAttribute != condIsAttribute) throw SyntaxErrorException();
 					ni->examples.insert( ni->examples.end(), condExamples.begin(), condExamples.end());
 				}
 				if (*src == ',')
@@ -223,7 +238,7 @@ public:
 		}
 		if (*ei == '/')
 		{
-			if (isAttribute) throw std::runtime_error("syntax error");
+			if (isAttribute) throw SyntaxErrorException();
 			++ei;
 			if (*ei == '/')
 			{
@@ -233,7 +248,7 @@ public:
 		}
 		else if (*ei == '@')
 		{
-			if (isAttribute) throw std::runtime_error("syntax error");
+			if (isAttribute) throw SyntaxErrorException();
 			return addElement( id_, ei, valueType_, examples_);
 		}
 		else if (*ei == '(' || *ei == '\0')
@@ -245,7 +260,7 @@ public:
 		}
 		else
 		{
-			throw std::runtime_error("syntax error");
+			throw SyntaxErrorException();
 		}
 	}
 
@@ -266,7 +281,7 @@ public:
 			rt.push_back( trim( ei, ni-ei));
 			if (rt.back().empty() || rt.back()[0] == '@')
 			{
-				throw std::runtime_error("syntax error");
+				throw SyntaxErrorException();
 			}
 		}
 		ni = std::strchr( ei, '\0');
@@ -285,7 +300,7 @@ public:
 		}
 		else
 		{
-			if (ni->isAttribute != nodeIsAttribute) throw std::runtime_error("syntax error");
+			if (ni->isAttribute != nodeIsAttribute) throw SyntaxErrorException();
 		}
 		return ni;
 	}
@@ -409,11 +424,11 @@ public:
 				}
 				break;
 			case papuga_TypeHostObject:
-				throw std::runtime_error("logic error");
+				throw LogicErrorException();
 			case papuga_TypeSerialization:
-				throw std::runtime_error("logic error");
+				throw LogicErrorException();
 			case papuga_TypeIterator:
-				throw std::runtime_error("logic error");
+				throw LogicErrorException();
 		}
 	}
 };
