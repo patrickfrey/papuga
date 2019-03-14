@@ -12,7 +12,7 @@
 #include "papuga/typedefs.h"
 #include "papuga/classdef.h"
 #include "papuga/request.h"
-#include "papuga/schemeDescription.h"
+#include "papuga/schemaDescription.h"
 #include <string>
 #include <vector>
 #include <stdexcept>
@@ -94,8 +94,8 @@ struct RequestAutomaton_FunctionDef
 	/// \brief Add this method call definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	/// \param[in] descr scheme description to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const;
+	/// \param[in] descr schema description to add this definition to
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
 /// \brief Request structure definition 
@@ -140,8 +140,8 @@ struct RequestAutomaton_StructDef
 	/// \brief Add this structure definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	/// \param[in] descr scheme description to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const;
+	/// \param[in] descr schema description to add this definition to
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
 /// \brief Request atomic value definition 
@@ -165,8 +165,8 @@ struct RequestAutomaton_ValueDef
 	/// \brief Add this value definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	/// \param[in] descr scheme description to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const;
+	/// \param[in] descr schema description to add this definition to
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
 /// \brief Request grouping of functions definitions
@@ -185,8 +185,8 @@ struct RequestAutomaton_GroupDef
 	/// \brief Add this group definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	/// \param[in] descr scheme description to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const;
+	/// \param[in] descr schema description to add this definition to
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
 #if __cplusplus >= 201103L
@@ -249,8 +249,8 @@ struct RequestAutomaton_Node
 	RequestAutomaton_Node( const RequestAutomaton_Node& o);
 	/// \brief Add this node definition to an automaton
 	/// \param[in] atm automaton to add this definition to
-	/// \param[in] descr scheme description to add this definition to
-	void addToAutomaton( papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const;
+	/// \param[in] descr schema description to add this definition to
+	void addToAutomaton( papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 
 	/// \brief Define selection expression for the context of the node
 	/// \param[in] rootexpr_ selection expression defined as the context (all paths are relative to the context)
@@ -315,7 +315,7 @@ public:
 	/// \brief Destructor
 	~RequestAutomaton();
 
-	/// \brief Define the declaration of a context this scheme is dependent on
+	/// \brief Define the declaration of a context this schema is dependent on
 	/// \param[in] type the type name of the context inherited
 	/// \param[in] expression select expression addressing the name of the context inherited
 	/// \param[in] required true if the inherited context is mandatory
@@ -372,11 +372,15 @@ public:
 
 	/// \brief Get the pointer to the defined automaton for handling requests
 	/// \return the automaton definition
-	const papuga_RequestAutomaton* impl() const	{return m_atm;}
+	const papuga_RequestAutomaton* impl() const		{return m_atm;}
+
+	/// \brief Get the pointer to the XSD Schema declaration source generation from the schema description
+	/// \return the schema description XSD source
+	const papuga_SchemaDescription* description() const	{return m_descr;}
 
 private:
 	papuga_RequestAutomaton* m_atm;			///< automaton definition
-	papuga_SchemeDescription* m_descr;		///< scheme description
+	papuga_SchemaDescription* m_descr;		///< schema description
 	std::string m_rootexpr;				///< current root expression
 	std::vector<int> m_rootstk;			///< stack for open close root expressions
 };

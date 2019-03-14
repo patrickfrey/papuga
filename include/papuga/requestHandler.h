@@ -13,6 +13,7 @@
 #define _PAPUGA_REQUEST_HANDLER_H_INCLUDED
 #include "papuga/typedefs.h"
 #include "papuga/request.h"
+#include "papuga/schemaDescription.h"
 #include "papuga/requestLogger.h"
 
 #ifdef __cplusplus
@@ -110,7 +111,7 @@ void papuga_destroy_RequestHandler( papuga_RequestHandler* self);
 /*
  * @brief Transfer the context (with ownership) to the request handler
  * @param[in] self this pointer to the request handler
- * @param[in] type type name given to the context used to address it and its schemes
+ * @param[in] type type name given to the context used to address it and its schemas
  * @param[in] name name given to the context used with the type to address it
  * @param[in,out] context context moved with ownership to handler
  * @param[out] errcode error code in case of error, untouched in case of success
@@ -122,7 +123,7 @@ bool papuga_RequestHandler_transfer_context( papuga_RequestHandler* self, const 
 /*
  * @brief Destroy a context defined if it exists
  * @param[in] self this pointer to the request handler
- * @param[in] type type name given to the context used to address it and its schemes
+ * @param[in] type type name given to the context used to address it and its schemas
  * @param[in] name name given to the context used with the type to address it
  * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false if the addressed context does not exist or in case of an error
@@ -132,32 +133,41 @@ bool papuga_RequestHandler_remove_context( papuga_RequestHandler* self, const ch
 /*
  * @brief Defines a new context for requests inherited from another context addressed by name in the request handler
  * @param[in] self this pointer to the request handler
- * @param[in] type type name name of the context the added scheme is valid for
- * @param[in] name name given to the scheme
- * @param[in] automaton pointer to automaton of the scheme
+ * @param[in] type type name name of the context the added schema is valid for
+ * @param[in] name name given to the schema
+ * @param[in] automaton pointer to automaton of the schema
  * @remark Not thread safe, synchronization has to be done by the caller
  * @return true on success, false on memory allocation error
  */ 
-bool papuga_RequestHandler_add_scheme( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton);
+bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton, const papuga_SchemaDescription* description);
 
 /*
- * @brief List the schemes defined for a given context type
+ * @brief List the schema names defined for a given context type
  * @param[in] self this pointer to the request handler
- * @param[in] type type name of the context the scheme is valid for or NULL, if all scheme identifiers should be returned
+ * @param[in] type type name of the context the schema is valid for or NULL, if all schema identifiers should be returned
  * @param[in] buf buffer to use for result
  * @param[in] bufsize size of buffer to use for result
  * @return NULL terminated array of context names or NULL if the buffer buf is too small for the result
  */
-const char** papuga_RequestHandler_list_schemes( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize);
+const char** papuga_RequestHandler_list_schema_names( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize);
 
 /*
- * @brief Retrieve a scheme for execution of a request
+ * @brief Retrieve the automaton for execution of a request
  * @param[in] self this pointer to the request handler
- * @param[in] type type name of the object that is base of this scheme
- * @param[in] name name of the scheme (the tuple [type,name] is identifying the scheme)
+ * @param[in] type type name of the object that is base of this schema
+ * @param[in] name name of the schema (the tuple [type,name] is identifying the schema)
  * @return pointer to automaton on success, NULL if not found
  */
-const papuga_RequestAutomaton* papuga_RequestHandler_get_scheme( const papuga_RequestHandler* self, const char* type, const char* name);
+const papuga_RequestAutomaton* papuga_RequestHandler_get_automaton( const papuga_RequestHandler* self, const char* type, const char* name);
+
+/*
+ * @brief Retrieve the description of the schema associated with a request type
+ * @param[in] self this pointer to the request handler
+ * @param[in] type type name of the object that is base of this schema
+ * @param[in] name name of the schema (the tuple [type,name] is identifying the schema)
+ * @return pointer to automaton on success, NULL if not found
+ */
+const papuga_SchemaDescription* papuga_RequestHandler_get_description( const papuga_RequestHandler* self, const char* type, const char* name);
 
 /*
  * @brief Attach a method addressed by name with parameter description to an object class

@@ -120,6 +120,15 @@ typedef enum papuga_StringEncoding {
 } papuga_StringEncoding;
 
 /*
+ * @brief Content type enumeration
+ */
+typedef enum {
+	papuga_ContentType_Unknown,				/*< Content type is not known */
+	papuga_ContentType_XML,					/*< Content type is XML*/
+	papuga_ContentType_JSON					/*< Content type is JSON */
+} papuga_ContentType;
+
+/*
 * @brief Tag identifier of a papuga serialization node
 */
 typedef enum papuga_Tag

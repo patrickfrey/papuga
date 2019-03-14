@@ -50,18 +50,19 @@ static TYPE* add_list( TYPE* lst, TYPE* elem)
 	return lst;
 }
 
-struct RequestSchemeList
+struct RequestSchemaList
 {
-	struct RequestSchemeList* next;			/*< pointer next element in the single linked list */
-	const char* type;				/*< type name of the context this scheme is valid for */
-	const char* name;				/*< name of the scheme */
-	const papuga_RequestAutomaton* automaton;	/*< automaton of the scheme */
+	struct RequestSchemaList* next;			/*< pointer next element in the single linked list */
+	const char* type;				/*< type name of the context this schema is valid for */
+	const char* name;				/*< name of the schema */
+	const papuga_RequestAutomaton* automaton;	/*< automaton of the schema */
+	const papuga_SchemaDescription* description;	/*< description of the schema */
 };
 
 struct RequestMethodList
 {
 	struct RequestMethodList* next;			/*< pointer next element in the single linked list */
-	const char* name;				/*< name of the scheme */
+	const char* name;				/*< name of the schema */
 	papuga_RequestMethodDescription method;		/*< method description */
 };
 
@@ -383,7 +384,7 @@ static int nofClassDefs( const papuga_ClassDef* classdefs)
 struct papuga_RequestHandler
 {
 	RequestContextMapRef contextmap;
-	RequestSchemeList* schemes;
+	RequestSchemaList* schemas;
 	RequestMethodList** classmethodmap;
 	int classmethodmapsize;
 	const papuga_ClassDef* classdefs;
@@ -391,7 +392,7 @@ struct papuga_RequestHandler
 	int allocator_membuf[ 1024];
 
 	explicit papuga_RequestHandler( const papuga_ClassDef* classdefs_)
-		:contextmap(new RequestContextMap()),schemes(NULL),classmethodmap(NULL),classmethodmapsize(nofClassDefs(classdefs_)),classdefs(classdefs_)
+		:contextmap(new RequestContextMap()),schemas(NULL),classmethodmap(NULL),classmethodmapsize(nofClassDefs(classdefs_)),classdefs(classdefs_)
 	{
 		papuga_init_Allocator( &allocator, allocator_membuf, sizeof(allocator_membuf));
 		std::size_t classmethodmapmem = (classmethodmapsize+1) * sizeof(RequestMethodList*);
@@ -535,28 +536,29 @@ extern "C" bool papuga_RequestHandler_transfer_context( papuga_RequestHandler* s
 	return true;
 }
 
-extern "C" bool papuga_RequestHandler_add_scheme( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton)
+extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, const char* type, const char* name, const papuga_RequestAutomaton* automaton, const papuga_SchemaDescription* description)
 {
-	RequestSchemeList* listitem = alloc_type<RequestSchemeList>( &self->allocator);
+	RequestSchemaList* listitem = alloc_type<RequestSchemaList>( &self->allocator);
 	if (!listitem) return false;
 	listitem->type = papuga_Allocator_copy_charp( &self->allocator, type);
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
 	if (!listitem->type || !listitem->name) return false;
 	listitem->automaton = automaton;
-	self->schemes = add_list( self->schemes, listitem);
+	listitem->description = description;
+	self->schemas = add_list( self->schemas, listitem);
 	return true;
 }
 
-static RequestSchemeList* find_scheme( RequestSchemeList* ll, const char* type, const char* name)
+static RequestSchemaList* find_schema( RequestSchemaList* ll, const char* type, const char* name)
 {
 	for (; ll; ll = ll->next){if ((ll->name[0]+ll->type[0]) == (name[0]+type[0]) && 0==std::strcmp( ll->name, name) && 0==std::strcmp( ll->type, type)) break;}
 	return ll;
 }
 
-static const char** RequestHandler_list_all_schemes( const papuga_RequestHandler* self, char const** buf, size_t bufsize)
+static const char** RequestHandler_list_all_schema_names( const papuga_RequestHandler* self, char const** buf, size_t bufsize)
 {
 	size_t bufpos = 0;
-	RequestSchemeList const* sl = self->schemes;
+	RequestSchemaList const* sl = self->schemas;
 	for (; sl; sl = sl->next)
 	{
 		size_t bi = 0;
@@ -570,14 +572,14 @@ static const char** RequestHandler_list_all_schemes( const papuga_RequestHandler
 	return buf;
 }
 
-extern "C" const char** papuga_RequestHandler_list_schemes( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize)
+extern "C" const char** papuga_RequestHandler_list_schema_names( const papuga_RequestHandler* self, const char* type, char const** buf, size_t bufsize)
 {
 	size_t bufpos = 0;
-	RequestSchemeList const* sl = self->schemes;
+	RequestSchemaList const* sl = self->schemas;
 
 	if (!type)
 	{
-		return RequestHandler_list_all_schemes( self, buf, bufsize);
+		return RequestHandler_list_all_schema_names( self, buf, bufsize);
 	}
 	for (; sl; sl = sl->next)
 	{
@@ -592,10 +594,16 @@ extern "C" const char** papuga_RequestHandler_list_schemes( const papuga_Request
 	return buf;
 }
 
-extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_scheme( const papuga_RequestHandler* self, const char* type, const char* name)
+extern "C" const papuga_RequestAutomaton* papuga_RequestHandler_get_automaton( const papuga_RequestHandler* self, const char* type, const char* name)
 {
-	const RequestSchemeList* sl = find_scheme( self->schemes, type?type:"", name);
+	const RequestSchemaList* sl = find_schema( self->schemas, type?type:"", name);
 	return sl ? sl->automaton : NULL;
+}
+
+extern "C" const papuga_SchemaDescription* papuga_RequestHandler_get_description( const papuga_RequestHandler* self, const char* type, const char* name)
+{
+	const RequestSchemaList* sl = find_schema( self->schemas, type?type:"", name);
+	return sl ? sl->description : NULL;
 }
 
 extern "C" bool papuga_RequestHandler_add_method( papuga_RequestHandler* self, const char* name, const papuga_RequestMethodDescription* method)

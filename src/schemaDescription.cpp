@@ -7,9 +7,10 @@
  */
 /*
 * \brief Automaton to describe and build papuga XML and JSON requests
-* \file schemeDescription.cpp
+* \file schemaDescription.cpp
 */
-#include "papuga/schemeDescription.h"
+#include "papuga/schemaDescription.h"
+#include "papuga/allocator.h"
 #include <vector>
 #include <utility>
 #include <new>
@@ -433,17 +434,16 @@ public:
 	}
 };
 
-class SchemeDescription
+class SchemaDescription
 {
 public:
 	mutable papuga_ErrorCode lasterr;
 	TreeNode tree;
 	std::vector<TreeNode> unresolved;
-	std::string text;
-	std::string example;
+	bool done;
 
-	SchemeDescription()
-		:lasterr(papuga_Ok),tree(),unresolved(),text(),example(){}
+	SchemaDescription()
+		:lasterr(papuga_Ok),tree(),unresolved(),done(false){}
 
 	void addElement( int id, const char* expression, papuga_Type valueType, const char* examples)
 	{
@@ -487,6 +487,11 @@ public:
 	{
 		return true;
 	}
+	void finish()
+	{
+		done = true;
+	}
+
 	std::string buildExample() const
 	{
 		return std::string();
@@ -505,17 +510,17 @@ public:
 	}
 };
 
-typedef struct papuga_SchemeDescription
+typedef struct papuga_SchemaDescription
 {
-	SchemeDescription impl;
-} papuga_SchemeDescription;
+	SchemaDescription impl;
+} papuga_SchemaDescription;
 
 
-extern "C" papuga_SchemeDescription* papuga_create_SchemeDescription()
+extern "C" papuga_SchemaDescription* papuga_create_SchemaDescription()
 {
 	try
 	{
-		papuga_SchemeDescription* rt = new papuga_SchemeDescription();
+		papuga_SchemaDescription* rt = new papuga_SchemaDescription();
 		return rt;
 	}
 	catch (const std::bad_alloc&)
@@ -528,12 +533,12 @@ extern "C" papuga_SchemeDescription* papuga_create_SchemeDescription()
 	}
 }
 
-extern "C" void papuga_destroy_SchemeDescription( papuga_SchemeDescription* self)
+extern "C" void papuga_destroy_SchemaDescription( papuga_SchemaDescription* self)
 {
 	delete self;
 }
 
-extern "C" papuga_ErrorCode papuga_SchemeDescription_last_error( const papuga_SchemeDescription* self)
+extern "C" papuga_ErrorCode papuga_SchemaDescription_last_error( const papuga_SchemaDescription* self)
 {
 	return self->impl.lasterr;
 }
@@ -545,11 +550,11 @@ static papuga_ErrorCode getExceptionError( const char* name)
 	return papuga_TypeError;
 }
 
-extern "C" bool papuga_SchemeDescription_add_element( papuga_SchemeDescription* self, int id, const char* expression, papuga_Type valueType, const char* examples)
+extern "C" bool papuga_SchemaDescription_add_element( papuga_SchemaDescription* self, int id, const char* expression, papuga_Type valueType, const char* examples)
 {
 	try
 	{
-		if (!self->impl.text.empty())
+		if (self->impl.done)
 		{
 			self->impl.lasterr = papuga_ExecutionOrder;
 			return false;
@@ -570,11 +575,11 @@ extern "C" bool papuga_SchemeDescription_add_element( papuga_SchemeDescription* 
 	}
 }
 
-extern "C" bool papuga_SchemeDescription_add_relation( papuga_SchemeDescription* self, int sink_id, int source_id, papuga_ResolveType resolveType)
+extern "C" bool papuga_SchemaDescription_add_relation( papuga_SchemaDescription* self, int sink_id, int source_id, papuga_ResolveType resolveType)
 {
 	try
 	{
-		if (!self->impl.text.empty())
+		if (self->impl.done)
 		{
 			self->impl.lasterr = papuga_ExecutionOrder;
 			return false;
@@ -595,13 +600,12 @@ extern "C" bool papuga_SchemeDescription_add_relation( papuga_SchemeDescription*
 	}
 }
 
-extern "C" bool papuga_SchemeDescription_done( papuga_SchemeDescription* self)
+extern "C" bool papuga_SchemaDescription_done( papuga_SchemaDescription* self)
 {
 	try
 	{
-		if (!self->impl.text.empty()) return true;
-		self->impl.text = self->impl.buildSchemaText();
-		self->impl.example = self->impl.buildExample();
+		if (!self->impl.done) return true;
+		self->impl.finish();
 		self->impl.lasterr = papuga_Ok;
 		return true;
 	}
@@ -617,23 +621,62 @@ extern "C" bool papuga_SchemeDescription_done( papuga_SchemeDescription* self)
 	}
 }
 
-extern "C" const char* papuga_SchemeDescription_get_text( const papuga_SchemeDescription* self)
+static const char* copyString( papuga_Allocator* allocator, const std::string& str)
 {
-	if (self->impl.text.empty())
-	{
-		self->impl.lasterr = papuga_ExecutionOrder;
-		return NULL;
-	}
-	return self->impl.text.c_str();
+	char* rt = (char*)papuga_Allocator_alloc( allocator, str.size()+1, 1);
+	if (!rt) throw std::bad_alloc();
+	std::memcpy( rt, str.c_str(), str.size()+1);
+	return rt;
 }
 
-extern "C" const char* papuga_SchemeDescription_get_example( const papuga_SchemeDescription* self)
+extern "C" const char* papuga_SchemaDescription_get_text( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc)
 {
-	if (self->impl.example.empty())
+	try
 	{
-		self->impl.lasterr = papuga_ExecutionOrder;
-		return NULL;
+		if (!self->impl.done)
+		{
+			self->impl.lasterr = papuga_ExecutionOrder;
+			return NULL;
+		}
+		const char* rt = copyString( allocator, self->impl.buildSchemaText());
+		self->impl.lasterr = papuga_Ok;
+		return rt;
 	}
-	return self->impl.example.c_str();
+	catch (const std::bad_alloc&)
+	{
+		self->impl.lasterr = papuga_NoMemError;
+		return false;
+	}
+	catch (const std::runtime_error& err)
+	{
+		self->impl.lasterr = getExceptionError( err.what());
+		return false;
+	}
 }
+
+extern "C" const char* papuga_SchemaDescription_get_example( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc)
+{
+	try
+	{
+		if (!self->impl.done)
+		{
+			self->impl.lasterr = papuga_ExecutionOrder;
+			return NULL;
+		}
+		const char* rt = copyString( allocator, self->impl.buildExample());
+		self->impl.lasterr = papuga_Ok;
+		return rt;
+	}
+	catch (const std::bad_alloc&)
+	{
+		self->impl.lasterr = papuga_NoMemError;
+		return false;
+	}
+	catch (const std::runtime_error& err)
+	{
+		self->impl.lasterr = getExceptionError( err.what());
+		return false;
+	}
+}
+
 

@@ -28,7 +28,7 @@ set( source_files_request
 	requestParser_xml.cpp
 	requestParser_utils.c
 	requestParser_tostring.cpp
-	schemeDescription.cpp
+	schemaDescription.cpp
 )
 
 include_directories(
