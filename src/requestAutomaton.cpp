@@ -29,7 +29,7 @@ static void validateRootExpression( const char* rootexpr)
 	}
 }
 
-void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const
+void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const
 {
 	std::string fullexpr = rootexpr + expression;
 #ifdef PAPUGA_LOWLEVEL_DEBUG
@@ -63,7 +63,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, 
 	}
 }
 
-void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const
+void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const
 {
 	std::string fullexpr = rootexpr + expression;
 #ifdef PAPUGA_LOWLEVEL_DEBUG
@@ -85,7 +85,7 @@ void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, pa
 	}
 }
 
-void RequestAutomaton_ValueDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const
+void RequestAutomaton_ValueDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const
 {
 	std::string scope_fullexpr = rootexpr + scope_expression;
 	std::string select_fullexpr = rootexpr + select_expression;
@@ -99,7 +99,7 @@ void RequestAutomaton_ValueDef::addToAutomaton( const std::string& rootexpr, pap
 	}
 }
 
-void RequestAutomaton_GroupDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const
+void RequestAutomaton_GroupDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const
 {
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	fprintf( stderr, "ATM start group\n");
@@ -112,7 +112,7 @@ void RequestAutomaton_GroupDef::addToAutomaton( const std::string& rootexpr, pap
 	std::vector<RequestAutomaton_FunctionDef>::const_iterator ni = nodes.begin(), ne = nodes.end();
 	for (; ni != ne; ++ni)
 	{
-		ni->addToAutomaton( rootexpr, atm);
+		ni->addToAutomaton( rootexpr, atm, descr);
 	}
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	fprintf( stderr, "ATM end group\n");
@@ -204,28 +204,28 @@ RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_Node& o)
 	}
 }
 
-void RequestAutomaton_Node::addToAutomaton( papuga_RequestAutomaton* atm) const
+void RequestAutomaton_Node::addToAutomaton( papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const
 {
 	switch (type)
 	{
 		case Empty:
 			break;
 		case Function:
-			value.functiondef->addToAutomaton( rootexpr, atm);
+			value.functiondef->addToAutomaton( rootexpr, atm, descr);
 			break;
 		case Struct:
-			value.structdef->addToAutomaton( rootexpr, atm);
+			value.structdef->addToAutomaton( rootexpr, atm, descr);
 			break;
 		case Value:
-			value.valuedef->addToAutomaton( rootexpr, atm);
+			value.valuedef->addToAutomaton( rootexpr, atm, descr);
 			break;
 		case Group:
-			value.groupdef->addToAutomaton( rootexpr, atm);
+			value.groupdef->addToAutomaton( rootexpr, atm, descr);
 			break;
 		case NodeList:
 			for (auto node: *value.nodelist)
 			{
-				node.addToAutomaton( atm);
+				node.addToAutomaton( atm, descr);
 			}
 			break;
 	}
@@ -248,8 +248,14 @@ RequestAutomaton_Node& RequestAutomaton_Node::root( const char* rootexpr_)
 
 RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername)
 	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername))
+	,m_descr(papuga_create_SchemeDescription())
 {
-	if (!m_atm) throw std::bad_alloc();
+	if (!m_atm || !m_descr)
+	{
+		if (m_atm) papuga_destroy_RequestAutomaton( m_atm);
+		if (m_descr) papuga_destroy_SchemeDescription( m_descr);
+		throw std::bad_alloc();
+	}
 }
 
 #if __cplusplus >= 201103L
@@ -257,8 +263,14 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papu
 					const std::initializer_list<InheritedDef>& inherited,
 					const std::initializer_list<RequestAutomaton_Node>& nodes)
 	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername))
+	,m_descr(papuga_create_SchemeDescription())
 {
-	if (!m_atm) throw std::bad_alloc();
+	if (!m_atm || !m_descr)
+	{
+		if (m_atm) papuga_destroy_RequestAutomaton( m_atm);
+		if (m_descr) papuga_destroy_SchemeDescription( m_descr);
+		throw std::bad_alloc();
+	}
 	for (auto hi : inherited)
 	{
 		if (!papuga_RequestAutomaton_inherit_from( m_atm, hi.type.c_str(), hi.name_expression.c_str(), hi.required))
@@ -269,15 +281,17 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papu
 	}
 	for (auto ni : nodes)
 	{
-		ni.addToAutomaton( m_atm);
+		ni.addToAutomaton( m_atm, m_descr);
 	}
 	papuga_RequestAutomaton_done( m_atm);
+	papuga_SchemeDescription_done( m_descr);
 }
 #endif
 
 RequestAutomaton::~RequestAutomaton()
 {
 	papuga_destroy_RequestAutomaton( m_atm);
+	papuga_destroy_SchemeDescription( m_descr);
 }
 
 void RequestAutomaton::addFunction( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const RequestAutomaton_FunctionDef::Arg* args)
@@ -286,7 +300,7 @@ void RequestAutomaton::addFunction( const char* expression, const char* resultva
 	RequestAutomaton_FunctionDef::Arg const* ai = args;
 	for (; ai->itemid || ai->varname; ++ai) argvec.push_back( *ai);
 	RequestAutomaton_FunctionDef func( expression, resultvar?resultvar:"", selfvar, methodid, argvec);
-	func.addToAutomaton( m_rootexpr, m_atm);
+	func.addToAutomaton( m_rootexpr, m_atm, m_descr);
 }
 
 void RequestAutomaton::addInheritContext( const char* typenam, const char* expression, bool required)
@@ -308,13 +322,13 @@ void RequestAutomaton::addStruct( const char* expression, int itemid, const Requ
 	RequestAutomaton_StructDef::Element const* ei = elems;
 	for (; ei->name; ++ei) elemvec.push_back( *ei);
 	RequestAutomaton_StructDef st( expression, itemid, elemvec);
-	st.addToAutomaton( m_rootexpr, m_atm);
+	st.addToAutomaton( m_rootexpr, m_atm, m_descr);
 }
 
 void RequestAutomaton::addValue( const char* scope_expression, const char* select_expression, int itemid)
 {
 	RequestAutomaton_ValueDef val( scope_expression, select_expression, itemid);
-	val.addToAutomaton( m_rootexpr, m_atm);
+	val.addToAutomaton( m_rootexpr, m_atm, m_descr);
 }
 
 void RequestAutomaton::openGroup()

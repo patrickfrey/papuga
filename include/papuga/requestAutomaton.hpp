@@ -12,6 +12,7 @@
 #include "papuga/typedefs.h"
 #include "papuga/classdef.h"
 #include "papuga/request.h"
+#include "papuga/schemeDescription.h"
 #include <string>
 #include <vector>
 #include <stdexcept>
@@ -93,7 +94,8 @@ struct RequestAutomaton_FunctionDef
 	/// \brief Add this method call definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const;
+	/// \param[in] descr scheme description to add this definition to
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const;
 };
 
 /// \brief Request structure definition 
@@ -138,7 +140,8 @@ struct RequestAutomaton_StructDef
 	/// \brief Add this structure definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const;
+	/// \param[in] descr scheme description to add this definition to
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const;
 };
 
 /// \brief Request atomic value definition 
@@ -161,7 +164,8 @@ struct RequestAutomaton_ValueDef
 	/// \brief Add this value definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const;
+	/// \param[in] descr scheme description to add this definition to
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const;
 };
 
 /// \brief Request grouping of functions definitions
@@ -180,7 +184,8 @@ struct RequestAutomaton_GroupDef
 	/// \brief Add this group definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm) const;
+	/// \param[in] descr scheme description to add this definition to
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const;
 };
 
 #if __cplusplus >= 201103L
@@ -242,7 +247,8 @@ struct RequestAutomaton_Node
 	RequestAutomaton_Node( const RequestAutomaton_Node& o);
 	/// \brief Add this node definition to an automaton
 	/// \param[in] atm automaton to add this definition to
-	void addToAutomaton( papuga_RequestAutomaton* atm) const;
+	/// \param[in] descr scheme description to add this definition to
+	void addToAutomaton( papuga_RequestAutomaton* atm, papuga_SchemeDescription* descr) const;
 
 	/// \brief Define selection expression for the context of the node
 	/// \param[in] rootexpr_ selection expression defined as the context (all paths are relative to the context)
@@ -279,7 +285,7 @@ class RequestAutomaton
 {
 private:
 	RequestAutomaton( const RequestAutomaton&)
-		:m_atm(0){}
+		:m_atm(0),m_descr(0){}
 	void operator=( const RequestAutomaton&) {}
 	//... non copyable
 
@@ -367,6 +373,7 @@ public:
 
 private:
 	papuga_RequestAutomaton* m_atm;			///< automaton definition
+	papuga_SchemeDescription* m_descr;		///< scheme description
 	std::string m_rootexpr;				///< current root expression
 	std::vector<int> m_rootstk;			///< stack for open close root expressions
 };

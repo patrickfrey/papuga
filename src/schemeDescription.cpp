@@ -293,9 +293,9 @@ public:
 				return " minOccurs=\"0\"";
 			case papuga_ResolveTypeInherited:
 			case papuga_ResolveTypeArray:
-				return " minOccurs=\"0\" maxOccurs=\"16777216\"";
+				return " minOccurs=\"0\" maxOccurs=\"unbounded\"";
 			case papuga_ResolveTypeArrayNonEmpty:
-				return " minOccurs=\"1\" maxOccurs=\"16777216\"";
+				return " minOccurs=\"1\" maxOccurs=\"unbounded\"";
 		}
 	}
 	std::string attributeUseSpecifier() const
@@ -420,7 +420,7 @@ typedef struct papuga_SchemeDescription
 } papuga_SchemeDescription;
 
 
-extern "C" papuga_SchemeDescription* papuga_create_SchemeDescription( const char* name)
+extern "C" papuga_SchemeDescription* papuga_create_SchemeDescription()
 {
 	try
 	{
@@ -479,7 +479,7 @@ extern "C" bool papuga_SchemeDescription_add_element( papuga_SchemeDescription* 
 	}
 }
 
-extern "C" bool papuga_SchemeDescription_finish( papuga_SchemeDescription* self)
+extern "C" bool papuga_SchemeDescription_done( papuga_SchemeDescription* self)
 {
 	try
 	{

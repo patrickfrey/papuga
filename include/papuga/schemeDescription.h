@@ -23,10 +23,9 @@ typedef struct papuga_SchemeDescription papuga_SchemeDescription;
 
 /*
  * @brief Create an empty description of a scheme to be initialized
- * @param[in] name name of the scheme
  * @return The scheme description structure
  */
-papuga_SchemeDescription* papuga_create_SchemeDescription( const char* name);
+papuga_SchemeDescription* papuga_create_SchemeDescription();
 
 /*
  * @brief Destroy an scheme description
@@ -57,7 +56,7 @@ bool papuga_SchemeDescription_add_element( papuga_SchemeDescription* self, const
  * @param[in] self scheme description to close for further input
  * @note After this operation no more elements can be added
  */
-bool papuga_SchemeDescription_finish( papuga_SchemeDescription* self);
+bool papuga_SchemeDescription_done( papuga_SchemeDescription* self);
 
 /*
  * @brief Get the description of the scheme as text
