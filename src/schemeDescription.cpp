@@ -468,9 +468,16 @@ public:
 				}
 			}
 		}
-		else
+		else if (isDelimiter(*expression))
 		{
 			if (!tree.addFollow( id, expression, valueType, examples))
+			{
+				unresolved.push_back( TreeNode( expression, id, false/*is attribute*/, valueType, examples));
+			}
+		}
+		else
+		{
+			if (!tree.addElement( id, expression+1, valueType, examples))
 			{
 				unresolved.push_back( TreeNode( expression, id, false/*is attribute*/, valueType, examples));
 			}
