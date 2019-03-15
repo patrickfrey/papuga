@@ -395,6 +395,21 @@ void RequestAutomaton::closeRoot()
 
 void RequestAutomaton::done()
 {
-	papuga_RequestAutomaton_done( m_atm);
+	if (!papuga_RequestAutomaton_done( m_atm))
+	{
+		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
+		if (errcode != papuga_Ok)
+		{
+			throw papuga::runtime_error( _TXT("request automaton close error: %s"), papuga_ErrorCode_tostring(errcode));
+		}
+	}
+	if (!papuga_SchemaDescription_done( m_descr))
+	{
+		papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( m_descr);
+		if (errcode != papuga_Ok)
+		{
+			throw papuga::runtime_error( _TXT("schema description close error: %s"), papuga_ErrorCode_tostring(errcode));
+		}
+	}
 }
 
