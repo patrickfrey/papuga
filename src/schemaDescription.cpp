@@ -645,12 +645,12 @@ extern "C" const char* papuga_SchemaDescription_get_text( const papuga_SchemaDes
 	catch (const std::bad_alloc&)
 	{
 		self->impl.lasterr = papuga_NoMemError;
-		return false;
+		return NULL;
 	}
 	catch (const std::runtime_error& err)
 	{
 		self->impl.lasterr = getExceptionError( err.what());
-		return false;
+		return NULL;
 	}
 }
 
@@ -670,12 +670,12 @@ extern "C" const char* papuga_SchemaDescription_get_example( const papuga_Schema
 	catch (const std::bad_alloc&)
 	{
 		self->impl.lasterr = papuga_NoMemError;
-		return false;
+		return NULL;
 	}
 	catch (const std::runtime_error& err)
 	{
 		self->impl.lasterr = getExceptionError( err.what());
-		return false;
+		return NULL;
 	}
 }
 
