@@ -604,7 +604,7 @@ extern "C" bool papuga_SchemaDescription_done( papuga_SchemaDescription* self)
 {
 	try
 	{
-		if (!self->impl.done) return true;
+		if (self->impl.done) return true;
 		self->impl.finish();
 		self->impl.lasterr = papuga_Ok;
 		return true;
