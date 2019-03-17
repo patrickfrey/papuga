@@ -150,17 +150,18 @@ struct RequestAutomaton_ValueDef
 	const char* scope_expression;	///< selecting expression addressing the scope of this value definition
 	const char* select_expression;	///< selecting expression addressing the value itself
 	int itemid;			///< identifier given to the item to make it uniquely addressable in the context of its scope
+	papuga_Type valuetype;		///< expected value type of the item
 	const char* examples;		///< semicolon ';' separated list of examples or NULL if no examples defined
 
 	/// \brief Copy constructor
 	RequestAutomaton_ValueDef( const RequestAutomaton_ValueDef& o)
-		:scope_expression(o.scope_expression),select_expression(o.select_expression),itemid(o.itemid),examples(o.examples){}
+		:scope_expression(o.scope_expression),select_expression(o.select_expression),itemid(o.itemid),valuetype(o.valuetype),examples(o.examples){}
 	/// \brief Constructor
 	/// \param[in] scope_expression_ selecting expression addressing the scope of this value definition
 	/// \param[in] select_expression_ selecting expression addressing the value itself
 	/// \param[in] itemid_ identifier given to the item to make it uniquely addressable in the context of its scope
-	RequestAutomaton_ValueDef( const char* scope_expression_, const char* select_expression_, int itemid_, const char* examples_)
-		:scope_expression(scope_expression_),select_expression(select_expression_),itemid(itemid_),examples(examples_){}
+	RequestAutomaton_ValueDef( const char* scope_expression_, const char* select_expression_, int itemid_, papuga_Type valuetype_, const char* examples_)
+		:scope_expression(scope_expression_),select_expression(select_expression_),itemid(itemid_),valuetype(valuetype_),examples(examples_){}
 
 	/// \brief Add this value definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
@@ -224,26 +225,27 @@ struct RequestAutomaton_Node
 	/// \param[in] nodelist_ list of nodes forming a group of functions
 	RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_FunctionDef>& nodes_);
 	///\brief Contructor as RequestAutomaton_FunctionDef
-	/// \param[in] expression_ select expression addressing the scope of this method call definition
-	/// \param[in] resultvar_ variable where the result of the call is stored to, empty or NULL if the result is void or dropped
-	/// \param[in] selfvar_ variable where the result of the call is stored to, empty if the result is void or dropped
-	/// \param[in] methodid_ identifier of the method to call
-	/// \param[in] args_ list of references addressing the arguments of the method call
-	RequestAutomaton_Node( const char* expression_, const char* resultvar_, const char* selfvar_, const papuga_RequestMethodId& methodid_, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args_);
+	/// \param[in] expression select expression addressing the scope of this method call definition
+	/// \param[in] resultvar variable where the result of the call is stored to, empty or NULL if the result is void or dropped
+	/// \param[in] selfvar variable where the result of the call is stored to, empty if the result is void or dropped
+	/// \param[in] methodid identifier of the method to call
+	/// \param[in] args list of references addressing the arguments of the method call
+	RequestAutomaton_Node( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args);
 	///\brief Contructor as RequestAutomaton_StructDef
-	/// \param[in] expression_ select expression addressing the scope of this structure definition
-	/// \param[in] itemid_ item identifier unique in its scope (referencing a value or a structure)
-	/// \param[in] elems_ list of references to the elements of this structure
-	RequestAutomaton_Node( const char* expression_, int itemid_, const std::initializer_list<RequestAutomaton_StructDef::Element>& elems_);
+	/// \param[in] expression select expression addressing the scope of this structure definition
+	/// \param[in] itemid item identifier unique in its scope (referencing a value or a structure)
+	/// \param[in] elems list of references to the elements of this structure
+	RequestAutomaton_Node( const char* expression, int itemid, const std::initializer_list<RequestAutomaton_StructDef::Element>& elems);
 	///\brief Contructor as RequestAutomaton_ValueDef
-	/// \param[in] scope_expression_ selecting expression addressing the scope of this value definition
-	/// \param[in] select_expression_ selecting expression addressing the value itself
-	/// \param[in] itemid_ identifier given to the item to make it uniquely addressable in the context of its scope
+	/// \param[in] scope_expression selecting expression addressing the scope of this value definition
+	/// \param[in] select_expression selecting expression addressing the value itself
+	/// \param[in] itemid identifier given to the item to make it uniquely addressable in the context of its scope
+	/// \param[in] valuetype type of the value
 	/// \param[in] examples semicolon ';' separated list of examples or NULL if no examples defined
-	RequestAutomaton_Node( const char* scope_expression_, const char* select_expression_, int itemid_, const char* examples=0);
+	RequestAutomaton_Node( const char* scope_expression, const char* select_expression, int itemid, papuga_Type valuetype, const char* examples);
 	///\brief Contructor from list of predefined nodes (for sharing definitions)
-	/// \param[in] nodelist_ list of nodes
-	RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_);
+	/// \param[in] nodelist list of nodes
+	RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist);
 
 	///\brief Copy contructor
 	RequestAutomaton_Node( const RequestAutomaton_Node& o);
@@ -346,9 +348,10 @@ public:
 	/// \param[in] scope_expression selecting expression addressing the scope of this value definition
 	/// \param[in] select_expression selecting expression addressing the value itself
 	/// \param[in] itemid identifier given to the item to make it uniquely addressable in the context of its scope
+	/// \param[in] valuetype type of the value
 	/// \param[in] examples semicolon ';' separated list of examples or NULL if no examples defined
 	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
-	void addValue( const char* scope_expression, const char* select_expression, int itemid, const char* examples);
+	void addValue( const char* scope_expression, const char* select_expression, int itemid, papuga_Type valuetype, const char* examples);
 
 	/// \brief Open a method call group definition
 	/// \remark Only available if this automaton has been constructed as empty

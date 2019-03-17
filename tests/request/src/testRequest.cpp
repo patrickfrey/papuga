@@ -331,8 +331,8 @@ static TestData* createTestData_1()
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, "person", {},
 		{
-			{"/doc/person", "@name", (int)PersonName},
-			{"/doc/person", "()", (int)PersonContent},
+			{"/doc/person", "@name", (int)PersonName, papuga_TypeString, "John Doe"},
+			{"/doc/person", "()", (int)PersonContent, papuga_TypeVoid, NULL},
 			{"/doc", "obj", 0, C1::constructor(), {} },
 			{"/doc", "var", "obj", C1::m1(), {{(int)PersonName}} }
 		} );
@@ -389,7 +389,7 @@ static TestData* createTestData_3()
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, "list", {},
 		{
-			{"/doc/city", "()", (int)CityName},
+			{"/doc/city", "()", (int)CityName, papuga_TypeString, "Berlin"},
 			{"/doc", "obj", 0, C1::constructor(), {} },
 			{"/doc/city", "lo", "obj", C1::m2(), {{(int)CityName}} },
 			{"/doc/city", "hi", "obj", C1::m1(), {{(int)CityName}} }
@@ -435,7 +435,7 @@ static TestData* createTestData_4()
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, "list", {},
 		{
-			{"/doc/{city,town}", "()", (int)CityName},
+			{"/doc/{city,town}", "()", (int)CityName, papuga_TypeString, "Berlin"},
 			{"/doc", "obj", 0, C1::constructor(), {} },
 			{{
 				{"/doc/{city,town}", "lo", "obj", C1::m2(), {{(int)CityName}} },
@@ -484,7 +484,7 @@ static TestData* createTestData_5()
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, "list", {},
 		{
-			{"/doc/city", "()", CityName},
+			{"/doc/city", "()", CityName, papuga_TypeString, "Berlin"},
 			{"/doc", "obj", 0, C1::constructor(), {} },
 			{{
 				{"/doc", "lo", "obj", C1::m2(), {{CityName, '*'}} },
@@ -532,10 +532,10 @@ static TestData* createTestData_6()
 		g_classdefs, g_structdefs, "result", {},
 		{
 			{"/tree", TreeNode, {{"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
-			{"/tree", "()", TreeNode},
-			{"//left", "()", TreeNodeLeft},
+			{"/tree", "()", TreeNode, papuga_TypeString, "T"},
+			{"//left", "()", TreeNodeLeft, papuga_TypeString, "L"},
 			{"//left", TreeNodeLeft, {{"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
-			{"//right", "()", TreeNodeRight},
+			{"//right", "()", TreeNodeRight, papuga_TypeString, "R"},
 			{"//right", TreeNodeRight, {{"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
 			{"/tree", "obj", 0, C1::constructor(), {} },
 			{{
