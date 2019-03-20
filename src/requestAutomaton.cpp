@@ -94,7 +94,7 @@ void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, pa
 			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add structure element, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 		}
-		if (!papuga_SchemaDescription_add_relation( descr, itemid, ei->itemid, ei->resolvetype))
+		if (!papuga_SchemaDescription_add_relation( descr, itemid, fullexpr.c_str(), ei->itemid, ei->resolvetype))
 		{
 			papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( descr);
 			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("schema description add structure element, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
@@ -298,15 +298,28 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papu
 		if (!papuga_RequestAutomaton_inherit_from( m_atm, hi.type.c_str(), hi.name_expression.c_str(), hi.required))
 		{
 			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
-			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add inherit from: %s"), papuga_ErrorCode_tostring(errcode));
+			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add inherit from error: %s"), papuga_ErrorCode_tostring(errcode));
 		}
 	}
 	for (auto ni : nodes)
 	{
 		ni.addToAutomaton( m_atm, m_descr);
 	}
-	papuga_RequestAutomaton_done( m_atm);
-	papuga_SchemaDescription_done( m_descr);
+	if (!papuga_RequestAutomaton_done( m_atm))
+	{
+		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton check and compile error: %s"), papuga_ErrorCode_tostring(errcode));
+	}
+	if (!papuga_SchemaDescription_done( m_descr))
+	{
+		papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( m_descr);
+		if (errcode != papuga_Ok)
+		{
+			const char* errexpr = papuga_SchemaDescription_error_expression( m_descr);
+			if (!errexpr) errexpr = "<unknown>";
+			throw papuga::runtime_error( _TXT("schema description check and compile error (expression %s): %s"), errexpr, papuga_ErrorCode_tostring(errcode));
+		}
+	}
 }
 #endif
 
@@ -397,7 +410,7 @@ void RequestAutomaton::done()
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
 		if (errcode != papuga_Ok)
 		{
-			throw papuga::runtime_error( _TXT("request automaton close error: %s"), papuga_ErrorCode_tostring(errcode));
+			throw papuga::runtime_error( _TXT("request automaton check and compile error: %s"), papuga_ErrorCode_tostring(errcode));
 		}
 	}
 	if (!papuga_SchemaDescription_done( m_descr))
@@ -405,7 +418,9 @@ void RequestAutomaton::done()
 		papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( m_descr);
 		if (errcode != papuga_Ok)
 		{
-			throw papuga::runtime_error( _TXT("schema description close error: %s"), papuga_ErrorCode_tostring(errcode));
+			const char* errexpr = papuga_SchemaDescription_error_expression( m_descr);
+			if (!errexpr) errexpr = "<unknown>";
+			throw papuga::runtime_error( _TXT("schema description check and compile error (expression %s): %s"), errexpr, papuga_ErrorCode_tostring(errcode));
 		}
 	}
 }

@@ -41,6 +41,13 @@ void papuga_destroy_SchemaDescription( papuga_SchemaDescription* self);
 papuga_ErrorCode papuga_SchemaDescription_last_error( const papuga_SchemaDescription* self);
 
 /*
+ * @brief Get the selection expression of the context causing the error if available
+ * @param[in] self schema description to get the selection expression of the the last error from
+ * @return the selection expression or NULL if no error or not defiend
+ */
+const char* papuga_SchemaDescription_error_expression( const papuga_SchemaDescription* self);
+
+/*
  * @brief Add an element (structure or atom) to the schema description
  * @remark not threadsafe
  * @param[in] self schema description to add element to
@@ -56,12 +63,13 @@ bool papuga_SchemaDescription_add_element( papuga_SchemaDescription* self, int i
  * @brief Declare dependency graph arc
  * @remark not threadsafe
  * @param[in] self schema description to add relation to
- * @param[in] sink_id identifier of the sink element
- * @param[in] source_id identifier of the source element
+ * @param[in] id identifier of the container element
+ * @param[in] expression select expression of the container element
+ * @param[in] elemid identifier of the contained element
  * @param[in] resolveType type of relation
  * @return true if operation succeeded, false if it failed (call papuga_SchemaDescription_last_error for the reason of the operation failure)
  */
-bool papuga_SchemaDescription_add_relation( papuga_SchemaDescription* self, int sink_id, int source_id, papuga_ResolveType resolveType);
+bool papuga_SchemaDescription_add_relation( papuga_SchemaDescription* self, int id, const char* expression, int elemid, papuga_ResolveType resolveType);
 
 /*
  * @brief Declare a description of a schema to be finished

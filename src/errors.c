@@ -46,6 +46,7 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)
 		case papuga_HostObjectError: return _TXT("error executing host object function");
 		case papuga_AmbiguousReference: return _TXT("ambiguous reference");
 		case papuga_MaxRecursionDepthReached: return _TXT("maximum recursion depth reached");
+		case papuga_ComplexityOfProblem: return _TXT("refused processing because of its complexity");
 		default: return _TXT("unknown error");
 	}
 }

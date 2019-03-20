@@ -104,7 +104,7 @@ bool papuga_RequestAutomaton_set_call_arg_var(
 typedef enum {
 	papuga_ResolveTypeRequired,		/*< the item must be found in the included scope and it is unique */
 	papuga_ResolveTypeOptional,		/*< the item is found in the included scope and it is unique, if it exists */
-	papuga_ResolveTypeInherited,		/*< the item must be found in an including scope, uniqueness is not checked, the innermost candidate wins */
+	papuga_ResolveTypeInherited,		/*< the item must be found in an including scope, uniqueness is not checked, the innermost candidates win */
 	papuga_ResolveTypeArray,		/*< the item is found in the included scope and it does not have to exist or it can exist more that once */
 	papuga_ResolveTypeArrayNonEmpty		/*< the item is found in the included scope probably more that once */
 } papuga_ResolveType;

@@ -294,6 +294,7 @@ enum
 	CityName,
 	CityList,
 	TreeNode,
+	TreeNodeValue,
 	TreeNodeLeft,
 	TreeNodeRight
 };
@@ -521,22 +522,34 @@ static TestData* createTestData_6()
 	data->doc = new papuga::test::Document(
 		"tree", {
 				{"left", {
-					 {"left", {{"L.L"}} },
-					 {"right", {{"L.R"}} }
+						{"left", {
+								{"value", {{"L.L"}}}
+							}
+						},
+						{"right", {
+								{"value", {{"L.R"}}}
+							}
+						}
 					}
 				},
-				{"right", {{"R"}}},
+				{"right", {
+						{"value", {{"R"}}}
+					}
+				},
+				{"value", {{"C"}}}
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, "result", {},
 		{
-			{"/tree", TreeNode, {{"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
-			{"/tree", "()", TreeNode, papuga_TypeString, "T"},
-			{"//left", "()", TreeNodeLeft, papuga_TypeString, "L"},
-			{"//left", TreeNodeLeft, {{"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
-			{"//right", "()", TreeNodeRight, papuga_TypeString, "R"},
-			{"//right", TreeNodeRight, {{"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
+			{"/tree/value", "()", TreeNodeValue, papuga_TypeString, "T"},
+			{"//left/value", "()", TreeNodeValue, papuga_TypeString, "L"},
+			{"//right/value", "()", TreeNodeValue, papuga_TypeString, "R"},
+
+			{"/tree", TreeNode, {{"value", TreeNodeValue, '?'}, {"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
+			{"//left", TreeNodeLeft, {{"value", TreeNodeValue, '?'}, {"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
+			{"//right", TreeNodeRight, {{"value", TreeNodeValue, '?'}, {"left", TreeNodeLeft, '?'}, {"right", TreeNodeRight, '?'}} },
+
 			{"/tree", "obj", 0, C1::constructor(), {} },
 			{{
 				{"/tree", "lo", "obj", C1::m2(), {{TreeNode, '?'}} },
@@ -557,22 +570,42 @@ static TestData* createTestData_6()
 	data->expected = new papuga::test::Document(	
 		"result", {
 			{"lo", {
+				{"value", {{"c"}}},
 				{"left", {
-						{"left", {{"l.l"}} },
-						{"right", {{"l.r"}} }
+						{"left", {
+								{"value", {{"l.l"}}}
+							}
+						},
+						{"right", {
+								{"value", {{"l.r"}}}
+							}
+						}
 					}
 				},
-				{"right", {{"r"}}}
+				{"right", {
+						{"value", {{"r"}}}
+					}
 				}
+			}
 			},
 			{"hi", {
+				{"value", {{"C"}}},
 				{"left", {
-						{"left", {{"L.L"}} },
-						{"right", {{"L.R"}} }
+						{"left", {
+								{"value", {{"L.L"}}}
+							}
+						},
+						{"right", {
+								{"value", {{"L.R"}}}
+							}
+						}
 					}
 				},
-				{"right", {{"R"}}}
+				{"right", {
+						{"value", {{"R"}}}
+					}
 				}
+			}
 			}
 		});
 	return data;
