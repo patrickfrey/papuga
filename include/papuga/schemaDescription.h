@@ -89,7 +89,7 @@ bool papuga_SchemaDescription_done( papuga_SchemaDescription* self);
  * @param[in] enc character set encoding of the result
  * @return the description of the schema as text or NULL in case of error (call papuga_SchemaDescription_last_error for the reason of the operation failure)
  */
-const char* papuga_SchemaDescription_get_text( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc);
+const void* papuga_SchemaDescription_get_text( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc, size_t* len);
 
 /*
  * @brief Get the example of the schema as text
@@ -99,7 +99,7 @@ const char* papuga_SchemaDescription_get_text( const papuga_SchemaDescription* s
  * @param[in] enc character set encoding of the result
  * @return the description of the example as text or NULL in case of error (call papuga_SchemaDescription_last_error for the reason of the operation failure)
  */
-const char* papuga_SchemaDescription_get_example( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc);
+const void* papuga_SchemaDescription_get_example( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc, size_t* len);
 
 #ifdef __cplusplus
 }

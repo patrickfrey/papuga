@@ -11,6 +11,7 @@
 */
 #include "papuga/schemaDescription.h"
 #include "papuga/allocator.h"
+#include "papuga/valueVariant.h"
 #include <vector>
 #include <utility>
 #include <new>
@@ -541,55 +542,6 @@ public:
 		}
 	}
 
-	static const char* schemaAtomTypeName( papuga_Type tp)
-	{
-		switch (tp)
-		{
-			case papuga_TypeVoid: break;
-			case papuga_TypeDouble: return "xs:decimal";
-			case papuga_TypeInt: return "xs:integer";
-			case papuga_TypeBool: return "xs:boolean";
-			case papuga_TypeString: return "xs:string";
-			case papuga_TypeHostObject: break;
-			case papuga_TypeSerialization: break;
-			case papuga_TypeIterator: break;
-		}
-		return "xs:unknown";
-	}
-
-	std::string elementUseSpecifier() const
-	{
-		switch (resolveType)
-		{
-			case papuga_ResolveTypeRequired:
-				return " minOccurs=\"1\" maxOccurs=\"1\"";
-			case papuga_ResolveTypeOptional:
-				return " minOccurs=\"0\" maxOccurs=\"1\"";
-			case papuga_ResolveTypeInherited:
-				return " minOccurs=\"1\" maxOccurs=\"1\"";
-			case papuga_ResolveTypeArray:
-				return " minOccurs=\"0\" maxOccurs=\"unbounded\"";
-			case papuga_ResolveTypeArrayNonEmpty:
-				return " minOccurs=\"1\" maxOccurs=\"unbounded\"";
-		}
-		return std::string();
-	}
-	std::string attributeUseSpecifier() const
-	{
-		switch (resolveType)
-		{
-			case papuga_ResolveTypeRequired:
-				return " use=\"required\"";
-			case papuga_ResolveTypeOptional:
-				break;
-			case papuga_ResolveTypeInherited:
-			case papuga_ResolveTypeArray:
-			case papuga_ResolveTypeArrayNonEmpty:
-				break;
-		}
-		return std::string();
-	}
-
 	bool isSimpleContent() const
 	{
 		if (elementType != StructType) return false;
@@ -619,78 +571,6 @@ public:
 			}
 		}
 		throw ErrorException( papuga_LogicError);
-	}
-	void printSchemaElementAttributes( std::ostream& out) const
-	{
-		std::vector<TreeNode>::const_iterator ci = chld.begin(), ce = chld.end();
-		for (; ci != ce; ++ci)
-		{
-			if (ci->elementType == AttributeType) ci->printSchemaElements( out);
-		}
-	}
-
-	void printSchemaElementChildNodes( std::ostream& out) const
-	{
-		std::vector<TreeNode>::const_iterator ci = chld.begin(), ce = chld.end();
-		for (; ci != ce; ++ci)
-		{
-			if (ci->elementType != AttributeType)
-			{
-				ci->printSchemaElements( out);
-			}
-		}
-	}
-
-	void printSchemaElements( std::ostream& out) const
-	{
-		if (name.empty()) throw ErrorException( papuga_LogicError);
-		switch (elementType)
-		{
-			case NullType:
-				out << "<xs:element name=\"" << name << "\" type=\"" << schemaAtomTypeName( papuga_TypeString) << elementUseSpecifier() << " nillable=\"true\"/>\n";
-				break;
-			case AttributeType:
-				out << "<xs:attribute name=\"" << name << "\" type=\"" << schemaAtomTypeName( valueType) << attributeUseSpecifier() << "\"/>\n";
-				break;
-			case ValueType:
-				out << "<xs:element name=\"" << name << "\" type=\"" << schemaAtomTypeName( valueType) << elementUseSpecifier() << "\"/>\n";
-				break;
-			case StructType:
-				out << "<xs:element name=\"" << name << "\"" << elementUseSpecifier() << ">\n";
-				if (isSimpleContent())
-				{
-					const TreeNode& cnode = simpleContentNode();
-					out << "<xs:simpleContent>\n";
-					out << "<xs:extension base=\"" << schemaAtomTypeName( cnode.valueType) << cnode.elementUseSpecifier() << "\"\n";
-					out << "</xs:extension>\n";
-					printSchemaElementAttributes( out);
-					out << "</xs:simpleContent>\n";
-				}
-				else
-				{
-					out << "<xs:complexType>\n";
-					out << "<xs:any>\n";
-					printSchemaElementChildNodes( out);
-					printSchemaElementAttributes( out);
-					out << "</xs:any>\n";
-					out << "</xs:complexType>\n";
-				}
-				out << "</xs:element>\n";
-				break;
-			case UnionType:
-				out << "<xs:element name=\"" << name << "\"" << elementUseSpecifier() << ">\n";
-				out << "<xs:complexType>\n";
-				out << "<xs:union>\n";
-				printSchemaElementChildNodes( out);
-				printSchemaElementAttributes( out);
-				out << "</xs:union>\n";
-				out << "</xs:complexType>\n";
-				out << "</xs:element>\n";
-				break;
-			case ReferenceType:
-				out << "<xs:element ref=\"" << name << "\"" << elementUseSpecifier() << "/>\n";
-				break;
-		}
 	}
 };
 
@@ -752,11 +632,10 @@ public:
 	mutable papuga_ErrorCode lasterr;
 	std::string lastexpr;
 	TreeNode tree;
-	std::vector<TreeNode> unresolved;
 	bool done;
 
 	SchemaDescription()
-		:lasterr(papuga_Ok),lastexpr(),tree(),unresolved(),done(false){}
+		:lasterr(papuga_Ok),lastexpr(),tree(),done(false){}
 
 	void addElement( int id, const char* expression, papuga_Type valueType, const char* examples)
 	{
@@ -946,8 +825,14 @@ public:
 	{
 		return std::string();
 	}
+};
 
-	std::string buildSchemaText() const
+class XsdSchema
+{
+public:
+	XsdSchema(){}
+
+	static std::string buildText( const TreeNode& tree)
 	{
 		std::ostringstream out;
 		out << "<?xml version=\"1.0\"?>\n";
@@ -955,17 +840,151 @@ public:
 
 		if (tree.name.empty() && tree.elementType == TreeNode::StructType)
 		{
-			tree.printSchemaElementAttributes( out);
-			tree.printSchemaElementChildNodes( out);
+			printXsdSchemaElementAttributes( out, tree);
+			printXsdSchemaElementChildNodes( out, tree);
 		}
 		else
 		{
-			tree.printSchemaElements( out);
+			printXsdSchemaElements( out, tree);
 		}
 		out << "</xs:schema>\n";
 		return out.str();
 	}
+
+private:
+	static const char* xsdSchemaAtomTypeName( papuga_Type tp)
+	{
+		switch (tp)
+		{
+			case papuga_TypeVoid: break;
+			case papuga_TypeDouble: return "xs:decimal";
+			case papuga_TypeInt: return "xs:integer";
+			case papuga_TypeBool: return "xs:boolean";
+			case papuga_TypeString: return "xs:string";
+			case papuga_TypeHostObject: break;
+			case papuga_TypeSerialization: break;
+			case papuga_TypeIterator: break;
+		}
+		return "xs:unknown";
+	}
+
+	static std::string xsdElementUseSpecifier( papuga_ResolveType tp)
+	{
+		switch (tp)
+		{
+			case papuga_ResolveTypeRequired:
+				return " minOccurs=\"1\" maxOccurs=\"1\"";
+			case papuga_ResolveTypeOptional:
+				return " minOccurs=\"0\" maxOccurs=\"1\"";
+			case papuga_ResolveTypeInherited:
+				return " minOccurs=\"1\" maxOccurs=\"1\"";
+			case papuga_ResolveTypeArray:
+				return " minOccurs=\"0\" maxOccurs=\"unbounded\"";
+			case papuga_ResolveTypeArrayNonEmpty:
+				return " minOccurs=\"1\" maxOccurs=\"unbounded\"";
+		}
+		return std::string();
+	}
+
+	static std::string attributeXsdUseSpecifier( papuga_ResolveType tp)
+	{
+		switch (tp)
+		{
+			case papuga_ResolveTypeRequired:
+				return " use=\"required\"";
+			case papuga_ResolveTypeOptional:
+				break;
+			case papuga_ResolveTypeInherited:
+			case papuga_ResolveTypeArray:
+			case papuga_ResolveTypeArrayNonEmpty:
+				break;
+		}
+		return std::string();
+	}
+
+	static void printXsdSchemaElementAttributes( std::ostream& out, const TreeNode& node)
+	{
+		std::vector<TreeNode>::const_iterator ci = node.chld.begin(), ce = node.chld.end();
+		for (; ci != ce; ++ci)
+		{
+			if (ci->elementType == TreeNode::AttributeType) printXsdSchemaElements( out, *ci);
+		}
+	}
+
+	static void printXsdSchemaElementChildNodes( std::ostream& out, const TreeNode& node)
+	{
+		std::vector<TreeNode>::const_iterator ci = node.chld.begin(), ce = node.chld.end();
+		for (; ci != ce; ++ci)
+		{
+			if (ci->elementType != TreeNode::AttributeType) printXsdSchemaElements( out, *ci);
+		}
+	}
+
+	static void printXsdSchemaElements( std::ostream& out, const TreeNode& node)
+	{
+		if (node.name.empty()) throw ErrorException( papuga_LogicError);
+		switch (node.elementType)
+		{
+			case TreeNode::NullType:
+				out << "<xs:element name=\"" << node.name << "\" type=\"" << xsdSchemaAtomTypeName( papuga_TypeString) << xsdElementUseSpecifier( node.resolveType) << " nillable=\"true\"/>\n";
+				break;
+			case TreeNode::AttributeType:
+				out << "<xs:attribute name=\"" << node.name << "\" type=\"" << xsdSchemaAtomTypeName( node.valueType) << attributeXsdUseSpecifier( node.resolveType) << "\"/>\n";
+				break;
+			case TreeNode::ValueType:
+				out << "<xs:element name=\"" << node.name << "\" type=\"" << xsdSchemaAtomTypeName( node.valueType) << xsdElementUseSpecifier( node.resolveType) << "\"/>\n";
+				break;
+			case TreeNode::StructType:
+				out << "<xs:element name=\"" << node.name << "\"" << xsdElementUseSpecifier( node.resolveType) << ">\n";
+				if (node.isSimpleContent())
+				{
+					const TreeNode& cnode = node.simpleContentNode();
+					out << "<xs:simpleContent>\n";
+					out << "<xs:extension base=\"" << xsdSchemaAtomTypeName( cnode.valueType) << xsdElementUseSpecifier( cnode.resolveType) << "\"\n";
+					out << "</xs:extension>\n";
+					printXsdSchemaElementAttributes( out, node);
+					out << "</xs:simpleContent>\n";
+				}
+				else
+				{
+					out << "<xs:complexType>\n";
+					out << "<xs:any>\n";
+					printXsdSchemaElementChildNodes( out, node);
+					printXsdSchemaElementAttributes( out, node);
+					out << "</xs:any>\n";
+					out << "</xs:complexType>\n";
+				}
+				out << "</xs:element>\n";
+				break;
+			case TreeNode::UnionType:
+				out << "<xs:element name=\"" << node.name << "\"" << xsdElementUseSpecifier( node.resolveType) << ">\n";
+				out << "<xs:complexType>\n";
+				out << "<xs:union>\n";
+				printXsdSchemaElementChildNodes( out, node);
+				printXsdSchemaElementAttributes( out, node);
+				out << "</xs:union>\n";
+				out << "</xs:complexType>\n";
+				out << "</xs:element>\n";
+				break;
+			case TreeNode::ReferenceType:
+				out << "<xs:element ref=\"" << node.name << "\"" << xsdElementUseSpecifier( node.resolveType) << "/>\n";
+				break;
+		}
+	}
 };
+
+#if 0
+{
+  "type": "object",
+  "properties": {
+    "number":      { "type": "number" },
+    "street_name": { "type": "string" },
+    "street_type": { "type": "string",
+                     "enum": ["Street", "Avenue", "Boulevard"]
+                   }
+  }
+}
+#endif
 
 typedef struct papuga_SchemaDescription
 {
@@ -1094,15 +1113,18 @@ extern "C" bool papuga_SchemaDescription_done( papuga_SchemaDescription* self)
 	}
 }
 
-static const char* copyString( papuga_Allocator* allocator, const std::string& str)
+static const void* copyString( papuga_Allocator* allocator, const std::string& str, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
 {
-	char* rt = (char*)papuga_Allocator_alloc( allocator, str.size()+1, 1);
-	if (!rt) throw std::bad_alloc();
-	std::memcpy( rt, str.c_str(), str.size()+1);
+	papuga_ValueVariant val;
+	papuga_init_ValueVariant_string( &val, str.c_str(), str.size());
+	size_t bufsize = str.size() * papuga_StringEncoding_unit_size( enc)+1;
+	void* buf = papuga_Allocator_alloc( allocator, bufsize, 1);
+	if (!buf) {*err = papuga_NoMemError; return 0;}
+	const void* rt = papuga_ValueVariant_tostring_enc( &val, enc, buf, bufsize, len, err);
 	return rt;
 }
 
-extern "C" const char* papuga_SchemaDescription_get_text( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc)
+extern "C" const void* papuga_SchemaDescription_get_text( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc, size_t* len)
 {
 	try
 	{
@@ -1111,9 +1133,21 @@ extern "C" const char* papuga_SchemaDescription_get_text( const papuga_SchemaDes
 			self->impl.lasterr = papuga_ExecutionOrder;
 			return NULL;
 		}
-		const char* rt = copyString( allocator, self->impl.buildSchemaText());
+		std::string textUTF8;
+		switch (doctype)
+		{
+			case papuga_ContentType_Unknown:
+				self->impl.lasterr = papuga_ValueUndefined;
+				return NULL;
+			case papuga_ContentType_XML:
+				textUTF8 = XsdSchema::buildText( self->impl.tree);
+				break;
+			case papuga_ContentType_JSON:
+				self->impl.lasterr = papuga_NotImplemented;
+				return NULL;
+		}
 		self->impl.lasterr = papuga_Ok;
-		return rt;
+		return copyString( allocator, textUTF8, enc, len, &self->impl.lasterr);
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -1132,7 +1166,7 @@ extern "C" const char* papuga_SchemaDescription_get_text( const papuga_SchemaDes
 	}
 }
 
-extern "C" const char* papuga_SchemaDescription_get_example( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc)
+extern "C" const void* papuga_SchemaDescription_get_example( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc, size_t* len)
 {
 	try
 	{
@@ -1141,9 +1175,21 @@ extern "C" const char* papuga_SchemaDescription_get_example( const papuga_Schema
 			self->impl.lasterr = papuga_ExecutionOrder;
 			return NULL;
 		}
-		const char* rt = copyString( allocator, self->impl.buildExample());
+		std::string textUTF8;
+		switch (doctype)
+		{
+			case papuga_ContentType_Unknown:
+				self->impl.lasterr = papuga_ValueUndefined;
+				return NULL;
+			case papuga_ContentType_XML:
+				self->impl.lasterr = papuga_NotImplemented;
+				return NULL;
+			case papuga_ContentType_JSON:
+				self->impl.lasterr = papuga_NotImplemented;
+				return NULL;
+		}
 		self->impl.lasterr = papuga_Ok;
-		return rt;
+		return copyString( allocator, textUTF8, enc, len, &self->impl.lasterr);
 	}
 	catch (const std::bad_alloc&)
 	{
