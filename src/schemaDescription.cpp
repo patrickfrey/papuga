@@ -1073,7 +1073,6 @@ extern "C" bool papuga_SchemaDescription_done( papuga_SchemaDescription* self)
 	{
 		if (self->impl.done) return true;
 		self->impl.finish();
-		/*[-]*/std::cerr << self->impl.buildSchemaText() << std::endl;
 		self->impl.lasterr = papuga_Ok;
 		return true;
 	}
