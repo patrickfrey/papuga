@@ -562,10 +562,27 @@ static const char** RequestHandler_list_all_schema_names( const papuga_RequestHa
 	for (; sl; sl = sl->next)
 	{
 		size_t bi = 0;
-		for (; bi < bufpos; ++bi){if (0==std::strcmp(buf[bi],sl->type)) break;}
+		for (; bi < bufpos; ++bi){if (0==std::strcmp(buf[bi],sl->name)) break;}
 		if (bi < bufpos) continue;
 		if (bufpos >= bufsize) return NULL;
 		buf[ bufpos++] = sl->name;
+	}
+	if (bufpos >= bufsize) return NULL;
+	buf[ bufpos] = NULL;
+	return buf;
+}
+
+const char** papuga_RequestHandler_list_schema_types( const papuga_RequestHandler* self, char const** buf, size_t bufsize)
+{
+	size_t bufpos = 0;
+	RequestSchemaList const* sl = self->schemas;
+	for (; sl; sl = sl->next)
+	{
+		size_t bi = 0;
+		for (; bi < bufpos; ++bi){if (0==std::strcmp(buf[bi],sl->type)) break;}
+		if (bi < bufpos) continue;
+		if (bufpos >= bufsize) return NULL;
+		buf[ bufpos++] = sl->type;
 	}
 	if (bufpos >= bufsize) return NULL;
 	buf[ bufpos] = NULL;
