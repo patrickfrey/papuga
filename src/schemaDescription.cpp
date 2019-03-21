@@ -1129,7 +1129,7 @@ extern "C" const char* papuga_SchemaDescription_get_text( const papuga_SchemaDes
 	catch (const ErrorException& err)
 	{
 		self->impl.lasterr = err.err();
-		return false;
+		return NULL;
 	}
 }
 
@@ -1159,7 +1159,7 @@ extern "C" const char* papuga_SchemaDescription_get_example( const papuga_Schema
 	catch (const ErrorException& err)
 	{
 		self->impl.lasterr = err.err();
-		return false;
+		return NULL;
 	}
 }
 
