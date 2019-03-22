@@ -141,8 +141,7 @@ extern "C" papuga_RequestParser* papuga_create_RequestParser_xml( papuga_Allocat
 		else
 		{
 			papuga_ValueVariant input;
-			size_t unitsize = size / papuga_StringEncoding_unit_size( encoding);
-			papuga_init_ValueVariant_string_enc( &input, encoding, content, unitsize);
+			papuga_init_ValueVariant_string_enc( &input, encoding, content, size);
 			contentUTF8 = ValueVariant_tostring( input, *errcode);
 		}
 		new (&rt->impl) RequestParser_xml( allocator, contentUTF8);

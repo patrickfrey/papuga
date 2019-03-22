@@ -213,7 +213,7 @@ bool papuga_execute_request(
 		default: break;
 	}
 	if (!resstr) goto ERROR;
-	resultblob.append( resstr, reslen * papuga_StringEncoding_unit_size( encoding));
+	resultblob.append( resstr, reslen);
 	try
 	{
 		logout.append( logctx.out.str());

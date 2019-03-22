@@ -505,8 +505,7 @@ extern "C" papuga_RequestParser* papuga_create_RequestParser_json( papuga_Alloca
 		else
 		{
 			papuga_ValueVariant input;
-			size_t unitsize = size / papuga_StringEncoding_unit_size( encoding);
-			papuga_init_ValueVariant_string_enc( &input, encoding, content, unitsize);
+			papuga_init_ValueVariant_string_enc( &input, encoding, content, size);
 			contentUTF8 = ValueVariant_tostring( input, *errcode);
 		}
 		new (&rt->impl) RequestParser_json( allocator, contentUTF8);
@@ -562,8 +561,7 @@ extern "C" bool papuga_init_ValueVariant_json( papuga_ValueVariant* self, papuga
 		else
 		{
 			papuga_ValueVariant input;
-			size_t unitsize = contentlen / papuga_StringEncoding_unit_size( encoding);
-			papuga_init_ValueVariant_string_enc( &input, encoding, contentstr, unitsize);
+			papuga_init_ValueVariant_string_enc( &input, encoding, contentstr, contentlen);
 			contentUTF8 = ValueVariant_tostring( input, *errcode);
 		}
 		cJSON_Context ctx;

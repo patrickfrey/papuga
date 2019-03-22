@@ -163,7 +163,7 @@ const char* papuga_ValueVariant_tostring( const papuga_ValueVariant* self, papug
 * @param[in] enc encoding of the result string
 * @param[out] buf pointer to character buffer to use for deep copies
 * @param[in] bufsize allocation size of 'buf' in bytes
-* @param[out] len length of the string copied in units (bytes for UTF8 and int16 for UTF16)
+* @param[out] len length of the string copied in bytes
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the pointer to the result string or NULL in case of an error (conversion error or the result buffer allocation size is too small)
 */
@@ -280,7 +280,7 @@ char* papuga_ValueVariant_todump(
 * @param[in] enc encoding of the output
 * @param[in] rootname name of root element
 * @param[in] elemname optional name of element in case of an array
-* @param[out] len length of the output in character units, depending on the encoding specified
+* @param[out] len length of the output in bytes
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the dumped XML (allocated in result allocator) on success, NULL on failure
 */
@@ -304,7 +304,7 @@ void* papuga_ValueVariant_toxml(
 * @param[in] elemname optional name of element in case of an array
 * @param[in] head additionl elements in the HTML head, e.g. style, or NULL if not defined
 * @param[in] href_base to declare as document root for links or NULL if not defined
-* @param[out] len length of the output in character units, depending on the encoding specified
+* @param[out] len length of the output in bytes
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the dumped HTML (allocated in result allocator) on success, NULL on failure
 */
@@ -327,7 +327,7 @@ void* papuga_ValueVariant_tohtml5(
 * @param[in] structdefs structure descriptions
 * @param[in] enc encoding of the output
 * @param[in] rootname name of root element
-* @param[out] len length of the output in character units, depending on the encoding specified
+* @param[out] len length of the output in bytes
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the dumped JSON (allocated in result allocator) on success, NULL on failure
 */
@@ -344,7 +344,7 @@ void* papuga_ValueVariant_tojson(
 * @brief Dump a value variant as text/plain
 * @param[in] self pointer to structure
 * @param[in] enc encoding of the output text
-* @param[out] len length of the output in character units, depending on the encoding specified
+* @param[out] len length of the output in bytes
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the dumped text allocated with malloc on success, NULL on memory allocation error
 */

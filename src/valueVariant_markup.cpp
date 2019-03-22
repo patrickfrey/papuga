@@ -49,7 +49,7 @@ static void* encodeRequestResultString( const std::string& out, papuga_StringEnc
 		papuga_ValueVariant outvalue;
 		papuga_init_ValueVariant_string( &outvalue, out.c_str(), out.size());
 		size_t usize = papuga_StringEncoding_unit_size( enc);
-		size_t rtbufsize = (out.size()+16) * usize;
+		size_t rtbufsize = (out.size()*6) + usize;
 		void* rtbuf = std::malloc( rtbufsize);
 		if (!rtbuf)
 		{
@@ -62,9 +62,8 @@ static void* encodeRequestResultString( const std::string& out, papuga_StringEnc
 			std::free( rtbuf);
 			return NULL;
 		}
-		void* rt = (void*)std::realloc( rtbuf, (*len + 1) * usize);
+		void* rt = (void*)std::realloc( rtbuf, *len + usize);
 		if (!rt) rt = rtbuf;
-		std::memset( (char*)rt + (*len) * usize, 0, usize); //... null termination
 		return rt;
 	}
 }

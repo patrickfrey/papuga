@@ -278,12 +278,11 @@ char* papuga_Allocator_copy_string( papuga_Allocator* self, const char* str, siz
 char* papuga_Allocator_copy_string_enc( papuga_Allocator* self, const char* str, size_t len, papuga_StringEncoding enc)
 {
 	int usize = papuga_StringEncoding_unit_size( enc);
-	size_t mm = usize * len;
-	char* rt = papuga_Allocator_alloc( self, mm+usize, usize);
+	char* rt = papuga_Allocator_alloc( self, len+usize, usize);
 	if (rt)
 	{
-		memcpy( rt, str, mm);
-		memset( rt+mm, 0, usize);
+		memcpy( rt, str, len);
+		memset( rt+len, 0, usize);
 	}
 	return rt;
 }

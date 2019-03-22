@@ -41,7 +41,7 @@ static std::string encodeString( const papuga_StringEncoding& encoding, const st
 		}
 		else try
 		{
-			std::string rt( buf, bufsize * papuga_StringEncoding_unit_size( encoding));
+			std::string rt( buf, bufsize);
 			std::free( buf);
 			return rt;
 		}

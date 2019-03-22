@@ -2397,7 +2397,7 @@ extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papu
 		else
 		{
 			std::size_t usize = papuga_StringEncoding_unit_size( enc);
-			std::size_t bufsize = (rtbuf.size()+1) * usize;
+			std::size_t bufsize = rtbuf.size() + usize;
 			void* buf = papuga_Allocator_alloc( allocator, bufsize, usize);
 			papuga_ValueVariant strval;
 			papuga_init_ValueVariant_string( &strval, rtbuf.c_str(), rtbuf.size());

@@ -1117,9 +1117,14 @@ static const void* copyString( papuga_Allocator* allocator, const std::string& s
 {
 	papuga_ValueVariant val;
 	papuga_init_ValueVariant_string( &val, str.c_str(), str.size());
-	size_t bufsize = str.size() * papuga_StringEncoding_unit_size( enc)+1;
-	void* buf = papuga_Allocator_alloc( allocator, bufsize, 1);
-	if (!buf) {*err = papuga_NoMemError; return 0;}
+	size_t usize = papuga_StringEncoding_unit_size( enc);
+	size_t bufsize = str.size() + usize;
+	void* buf = papuga_Allocator_alloc( allocator, bufsize, usize);
+	if (!buf)
+	{
+		*err = papuga_NoMemError;
+		return 0;
+	}
 	const void* rt = papuga_ValueVariant_tostring_enc( &val, enc, buf, bufsize, len, err);
 	return rt;
 }
