@@ -840,19 +840,19 @@ public:
 
 		if (tree.name.empty() && tree.elementType == TreeNode::StructType)
 		{
-			printXsdSchemaElementAttributes( out, tree);
-			printXsdSchemaElementChildNodes( out, tree);
+			printSchemaElementAttributes( out, tree);
+			printSchemaElementChildNodes( out, tree);
 		}
 		else
 		{
-			printXsdSchemaElements( out, tree);
+			printSchemaElements( out, tree);
 		}
 		out << "</xs:schema>\n";
 		return out.str();
 	}
 
 private:
-	static const char* xsdSchemaAtomTypeName( papuga_Type tp)
+	static const char* schemaAtomTypeName( papuga_Type tp)
 	{
 		switch (tp)
 		{
@@ -868,7 +868,7 @@ private:
 		return "xs:unknown";
 	}
 
-	static std::string xsdElementUseSpecifier( papuga_ResolveType tp)
+	static std::string elementUseSpecifier( papuga_ResolveType tp)
 	{
 		switch (tp)
 		{
@@ -886,7 +886,7 @@ private:
 		return std::string();
 	}
 
-	static std::string attributeXsdUseSpecifier( papuga_ResolveType tp)
+	static std::string attributeUseSpecifier( papuga_ResolveType tp)
 	{
 		switch (tp)
 		{
@@ -902,89 +902,304 @@ private:
 		return std::string();
 	}
 
-	static void printXsdSchemaElementAttributes( std::ostream& out, const TreeNode& node)
+	static void printSchemaElementAttributes( std::ostream& out, const TreeNode& node)
 	{
 		std::vector<TreeNode>::const_iterator ci = node.chld.begin(), ce = node.chld.end();
 		for (; ci != ce; ++ci)
 		{
-			if (ci->elementType == TreeNode::AttributeType) printXsdSchemaElements( out, *ci);
+			if (ci->elementType == TreeNode::AttributeType) printSchemaElements( out, *ci);
 		}
 	}
 
-	static void printXsdSchemaElementChildNodes( std::ostream& out, const TreeNode& node)
+	static void printSchemaElementChildNodes( std::ostream& out, const TreeNode& node)
 	{
 		std::vector<TreeNode>::const_iterator ci = node.chld.begin(), ce = node.chld.end();
 		for (; ci != ce; ++ci)
 		{
-			if (ci->elementType != TreeNode::AttributeType) printXsdSchemaElements( out, *ci);
+			if (ci->elementType != TreeNode::AttributeType) printSchemaElements( out, *ci);
 		}
 	}
 
-	static void printXsdSchemaElements( std::ostream& out, const TreeNode& node)
+	static void printSchemaElements( std::ostream& out, const TreeNode& node)
 	{
 		if (node.name.empty()) throw ErrorException( papuga_LogicError);
 		switch (node.elementType)
 		{
 			case TreeNode::NullType:
-				out << "<xs:element name=\"" << node.name << "\" type=\"" << xsdSchemaAtomTypeName( papuga_TypeString) << xsdElementUseSpecifier( node.resolveType) << " nillable=\"true\"/>\n";
+				out << "<xs:element name=\"" << node.name << "\" type=\"" << schemaAtomTypeName( papuga_TypeString) << elementUseSpecifier( node.resolveType) << " nillable=\"true\"/>\n";
 				break;
 			case TreeNode::AttributeType:
-				out << "<xs:attribute name=\"" << node.name << "\" type=\"" << xsdSchemaAtomTypeName( node.valueType) << attributeXsdUseSpecifier( node.resolveType) << "\"/>\n";
+				out << "<xs:attribute name=\"" << node.name << "\" type=\"" << schemaAtomTypeName( node.valueType) << attributeUseSpecifier( node.resolveType) << "\"/>\n";
 				break;
 			case TreeNode::ValueType:
-				out << "<xs:element name=\"" << node.name << "\" type=\"" << xsdSchemaAtomTypeName( node.valueType) << xsdElementUseSpecifier( node.resolveType) << "\"/>\n";
+				out << "<xs:element name=\"" << node.name << "\" type=\"" << schemaAtomTypeName( node.valueType) << elementUseSpecifier( node.resolveType) << "\"/>\n";
 				break;
 			case TreeNode::StructType:
-				out << "<xs:element name=\"" << node.name << "\"" << xsdElementUseSpecifier( node.resolveType) << ">\n";
+				out << "<xs:element name=\"" << node.name << "\"" << elementUseSpecifier( node.resolveType) << ">\n";
 				if (node.isSimpleContent())
 				{
 					const TreeNode& cnode = node.simpleContentNode();
 					out << "<xs:simpleContent>\n";
-					out << "<xs:extension base=\"" << xsdSchemaAtomTypeName( cnode.valueType) << xsdElementUseSpecifier( cnode.resolveType) << "\"\n";
+					out << "<xs:extension base=\"" << schemaAtomTypeName( cnode.valueType) << elementUseSpecifier( cnode.resolveType) << "\"\n";
 					out << "</xs:extension>\n";
-					printXsdSchemaElementAttributes( out, node);
+					printSchemaElementAttributes( out, node);
 					out << "</xs:simpleContent>\n";
 				}
 				else
 				{
 					out << "<xs:complexType>\n";
 					out << "<xs:any>\n";
-					printXsdSchemaElementChildNodes( out, node);
-					printXsdSchemaElementAttributes( out, node);
+					printSchemaElementChildNodes( out, node);
+					printSchemaElementAttributes( out, node);
 					out << "</xs:any>\n";
 					out << "</xs:complexType>\n";
 				}
 				out << "</xs:element>\n";
 				break;
 			case TreeNode::UnionType:
-				out << "<xs:element name=\"" << node.name << "\"" << xsdElementUseSpecifier( node.resolveType) << ">\n";
+				out << "<xs:element name=\"" << node.name << "\"" << elementUseSpecifier( node.resolveType) << ">\n";
 				out << "<xs:complexType>\n";
 				out << "<xs:union>\n";
-				printXsdSchemaElementChildNodes( out, node);
-				printXsdSchemaElementAttributes( out, node);
+				printSchemaElementChildNodes( out, node);
+				printSchemaElementAttributes( out, node);
 				out << "</xs:union>\n";
 				out << "</xs:complexType>\n";
 				out << "</xs:element>\n";
 				break;
 			case TreeNode::ReferenceType:
-				out << "<xs:element ref=\"" << node.name << "\"" << xsdElementUseSpecifier( node.resolveType) << "/>\n";
+				out << "<xs:element ref=\"" << node.name << "\"" << elementUseSpecifier( node.resolveType) << "/>\n";
 				break;
 		}
 	}
 };
 
-#if 0
+
+class JsonSchema
 {
-  "type": "object",
-  "properties": {
-    "number":      { "type": "number" },
-    "street_name": { "type": "string" },
-    "street_type": { "type": "string",
-                     "enum": ["Street", "Avenue", "Boulevard"]
-                   }
-  }
-}
-#endif
+public:
+	JsonSchema(){}
+
+	static std::string buildText( const TreeNode& tree)
+	{
+		std::ostringstream out;
+		out << "{\n";
+
+		if (tree.name.empty() && tree.elementType == TreeNode::StructType)
+		{
+			printSchemaElementAttributes( out, tree, true, std::string(""));
+			printSchemaElementChildNodes( out, tree, false, std::string(""));
+		}
+		else
+		{
+			printSchemaElements( out, tree, false, "");
+		}
+		out << "}\n";
+		return out.str();
+	}
+
+private:
+	static const char* schemaAtomTypeName( papuga_Type tp)
+	{
+		switch (tp)
+		{
+			case papuga_TypeVoid: break;
+			case papuga_TypeDouble: return "number";
+			case papuga_TypeInt: return "number";
+			case papuga_TypeBool: return "boolean";
+			case papuga_TypeString: return "string";
+			case papuga_TypeHostObject: break;
+			case papuga_TypeSerialization: break;
+			case papuga_TypeIterator: break;
+		}
+		return "xs:unknown";
+	}
+
+	static std::string nextIndent( const std::string& indent)
+	{
+		return indent + "  ";
+	}
+
+	static void printSchemaElementAttributes( std::ostream& out, const TreeNode& node, bool comma, const std::string& indent)
+	{
+		std::vector<TreeNode>::const_iterator ci = node.chld.begin(), ce = node.chld.end();
+		for (; ci != ce; ++ci)
+		{
+			if (ci->elementType == TreeNode::AttributeType) printSchemaElements( out, *ci, comma||(ci+1)!=ce, nextIndent( indent));
+		}
+	}
+
+	static void printSchemaElementChildNodes( std::ostream& out, const TreeNode& node, bool comma, const std::string& indent)
+	{
+		std::vector<TreeNode>::const_iterator ci = node.chld.begin(), ce = node.chld.end();
+		for (; ci != ce; ++ci)
+		{
+			if (ci->elementType != TreeNode::AttributeType) printSchemaElements( out, *ci, comma||(ci+1)!=ce, nextIndent( indent));
+		}
+	}
+
+	static std::string DECL( const std::string& name, const std::string& value, bool comma)
+	{
+		char buf[ 1024];
+		std::size_t len = std::snprintf( buf, sizeof(buf), "\"%s\":\"%s\"%s", name.c_str(), value.c_str(), comma ? ",\n": "\n");
+		if (len >= sizeof(buf)) throw ErrorException( papuga_BufferOverflowError);
+		return std::string( buf, len);
+	}
+	static std::string DECL( const std::string& name, int value, bool comma)
+	{
+		char buf[ 1024];
+		std::size_t len = std::snprintf( buf, sizeof(buf), "\"%s\":%d%s", name.c_str(), value, comma ? ",\n": "\n");
+		if (len >= sizeof(buf)) throw ErrorException( papuga_BufferOverflowError);
+		return std::string( buf, len);
+	}
+	static std::string OPEN( const std::string& name)
+	{
+		char buf[ 1024];
+		std::size_t len = std::snprintf( buf, sizeof(buf), "\"%s\": {\n", name.c_str());
+		if (len >= sizeof(buf)) throw ErrorException( papuga_BufferOverflowError);
+		return std::string( buf, len);
+	}
+	static const char* CLOSE( bool comma)
+	{
+		return comma ? "},\n" : "}\n";
+	}
+	static std::string OPENAR( const std::string& name)
+	{
+		char buf[ 1024];
+		std::size_t len = std::snprintf( buf, sizeof(buf), "\"%s\": [\n", name.c_str());
+		if (len >= sizeof(buf)) throw ErrorException( papuga_BufferOverflowError);
+		return std::string( buf, len);
+	}
+	static const char* CLOSEAR( bool comma)
+	{
+		return comma ? "],\n" : "]\n";
+	}
+
+	static void printSchemaItemDeclarationHeader( std::ostream& out, const TreeNode& node, const char* type, bool comma, const std::string& indent, std::string& nextindent)
+	{
+		if (node.elementType == TreeNode::AttributeType)
+		{
+			out << indent << OPEN( std::string("-") + node.name);
+		}
+		else if (node.name.empty())
+		{
+			out << indent << OPEN( "#text");
+		}
+		else
+		{
+			out << indent << OPEN( node.name);
+		}
+		if (node.resolveType == papuga_ResolveTypeArray || node.resolveType == papuga_ResolveTypeArrayNonEmpty)
+		{
+			nextindent = nextIndent( indent);
+			out << nextindent << DECL( "type", "array", true);
+			if (node.resolveType == papuga_ResolveTypeArrayNonEmpty) out << nextindent << DECL("minItems", 1, true);
+			out << nextindent << OPEN( "items");
+			nextindent = nextIndent( nextindent);
+			out << nextindent << DECL( "type", type, comma);
+		}
+		else
+		{
+			nextindent = nextIndent( indent);
+			out << nextindent << DECL( "type", type, true);
+			if (node.resolveType == papuga_ResolveTypeRequired || node.resolveType == papuga_ResolveTypeInherited)
+			{
+				out << nextindent << DECL( "required", "true", comma);
+			}
+			else
+			{
+				out << nextindent << DECL( "required", "false", comma);
+			}
+		}
+	}
+	static void printSchemaItemDeclarationTail( std::ostream& out, const TreeNode& node, bool comma, const std::string& indent)
+	{
+		if (node.resolveType == papuga_ResolveTypeArray || node.resolveType == papuga_ResolveTypeArrayNonEmpty)
+		{
+			out << nextIndent(indent) << CLOSE( false);
+		}
+		out << indent << CLOSE( comma);
+	}
+	static void printSchemaItemReferenceHeader( std::ostream& out, const TreeNode& node, bool comma, const std::string& indent, std::string& nextindent)
+	{
+		out << indent << OPEN( node.name);
+		if (node.resolveType == papuga_ResolveTypeArray || node.resolveType == papuga_ResolveTypeArrayNonEmpty)
+		{
+			nextindent = nextIndent( indent);
+			out << nextindent << DECL( "type", "array", true);
+			if (node.resolveType == papuga_ResolveTypeArrayNonEmpty) out << nextindent << DECL("minItems", 1, true);
+			out << nextindent << OPEN( "items");
+			nextindent = nextIndent( nextindent);
+			out << nextindent << DECL( "$ref", std::string("#/") + node.name, comma);
+		}
+		else
+		{
+			nextindent = nextIndent( indent);
+			out << nextindent << DECL( "$ref", std::string("#/") + node.name, true);
+			if (node.resolveType == papuga_ResolveTypeRequired || node.resolveType == papuga_ResolveTypeInherited)
+			{
+				out << nextindent << DECL( "required", "true", comma);
+			}
+			else
+			{
+				out << nextindent << DECL( "required", "false", comma);
+			}
+		}
+	}
+	static void printSchemaItemReferenceTail( std::ostream& out, const TreeNode& node, bool comma, const std::string& indent)
+	{
+		if (node.resolveType == papuga_ResolveTypeArray || node.resolveType == papuga_ResolveTypeArrayNonEmpty)
+		{
+			out << indent << CLOSE( false);
+		}
+		out << indent << CLOSE( comma);
+	}
+
+	static void printSchemaElements( std::ostream& out, const TreeNode& node, bool comma, const std::string& indent)
+	{
+		std::string nextindent;
+		if (node.name.empty()) throw ErrorException( papuga_LogicError);
+		switch (node.elementType)
+		{
+			case TreeNode::NullType:
+				printSchemaItemDeclarationHeader( out, node, schemaAtomTypeName( papuga_TypeString), false, indent, nextindent);
+				printSchemaItemDeclarationTail( out, node, comma, indent);
+				break;
+			case TreeNode::AttributeType:
+				printSchemaItemDeclarationHeader( out, node, schemaAtomTypeName( node.valueType), false, indent, nextindent);
+				printSchemaItemDeclarationTail( out, node, comma, indent);
+				break;
+			case TreeNode::ValueType:
+				printSchemaItemDeclarationHeader( out, node, schemaAtomTypeName( node.valueType), false, indent, nextindent);
+				printSchemaItemDeclarationTail( out, node, comma, indent);
+				break;
+			case TreeNode::StructType:
+				printSchemaItemDeclarationHeader( out, node, "object", true, indent, nextindent);
+				out << nextindent << OPEN( "properties");
+				printSchemaElementAttributes( out, node, true/*comma*/, nextIndent(nextindent));
+				printSchemaElementChildNodes( out, node, false/*comma*/, nextIndent(nextindent));
+				out << nextindent << CLOSE( false);
+				printSchemaItemDeclarationTail( out, node, comma, indent);
+				break;
+			case TreeNode::UnionType:
+				printSchemaItemDeclarationHeader( out, node, "object", true/*comma*/, indent, nextindent);
+				out << nextindent << OPEN( "properties");
+				printSchemaElementAttributes( out, node, true/*comma*/, nextIndent(nextindent));
+
+				out << nextIndent(nextindent) << OPENAR( "anyOf");
+				printSchemaElementChildNodes( out, node, false/*comma*/, nextIndent(nextIndent(nextindent)));
+				out << nextIndent(nextindent) << CLOSEAR( false);
+
+				out << nextindent << CLOSE( false);
+				printSchemaItemDeclarationTail( out, node, comma, indent);
+				break;
+			case TreeNode::ReferenceType:
+				printSchemaItemReferenceHeader( out, node, false, indent, nextindent);
+				printSchemaItemReferenceTail( out, node, comma, indent);
+				break;
+		}
+	}
+};
+
 
 typedef struct papuga_SchemaDescription
 {
@@ -1148,8 +1363,8 @@ extern "C" const void* papuga_SchemaDescription_get_text( const papuga_SchemaDes
 				textUTF8 = XsdSchema::buildText( self->impl.tree);
 				break;
 			case papuga_ContentType_JSON:
-				self->impl.lasterr = papuga_NotImplemented;
-				return NULL;
+				textUTF8 = JsonSchema::buildText( self->impl.tree);
+				break;
 		}
 		self->impl.lasterr = papuga_Ok;
 		return copyString( allocator, textUTF8, enc, len, &self->impl.lasterr);
