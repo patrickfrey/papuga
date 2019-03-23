@@ -736,10 +736,6 @@ public:
 
 	void resolveDeepNodeReferences( TreeNode& node, const ItemNameMap& invnamemap, const TreeNode::Scope& parentScope=TreeNode::Scope())
 	{
-		/*[-]*/if (node.name == "expression")
-		/*[-]*/{
-		/*[-]*/	std::cerr << "HALLY GALLY" << std::endl;
-		/*[-]*/}
 		typedef ItemNameMap::const_iterator ItemNameItr;
 		typedef std::pair<ItemNameItr,ItemNameItr> ItemNameItrRange;
 
