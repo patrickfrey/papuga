@@ -736,6 +736,10 @@ public:
 
 	void resolveDeepNodeReferences( TreeNode& node, const ItemNameMap& invnamemap, const TreeNode::Scope& parentScope=TreeNode::Scope())
 	{
+		/*[-]*/if (node.name == "expression")
+		/*[-]*/{
+		/*[-]*/	std::cerr << "HALLY GALLY" << std::endl;
+		/*[-]*/}
 		typedef ItemNameMap::const_iterator ItemNameItr;
 		typedef std::pair<ItemNameItr,ItemNameItr> ItemNameItrRange;
 
@@ -751,10 +755,7 @@ public:
 					ci->elementType = TreeNode::UnionType;
 					for (; ri != re; ++ri)
 					{
-						if (ri->second.scope.inside( parentScope))
-						{
-							ci->chld.push_back( TreeNode( ri->second.name, TreeNode::NullId, TreeNode::ReferenceType, papuga_TypeVoid, TreeNode::FollowImmediate));
-						}
+						ci->chld.push_back( TreeNode( ri->second.name, TreeNode::NullId, TreeNode::ReferenceType, papuga_TypeVoid, TreeNode::FollowImmediate));
 					}
 				}
 			}
@@ -763,7 +764,7 @@ public:
 				resolveDeepNodeReferences( *ci, invnamemap, node.scope);
 			}
 		}
-		if (node.elementType == TreeNode::StructType && parentScope.defined())
+		if (node.elementType == TreeNode::StructType && parentScope.defined() && node.chld.empty())
 		{
 			std::vector<TreeNode::Related>::const_iterator mi = node.related.begin(), me = node.related.end();
 			for (; mi != me; ++mi)
@@ -772,14 +773,11 @@ public:
 				ItemNameItr ri = range.first, re = range.second;
 				for (; ri != re; ++ri)
 				{
-					if (ri->second.scope.inside( parentScope))
-					{
-						std::vector<TreeNode>::iterator ni = node.getOrCreateChildNode( ri->second.name);
-						ni->setFollowTypeUnique( TreeNode::FollowImmediate);
-						ni->resolveType = mi->resolveType;
-						if (ni->elementType != TreeNode::NullType) throw ErrorException( papuga_AmbiguousReference);
-						ni->elementType = TreeNode::ReferenceType;
-					}
+					std::vector<TreeNode>::iterator ni = node.getOrCreateChildNode( ri->second.name);
+					ni->setFollowTypeUnique( TreeNode::FollowImmediate);
+					ni->resolveType = mi->resolveType;
+					if (ni->elementType != TreeNode::NullType) throw ErrorException( papuga_AmbiguousReference);
+					ni->elementType = TreeNode::ReferenceType;
 				}
 			}
 		}
