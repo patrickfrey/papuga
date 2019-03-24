@@ -189,6 +189,10 @@ public:
 	{
 		papuga_init_Allocator( &m_allocator, m_allocatorbuf, sizeof(m_allocatorbuf));
 	}
+	~AutomatonDescription()
+	{
+		papuga_destroy_Allocator( &m_allocator);
+	}
 
 	const papuga_ClassDef* classdefs() const
 	{
