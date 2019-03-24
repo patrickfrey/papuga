@@ -22,6 +22,7 @@
 #include <sstream>
 #include <map>
 #include <algorithm>
+#include <cstdio>
 
 class ErrorException
 {
