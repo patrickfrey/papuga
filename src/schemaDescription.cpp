@@ -341,6 +341,26 @@ public:
 		}
 	}
 
+	/// \note UNUSED (for debug only)
+	bool checkRelation( int id_, int chldid) const
+	{
+		if (id == id_)
+		{
+			std::vector<Related>::const_iterator ri = related.begin(), re = related.end();
+			for (; ri != re && ri->id != chldid; ++ri){}
+			return ri != re;
+		}
+		else
+		{
+			std::vector<TreeNode>::const_iterator ci = chld.begin(), ce = chld.end();
+			for (; ci != ce; ++ci)
+			{
+				if (ci->checkRelation( id_, chldid)) return true;
+			}
+			return false;
+		}
+	}
+
 	void transformValueToSimpleContent()
 	{
 		if (elementType != ValueType) throw ErrorException( papuga_LogicError);
@@ -533,13 +553,20 @@ public:
 		std::vector<TreeNode>::iterator ci = chld.begin(), ce = chld.end();
 		for (; ci != ce; ++ci)
 		{
+			ci->updateResolveType();
+
 			std::vector<TreeNode::Related>::const_iterator ri = related.begin(), re = related.end();
-			for (; ri != re && ri->id != ci->id; ++ri)
+			for (; ri != re && ri->id != ci->id; ++ri){}
 			if (ri != re)
 			{
 				ci->resolveType = ri->resolveType;
 			}
-			ci->updateResolveType();
+		}
+		ci = chld.begin();
+		for (; ci != ce && (ci->resolveType == papuga_ResolveTypeOptional || ci->resolveType == papuga_ResolveTypeArray); ++ci){}
+		if (ci == ce && resolveType == papuga_ResolveTypeRequired)
+		{
+			resolveType = papuga_ResolveTypeOptional;
 		}
 	}
 
