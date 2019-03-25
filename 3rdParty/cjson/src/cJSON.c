@@ -1078,8 +1078,10 @@ CJSON_PUBLIC(cJSON *) cJSON_ParseWithOpts(const char *value, cJSON_Context* ctx,
 CJSON_PUBLIC(cJSON *) cJSON_ParseWithOpts(const char *value, const char **return_parse_end, cJSON_bool require_null_terminated)
 #endif
 {
-    parse_buffer buffer = { 0, 0, 0, 0, { 0, 0, 0 } };
+    parse_buffer buffer;
     cJSON *item = NULL;
+
+    memset( &buffer, 0, sizeof(buffer));
 
     /* reset error position */
 #ifdef PF_PATCH_THREADSAFE
@@ -1097,9 +1099,10 @@ CJSON_PUBLIC(cJSON *) cJSON_ParseWithOpts(const char *value, const char **return
     buffer.content = (const unsigned char*)value;
     buffer.length = strlen((const char*)value) + sizeof("");
     buffer.offset = 0;
-    buffer.hooks = global_hooks;
+    buffer.depth = 0;
+    memcpy( &buffer.hooks, &global_hooks, sizeof(global_hooks));
 
-    item = cJSON_New_Item(&global_hooks);
+    item = cJSON_New_Item( &global_hooks);
     if (item == NULL) /* memory fail */
     {
         goto fail;
