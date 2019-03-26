@@ -54,10 +54,11 @@ const char* papuga_SchemaDescription_error_expression( const papuga_SchemaDescri
  * @param[in] id identifier of the element or -1 if undefined
  * @param[in] expression select expression of the element
  * @param[in] valueType in case of an atomic value or papuga_TypeVoid else
+ * @param[in] resolveType default resolve type if not specified by the using relation
  * @param[in] examples semicolon ';' separated list of example values to use for this element in the examples in the case of an atomic type, NULL else
  * @return true if operation succeeded, false if it failed (call papuga_SchemaDescription_last_error for the reason of the operation failure)
  */
-bool papuga_SchemaDescription_add_element( papuga_SchemaDescription* self, int id, const char* expression, papuga_Type valueType, const char* examples);
+bool papuga_SchemaDescription_add_element( papuga_SchemaDescription* self, int id, const char* expression, papuga_Type valueType, papuga_ResolveType resolveType, const char* examples);
 
 /*
  * @brief Declare dependency graph arc
@@ -70,6 +71,17 @@ bool papuga_SchemaDescription_add_element( papuga_SchemaDescription* self, int i
  * @return true if operation succeeded, false if it failed (call papuga_SchemaDescription_last_error for the reason of the operation failure)
  */
 bool papuga_SchemaDescription_add_relation( papuga_SchemaDescription* self, int id, const char* expression, int elemid, papuga_ResolveType resolveType);
+
+/*
+ * @brief Declare dependency graph arc without specifying the id of the structure
+ * @remark not threadsafe
+ * @param[in] self schema description to add dependency to
+ * @param[in] expression select expression of the container element
+ * @param[in] elemid identifier of the contained element
+ * @param[in] resolveType type of relation
+ * @return true if operation succeeded, false if it failed (call papuga_SchemaDescription_last_error for the reason of the operation failure)
+ */
+bool papuga_SchemaDescription_add_dependency( papuga_SchemaDescription* self, const char* expression, int elemid, papuga_ResolveType resolveType);
 
 /*
  * @brief Declare a description of a schema to be finished

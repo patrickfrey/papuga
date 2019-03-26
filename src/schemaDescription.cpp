@@ -22,6 +22,7 @@
 #include <sstream>
 #include <map>
 #include <algorithm>
+#include <iterator>
 #include <cstdio>
 
 class ErrorException
@@ -340,6 +341,32 @@ public:
 			}
 		}
 	}
+	void setResolveTypeUnique( papuga_ResolveType resolveType_)
+	{
+		if (resolveType == papuga_ResolveTypeRequired)
+		{
+			resolveType = resolveType_;
+		}
+		else if (resolveType_ != papuga_ResolveTypeRequired && resolveType_ != resolveType)
+		{
+			if (resolveType_ == papuga_ResolveTypeArrayNonEmpty && resolveType == papuga_ResolveTypeOptional)
+			{
+				resolveType = papuga_ResolveTypeArrayNonEmpty;
+			}
+			if (resolveType == papuga_ResolveTypeArrayNonEmpty && resolveType_ == papuga_ResolveTypeOptional)
+			{}
+			if (resolveType_ == papuga_ResolveTypeArray && resolveType == papuga_ResolveTypeRequired)
+			{
+				resolveType = papuga_ResolveTypeArray;
+			}
+			if (resolveType == papuga_ResolveTypeArray && resolveType_ == papuga_ResolveTypeRequired)
+			{}
+			else
+			{
+				throw ErrorException( papuga_AmbiguousReference);
+			}
+		}
+	}
 
 	/// \note UNUSED (for debug only)
 	bool checkRelation( int id_, int chldid) const
@@ -377,7 +404,7 @@ public:
 		return ci == ce;
 	}
 
-	void addFollow( int id_, const char* expression_, papuga_Type valueType_, const char* examples_, const Related& related_)
+	void addFollow( int id_, const char* expression_, papuga_Type valueType_, papuga_ResolveType resolveType_, const char* examples_, const Related& related_)
 	{
 		char const* ei = expression_;
 		FollowType followType_ = FollowImmediate;
@@ -398,13 +425,13 @@ public:
 				followType_ = FollowDeep;
 				++ei;
 			}
-			addElement( id_, ei, valueType_, followType_, examples_, related_);
+			addElement( id_, ei, valueType_, resolveType_, followType_, examples_, related_);
 		}
 		else if (*ei == '@')
 		{
 			if (elementType == ValueType) transformValueToSimpleContent();
 			setElementTypeUnique( StructType);
-			addElement( id_, ei, valueType_, followType_, examples_, related_);
+			addElement( id_, ei, valueType_, resolveType_, followType_, examples_, related_);
 		}
 		else if (*ei == '(')
 		{
@@ -414,6 +441,7 @@ public:
 			}
 			else
 			{
+				setResolveTypeUnique( resolveType_);
 				setElementTypeUnique( ValueType);
 				setValueTypeUnique( valueType_);
 				setIdUnique( id_);
@@ -422,7 +450,10 @@ public:
 		}
 		else if (*ei == '\0')
 		{
-			setIdUnique( id_);
+			if (id_ != NullId)
+			{
+				setIdUnique( id_);
+			}
 			if (elementType == AttributeType)
 			{
 				setValueTypeUnique( valueType_);
@@ -434,8 +465,14 @@ public:
 			}
 			else if (related_.defined())
 			{
-				setElementTypeUnique( StructType);
-				addRelated( related_);
+				if (id_ != NullId)
+				{
+					setElementTypeUnique( StructType);
+				}
+				if (elementType == StructType)
+				{
+					addRelated( related_);
+				}
 			}
 		}
 		else
@@ -481,7 +518,7 @@ public:
 		return ni;
 	}
 
-	void addElement( int id_, const char* expression_, papuga_Type valueType_, FollowType followType_, const char* examples_, const Related& related_)
+	void addElement( int id_, const char* expression_, papuga_Type valueType_, papuga_ResolveType resolveType_, FollowType followType_, const char* examples_, const Related& related_)
 	{
 		char const* ei = expression_;
 		if (*ei == '{')
@@ -494,7 +531,7 @@ public:
 			{
 				std::vector<TreeNode>::iterator ni = getOrCreateChildNode( *si);
 				ni->setFollowTypeUnique( followType_);
-				ni->addFollow( id_, ei, valueType_, examples_, related_);
+				ni->addFollow( id_, ei, valueType_, resolveType_, examples_, related_);
 			}
 		}
 		else
@@ -507,11 +544,18 @@ public:
 			}
 			char const* start = ei;
 			ei = skipElement( ei);
-			
+
+			if (ei == start)
+			{
+				throw ErrorException( papuga_SyntaxError);
+			}
 			std::string nodename( start, ei-start);
 			std::vector<TreeNode>::iterator ni = getOrCreateChildNode( nodename);
-
-			if (childElementType != AttributeType && *ei == '(')
+			if (childElementType == AttributeType)
+			{
+				ni->setResolveTypeUnique( resolveType_);
+			}
+			else if (*ei == '(')
 			{
 				childElementType = ValueType;
 				if (followType_ == FollowImmediate && valueType_ == papuga_TypeVoid
@@ -532,19 +576,26 @@ public:
 				}
 				ni->setElementTypeUnique( childElementType);
 			}
-			ni->addFollow( id_, ei, valueType_, examples_, related_);
+			ni->addFollow( id_, ei, valueType_, resolveType_, examples_, related_);
 		}
 	}
 
-	void addSubTree( int id_, const char* expression_, papuga_Type valueType_, const char* examples_, const Related& related_)
+	void addSubTree( int id_, const char* expression_, papuga_Type valueType_, papuga_ResolveType resolveType_, const char* examples_, const Related& related_)
 	{
 		if (isDelimiter( expression_[0]))
 		{
-			addFollow( id_, expression_, valueType_, examples_, related_);
+			if (expression_[1])
+			{
+				addFollow( id_, expression_, valueType_, resolveType_, examples_, related_);
+			}
+			else
+			{
+				addFollow( id_, expression_+1, valueType_, resolveType_, examples_, related_);
+			}
 		}
 		else
 		{
-			addElement( id_, expression_, valueType_, TreeNode::FollowImmediate, examples_, related_);
+			addElement( id_, expression_, valueType_, resolveType_, TreeNode::FollowImmediate, examples_, related_);
 		}
 	}
 
@@ -562,11 +613,23 @@ public:
 				ci->resolveType = ri->resolveType;
 			}
 		}
-		ci = chld.begin();
-		for (; ci != ce && (ci->resolveType == papuga_ResolveTypeOptional || ci->resolveType == papuga_ResolveTypeArray); ++ci){}
-		if (ci == ce && resolveType == papuga_ResolveTypeRequired)
+	}
+
+	void inheritChildResolveTypeOptional()
+	{
+		std::vector<TreeNode>::iterator ci = chld.begin(), ce = chld.end();
+		for (; ci != ce; ++ci)
 		{
-			resolveType = papuga_ResolveTypeOptional;
+			ci->inheritChildResolveTypeOptional();
+		}
+		if (elementType == TreeNode::StructType)
+		{
+			ci = chld.begin();
+			for (; ci != ce && (ci->resolveType == papuga_ResolveTypeOptional || ci->resolveType == papuga_ResolveTypeArray); ++ci){}
+			if (ci == ce && resolveType == papuga_ResolveTypeRequired)
+			{
+				resolveType = papuga_ResolveTypeOptional;
+			}
 		}
 	}
 
@@ -665,14 +728,14 @@ public:
 	SchemaDescription()
 		:lasterr(papuga_Ok),lastexpr(),tree(),done(false){}
 
-	void addElement( int id, const char* expression, papuga_Type valueType, const char* examples)
+	void addElement( int id, const char* expression, papuga_Type valueType, papuga_ResolveType resolveType, const char* examples)
 	{
-		tree.addSubTree( id, expression, valueType, examples, TreeNode::Related());
+		tree.addSubTree( id, expression, valueType, resolveType, examples, TreeNode::Related());
 	}
 
 	void addRelation( int structid, const char* expression, int elemid, papuga_ResolveType resolveType)
 	{
-		tree.addSubTree( structid, expression, papuga_TypeVoid, NULL, TreeNode::Related( elemid, resolveType));
+		tree.addSubTree( structid, expression, papuga_TypeVoid, papuga_ResolveTypeRequired, NULL, TreeNode::Related( elemid, resolveType));
 	}
 
 	struct ItemReference
@@ -788,20 +851,44 @@ public:
 				resolveDeepNodeReferences( *ci, invnamemap, node.scope);
 			}
 		}
-		if (node.elementType == TreeNode::StructType && parentScope.defined() && node.chld.empty())
+		if (node.elementType == TreeNode::StructType && parentScope.defined())
 		{
 			std::vector<TreeNode::Related>::const_iterator mi = node.related.begin(), me = node.related.end();
 			for (; mi != me; ++mi)
 			{
-				ItemNameItrRange range = invnamemap.equal_range( mi->id);
-				ItemNameItr ri = range.first, re = range.second;
-				for (; ri != re; ++ri)
+				ci = node.chld.begin(), ce = node.chld.end();
+				for (; ci != ce && ci->id != mi->id; ++ci){}
+				if (ci == ce)
 				{
-					std::vector<TreeNode>::iterator ni = node.getOrCreateChildNode( ri->second.name);
-					ni->setFollowTypeUnique( TreeNode::FollowImmediate);
-					ni->resolveType = mi->resolveType;
-					if (ni->elementType != TreeNode::NullType) throw ErrorException( papuga_AmbiguousReference);
-					ni->elementType = TreeNode::ReferenceType;
+					ItemNameItrRange range = invnamemap.equal_range( mi->id);
+					ItemNameItr ri = range.first, re = range.second;
+					if (std::distance( ri, re) > 1 && mi->resolveType != papuga_ResolveTypeArray)
+					{
+						//... more than one alternative element reference, need to create a union node
+						std::vector<TreeNode>::iterator ui = node.getOrCreateChildNode( "");
+						ui->setFollowTypeUnique( TreeNode::FollowImmediate);
+						ui->elementType = TreeNode::UnionType;
+
+						for (; ri != re; ++ri)
+						{
+							std::vector<TreeNode>::iterator ni = ui->getOrCreateChildNode( ri->second.name);
+							ni->setFollowTypeUnique( TreeNode::FollowImmediate);
+							ni->resolveType = mi->resolveType;
+							if (ni->elementType != TreeNode::NullType && ni->elementType != TreeNode::ReferenceType) throw ErrorException( papuga_AmbiguousReference);
+							ni->elementType = TreeNode::ReferenceType;
+						}
+					}
+					else
+					{
+						for (; ri != re; ++ri)
+						{
+							std::vector<TreeNode>::iterator ni = node.getOrCreateChildNode( ri->second.name);
+							ni->setFollowTypeUnique( TreeNode::FollowImmediate);
+							ni->resolveType = mi->resolveType;
+							if (ni->elementType != TreeNode::NullType && ni->elementType != TreeNode::ReferenceType) throw ErrorException( papuga_AmbiguousReference);
+							ni->elementType = TreeNode::ReferenceType;
+						}
+					}
 				}
 			}
 		}
@@ -838,6 +925,8 @@ public:
 		ItemNameMap itemNameMap = invNameItemMap( nameItemMap);
 
 		resolveDeepNodeReferences( tree, itemNameMap);
+		tree.inheritChildResolveTypeOptional();
+
 		PathStack stk;
 		checkTree( tree, stk);
 		done = true;
@@ -944,19 +1033,22 @@ private:
 
 	static void printSchemaElements( std::ostream& out, const TreeNode& node)
 	{
-		if (node.name.empty()) throw ErrorException( papuga_LogicError);
 		switch (node.elementType)
 		{
 			case TreeNode::NullType:
+				if (node.name.empty()) throw ErrorException( papuga_LogicError);
 				out << "<xs:element name=\"" << node.name << "\" type=\"" << schemaAtomTypeName( papuga_TypeString) << elementUseSpecifier( node.resolveType) << " nillable=\"true\"/>\n";
 				break;
 			case TreeNode::AttributeType:
+				if (node.name.empty()) throw ErrorException( papuga_LogicError);
 				out << "<xs:attribute name=\"" << node.name << "\" type=\"" << schemaAtomTypeName( node.valueType) << attributeUseSpecifier( node.resolveType) << "\"/>\n";
 				break;
 			case TreeNode::ValueType:
+				if (node.name.empty()) throw ErrorException( papuga_LogicError);
 				out << "<xs:element name=\"" << node.name << "\" type=\"" << schemaAtomTypeName( node.valueType) << elementUseSpecifier( node.resolveType) << "\"/>\n";
 				break;
 			case TreeNode::StructType:
+				if (node.name.empty()) throw ErrorException( papuga_LogicError);
 				out << "<xs:element name=\"" << node.name << "\"" << elementUseSpecifier( node.resolveType) << ">\n";
 				if (node.isSimpleContent())
 				{
@@ -979,16 +1071,23 @@ private:
 				out << "</xs:element>\n";
 				break;
 			case TreeNode::UnionType:
-				out << "<xs:element name=\"" << node.name << "\"" << elementUseSpecifier( node.resolveType) << ">\n";
-				out << "<xs:complexType>\n";
+				if (!node.name.empty())
+				{
+					out << "<xs:element name=\"" << node.name << "\"" << elementUseSpecifier( node.resolveType) << ">\n";
+					out << "<xs:complexType>\n";
+				}
 				out << "<xs:union>\n";
 				printSchemaElementChildNodes( out, node);
 				printSchemaElementAttributes( out, node);
 				out << "</xs:union>\n";
-				out << "</xs:complexType>\n";
-				out << "</xs:element>\n";
+				if (!node.name.empty())
+				{
+					out << "</xs:complexType>\n";
+					out << "</xs:element>\n";
+				}
 				break;
 			case TreeNode::ReferenceType:
+				if (node.name.empty()) throw ErrorException( papuga_LogicError);
 				out << "<xs:element ref=\"" << node.name << "\"" << elementUseSpecifier( node.resolveType) << "/>\n";
 				break;
 		}
@@ -1114,7 +1213,14 @@ private:
 		{
 			nextindent = nextIndent( indent);
 			out << nextindent << DECL( "type", "array", true);
-			if (node.resolveType == papuga_ResolveTypeArrayNonEmpty) out << nextindent << DECL("minItems", 1, true);
+			if (node.resolveType == papuga_ResolveTypeArrayNonEmpty)
+			{
+				out << nextindent << DECL("minItems", 1, true);
+			}
+			else
+			{
+				out << nextindent << DECL( "required", "false", comma);
+			}
 			out << nextindent << OPEN( "items");
 			nextindent = nextIndent( nextindent);
 			out << nextindent << DECL( "type", type, comma);
@@ -1179,22 +1285,25 @@ private:
 	static void printSchemaElements( std::ostream& out, const TreeNode& node, bool comma, const std::string& indent)
 	{
 		std::string nextindent;
-		if (node.name.empty()) throw ErrorException( papuga_LogicError);
 		switch (node.elementType)
 		{
 			case TreeNode::NullType:
+				if (node.name.empty()) throw ErrorException( papuga_LogicError);
 				printSchemaItemDeclarationHeader( out, node, schemaAtomTypeName( papuga_TypeString), false, indent, nextindent);
 				printSchemaItemDeclarationTail( out, node, comma, indent);
 				break;
 			case TreeNode::AttributeType:
+				if (node.name.empty()) throw ErrorException( papuga_LogicError);
 				printSchemaItemDeclarationHeader( out, node, schemaAtomTypeName( node.valueType), false, indent, nextindent);
 				printSchemaItemDeclarationTail( out, node, comma, indent);
 				break;
 			case TreeNode::ValueType:
+				if (node.name.empty()) throw ErrorException( papuga_LogicError);
 				printSchemaItemDeclarationHeader( out, node, schemaAtomTypeName( node.valueType), false, indent, nextindent);
 				printSchemaItemDeclarationTail( out, node, comma, indent);
 				break;
 			case TreeNode::StructType:
+				if (node.name.empty()) throw ErrorException( papuga_LogicError);
 				printSchemaItemDeclarationHeader( out, node, "object", true, indent, nextindent);
 				out << nextindent << OPEN( "properties");
 				printSchemaElementAttributes( out, node, true/*comma*/, nextIndent(nextindent));
@@ -1203,18 +1312,28 @@ private:
 				printSchemaItemDeclarationTail( out, node, comma, indent);
 				break;
 			case TreeNode::UnionType:
-				printSchemaItemDeclarationHeader( out, node, "object", true/*comma*/, indent, nextindent);
-				out << nextindent << OPEN( "properties");
-				printSchemaElementAttributes( out, node, true/*comma*/, nextIndent(nextindent));
+				if (node.name.empty())
+				{
+					out << indent << OPENAR( "anyOf");
+					printSchemaElementChildNodes( out, node, false/*comma*/, nextIndent(indent));
+					out << nextIndent(indent) << CLOSEAR( false);
+				}
+				else
+				{
+					printSchemaItemDeclarationHeader( out, node, "object", true/*comma*/, indent, nextindent);
+					out << nextindent << OPEN( "properties");
+					printSchemaElementAttributes( out, node, true/*comma*/, nextIndent(nextindent));
 
-				out << nextIndent(nextindent) << OPENAR( "anyOf");
-				printSchemaElementChildNodes( out, node, false/*comma*/, nextIndent(nextIndent(nextindent)));
-				out << nextIndent(nextindent) << CLOSEAR( false);
+					out << nextIndent(nextindent) << OPENAR( "anyOf");
+					printSchemaElementChildNodes( out, node, false/*comma*/, nextIndent(nextIndent(nextindent)));
+					out << nextIndent(nextindent) << CLOSEAR( false);
 
-				out << nextindent << CLOSE( false);
-				printSchemaItemDeclarationTail( out, node, comma, indent);
+					out << nextindent << CLOSE( false);
+					printSchemaItemDeclarationTail( out, node, comma, indent);
+				}
 				break;
 			case TreeNode::ReferenceType:
+				if (node.name.empty()) throw ErrorException( papuga_LogicError);
 				printSchemaItemReferenceHeader( out, node, false, indent, nextindent);
 				printSchemaItemReferenceTail( out, node, comma, indent);
 				break;
@@ -1261,7 +1380,7 @@ extern "C" const char* papuga_SchemaDescription_error_expression( const papuga_S
 	return self->impl.lastexpr.empty() ? NULL : self->impl.lastexpr.c_str();
 }
 
-extern "C" bool papuga_SchemaDescription_add_element( papuga_SchemaDescription* self, int id, const char* expression, papuga_Type valueType, const char* examples)
+extern "C" bool papuga_SchemaDescription_add_element( papuga_SchemaDescription* self, int id, const char* expression, papuga_Type valueType, papuga_ResolveType resolveType, const char* examples)
 {
 	try
 	{
@@ -1270,7 +1389,7 @@ extern "C" bool papuga_SchemaDescription_add_element( papuga_SchemaDescription* 
 			self->impl.lasterr = papuga_ExecutionOrder;
 			return false;
 		}
-		self->impl.addElement( id, expression, valueType, examples);
+		self->impl.addElement( id, expression, valueType, resolveType, examples);
 		self->impl.lasterr = papuga_Ok;
 		return true;
 	}
@@ -1321,6 +1440,11 @@ extern "C" bool papuga_SchemaDescription_add_relation( papuga_SchemaDescription*
 		self->impl.lastexpr = err.path();
 		return false;
 	}
+}
+
+extern "C" bool papuga_SchemaDescription_add_dependency( papuga_SchemaDescription* self, const char* expression, int elemid, papuga_ResolveType resolveType)
+{
+	return papuga_SchemaDescription_add_relation( self, TreeNode::NullId, expression, elemid, resolveType);
 }
 
 extern "C" bool papuga_SchemaDescription_done( papuga_SchemaDescription* self)
