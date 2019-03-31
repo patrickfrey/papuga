@@ -582,7 +582,7 @@ public:
 
 	void addSubTree( int id_, const char* expression_, papuga_Type valueType_, papuga_ResolveType resolveType_, const char* examples_, const Related& related_)
 	{
-		if (isDelimiter( expression_[0]))
+		if (expression_[0] == '/')
 		{
 			if (expression_[1])
 			{
@@ -592,6 +592,10 @@ public:
 			{
 				addFollow( id_, expression_+1, valueType_, resolveType_, examples_, related_);
 			}
+		}
+		else if (expression_[0] == '[' || expression_[0] == '(')
+		{
+			addFollow( id_, expression_, valueType_, resolveType_, examples_, related_);
 		}
 		else
 		{
