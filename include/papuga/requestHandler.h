@@ -41,15 +41,23 @@ typedef struct papuga_RequestMethodDescription
 
 /*
  * @brief Creates a new context for handling a request
+ * @param[in] classname name of the class of this context used to distinguish different context types or NULL if undefined
  * @return the request context created or NULL in case of a memory allocation error
  */
-papuga_RequestContext* papuga_create_RequestContext();
+papuga_RequestContext* papuga_create_RequestContext( const char* classname);
 
 /*
  * @brief Destroys a request context
  * @param[in] self this pointer to the request context to destroy
  */
 void papuga_destroy_RequestContext( papuga_RequestContext* self);
+
+/*
+ * @brief Get the class name of the context if available
+ * @param[in] self this pointer to the object to get the name from
+ * @return the name as string or NULL if not defined
+ */
+const char* papuga_RequestContext_classname( const papuga_RequestContext* self);
 
 /*
  * @brief Get the last error in the request

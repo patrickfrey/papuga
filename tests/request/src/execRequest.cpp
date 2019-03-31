@@ -139,7 +139,7 @@ bool papuga_execute_request(
 	errcode = papuga_Ok;
 
 	// Init locals:
-	ctx = papuga_create_RequestContext();
+	ctx = papuga_create_RequestContext( 0/*class name*/);
 	if (!ctx) goto ERROR;
 	papuga_init_ErrorBuffer( &errorbuf, errbuf_mem, sizeof(errbuf_mem));
 	parser = papuga_create_RequestParser( &allocator, doctype, encoding, doc.c_str(), doc.size(), &errcode);
