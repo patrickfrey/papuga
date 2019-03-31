@@ -21,14 +21,6 @@
 
 using namespace papuga;
 
-static void validateRootExpression( const char* rootexpr)
-{
-	if (!rootexpr[0] && rootexpr[ std::strlen(rootexpr)-1] == '/')
-	{
-		throw papuga::runtime_error( _TXT("invalid path '%s' as node root path (slash at end of path)"), rootexpr);
-	}
-}
-
 static std::string joinExpression( const std::string& expr1, const std::string& expr2)
 {
 	return expr2.empty() || expr2[0] == '/' || expr2[0] == '(' || expr1.empty() || expr1[expr1.size()-1] == '/'
@@ -266,7 +258,6 @@ RequestAutomaton_Node& RequestAutomaton_Node::root( const char* rootexpr_)
 	}
 	else
 	{
-		validateRootExpression( rootexpr_);
 		rootexpr = joinExpression( rootexpr_, rootexpr);
 	}
 	return *this;
