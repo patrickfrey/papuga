@@ -23,6 +23,7 @@ using namespace papuga;
 
 static std::string joinExpression( const std::string& expr1, const std::string& expr2)
 {
+	if (expr2 == "/" && !expr1.empty()) return expr1;
 	return expr2.empty() || expr2[0] == '/' || expr2[0] == '(' || expr1.empty() || expr1[expr1.size()-1] == '/'
 			? expr1 + expr2
 			: expr1 + "/" + expr2;
@@ -167,100 +168,133 @@ RequestAutomaton_Node::~RequestAutomaton_Node()
 			break;
 	}
 }
+
+static int getClassId()
+{
+	static int idgen = 0;
+	return ++idgen;
+}
+
 RequestAutomaton_Node::RequestAutomaton_Node()
-	:type(Empty)
+	:type(Empty),rootexpr(),thisid(getClassId())
 {
 	value.functiondef = 0;
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_FunctionDef>& nodes)
-	:type(Group)
+	:type(Group),rootexpr(),thisid(getClassId())
 {
 	value.groupdef = new RequestAutomaton_GroupDef( std::vector<RequestAutomaton_FunctionDef>( nodes.begin(), nodes.end()));
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args)
-	:type(Function)
+	:type(Function),rootexpr(),thisid(getClassId())
 {
 	value.functiondef = new RequestAutomaton_FunctionDef( expression, resultvar?resultvar:"", selfvar, methodid, std::vector<RequestAutomaton_FunctionDef::Arg>( args.begin(), args.end()));
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, int itemid, const std::initializer_list<RequestAutomaton_StructDef::Element>& elems)
-	:type(Struct)
+	:type(Struct),rootexpr(),thisid(getClassId())
 {
 	value.structdef = new RequestAutomaton_StructDef( expression, itemid, std::vector<RequestAutomaton_StructDef::Element>( elems.begin(), elems.end()));
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const char* scope_expression, const char* select_expression, int itemid, papuga_Type valuetype, const char* examples)
-	:type(Value)
+	:type(Value),rootexpr(),thisid(getClassId())
 {
 	value.valuedef = new RequestAutomaton_ValueDef( scope_expression, select_expression, itemid, valuetype, examples);
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_)
-	:type(NodeList)
+	:type(NodeList),rootexpr(),thisid(getClassId())
 {
 	value.nodelist = new RequestAutomaton_NodeList( nodelist_);
 }
-RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_Node& o)
-	:type(o.type)
+
+static void copyNodeValueUnion( RequestAutomaton_Node::Type type, RequestAutomaton_Node::ValueUnion& dest, const RequestAutomaton_Node::ValueUnion& src)
 {
 	switch (type)
 	{
-		case Empty:
-			value.functiondef = 0;
+		case RequestAutomaton_Node::Empty:
+			dest.functiondef = 0;
 			break;
-		case Function:
-			value.functiondef = new RequestAutomaton_FunctionDef( *o.value.functiondef);
+		case RequestAutomaton_Node::Function:
+			dest.functiondef = new RequestAutomaton_FunctionDef( *src.functiondef);
 			break;
-		case Struct:
-			value.structdef = new RequestAutomaton_StructDef( *o.value.structdef);
+		case RequestAutomaton_Node::Struct:
+			dest.structdef = new RequestAutomaton_StructDef( *src.structdef);
 			break;
-		case Value:
-			value.valuedef = new RequestAutomaton_ValueDef( *o.value.valuedef);
+		case RequestAutomaton_Node::Value:
+			dest.valuedef = new RequestAutomaton_ValueDef( *src.valuedef);
 			break;
-		case Group:
-			value.groupdef = new RequestAutomaton_GroupDef( *o.value.groupdef);
+		case RequestAutomaton_Node::Group:
+			dest.groupdef = new RequestAutomaton_GroupDef( *src.groupdef);
 			break;
-		case NodeList:
-			value.nodelist = new RequestAutomaton_NodeList( *o.value.nodelist);
+		case RequestAutomaton_Node::NodeList:
+			dest.nodelist = new RequestAutomaton_NodeList( *src.nodelist);
 			break;
 	}
 }
 
-void RequestAutomaton_Node::addToAutomaton( papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
+RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_Node& o)
+	:type(o.type),rootexpr(o.rootexpr),thisid(getClassId())
 {
+	copyNodeValueUnion( type, value, o.value);
+}
+
+RequestAutomaton_Node::RequestAutomaton_Node( const std::string& rootprefix, const RequestAutomaton_Node& o)
+	:type(o.type),rootexpr(joinExpression( rootprefix, o.rootexpr)),thisid(getClassId())
+{
+	copyNodeValueUnion( type, value, o.value);
+}
+
+RequestAutomaton_Node::RequestAutomaton_Node( RequestAutomaton_Node&& o)
+	:type(o.type),rootexpr(std::move(o.rootexpr)),thisid(o.thisid)
+{
+	std::memcpy( &value, &o.value, sizeof(value));
+	std::memset( &o.value, 0, sizeof(value));
+}
+
+RequestAutomaton_Node& RequestAutomaton_Node::operator=( RequestAutomaton_Node&& o)
+{
+	type = o.type;
+	rootexpr = std::move(o.rootexpr);
+	thisid = o.thisid;
+	std::memcpy( &value, &o.value, sizeof(value));
+	std::memset( &o.value, 0, sizeof(value));
+	return *this;
+}
+
+RequestAutomaton_Node& RequestAutomaton_Node::operator=( const RequestAutomaton_Node& o)
+{
+	type = o.type;
+	rootexpr = o.rootexpr;
+	thisid = o.thisid;
+	copyNodeValueUnion( type, value, o.value);
+	return *this;
+}
+
+void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
+{
+	std::string rootpath = joinExpression( rootpath_, rootexpr);
 	switch (type)
 	{
 		case Empty:
 			break;
 		case Function:
-			value.functiondef->addToAutomaton( rootexpr, atm, descr);
+			value.functiondef->addToAutomaton( rootpath, atm, descr);
 			break;
 		case Struct:
-			value.structdef->addToAutomaton( rootexpr, atm, descr);
+			value.structdef->addToAutomaton( rootpath, atm, descr);
 			break;
 		case Value:
-			value.valuedef->addToAutomaton( rootexpr, atm, descr);
+			value.valuedef->addToAutomaton( rootpath, atm, descr);
 			break;
 		case Group:
-			value.groupdef->addToAutomaton( rootexpr, atm, descr);
+			value.groupdef->addToAutomaton( rootpath, atm, descr);
 			break;
 		case NodeList:
 			for (auto node: *value.nodelist)
 			{
-				node.addToAutomaton( atm, descr);
+				node.addToAutomaton( rootpath, atm, descr);
 			}
 			break;
 	}
-}
-
-RequestAutomaton_Node& RequestAutomaton_Node::root( const char* rootexpr_)
-{
-	if (type == NodeList)
-	{
-		for (auto node: *value.nodelist) node.root( rootexpr_);
-	}
-	else
-	{
-		rootexpr = joinExpression( rootexpr_, rootexpr);
-	}
-	return *this;
 }
 #endif
 
@@ -311,7 +345,7 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papu
 		}
 		for (auto ni : nodes)
 		{
-			ni.addToAutomaton( m_atm, m_descr);
+			ni.addToAutomaton( "", m_atm, m_descr);
 		}
 		if (!papuga_RequestAutomaton_done( m_atm))
 		{

@@ -15,6 +15,7 @@
 #include "papuga/schemaDescription.h"
 #include <string>
 #include <vector>
+#include <utility>
 #include <stdexcept>
 
 namespace papuga {
@@ -207,15 +208,17 @@ struct RequestAutomaton_Node
 		NodeList
 	};
 	Type type;
-	union
+	typedef union
 	{
 		RequestAutomaton_GroupDef* groupdef;
 		RequestAutomaton_FunctionDef* functiondef;
 		RequestAutomaton_StructDef* structdef;
 		RequestAutomaton_ValueDef* valuedef;
 		RequestAutomaton_NodeList* nodelist;
-	} value;
+	} ValueUnion;
+	ValueUnion value;
 	std::string rootexpr;
+	int thisid;
 
 	///\brief Destructor
 	~RequestAutomaton_Node();
@@ -247,16 +250,21 @@ struct RequestAutomaton_Node
 	/// \param[in] nodelist list of nodes
 	RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist);
 
+	///\brief Move contructor
+	RequestAutomaton_Node( RequestAutomaton_Node&& o);
+	///\brief Move assignment
+	RequestAutomaton_Node& operator=( RequestAutomaton_Node&& o);
 	///\brief Copy contructor
 	RequestAutomaton_Node( const RequestAutomaton_Node& o);
+	///\brief Copy with path prefix
+	RequestAutomaton_Node( const std::string& rootprefix, const RequestAutomaton_Node& o);
+	///\brief Copy assignment
+	RequestAutomaton_Node& operator=( const RequestAutomaton_Node& o);
 	/// \brief Add this node definition to an automaton
+	/// \param[in] path prefix for all selection expressions
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
-	void addToAutomaton( papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
-
-	/// \brief Define selection expression for the context of the node
-	/// \param[in] rootexpr_ selection expression defined as the context (all paths are relative to the context)
-	RequestAutomaton_Node& root( const char* rootexpr_);
+	void addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
 class RequestAutomaton_NodeList
@@ -265,6 +273,14 @@ class RequestAutomaton_NodeList
 public:
 	RequestAutomaton_NodeList( const std::initializer_list<RequestAutomaton_Node>& nodes)
 		:std::vector<RequestAutomaton_Node>( nodes.begin(), nodes.end()){}
+	RequestAutomaton_NodeList( const char* rootexpr_, const std::initializer_list<RequestAutomaton_Node>& nodes)
+	{
+		std::initializer_list<RequestAutomaton_Node>::const_iterator ni = nodes.begin(), ne = nodes.end();
+		for (; ni != ne; ++ni)
+		{
+			push_back( RequestAutomaton_Node( rootexpr_, *ni));
+		}
+	}
 	RequestAutomaton_NodeList( const RequestAutomaton_NodeList& o)
 		:std::vector<RequestAutomaton_Node>( o){}
 
@@ -272,14 +288,6 @@ public:
 	void append( const RequestAutomaton_NodeList& o)
 	{
 		insert( end(), o.begin(), o.end());
-	}
-
-	/// \brief Define selection expression for the context of the node
-	/// \param[in] rootexpr_ selection expression defined as the context (all paths are relative to the context)
-	RequestAutomaton_NodeList& root( const char* rootexpr_)
-	{
-		for (auto node: *this) node.root( rootexpr_);
-		return *this;
 	}
 };
 #endif
