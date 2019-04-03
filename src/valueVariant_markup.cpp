@@ -818,7 +818,16 @@ static inline bool SerializationIter_tomarkup_elem_fwd( OutputContext& ctx, papu
 		case papuga_TagValue:
 		{
 			const papuga_ValueVariant* value = papuga_SerializationIter_value(seritr);
-			rt &= ValueVariant_tomarkup_fwd( ctx, *value);
+			if (value->valuetype == papuga_TypeSerialization)
+			{
+				append_tag_open_struct( ctx);
+				rt &= ValueVariant_tomarkup_fwd( ctx, *value);
+				append_tag_close_struct( ctx);
+			}
+			else
+			{
+				rt &= ValueVariant_tomarkup_fwd( ctx, *value);
+			}
 			break;
 		}
 		case papuga_TagName:

@@ -103,6 +103,13 @@ struct PrintStruct
 		return true;
 	}
 
+	void printStructId( int structid)
+	{
+		char buf[ 32];
+		std::snprintf( buf, sizeof( buf), "#%d", structid);
+		printName( buf);
+	}
+
 	void printName( const std::string& value)
 	{
 		if (printlevel >= 0)
@@ -216,6 +223,10 @@ struct PrintStruct
 			{
 				if (value.valuetype == papuga_TypeSerialization)
 				{
+					if (value.value.serialization->structid)
+					{
+						printStructId( value.value.serialization->structid);
+					}
 					printOpen();
 					if (!Serialization_print( *this, value.value.serialization)) return false;
 					printClose();
@@ -385,6 +396,10 @@ extern "C" const char* papuga_Serialization_tostring( const papuga_Serialization
 	{
 		if (!self) return 0;
 		PrintStruct ctx( linemode?LineMode : BracketMode, linemode?"\n":"", maxdepth, false/*non deterministic*/);
+		if (self->structid)
+		{
+			ctx.printStructId( self->structid);
+		}
 		if (!Serialization_print( ctx, self))
 		{
 			*errcode = ctx.errcode;
@@ -404,6 +419,10 @@ std::string papuga::Serialization_tostring( const papuga_Serialization& value, b
 	try
 	{
 		PrintStruct ctx( linemode?LineMode : BracketMode, ""/*indent*/, maxdepth, false/*non deterministic*/);
+		if (value.structid)
+		{
+			ctx.printStructId( value.structid);
+		}
 		if (!Serialization_print( ctx, &value))
 		{
 			errcode = ctx.errcode;
@@ -423,6 +442,10 @@ std::string papuga::Serialization_tostring_deterministic( const papuga_Serializa
 	try
 	{
 		PrintStruct ctx( linemode?LineMode : BracketMode, ""/*indent*/, maxdepth, true/*deterministic*/);
+		if (value.structid)
+		{
+			ctx.printStructId( value.structid);
+		}
 		if (!Serialization_print( ctx, &value))
 		{
 			errcode = ctx.errcode;

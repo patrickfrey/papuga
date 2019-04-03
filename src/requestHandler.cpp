@@ -184,7 +184,10 @@ public:
 	const papuga_ValueVariant* findVariable( const char* name) const
 	{
 		std::vector<RequestVariableRef>::const_iterator vi = m_impl.begin(), ve = m_impl.end();
-		for (; vi != ve; ++vi) if (0==std::strcmp( vi->ptr->name, name)) break;
+		for (; vi != ve; ++vi)
+		{
+			if (0==std::strcmp( vi->ptr->name, name)) break;
+		}
 		return (vi == ve) ? NULL : &vi->ptr->value;
 	}
 	RequestVariable* getOrCreate( const char* name)
