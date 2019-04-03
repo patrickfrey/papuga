@@ -84,6 +84,16 @@ bool papuga_SchemaDescription_add_relation( papuga_SchemaDescription* self, int 
 bool papuga_SchemaDescription_add_dependency( papuga_SchemaDescription* self, const char* expression, int elemid, papuga_ResolveType resolveType);
 
 /*
+ * @brief Declare the resolve type of a path if not defined by other relations or by dependency or by default (papuga_ResolveTypeRequired)
+ * @remark not threadsafe
+ * @param[in] self schema description to define resolve type of an element for
+ * @param[in] expression select expression of the element addressed
+ * @param[in] resolveType resolve type assigned to the element
+ * @return true if operation succeeded, false if it failed (call papuga_SchemaDescription_last_error for the reason of the operation failure)
+ */
+bool papuga_SchemaDescription_set_resolve( papuga_SchemaDescription* self, const char* expression, papuga_ResolveType resolveType);
+
+/*
  * @brief Declare a description of a schema to be finished
  * @remark not threadsafe
  * @param[in] self schema description to close for further input

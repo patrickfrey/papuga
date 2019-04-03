@@ -454,6 +454,10 @@ public:
 			{
 				setIdUnique( id_);
 			}
+			if (resolveType_ != papuga_ResolveTypeRequired)
+			{
+				setResolveTypeUnique( resolveType_);
+			}
 			if (elementType == AttributeType)
 			{
 				setValueTypeUnique( valueType_);
@@ -725,7 +729,7 @@ class SchemaDescription
 {
 public:
 	mutable papuga_ErrorCode lasterr;
-	std::string lastexpr;
+	mutable std::string lastexpr;
 	TreeNode tree;
 	bool done;
 
@@ -735,6 +739,11 @@ public:
 	void addElement( int id, const char* expression, papuga_Type valueType, papuga_ResolveType resolveType, const char* examples)
 	{
 		tree.addSubTree( id, expression, valueType, resolveType, examples, TreeNode::Related());
+	}
+
+	void setResolveType( const char* expression, papuga_ResolveType resolveType)
+	{
+		tree.addSubTree( TreeNode::NullId, expression, papuga_TypeVoid, resolveType, NULL, TreeNode::Related());
 	}
 
 	void addRelation( int structid, const char* expression, int elemid, papuga_ResolveType resolveType)
@@ -1384,6 +1393,32 @@ extern "C" const char* papuga_SchemaDescription_error_expression( const papuga_S
 	return self->impl.lastexpr.empty() ? NULL : self->impl.lastexpr.c_str();
 }
 
+#define CATCH_ERROR_MAP_RETURN( SCHEMADESCR, RETVAL)\
+	catch (const std::bad_alloc&)\
+	{\
+		SCHEMADESCR->impl.lasterr = papuga_NoMemError;\
+		return RETVAL;\
+	}\
+	catch (const std::runtime_error& err)\
+	{\
+		SCHEMADESCR->impl.lasterr = papuga_UncaughtException;\
+		return RETVAL;\
+	}\
+	catch (const ErrorException& err)\
+	{\
+		SCHEMADESCR->impl.lasterr = err.err();\
+		try\
+		{\
+			SCHEMADESCR->impl.lastexpr = err.path();\
+		}\
+		catch (const std::bad_alloc&)\
+		{\
+			SCHEMADESCR->impl.lasterr = papuga_NoMemError;\
+		}\
+		return RETVAL;\
+	}\
+
+
 extern "C" bool papuga_SchemaDescription_add_element( papuga_SchemaDescription* self, int id, const char* expression, papuga_Type valueType, papuga_ResolveType resolveType, const char* examples)
 {
 	try
@@ -1397,22 +1432,7 @@ extern "C" bool papuga_SchemaDescription_add_element( papuga_SchemaDescription* 
 		self->impl.lasterr = papuga_Ok;
 		return true;
 	}
-	catch (const std::bad_alloc&)
-	{
-		self->impl.lasterr = papuga_NoMemError;
-		return false;
-	}
-	catch (const std::runtime_error& err)
-	{
-		self->impl.lasterr = papuga_UncaughtException;
-		return false;
-	}
-	catch (const ErrorException& err)
-	{
-		self->impl.lasterr = err.err();
-		self->impl.lastexpr = err.path();
-		return false;
-	}
+	CATCH_ERROR_MAP_RETURN( self, false)
 }
 
 extern "C" bool papuga_SchemaDescription_add_relation( papuga_SchemaDescription* self, int id, const char* expression, int elemid, papuga_ResolveType resolveType)
@@ -1428,22 +1448,23 @@ extern "C" bool papuga_SchemaDescription_add_relation( papuga_SchemaDescription*
 		self->impl.lasterr = papuga_Ok;
 		return true;
 	}
-	catch (const std::bad_alloc&)
+	CATCH_ERROR_MAP_RETURN( self, false)
+}
+
+extern "C" bool papuga_SchemaDescription_set_resolve( papuga_SchemaDescription* self, const char* expression, papuga_ResolveType resolveType)
+{
+	try
 	{
-		self->impl.lasterr = papuga_NoMemError;
-		return false;
+		if (self->impl.done)
+		{
+			self->impl.lasterr = papuga_ExecutionOrder;
+			return false;
+		}
+		self->impl.setResolveType( expression, resolveType);
+		self->impl.lasterr = papuga_Ok;
+		return true;
 	}
-	catch (const std::runtime_error& err)
-	{
-		self->impl.lasterr = papuga_UncaughtException;
-		return false;
-	}
-	catch (const ErrorException& err)
-	{
-		self->impl.lasterr = err.err();
-		self->impl.lastexpr = err.path();
-		return false;
-	}
+	CATCH_ERROR_MAP_RETURN( self, false)
 }
 
 extern "C" bool papuga_SchemaDescription_add_dependency( papuga_SchemaDescription* self, const char* expression, int elemid, papuga_ResolveType resolveType)
@@ -1460,22 +1481,7 @@ extern "C" bool papuga_SchemaDescription_done( papuga_SchemaDescription* self)
 		self->impl.lasterr = papuga_Ok;
 		return true;
 	}
-	catch (const std::bad_alloc&)
-	{
-		self->impl.lasterr = papuga_NoMemError;
-		return false;
-	}
-	catch (const std::runtime_error& err)
-	{
-		self->impl.lasterr = papuga_UncaughtException;
-		return false;
-	}
-	catch (const ErrorException& err)
-	{
-		self->impl.lasterr = err.err();
-		self->impl.lastexpr = err.path();
-		return false;
-	}
+	CATCH_ERROR_MAP_RETURN( self, false)
 }
 
 static const void* copyString( papuga_Allocator* allocator, const std::string& str, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
@@ -1519,21 +1525,7 @@ extern "C" const void* papuga_SchemaDescription_get_text( const papuga_SchemaDes
 		self->impl.lasterr = papuga_Ok;
 		return copyString( allocator, textUTF8, enc, len, &self->impl.lasterr);
 	}
-	catch (const std::bad_alloc&)
-	{
-		self->impl.lasterr = papuga_NoMemError;
-		return NULL;
-	}
-	catch (const std::runtime_error& err)
-	{
-		self->impl.lasterr = papuga_UncaughtException;
-		return NULL;
-	}
-	catch (const ErrorException& err)
-	{
-		self->impl.lasterr = err.err();
-		return NULL;
-	}
+	CATCH_ERROR_MAP_RETURN( self, NULL)
 }
 
 extern "C" const void* papuga_SchemaDescription_get_example( const papuga_SchemaDescription* self, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding enc, size_t* len)
@@ -1561,21 +1553,7 @@ extern "C" const void* papuga_SchemaDescription_get_example( const papuga_Schema
 		self->impl.lasterr = papuga_Ok;
 		return copyString( allocator, textUTF8, enc, len, &self->impl.lasterr);
 	}
-	catch (const std::bad_alloc&)
-	{
-		self->impl.lasterr = papuga_NoMemError;
-		return NULL;
-	}
-	catch (const std::runtime_error& err)
-	{
-		self->impl.lasterr = papuga_UncaughtException;
-		return NULL;
-	}
-	catch (const ErrorException& err)
-	{
-		self->impl.lasterr = err.err();
-		return NULL;
-	}
+	CATCH_ERROR_MAP_RETURN( self, NULL)
 }
 
 

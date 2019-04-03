@@ -144,6 +144,19 @@ void RequestAutomaton_GroupDef::addToAutomaton( const std::string& rootexpr, pap
 	}
 }
 
+void RequestAutomaton_ResolveDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
+{
+	std::string fullexpr = joinExpression( rootexpr, expression);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	fprintf( stderr, "ATM define resolve type\n");
+#endif	
+	if (!papuga_SchemaDescription_set_resolve( descr, fullexpr.c_str(), resolvetype))
+	{
+		papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( descr);
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("schema description add resolve type, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+	}
+}
+
 #if __cplusplus >= 201103L
 RequestAutomaton_Node::~RequestAutomaton_Node()
 {
@@ -165,6 +178,9 @@ RequestAutomaton_Node::~RequestAutomaton_Node()
 			break;
 		case NodeList:
 			delete value.nodelist;
+			break;
+		case ResolveDef:
+			delete value.resolvedef;
 			break;
 	}
 }
@@ -200,6 +216,11 @@ RequestAutomaton_Node::RequestAutomaton_Node( const char* scope_expression, cons
 {
 	value.valuedef = new RequestAutomaton_ValueDef( scope_expression, select_expression, itemid, valuetype, examples);
 }
+RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, char resolvechr)
+	:type(ResolveDef),rootexpr(),thisid(getClassId())
+{
+	value.resolvedef = new RequestAutomaton_ResolveDef( expression, resolvechr);
+}
 RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_)
 	:type(NodeList),rootexpr(),thisid(getClassId())
 {
@@ -227,6 +248,9 @@ static void copyNodeValueUnion( RequestAutomaton_Node::Type type, RequestAutomat
 			break;
 		case RequestAutomaton_Node::NodeList:
 			dest.nodelist = new RequestAutomaton_NodeList( *src.nodelist);
+			break;
+		case RequestAutomaton_Node::ResolveDef:
+			dest.resolvedef = new RequestAutomaton_ResolveDef( *src.resolvedef);
 			break;
 	}
 }
@@ -293,6 +317,9 @@ void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga
 			{
 				node.addToAutomaton( rootpath, atm, descr);
 			}
+			break;
+		case ResolveDef:
+			value.resolvedef->addToAutomaton( rootpath, atm, descr);
 			break;
 	}
 }
@@ -429,6 +456,15 @@ void RequestAutomaton::addValue( const char* scope_expression, const char* selec
 {
 	RequestAutomaton_ValueDef val( scope_expression, select_expression, itemid, valuetype, examples);
 	val.addToAutomaton( m_rootexpr, m_atm, m_descr);
+}
+
+void RequestAutomaton::setResolve( const char* expression, char resolvechr)
+{
+	if (!papuga_SchemaDescription_set_resolve( m_descr, expression, getResolveType( resolvechr)))
+	{
+		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton set resolve: %s"), papuga_ErrorCode_tostring(errcode));
+	}
 }
 
 void RequestAutomaton::openGroup()

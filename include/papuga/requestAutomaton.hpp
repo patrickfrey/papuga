@@ -107,7 +107,7 @@ struct RequestAutomaton_StructDef
 	{
 		const char* name;		///< name of the element or NULL in case of an array element
 		int itemid;			///< identifier of the item addressing the element value
-		papuga_ResolveType resolvetype;	///< tells wheter the item is in a enclosing scope (true) or in an enclosed scope (false), in case of an item reference (a value or a structure)
+		papuga_ResolveType resolvetype;	///< describes the occurrence of the element
 		int max_tag_diff;		///< maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
 
 		///\brief Constructor (named dictionary element)
@@ -191,6 +191,25 @@ struct RequestAutomaton_GroupDef
 	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
+/// \brief Definition of the resolve type for the schema description if not defined by other structures
+struct RequestAutomaton_ResolveDef
+{
+	const char* expression;		///< selecting expression addressing the element
+	papuga_ResolveType resolvetype;	///< describes the occurrence of the element
+	
+	/// \brief Constructor
+	/// \param[in] expression_ selecting expression of the element
+	/// \param[in] resolvechr_ describes the occurrence of the element
+	RequestAutomaton_ResolveDef( const char* expression_, char resolvechr_)
+		:expression(expression_),resolvetype(getResolveType(resolvechr_)){}
+
+	/// \brief Add this definition to an automaton
+	/// \param[in] rootexpr path prefix for selection expressions
+	/// \param[in] atm automaton to add this definition to
+	/// \param[in] descr schema description to add this definition to
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+};
+
 #if __cplusplus >= 201103L
 /// \brief Forward declaration
 class RequestAutomaton_NodeList;
@@ -205,7 +224,8 @@ struct RequestAutomaton_Node
 		Function,
 		Struct,
 		Value,
-		NodeList
+		NodeList,
+		ResolveDef
 	};
 	Type type;
 	typedef union
@@ -215,6 +235,7 @@ struct RequestAutomaton_Node
 		RequestAutomaton_StructDef* structdef;
 		RequestAutomaton_ValueDef* valuedef;
 		RequestAutomaton_NodeList* nodelist;
+		RequestAutomaton_ResolveDef* resolvedef;
 	} ValueUnion;
 	ValueUnion value;
 	std::string rootexpr;
@@ -246,6 +267,10 @@ struct RequestAutomaton_Node
 	/// \param[in] valuetype type of the value
 	/// \param[in] examples semicolon ';' separated list of examples or NULL if no examples defined
 	RequestAutomaton_Node( const char* scope_expression, const char* select_expression, int itemid, papuga_Type valuetype, const char* examples);
+	///\brief Contructor as RequestAutomaton_ResolveDef
+	/// \param[in] expression select expression addressing the scope of this definition
+	/// \param[in] resolvechr describes the occurrence of the element addressed
+	RequestAutomaton_Node( const char* expression, char resolvechr);
 	///\brief Contructor from list of predefined nodes (for sharing definitions)
 	/// \param[in] nodelist list of nodes
 	RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist);
@@ -360,6 +385,11 @@ public:
 	/// \param[in] examples semicolon ';' separated list of examples or NULL if no examples defined
 	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
 	void addValue( const char* scope_expression, const char* select_expression, int itemid, papuga_Type valuetype, const char* examples);
+
+	/// \brief Define the resolve type for the schema description if not defined by other structures
+	/// \param[in] expression selecting expression of the element
+	/// \param[in] resolvechr describes the occurrence of the element
+	void setResolve( const char* expression, char resolvechr);
 
 	/// \brief Open a method call group definition
 	/// \remark Only available if this automaton has been constructed as empty
