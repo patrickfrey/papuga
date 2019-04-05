@@ -33,6 +33,7 @@ static inline papuga_ResolveType getResolveType( char resolvechr)
 	}
 }
 
+#if __cplusplus >= 201103L
 /// \brief Request method call (function) definition
 struct RequestAutomaton_FunctionDef
 {
@@ -210,7 +211,6 @@ struct RequestAutomaton_ResolveDef
 	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
-#if __cplusplus >= 201103L
 /// \brief Forward declaration
 class RequestAutomaton_NodeList;
 
@@ -328,7 +328,11 @@ private:
 
 public:
 	/// \brief Constructor defining an empty automaton to be filled with further method calls
-	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername);
+	RequestAutomaton(
+		const papuga_ClassDef* classdefs,
+		const papuga_StructInterfaceDescription* structdefs,
+		const char* answername,
+		bool mergeInputAnswer);
 
 #if __cplusplus >= 201103L
 	struct InheritedDef
@@ -343,7 +347,8 @@ public:
 			:type(o.type),name_expression(o.name_expression),required(o.required){}
 	};
 	/// \brief Constructor defining the whole automaton from an initializer list
-	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername,
+	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs,
+				const char* answername, bool mergeInputAnswer,
 				const std::initializer_list<InheritedDef>& inherited,
 				const std::initializer_list<RequestAutomaton_Node>& nodes);
 #endif

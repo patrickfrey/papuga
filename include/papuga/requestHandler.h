@@ -80,9 +80,10 @@ bool papuga_RequestContext_add_variable( papuga_RequestContext* self, const char
  * @brief Get a variable reference in the context
  * @param[in] self this pointer to the object to get the variable reference from
  * @param[in] name name of variable to get
+ * @param[out] isArray (optional) boolean value telling if the variable value has been constructed by appending (as array) or not
  * @return the variable value on success, NULL if it does not exist
  */
-const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name);
+const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name, int* isArray);
 
 /*
 * @brief List the names of variables defined in a context
@@ -231,7 +232,21 @@ bool papuga_RequestContext_execute_request( papuga_RequestContext* context, cons
  * @param[in] request content of the request
  * @return true on success, false on out of memory
  */
-bool papuga_Serialization_serialize_request_result( papuga_Serialization* self, papuga_RequestContext* context, const papuga_Request* request);
+bool papuga_Serialization_serialize_request_result( papuga_Serialization* self, const papuga_RequestContext* context, const papuga_Request* request, papuga_ErrorCode* errcode);
+
+/*
+ * @brief Merge input with result into serialization
+ * @param[in,out] self serialization where to serialize the request result in a context to
+ * @param[in] context context of the request execution
+ * @param[in] request content of the request
+ * @param[in] input_encoding character set encoding of the input
+ * @param[in] input_doctype content type of the input
+ * @param[in] input_content pointer to input string
+ * @param[in] input_contentlen length of inout in bytes
+ * @param[out] errcode error code in case of error
+ * @return true on success, false on error
+ */
+bool papuga_Serialization_merge_request_result( papuga_Serialization* self, const papuga_RequestContext* context, const papuga_Request* request, papuga_StringEncoding input_encoding, papuga_ContentType input_doctype, const char* input_content, size_t input_contentlen, papuga_ErrorCode* errcode);
 
 #ifdef __cplusplus
 }

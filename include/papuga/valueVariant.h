@@ -151,7 +151,7 @@ extern "C" {
 * @brief Convert a value variant to an UTF-8 string with its length specified (not necessarily null terminated)
 * @param[in] self pointer to structure
 * @param[in,out] allocator allocator to use for deep copy of string
-* @param[out] len length of the string copied in bytes
+* @param[out] len length of the string returned in bytes
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the pointer to the result string
 */

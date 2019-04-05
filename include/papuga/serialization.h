@@ -45,6 +45,19 @@ extern "C" {
 #define papuga_Serialization_empty(self_)			((self_)->head.size==0)
 
 /*
+* @brief Get the first element tag of a serialization or papuga_TagClose if it is not defined
+* @param[out] self pointer to structure
+*/
+#define papuga_Serialization_first_tag(self_)			((self_)->head.size==0 ? papuga_TagClose : (papuga_Tag)(self_)->head.ar[0].content._tag)
+
+/*
+* @brief Get the first element value (value variant) of a serialization or NULL if it is not defined
+* @param[out] self pointer to structure
+*/
+#define papuga_Serialization_first_value(self_)			((self_)->head.size==0 ? NULL : &(self_)->head.ar[0].content)
+
+
+/*
 * @brief Add a node to the serialization
 * @param[in,out] self pointer to structure 
 * @param[in] node pointer to the added node

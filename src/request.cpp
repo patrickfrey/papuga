@@ -180,8 +180,8 @@ class AutomatonDescription
 public:
 	typedef textwolf::XMLPathSelectAutomatonParser<> XMLPathSelectAutomaton;
 
-	explicit AutomatonDescription( const papuga_ClassDef* classdefs_, const char* resultname_)
-		:m_classdefs(classdefs_),m_resultname(resultname_)
+	explicit AutomatonDescription( const papuga_ClassDef* classdefs_, const char* resultname_, bool mergeInputResult_)
+		:m_classdefs(classdefs_),m_resultname(resultname_),m_mergeInputResult(mergeInputResult_)
 		,m_nof_classdefs(nofClassDefs(classdefs_))
 		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs()
 		,m_atm(),m_maxitemid(0)
@@ -202,7 +202,10 @@ public:
 	{
 		return m_resultname;
 	}
-
+	bool mergeInputResult() const
+	{
+		return m_mergeInputResult;
+	}
 	const char* copyIfDefined( const char* str)
 	{
 		if (str && str[0])
@@ -679,6 +682,7 @@ private:
 private:
 	const papuga_ClassDef* m_classdefs;			//< array of classes
 	const char* m_resultname;				//< label of result (top level tag for XML)
+	bool m_mergeInputResult;				//< true if the result is the input with the result elements merged in, false if the result contains the list of result variables as elements
 	int m_nof_classdefs;					//< number of classes defined in m_classdefs
 	std::vector<CallDef> m_calldefs;
 	std::vector<StructDef> m_structdefs;
@@ -1250,6 +1254,10 @@ public:
 	const char* resultname() const
 	{
 		return m_atm->resultname();
+	}
+	bool mergeInputResult() const
+	{
+		return m_atm->mergeInputResult();
 	}
 	const papuga_RequestInheritedContextDef* getRequiredInheritedContextsDefs( papuga_ErrorCode& errcode) const
 	{
@@ -1859,7 +1867,7 @@ public:
 		{
 			if (argdef.varname)
 			{
-				const papuga_ValueVariant* value = papuga_RequestContext_get_variable( context, argdef.varname);
+				const papuga_ValueVariant* value = papuga_RequestContext_get_variable( context, argdef.varname, NULL/*param[out] isArray*/);
 				if (!value)
 				{
 					m_errpath.insert( m_errpath.begin(), std::string("variable ") + argdef.varname);
@@ -2152,13 +2160,17 @@ struct papuga_RequestAutomaton
 	const papuga_StructInterfaceDescription* structdefs;
 };
 
-extern "C" papuga_RequestAutomaton* papuga_create_RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* resultname)
+extern "C" papuga_RequestAutomaton* papuga_create_RequestAutomaton(
+		const papuga_ClassDef* classdefs,
+		const papuga_StructInterfaceDescription* structdefs,
+		const char* resultname,
+		bool mergeInputResult)
 {
 	papuga_RequestAutomaton* rt = (papuga_RequestAutomaton*)std::calloc( 1, sizeof(*rt));
 	if (!rt) return NULL;
 	try
 	{
-		new (&rt->atm) AutomatonDescription( classdefs, resultname);
+		new (&rt->atm) AutomatonDescription( classdefs, resultname, mergeInputResult);
 		rt->structdefs = structdefs;
 		return rt;
 	}
@@ -2429,7 +2441,10 @@ extern "C" const char* papuga_Request_resultname( const papuga_Request* self)
 {
 	return self->ctx.resultname();
 }
-
+extern "C" bool papuga_Request_resultmerge( const papuga_Request* self)
+{
+	return self->ctx.mergeInputResult();
+}
 extern "C" const papuga_StructInterfaceDescription* papuga_Request_struct_descriptions( const papuga_Request* self)
 {
 	return self->structdefs;

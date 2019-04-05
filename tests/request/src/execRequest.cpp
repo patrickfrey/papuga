@@ -188,7 +188,7 @@ bool papuga_execute_request(
 		goto ERROR;
 	}
 	papuga_init_ValueVariant_serialization( &result, resultser);
-	if (!papuga_Serialization_serialize_request_result( resultser, ctx, request))
+	if (!papuga_Serialization_serialize_request_result( resultser, ctx, request, &errcode))
 	{
 		errcode = papuga_NoMemError;
 		goto ERROR;

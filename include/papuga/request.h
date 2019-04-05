@@ -35,12 +35,16 @@ typedef struct papuga_RequestMethodId
 /*
  * @brief Create an automaton to configure
 * \param[in] classdefs class definitions referred to in host object references
+* \param[in] structdefs structure definitions
+* \param[in] resultname name of the result (root tag)
+* \param[in] mergeInputResult true if the result is the input with the results merged in, false if the result if a structure with the results as elements
  * @return The automaton structure
  */
 papuga_RequestAutomaton* papuga_create_RequestAutomaton(
 		const papuga_ClassDef* classdefs,
 		const papuga_StructInterfaceDescription* structdefs,
-		const char* resultname);
+		const char* resultname,
+		bool mergeInputResult);
 
 /*
  * @brief Destroy an automaton
@@ -351,7 +355,7 @@ papuga_ErrorCode papuga_RequestIterator_get_last_error( papuga_RequestIterator* 
  * @param[in] allocator allocator to use for the result
  * @param[in] enc charset of the result string
  * @param[in] maxdepth maximum recursion depth for printing structures
- * @param[out] length length of the string in units (1 for UTF-8, 2 for UTF16, etc.)
+ * @param[out] length length of the string in bytes
  * @param[out] errcode error code in case of an error
  * @return pointer to the string built
  */
@@ -359,11 +363,19 @@ const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocato
 
 /*
  * @brief Get the name of the result produced by this request (e.g. used as toplevel tag for XML of result)
+ * @return the name of the result used as root element of the result structure
  */
 const char* papuga_Request_resultname( const papuga_Request* self);
 
 /*
+ * @brief Get a boolean deciding wheter the result is built as structure of elements (0) or if the results are merged into the input as result (1)
+ * @return 1, if the result is the input with the results merged into or 0 if the result is built from the exported variables assigned in the result context
+ */
+bool papuga_Request_resultmerge( const papuga_Request* self);
+
+/*
  * @brief Get the structure descriptions of the request for mapping the output
+ * @return pointer to the description structure
  */
 const papuga_StructInterfaceDescription* papuga_Request_struct_descriptions( const papuga_Request* self);
 

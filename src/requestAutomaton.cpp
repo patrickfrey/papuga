@@ -325,8 +325,12 @@ void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga
 }
 #endif
 
-RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername)
-	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername))
+RequestAutomaton::RequestAutomaton(
+		const papuga_ClassDef* classdefs,
+		const papuga_StructInterfaceDescription* structdefs,
+		const char* answername,
+		bool mergeInputAnswer)
+	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername,mergeInputAnswer))
 	,m_descr(papuga_create_SchemaDescription())
 {
 	if (!m_atm || !m_descr)
@@ -338,10 +342,13 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papu
 }
 
 #if __cplusplus >= 201103L
-RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, const char* answername,
+RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
+					const papuga_StructInterfaceDescription* structdefs,
+					const char* answername,
+					bool mergeInputAnswer,
 					const std::initializer_list<InheritedDef>& inherited,
 					const std::initializer_list<RequestAutomaton_Node>& nodes)
-	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername))
+	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername,mergeInputAnswer))
 	,m_descr(papuga_create_SchemaDescription())
 {
 	if (!m_atm || !m_descr)
