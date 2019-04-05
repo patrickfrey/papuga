@@ -272,6 +272,12 @@ const char* papuga_Serialization_tostring( const papuga_Serialization* self, pap
 void papuga_init_SerializationIter( papuga_SerializationIter* self, papuga_Serialization* ser);
 
 /*
+* @brief Serialization iterator constructor for empty serialization
+* @param[out] self pointer to structure 
+*/
+#define papuga_init_SerializationIter_empty( self)	{papuga_SerializationIter* s_=self; s_->chunk=0; s_->chunkpos=0; s_->tag=papuga_TagClose; s_->value=NULL;}
+
+/*
 * @brief Serialization iterator constructor skipping to last element of serialization
 * @param[out] self pointer to structure 
 * @param[in] ser serialization to iterate on

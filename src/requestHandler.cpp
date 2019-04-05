@@ -978,26 +978,25 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 	}
 }
 
-static bool serializeResultVariable( papuga_Serialization* self, const char* topkey, std::size_t topkeylen, const char* elemkey, std::size_t elemkeylen, const RequestVariable& var, papuga_ErrorCode* errcode)
+static bool serializeResultValue( papuga_Serialization* self, const char* elemkey, std::size_t elemkeylen, const papuga_ValueVariant& value, papuga_ErrorCode* errcode)
 {
 	bool rt = true;
 	if (elemkeylen)
 	{
-		rt &= papuga_Serialization_pushName_string( self, topkey, topkeylen);
-		rt &= papuga_Serialization_pushOpen( self);
-
-		if (var.value.valuetype == papuga_TypeSerialization
-			&& !var.value.value.serialization->structid
-			&& papuga_Serialization_first_tag( var.value.value.serialization) != papuga_TagName)
+		if (value.valuetype == papuga_TypeSerialization
+			&& !value.value.serialization->structid
+			&& papuga_Serialization_first_tag( value.value.serialization) != papuga_TagName)
 		{
 			//... variable content is array
+			rt &= papuga_Serialization_pushOpen( self);
+
 			papuga_Serialization elemser;
 			papuga_init_Serialization( &elemser, self->allocator);
 			papuga_ValueVariant elemserval;
 			papuga_init_ValueVariant_serialization( &elemserval, &elemser);
 
 			papuga_SerializationIter elemiter;
-			papuga_init_SerializationIter( &elemiter, var.value.value.serialization);
+			papuga_init_SerializationIter( &elemiter, value.value.serialization);
 
 			int taglevel = 0;
 			int elementcnt = 0;
@@ -1008,18 +1007,18 @@ static bool serializeResultVariable( papuga_Serialization* self, const char* top
 			while (!papuga_SerializationIter_eof( &elemiter))
 			{
 				papuga_Tag tag = papuga_SerializationIter_tag( &elemiter);
-				const papuga_ValueVariant* value = papuga_SerializationIter_value( &elemiter);
+				const papuga_ValueVariant* elemvalue = papuga_SerializationIter_value( &elemiter);
 				papuga_SerializationIter_skip( &elemiter);
 				++elementcnt;
 
-				papuga_Serialization_push( &elemser, tag, value);
+				papuga_Serialization_push( &elemser, tag, elemvalue);
 
 				switch (tag)
 				{
 					case papuga_TagValue:
 						if (taglevel == 0 && elementcnt == 1)
 						{
-							rt &= papuga_Serialization_pushValue( self, value);
+							rt &= papuga_Serialization_pushValue( self, elemvalue);
 
 							papuga_init_Serialization( &elemser, self->allocator);
 							elementcnt = 0;
@@ -1049,14 +1048,13 @@ static bool serializeResultVariable( papuga_Serialization* self, const char* top
 		}
 		else
 		{
-			rt &= papuga_Serialization_pushValue( self, &var.value);
+			rt &= papuga_Serialization_pushName_string( self, elemkey, elemkeylen);
+			rt &= papuga_Serialization_pushValue( self, &value);
 		}
-		rt &= papuga_Serialization_pushClose( self);
 	}
 	else
 	{
-		rt &= papuga_Serialization_pushName_string( self, topkey, topkeylen);
-		rt &= papuga_Serialization_pushValue( self, &var.value);
+		rt &= papuga_Serialization_pushValue( self, &value);
 	}
 	return rt;
 }
@@ -1070,22 +1068,27 @@ extern "C" bool papuga_Serialization_serialize_request_result( papuga_Serializat
 		if (isLocalVariable( vi->ptr->name) || vi->inheritcnt > 0 || vi->ptr->value.valuetype == papuga_TypeHostObject) continue;
 
 		const char* elemname_split = std::strchr( vi->ptr->name, '/');
+		const char* topkey;
+		std::size_t topkeylen;
+		const char* elemkey;
+		std::size_t elemkeylen;
+		
 		if (elemname_split)
 		{
-			const char* topkey = vi->ptr->name;
-			std::size_t topkeylen = elemname_split - vi->ptr->name;
-			const char* elemkey = elemname_split+1;
-			std::size_t elemkeylen = std::strlen( elemkey);
-			rt &= serializeResultVariable( self, topkey, topkeylen, elemkey, elemkeylen, *vi->ptr, errcode);
+			topkey = vi->ptr->name;
+			topkeylen = elemname_split - vi->ptr->name;
+			elemkey = elemname_split+1;
+			elemkeylen = std::strlen( elemkey);
 		}
 		else
 		{
-			const char* topkey = vi->ptr->name;
-			std::size_t topkeylen = std::strlen( topkey);
-			const char* elemkey = NULL;
-			std::size_t elemkeylen = 0;
-			rt &= serializeResultVariable( self, topkey, topkeylen, elemkey, elemkeylen, *vi->ptr, errcode);
+			topkey = vi->ptr->name;
+			topkeylen = std::strlen( topkey);
+			elemkey = NULL;
+			elemkeylen = 0;
 		}
+		rt &= papuga_Serialization_pushName_string( self, topkey, topkeylen);
+		rt &= serializeResultValue( self, elemkey, elemkeylen, vi->ptr->value, errcode);
 	}
 	if (!rt && *errcode != papuga_Ok)
 	{
@@ -1101,6 +1104,8 @@ struct MergeResult
 	const char* name;
 	std::size_t namelen;
 	const RequestVariable* var;
+	papuga_SerializationIter iter;
+	bool used;
 };
 
 static bool initMergeResult( MergeResult& mr, const char* key, std::size_t keylen, const char* name, std::size_t namelen, const RequestVariable* var)
@@ -1117,6 +1122,16 @@ static bool initMergeResult( MergeResult& mr, const char* key, std::size_t keyle
 		mr.name = name;
 		mr.namelen = namelen;
 		mr.var = var;
+		if (var->isArray)
+		{
+			if (var->value.valuetype != papuga_TypeSerialization) return false;
+			papuga_init_SerializationIter( &mr.iter, var->value.value.serialization);
+		}
+		else
+		{
+			papuga_init_SerializationIter_empty( &mr.iter);
+		}
+		mr.used = false;
 		return true;
 	}
 }
@@ -1155,7 +1170,7 @@ static bool initMergeResultArray( MergeResult* mr, std::size_t mrbufsize, std::s
 	return true;
 }
 
-static const MergeResult* findMergeResult( const MergeResult* mr, std::size_t mrsize, const char* key, int keylen)
+static MergeResult* findMergeResult( MergeResult* mr, std::size_t mrsize, const char* key, int keylen)
 {
 	std::size_t mi = 0;
 	for (; mi < mrsize; ++mi)
@@ -1165,9 +1180,44 @@ static const MergeResult* findMergeResult( const MergeResult* mr, std::size_t mr
 	return NULL;
 }
 
-static bool serializeMergeResult( papuga_Serialization* self, const MergeResult& res, papuga_ErrorCode* errcode)
+static bool serializeMergeResult( papuga_Serialization* self, MergeResult& res, papuga_ErrorCode* errcode)
 {
-	return serializeResultVariable( self, res.key, res.keylen, res.name, res.namelen, *res.var, errcode);
+	bool rt = true;
+	if (res.var->isArray)
+	{
+		if (!papuga_SerializationIter_eof( &res.iter))
+		{
+			papuga_ValueVariant* value = papuga_SerializationIter_value( &res.iter);
+			papuga_SerializationIter_skip( &res.iter);
+			rt &= serializeResultValue( self, res.name, res.namelen, *value, errcode);
+		}
+		else
+		{
+			*errcode = papuga_AddressedItemNotFound;
+			rt = false;
+		}
+	}
+	else if (!res.used)
+	{
+		res.used = true;
+		rt &= serializeResultValue( self, res.name, res.namelen, res.var->value, errcode);
+	}
+	else
+	{
+		*errcode = papuga_AddressedItemNotFound;
+		rt = false;
+	}
+	return rt;
+}
+
+static bool testMergeResultUsed( const MergeResult* mr, std::size_t mrsize)
+{
+	std::size_t mi = 0;
+	for (; mi < mrsize; ++mi)
+	{
+		if ((mr[mi].var->isArray && !papuga_SerializationIter_eof( &mr[mi].iter)) || !mr[mi].used) break;
+	}
+	return mi == mrsize;
 }
 
 extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization* self, const papuga_RequestContext* context, const papuga_Request* request, papuga_StringEncoding input_encoding, papuga_ContentType input_doctype, const char* input_content, size_t input_contentlen, papuga_ErrorCode* errcode)
@@ -1183,12 +1233,99 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 	if (!parser) return false;
 	bool rt = true;
 	papuga_RequestElementType lastelemtype = papuga_RequestElementType_None;
-	std::vector<const MergeResult*> stk;
 
+	struct Stack
+	{
+	public:
+		Stack( papuga_ErrorCode* errcode_, MergeResult* mergeResult_, std::size_t mergeResultSize_)
+			:errcode(errcode_),mergeResult(mergeResult_),mergeResultSize(mergeResultSize_),ar(){}
+
+		bool push( const papuga_ValueVariant& name)
+		{
+			try
+			{
+				if (name.valuetype == papuga_TypeString && name.encoding == papuga_UTF8)
+				{
+					if (!ar.empty() && ar.back() && ar.back()->namelen == name.length && 0==std::memcmp( name.value.string, ar.back()->name, name.length))
+					{
+						*errcode = papuga_DuplicateDefinition;
+						return false;
+					}
+					MergeResult* res = findMergeResult( mergeResult, mergeResultSize, name.value.string, name.length);
+					ar.push_back( res);
+				}
+				else
+				{
+					ar.push_back( NULL);
+				}
+				return true;
+			}
+			catch (const std::bad_alloc&)
+			{
+				*errcode = papuga_NoMemError;
+				return false;
+			}
+		}
+		bool pop()
+		{
+			if (ar.empty())
+			{
+				*errcode = papuga_SyntaxError;
+				return false;
+			}
+			else
+			{
+				ar.pop_back();
+				return true;
+			}
+		}
+
+		bool empty() const
+		{
+			return ar.empty();
+		}
+
+		MergeResult* back() const
+		{
+			if (ar.empty()) return NULL;
+			return ar.back();
+		}
+
+	private:
+		papuga_ErrorCode* errcode;
+		MergeResult* mergeResult;
+		std::size_t mergeResultSize;
+		std::vector<MergeResult*> ar;
+	};
+	Stack stk( errcode, mergeResult, mergeResultSize);
+	papuga_ValueVariant root_value;
+	papuga_RequestElementType root_elemtype = papuga_RequestParser_next( parser, &root_value);
+	if (root_elemtype != papuga_RequestElementType_Open)
+	{
+		*errcode = papuga_SyntaxError;
+		goto EXIT;
+	}
 	while (rt)
 	{
 		papuga_ValueVariant value;
 		papuga_RequestElementType elemtype = papuga_RequestParser_next( parser, &value);
+		if (papuga_ValueVariant_defined(&value))
+		{
+			if (papuga_ValueVariant_isstring( &value))
+			{
+				std::size_t copylen = value.length;
+				const char* copy = (value.encoding == papuga_UTF8)
+					? papuga_Allocator_copy_string( self->allocator, value.value.string, value.length)
+					: papuga_ValueVariant_tostring( &value, self->allocator, &copylen, errcode);
+				if (!copy) goto EXIT;
+				papuga_init_ValueVariant_string( &value, copy, copylen);
+			}
+			else if (!papuga_ValueVariant_isatomic( &value))
+			{
+				*errcode = papuga_AtomicValueExpected;
+				goto EXIT;
+			}
+		}
 		switch (elemtype)
 		{
 			case papuga_RequestElementType_None:
@@ -1205,31 +1342,18 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 				{
 					rt &= papuga_Serialization_pushOpen( self);
 				}
-				try
-				{
-					rt &= papuga_Serialization_pushName( self, &value);
-					if (value.valuetype == papuga_TypeString && value.encoding == papuga_UTF8)
-					{
-						const MergeResult* res = findMergeResult( mergeResult, mergeResultSize, value.value.string, value.length);
-						stk.push_back( res);
-					}
-					else
-					{
-						stk.push_back( NULL);
-					}
-				}
-				catch (const std::bad_alloc&)
-				{
-					*errcode = papuga_NoMemError;
-					rt = false;
-					goto EXIT;
-				}
+				rt &= papuga_Serialization_pushName( self, &value);
+				rt &= stk.push( value);
 				break;
 			case papuga_RequestElementType_Close:
 				if (stk.empty())
 				{
-					*errcode = papuga_SyntaxError;
-					rt = false;
+					if (papuga_RequestParser_next( parser, &value) != papuga_RequestElementType_None)
+					{
+						*errcode = papuga_SyntaxError;
+						rt = false;
+					}
+					goto EXIT;
 				}
 				if (lastelemtype == papuga_RequestElementType_Open)
 				{
@@ -1253,7 +1377,7 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 					}
 					rt &= papuga_Serialization_pushClose( self);
 				}
-				stk.pop_back();
+				stk.pop();
 				break;
 			case papuga_RequestElementType_AttributeName:
 				if (lastelemtype == papuga_RequestElementType_Open)
@@ -1285,9 +1409,31 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 							rt &= papuga_Serialization_pushOpen( self);
 							rt &= papuga_Serialization_pushValue( self, &value);
 							rt &= papuga_Serialization_pushName( self, &nextvalue);
+							rt &= stk.push( nextvalue);
 							break;
 						case papuga_RequestElementType_Close:
-							rt &= papuga_Serialization_pushValue( self, &value);
+							if (stk.empty())
+							{
+								rt &= papuga_Serialization_pushValue( self, &value);
+								if (papuga_RequestParser_next( parser, &value) != papuga_RequestElementType_None)
+								{
+									*errcode = papuga_SyntaxError;
+									rt = false;
+								}
+								goto EXIT;
+							}
+							else if (stk.back())
+							{
+								rt &= papuga_Serialization_pushOpen( self);
+								rt &= papuga_Serialization_pushValue( self, &value);
+								rt &= serializeMergeResult( self, *stk.back(), errcode);
+								rt &= papuga_Serialization_pushClose( self);
+							}
+							else
+							{
+								rt &= papuga_Serialization_pushValue( self, &value);
+							}
+							stk.pop();
 							break;
 						case papuga_RequestElementType_AttributeName:
 							rt &= papuga_Serialization_pushOpen( self);
@@ -1317,6 +1463,11 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 			}
 		}
 		lastelemtype = elemtype;
+	}
+	if (rt && !testMergeResultUsed( mergeResult, mergeResultSize))
+	{
+		*errcode = papuga_AddressedItemNotFound;
+		rt = false;
 	}
 EXIT:
 	if (!rt && *errcode == papuga_Ok)

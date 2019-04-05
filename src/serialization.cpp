@@ -48,7 +48,7 @@ struct PrintStruct
 	PrintStruct( PrintMode mode_, const std::string& indent_, int printlevel_, bool deterministic_)
 		:mode(mode_),out(),indent(indent_),errcode(papuga_Ok),printlevel(printlevel_),itemcnt(0),deterministic(deterministic_){}
 
-	void printOpen()
+	void printOpen( int structid)
 	{
 		--printlevel;
 		if (printlevel >= 0)
@@ -56,7 +56,14 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "open" << std::endl;
+					if (structid)
+					{
+						out << indent << "open #" << structid << std::endl;
+					}
+					else
+					{
+						out << indent << "open" << std::endl;
+					}
 					indent.append( "  ");
 					break;
 				case BracketMode:
@@ -101,13 +108,6 @@ struct PrintStruct
 			}
 		}
 		return true;
-	}
-
-	void printStructId( int structid)
-	{
-		char buf[ 32];
-		std::snprintf( buf, sizeof( buf), "#%d", structid);
-		printName( buf);
 	}
 
 	void printName( const std::string& value)
@@ -223,13 +223,7 @@ struct PrintStruct
 			{
 				if (value.valuetype == papuga_TypeSerialization)
 				{
-					if (value.value.serialization->structid)
-					{
-						printStructId( value.value.serialization->structid);
-					}
-					printOpen();
 					if (!Serialization_print( *this, value.value.serialization)) return false;
-					printClose();
 				}
 				else if (value.valuetype == papuga_TypeHostObject)
 				{
@@ -284,7 +278,14 @@ static bool SerializationIter_print( PrintStruct& ctx, papuga_SerializationIter&
 		{
 			case papuga_TagOpen:
 				++taglevel;
-				ctx.printOpen();
+				if (papuga_SerializationIter_value(&seriter)->valuetype == papuga_TypeInt)
+				{
+					ctx.printOpen( papuga_SerializationIter_value(&seriter)->value.Int);
+				}
+				else
+				{
+					ctx.printOpen( 0);
+				}
 				break;
 			case papuga_TagClose:
 				--taglevel;
@@ -323,7 +324,14 @@ static bool SerializationIter_print_det( PrintStruct& ctx, papuga_SerializationI
 			case papuga_TagOpen:
 			{
 				PrintStruct subctx( ctx.mode, ctx.indent, ctx.printlevel, ctx.deterministic);
-				subctx.printOpen();
+				if (papuga_SerializationIter_value(&seriter)->valuetype == papuga_TypeInt)
+				{
+					subctx.printOpen( papuga_SerializationIter_value(&seriter)->value.Int);
+				}
+				else
+				{
+					subctx.printOpen( 0);
+				}
 				papuga_SerializationIter_skip(&seriter);
 				bool subrt = (ctx.printlevel >= 0) ? SerializationIter_print_det( subctx, seriter) : SerializationIter_print( subctx, seriter);
 				if (!subrt)
@@ -374,6 +382,14 @@ static bool Serialization_print( PrintStruct& ctx, const papuga_Serialization* s
 {
 	papuga_SerializationIter seriter;
 	papuga_init_SerializationIter( &seriter, const_cast<papuga_Serialization*>( serialization));
+	if (serialization->structid)
+	{
+		ctx.printOpen( serialization->structid);
+	}
+	else
+	{
+		ctx.printOpen( 0);
+	}
 	bool rt = ctx.deterministic ? SerializationIter_print_det( ctx, seriter) : SerializationIter_print( ctx, seriter);
 	if (rt)
 	{
@@ -382,6 +398,7 @@ static bool Serialization_print( PrintStruct& ctx, const papuga_Serialization* s
 			ctx.errcode = papuga_SyntaxError;
 			return false;
 		}
+		ctx.printClose();
 		return true;
 	}
 	else
@@ -396,10 +413,6 @@ extern "C" const char* papuga_Serialization_tostring( const papuga_Serialization
 	{
 		if (!self) return 0;
 		PrintStruct ctx( linemode?LineMode : BracketMode, linemode?"\n":"", maxdepth, false/*non deterministic*/);
-		if (self->structid)
-		{
-			ctx.printStructId( self->structid);
-		}
 		if (!Serialization_print( ctx, self))
 		{
 			*errcode = ctx.errcode;
@@ -419,10 +432,6 @@ std::string papuga::Serialization_tostring( const papuga_Serialization& value, b
 	try
 	{
 		PrintStruct ctx( linemode?LineMode : BracketMode, ""/*indent*/, maxdepth, false/*non deterministic*/);
-		if (value.structid)
-		{
-			ctx.printStructId( value.structid);
-		}
 		if (!Serialization_print( ctx, &value))
 		{
 			errcode = ctx.errcode;
@@ -442,10 +451,6 @@ std::string papuga::Serialization_tostring_deterministic( const papuga_Serializa
 	try
 	{
 		PrintStruct ctx( linemode?LineMode : BracketMode, ""/*indent*/, maxdepth, true/*deterministic*/);
-		if (value.structid)
-		{
-			ctx.printStructId( value.structid);
-		}
 		if (!Serialization_print( ctx, &value))
 		{
 			errcode = ctx.errcode;
