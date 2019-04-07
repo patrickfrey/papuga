@@ -116,8 +116,8 @@ struct RequestAutomaton_StructDef
 			:name(name_),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(max_tag_diff_){}
 		Element( const char* name_, int itemid_)
 			:name(name_),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
-		Element( int itemid_, char resolvechr)
-			:name(NULL),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(1){}
+		Element( int itemid_, char resolvechr, int max_tag_diff_=1)
+			:name(NULL),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(max_tag_diff_){}
 		Element( int itemid_)
 			:name(NULL),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
 		///\brief Copy constructor

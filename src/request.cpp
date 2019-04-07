@@ -339,6 +339,7 @@ public:
 			adef.varname = adef_.varname;
 			adef.resolvetype = adef_.resolvetype;
 			adef.max_tag_diff = adef_.max_tag_diff;
+
 			if (adef.max_tag_diff < 0) 
 			{
 				m_errcode = papuga_TypeError;
@@ -1992,7 +1993,8 @@ private:
 				//PF:HACK: The const cast has no influence, as movehostobj parameter is false and the contents of evalue remain
 				//	untouched, but it is still ugly and a bad hack:
 				if (!papuga_Allocator_deepcopy_value( &m_allocator, &evalue_copy, const_cast<papuga_ValueVariant*>(evalue), false, &m_errcode)) return false;
-				m_valuenodes.push_back( ValueNode( m_atm->valuedefs()[ evidx].itemid, &evalue_copy));
+				int itemid = m_atm->valuedefs()[ evidx].itemid;
+				m_valuenodes.push_back( ValueNode( itemid, &evalue_copy));
 				break;
 			}
 			case CollectValue:

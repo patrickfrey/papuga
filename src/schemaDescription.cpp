@@ -854,7 +854,11 @@ public:
 	{
 		ItemNameItrRange range = invnamemap.equal_range( refid);
 		ItemNameItr ri = range.first, re = range.second;
-		for (; ri != re; ++ri)
+		if (std::distance( ri, re) == 1 && node.name == ri->second.name && node.chld.size() == 0 && node.elementType == TreeNode::UnionType)
+		{
+			node.elementType = TreeNode::ReferenceType; //... direct reference
+		}
+		else for (; ri != re; ++ri)
 		{
 			std::vector<TreeNode>::iterator ni = node.getOrCreateChildNode( ri->second.name);
 			ni->setFollowTypeUnique( TreeNode::FollowImmediate);

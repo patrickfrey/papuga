@@ -107,10 +107,14 @@ void RequestAutomaton_ValueDef::addToAutomaton( const std::string& rootexpr, pap
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	fprintf( stderr, "ATM define value scope='%s', select=%s, id=%d\n", scope_fullexpr.c_str(), select_expression, itemid);
 #endif	
-	if (!papuga_RequestAutomaton_add_value( atm, scope_fullexpr.c_str(), select_expression, itemid))
+	if (valuetype != papuga_TypeVoid)
 	{
-		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add value, scope expression %s select expression %s: %s"), scope_fullexpr.c_str(), select_expression, papuga_ErrorCode_tostring(errcode));
+		//... Null value (Void) type triggers only description
+		if (!papuga_RequestAutomaton_add_value( atm, scope_fullexpr.c_str(), select_expression, itemid))
+		{
+			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
+			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add value, scope expression %s select expression %s: %s"), scope_fullexpr.c_str(), select_expression, papuga_ErrorCode_tostring(errcode));
+		}
 	}
 	if (!papuga_SchemaDescription_add_element( descr, itemid/*id*/, descr_fullexpr.c_str(), valuetype, papuga_ResolveTypeRequired, NULL/*examples*/))
 	{
