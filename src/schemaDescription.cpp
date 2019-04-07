@@ -442,8 +442,11 @@ public:
 			else
 			{
 				setResolveTypeUnique( resolveType_);
-				setElementTypeUnique( ValueType);
-				setValueTypeUnique( valueType_);
+				if (valueType_ != papuga_TypeVoid)
+				{
+					setElementTypeUnique( ValueType);
+					setValueTypeUnique( valueType_);
+				}
 				setIdUnique( id_);
 				addExamples( examples_);
 			}
@@ -561,7 +564,10 @@ public:
 			}
 			else if (*ei == '(')
 			{
-				childElementType = ValueType;
+				if (valueType_ != papuga_TypeVoid)
+				{
+					childElementType = ValueType;
+				}
 				if (followType_ == FollowImmediate && valueType_ == papuga_TypeVoid
 				&&  ni->elementType == StructType && ni->followType == FollowDeep
 				&&  id_ == ni->id)
@@ -807,6 +813,10 @@ public:
 					declareDeepNodesAsGlobals( recelem, nameItemMap, newRootNodes);
 					newRootNodes.push_back( recelem);
 					node.chld.erase( node.chld.begin() + cidx);
+					if (node.chld.empty())
+					{
+						node.elementType = TreeNode::NullType;
+					}
 				}
 				else
 				{
@@ -837,71 +847,52 @@ public:
 		}
 		return false;
 	}
+	typedef ItemNameMap::const_iterator ItemNameItr;
+	typedef std::pair<ItemNameItr,ItemNameItr> ItemNameItrRange;
+
+	void relateTreeNode( TreeNode& node, const ItemNameMap& invnamemap, int refid, papuga_ResolveType resolveType)
+	{
+		ItemNameItrRange range = invnamemap.equal_range( refid);
+		ItemNameItr ri = range.first, re = range.second;
+		for (; ri != re; ++ri)
+		{
+			std::vector<TreeNode>::iterator ni = node.getOrCreateChildNode( ri->second.name);
+			ni->setFollowTypeUnique( TreeNode::FollowImmediate);
+			ni->resolveType = resolveType;
+			if (ni->elementType != TreeNode::NullType && ni->elementType != TreeNode::ReferenceType) throw ErrorException( papuga_AmbiguousReference);
+			ni->elementType = TreeNode::ReferenceType;
+		}
+	}
 
 	void resolveDeepNodeReferences( TreeNode& node, const ItemNameMap& invnamemap, const TreeNode::Scope& parentScope=TreeNode::Scope())
 	{
-		typedef ItemNameMap::const_iterator ItemNameItr;
-		typedef std::pair<ItemNameItr,ItemNameItr> ItemNameItrRange;
-
-		std::vector<TreeNode>::iterator ci = node.chld.begin(), ce = node.chld.end();
-		for (; ci != ce; ++ci)
+		if (node.elementType == TreeNode::NullType && node.valueType == papuga_TypeVoid && node.id != TreeNode::NullId && parentScope.defined())
 		{
-			if (ci->elementType == TreeNode::ValueType && ci->valueType == papuga_TypeVoid)
+			node.elementType = TreeNode::UnionType;
+			relateTreeNode( node, invnamemap, node.id, papuga_ResolveTypeRequired);
+			node.id = TreeNode::NullId;
+		}
+		else
+		{
+			std::vector<TreeNode>::iterator ci = node.chld.begin(), ce = node.chld.end();
+			for (; ci != ce; ++ci)
 			{
-				ItemNameItrRange range = invnamemap.equal_range( ci->id);
-				ItemNameItr ri = range.first, re = range.second;
-				if (ri != re)
+				if (ci->elementType == TreeNode::ValueType && ci->valueType == papuga_TypeVoid)
 				{
-					ci->elementType = TreeNode::UnionType;
-					for (; ri != re; ++ri)
+					ItemNameItrRange range = invnamemap.equal_range( ci->id);
+					ItemNameItr ri = range.first, re = range.second;
+					if (ri != re)
 					{
-						ci->chld.push_back( TreeNode( ri->second.name, TreeNode::NullId, TreeNode::ReferenceType, papuga_TypeVoid, TreeNode::FollowImmediate));
+						ci->elementType = TreeNode::UnionType;
+						for (; ri != re; ++ri)
+						{
+							ci->chld.push_back( TreeNode( ri->second.name, TreeNode::NullId, TreeNode::ReferenceType, papuga_TypeVoid, TreeNode::FollowImmediate));
+						}
 					}
 				}
-			}
-			else
-			{
-				resolveDeepNodeReferences( *ci, invnamemap, node.scope);
-			}
-		}
-		if (node.elementType == TreeNode::StructType && parentScope.defined())
-		{
-			std::vector<TreeNode::Related>::const_iterator mi = node.related.begin(), me = node.related.end();
-			for (; mi != me; ++mi)
-			{
-				ci = node.chld.begin(), ce = node.chld.end();
-				for (; ci != ce && ci->id != mi->id; ++ci){}
-				if (ci == ce)
+				else
 				{
-					ItemNameItrRange range = invnamemap.equal_range( mi->id);
-					ItemNameItr ri = range.first, re = range.second;
-					if (std::distance( ri, re) > 1 && mi->resolveType != papuga_ResolveTypeArray)
-					{
-						//... more than one alternative element reference, need to create a union node
-						std::vector<TreeNode>::iterator ui = node.getOrCreateChildNode( "");
-						ui->setFollowTypeUnique( TreeNode::FollowImmediate);
-						ui->elementType = TreeNode::UnionType;
-
-						for (; ri != re; ++ri)
-						{
-							std::vector<TreeNode>::iterator ni = ui->getOrCreateChildNode( ri->second.name);
-							ni->setFollowTypeUnique( TreeNode::FollowImmediate);
-							ni->resolveType = mi->resolveType;
-							if (ni->elementType != TreeNode::NullType && ni->elementType != TreeNode::ReferenceType) throw ErrorException( papuga_AmbiguousReference);
-							ni->elementType = TreeNode::ReferenceType;
-						}
-					}
-					else
-					{
-						for (; ri != re; ++ri)
-						{
-							std::vector<TreeNode>::iterator ni = node.getOrCreateChildNode( ri->second.name);
-							ni->setFollowTypeUnique( TreeNode::FollowImmediate);
-							ni->resolveType = mi->resolveType;
-							if (ni->elementType != TreeNode::NullType && ni->elementType != TreeNode::ReferenceType) throw ErrorException( papuga_AmbiguousReference);
-							ni->elementType = TreeNode::ReferenceType;
-						}
-					}
+					resolveDeepNodeReferences( *ci, invnamemap, node.scope);
 				}
 			}
 		}

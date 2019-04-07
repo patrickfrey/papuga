@@ -485,7 +485,7 @@ public:
 			mdef.itemid = itemid;
 			mdef.resolvetype = resolvetype;
 			mdef.max_tag_diff = max_tag_diff;
-			if (name)
+			if (name && name[0])
 			{
 				mdef.name = papuga_Allocator_copy_charp( &m_allocator, name);
 				if (!mdef.name)
@@ -1416,7 +1416,7 @@ public:
 					papuga_ValueVariant argval;
 					papuga_init_ValueVariant( &argval);
 					ValueSink sink( &argval, &m_allocator);
-					if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, mcnode->scope, tagLevelRange))
+					if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, mcnode->scope, tagLevelRange, false/*embedded*/))
 					{
 						out << "\t[Unresolvable " << (int)m_errcode << " " << papuga_ErrorCode_tostring( m_errcode) << "]" << std::endl;
 						m_errcode = papuga_Ok;
@@ -1639,17 +1639,35 @@ public:
 			for (; mi != me; ++mi)
 			{
 				TagLevelRange taglevelRange = getTagLevelRange( stdef->members[ mi].resolvetype, taglevel, stdef->members[ mi].max_tag_diff);
-				sink.pushName( stdef->members[ mi].name);
-				if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange))
+				if (stdef->members[ mi].name)
 				{
-					m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
-					return false;
+					if (stdef->members[ mi].name == 0)
+					{
+						if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, true/*embedded*/))
+						{
+							m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
+							return false;
+						}
+					}
+					else
+					{
+						sink.pushName( stdef->members[ mi].name);
+						if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, false/*embedded*/))
+						{
+							m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
+							return false;
+						}
+					}
+				}
+				else
+				{
+					
 				}
 			}
 			return true;
 		}
 
-		bool addResolvedItemValue( ValueSink& sink, const ResolvedObject& resolvedObj)
+		bool addResolvedItemValue( ValueSink& sink, const ResolvedObject& resolvedObj, bool embedded)
 		{
 			if (ObjectRef_is_value( resolvedObj.objref))
 			{
@@ -1668,16 +1686,23 @@ public:
 			else if (ObjectRef_is_struct( resolvedObj.objref))
 			{
 				int structidx = ObjectRef_struct_id( resolvedObj.objref);
-				if (!sink.openSerialization())
+				if (embedded)
 				{
-					m_errcode = papuga_NoMemError;
-					return false;
+					if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx)) return false;
 				}
-				if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx)) return false;
-				if (!sink.closeSerialization())
+				else
 				{
-					m_errcode = papuga_NoMemError;
-					return false;
+					if (!sink.openSerialization())
+					{
+						m_errcode = papuga_NoMemError;
+						return false;
+					}
+					if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx)) return false;
+					if (!sink.closeSerialization())
+					{
+						m_errcode = papuga_NoMemError;
+						return false;
+					}
 				}
 			}
 			else
@@ -1692,7 +1717,7 @@ public:
 		}
 
 		/* \brief Build the data requested by an item id and a scope in a manner defined by a class of resolving a reference */
-		bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange)
+		bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange, bool embedded)
 		{
 			setResolverUpperBound( scope, itemid);
 			switch (resolvetype)
@@ -1718,7 +1743,7 @@ public:
 					}
 #endif
 					// We try to get a valid node candidate preferring value nodes if defined
-					while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj))
+					while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded))
 					{
 						if (m_errcode != papuga_Ok) return false;
 						resolvedObj = resolveNextSameScopeItem( itemid);
@@ -1818,7 +1843,7 @@ public:
 					while (resolvedObj.valid())
 					{
 						// We try to get a valid node candidate preferring value nodes if defined
-						while (!addResolvedItemValue( sink, resolvedObj))
+						while (!addResolvedItemValue( sink, resolvedObj, false/*embedded*/))
 						{
 							resolvedObj = resolveNextSameScopeItem( itemid);
 							if (!resolvedObj.valid()) break;
@@ -1880,7 +1905,7 @@ public:
 			{
 				TagLevelRange tagLevelRange = getTagLevelRange( argdef.resolvetype, taglevel, argdef.max_tag_diff);
 				ValueSink sink( &arg, &m_allocator);
-				if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, scope, tagLevelRange))
+				if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, scope, tagLevelRange, false/*embedded*/))
 				{
 					return false;
 				}
