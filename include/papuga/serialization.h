@@ -245,6 +245,29 @@ bool papuga_Serialization_pushValue_serialization( papuga_Serialization* self, p
 bool papuga_Serialization_pushValue_bool( papuga_Serialization* self, bool value);
 
 /*
+* @brief Add a JSON document as structure without starting/ending open/close to the serialization
+* @param[in,out] self pointer to structure
+* @param[in] content pointer to content of the JSON document to append
+* @param[in] contentlen length of the content of the JSON document in bytes
+* @param[in] enc encoding of the content of the JSON document to append
+* @param[out] errcode error code in case of error
+* @return true on success, false on error, see error code returned as out parameter for the error
+*/
+bool papuga_Serialization_append_json( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, papuga_ErrorCode* errcode);
+
+/*
+* @brief Add an XML document as structure without starting/ending open/close to the serialization
+* @param[in,out] self pointer to structure
+* @param[in] content pointer to content of the JSON document to append
+* @param[in] contentlen length of the content of the JSON document in bytes
+* @param[in] enc encoding of the content of the JSON document to append
+* @param[in] ignoreEmptyContent true, accept beautified XML, ignoring content containing only spaces and end of lines, false standard XML behaviour
+* @param[out] errcode error code in case of error
+* @return true on success, false on error, see error code returned as out parameter for the error
+*/
+bool papuga_Serialization_append_xml( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool ignoreEmptyContent, papuga_ErrorCode* errcode);
+
+/*
 * @brief Conversing a tail sequence from an array to an associative array
 * @param[in,out] self pointer to structure
 * @param[in] seriter iterator pointing to start of the serialization of the array to convert
@@ -293,9 +316,17 @@ void papuga_init_SerializationIter_last( papuga_SerializationIter* self, const p
 
 /*
 * @brief Skip to next element of serialization
-* @param[out] self pointer to structure 
+* @param[in,out] self pointer to structure 
 */
 void papuga_SerializationIter_skip( papuga_SerializationIter* self);
+
+/*
+* @brief Skip over the next value or structure
+* @note If the current value is an open, then skip to the first element after the end of this open, otherwise just skip the element
+* @param[in,out] self pointer to structure 
+* @return true of success, false on syntax error
+*/
+bool papuga_SerializationIter_skip_structure( papuga_SerializationIter* self);
 
 /*
 * @brief Test if serialization is at eof
@@ -315,7 +346,7 @@ void papuga_SerializationIter_skip( papuga_SerializationIter* self);
 * @brief Read the current tag
 * @param[in] self pointer to structure 
 */
-#define papuga_SerializationIter_tag(self_)		((self_)->tag)
+#define papuga_SerializationIter_tag(self_)		((papuga_Tag)(self_)->tag)
 
 /*
 * @brief Read the current value

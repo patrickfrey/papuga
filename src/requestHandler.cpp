@@ -1266,6 +1266,26 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 				return false;
 			}
 		}
+
+		bool doSkip( const papuga_ValueVariant& name) const
+		{
+			if (name.valuetype == papuga_TypeString && name.encoding == papuga_UTF8 
+			&&  !ar.empty() && ar.back() && ar.back()->namelen == name.length
+			&&  0==std::memcmp( name.value.string, ar.back()->name, name.length))
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		bool isRoot() const
+		{
+			return ar.size() <= 1;
+		}
+
 		bool pop()
 		{
 			if (ar.empty())
@@ -1300,7 +1320,11 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 	Stack stk( errcode, mergeResult, mergeResultSize);
 	papuga_ValueVariant root_value;
 	papuga_RequestElementType root_elemtype = papuga_RequestParser_next( parser, &root_value);
-	if (root_elemtype != papuga_RequestElementType_Open)
+	if (root_elemtype == papuga_RequestElementType_Open)
+	{
+		rt &= stk.push( root_value);
+	}
+	else
 	{
 		*errcode = papuga_SyntaxError;
 		goto EXIT;
@@ -1338,23 +1362,39 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 				}
 				goto EXIT;
 			case papuga_RequestElementType_Open:
-				if (lastelemtype == papuga_RequestElementType_Open)
+				if (stk.doSkip( value))
 				{
-					rt &= papuga_Serialization_pushOpen( self);
-				}
-				rt &= papuga_Serialization_pushName( self, &value);
-				rt &= stk.push( value);
-				break;
-			case papuga_RequestElementType_Close:
-				if (stk.empty())
-				{
-					if (papuga_RequestParser_next( parser, &value) != papuga_RequestElementType_None)
+					int taglevel = 1;
+					while (taglevel > 0 && elemtype != papuga_RequestElementType_None)
+					{
+						elemtype = papuga_RequestParser_next( parser, &value);
+						if (elemtype == papuga_RequestElementType_Open)
+						{
+							++taglevel;
+						}
+						else if (elemtype == papuga_RequestElementType_Close)
+						{
+							--taglevel;
+						}
+					}
+					if (taglevel != 0)
 					{
 						*errcode = papuga_SyntaxError;
 						rt = false;
+						goto EXIT;
 					}
-					goto EXIT;
 				}
+				else
+				{
+					if (lastelemtype == papuga_RequestElementType_Open)
+					{
+						rt &= papuga_Serialization_pushOpen( self);
+					}
+					rt &= papuga_Serialization_pushName( self, &value);
+					rt &= stk.push( value);
+				}
+				break;
+			case papuga_RequestElementType_Close:
 				if (lastelemtype == papuga_RequestElementType_Open)
 				{
 					if (stk.back())
@@ -1375,7 +1415,10 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 					{
 						rt &= serializeMergeResult( self, *stk.back(), errcode);
 					}
-					rt &= papuga_Serialization_pushClose( self);
+					if (!stk.isRoot())
+					{
+						rt &= papuga_Serialization_pushClose( self);
+					}
 				}
 				stk.pop();
 				break;

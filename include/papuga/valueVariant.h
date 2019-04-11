@@ -87,7 +87,7 @@ extern "C" {
 * @param[out] self_ pointer to structure 
 * @param[in] enc_ string character set encoding
 * @param[in] val_ value to initialize structure with
-* @param[in] sz_ size of val_ in units (bytes for UTF8 and int16 for UTF16)
+* @param[in] sz_ size of val_ in bytes
 */
 #define papuga_init_ValueVariant_string_enc(self_,enc_,val_,sz_){papuga_ValueVariant* s = self_; s->valuetype = (unsigned char)papuga_TypeString; s->encoding=(enc_); s->_tag=0; s->length=(sz_); s->value.string=(const char*)(val_);}
 

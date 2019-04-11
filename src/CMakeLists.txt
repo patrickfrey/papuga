@@ -6,6 +6,8 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 set( source_files
 	allocator.c
 	serialization.c
+	serialization_json.cpp
+	serialization_xml.cpp
 	callResult.c
 	callArgs.c
 	errors.c
@@ -47,6 +49,7 @@ link_directories(
 # LIBRARIES
 # ------------------------------
 add_library( papuga_devel STATIC ${source_files} )
+target_link_libraries( papuga_devel papuga_cjson ${Intl_LIBRARIES} )
 
 add_library( papuga_request_devel STATIC ${source_files_request} )
 target_link_libraries( papuga_request_devel papuga_devel papuga_cjson ${Intl_LIBRARIES} )

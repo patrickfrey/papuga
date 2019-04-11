@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<doc>
+<docid>123</docid>
+<title>Persons and products</title>
+<content>
+<list>
+<employee>
+<surname>Hubert</surname>
+<lastname>Schulz</lastname>
+</employee>
+<employee>
+<surname>Greta</surname>
+<lastname>Garbo</lastname>
+</employee>
+</list>
+<product>
+<class>umbrella</class>
+<property>solid</property>
+<price>31.10</price>
+</product>
+<product>
+<class>car</class>
+<property>fast</property>
+<price>45452.95</price>
+</product>
+<product>
+<class>sword</class>
+<property>steal</property>
+<price>2456.50</price>
+</product>
+</content>
+</doc>

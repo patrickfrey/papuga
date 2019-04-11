@@ -1,0 +1,34 @@
+{
+    "doc": {
+        "docid": 123,
+        "title": "Persons and products",
+        "content": {
+            "list": {
+                "employee": [
+                    {
+                        "surname": "Hubert",
+                        "lastname": "Schulz"
+                    },{
+                        "surname": "Greta",
+                        "lastname": "Garbo"
+                    }
+                ]
+            },
+            "product": [
+                {
+                    "class": "umbrella",
+                    "property": "solid",
+                    "price": "31.10"
+                },{
+                    "class": "car",
+                    "property": "fast",
+                    "price": "45452.95"
+                },{
+                    "class": "sword",
+                    "property": "steal",
+                    "price": "2456.50"
+                }
+            ]
+        }
+    }
+}

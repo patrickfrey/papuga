@@ -58,11 +58,11 @@ struct PrintStruct
 				case LineMode:
 					if (structid)
 					{
-						out << indent << "open #" << structid << std::endl;
+						out << indent << "open #" << structid;
 					}
 					else
 					{
-						out << indent << "open" << std::endl;
+						out << indent << "open";
 					}
 					indent.append( "  ");
 					break;
@@ -80,7 +80,7 @@ struct PrintStruct
 				switch (mode)
 				{
 					case LineMode:
-						out << "..." << std::endl;
+						out << indent << "...";
 						break;
 					case BracketMode:
 						out << "...";
@@ -99,7 +99,7 @@ struct PrintStruct
 			{
 				case LineMode:
 					indent.resize( indent.size()-2);
-					out << indent << "close" << std::endl;
+					out << indent << "close";
 					break;
 				case BracketMode:
 					out << "}";
@@ -117,7 +117,7 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "name " << value << std::endl;
+					out << indent << "name " << value;
 					break;
 				case BracketMode:
 					if (itemcnt)
@@ -138,7 +138,7 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "value NULL" << std::endl;
+					out << indent << "value NULL";
 					break;
 				case BracketMode:
 					if (itemcnt++)
@@ -158,7 +158,7 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "value <" << typenam << ">" << std::endl;
+					out << indent << "value <" << typenam << ">";
 					break;
 				case BracketMode:
 					if (itemcnt++)
@@ -178,7 +178,7 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "value " << value << std::endl;
+					out << indent << "value " << value;
 					break;
 				case BracketMode:
 					if (itemcnt++)
@@ -198,7 +198,7 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "value \"" << value << "\"" << std::endl;
+					out << indent << "value \"" << value << "\"";
 					break;
 				case BracketMode:
 					if (itemcnt++)

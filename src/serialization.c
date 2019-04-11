@@ -454,3 +454,64 @@ void papuga_SerializationIter_skip( papuga_SerializationIter* self)
 	}
 }
 
+static bool SerializationIter_skip_structure_open( papuga_SerializationIter* self)
+{
+	int taglevel = 1;
+	while (taglevel > 1 && !papuga_SerializationIter_eof( self))
+	{
+		papuga_Tag tg = papuga_SerializationIter_tag( self);
+		papuga_SerializationIter_skip( self);
+		switch (tg)
+		{
+			case papuga_TagValue:
+				break;
+			case papuga_TagOpen:
+				++taglevel;
+				break;
+			case papuga_TagClose:
+				--taglevel;
+				break;
+			case papuga_TagName:
+				break;
+			default:
+				return false;
+		}
+	}
+	return taglevel == 0;
+}
+
+bool papuga_SerializationIter_skip_structure( papuga_SerializationIter* self)
+{
+	papuga_Tag tg = papuga_SerializationIter_tag( self);
+	if (papuga_SerializationIter_eof( self)) return false;
+	switch (tg)
+	{
+		case papuga_TagValue:
+			papuga_SerializationIter_skip( self);
+			return true;
+		case papuga_TagOpen:
+			papuga_SerializationIter_skip( self);
+			return SerializationIter_skip_structure_open( self);
+		case papuga_TagClose:
+			return false;
+		case papuga_TagName:
+			papuga_SerializationIter_skip( self);
+			tg = papuga_SerializationIter_tag( self);
+			switch (tg)
+			{
+				case papuga_TagValue:
+					papuga_SerializationIter_skip( self);
+					return true;
+				case papuga_TagOpen:
+					papuga_SerializationIter_skip( self);
+					return SerializationIter_skip_structure_open( self);
+				case papuga_TagClose:
+					return false;
+				case papuga_TagName:
+					return false;
+			}
+			return false;
+	}
+	return false;
+}
+

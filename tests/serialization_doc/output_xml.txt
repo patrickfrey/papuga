@@ -1,0 +1,57 @@
+open
+  name doc
+  open
+    name docid
+    value "123"
+    name title
+    value "Persons and products"
+    name content
+    open
+      name list
+      open
+        name employee
+        open
+          open
+            name surname
+            value "Hubert"
+            name lastname
+            value "Schulz"
+          close
+          open
+            name surname
+            value "Greta"
+            name lastname
+            value "Garbo"
+          close
+        close
+      close
+      name product
+      open
+        open
+          name class
+          value "umbrella"
+          name property
+          value "solid"
+          name price
+          value "31.10"
+        close
+        open
+          name class
+          value "car"
+          name property
+          value "fast"
+          name price
+          value "45452.95"
+        close
+        open
+          name class
+          value "sword"
+          name property
+          value "steal"
+          name price
+          value "2456.50"
+        close
+      close
+    close
+  close
+close
