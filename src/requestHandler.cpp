@@ -1076,18 +1076,22 @@ struct MergeResultIter
 {
 	MergeResult* result;
 	int keyitr;
+	bool active;
 
-	bool more() const				{return keyitr+1 < result->keyarsize;}
-	void next()					{++keyitr;}
-	const char* name() const			{return result->keyar[ keyitr].name;}
-	std::size_t namelen() const			{return result->keyar[ keyitr].namelen;}
-	void init( MergeResult* res)			{result = res; keyitr=0;}
-	bool valid() const				{return !!result;}
-	void clear()					{init(0);}
+	bool more() const					{return keyitr+1 < result->keyarsize;}
+	void next()						{++keyitr;}
+	const char* name() const				{return result->keyar[ keyitr].name;}
+	std::size_t namelen() const				{return result->keyar[ keyitr].namelen;}
+	void init( MergeResult* res)				{result = res; keyitr=0;}
+	bool valid() const					{return !!result;}
+	bool hasResult() const					{return !!result && active;}
+	void clear()						{init(0);}
+	void inactivate()					{active=false;}
+	void activate()						{active=true;}
 
-	explicit MergeResultIter( MergeResult* res=0)		:result(res),keyitr(0){}
-	MergeResultIter( const MergeResultIter& o)		:result(o.result),keyitr(o.keyitr){}
-	MergeResultIter& operator=( const MergeResultIter& o)	{result=o.result; keyitr=o.keyitr; return *this;}
+	explicit MergeResultIter( MergeResult* res=0)		:result(res),keyitr(0),active(!!res){}
+	MergeResultIter( const MergeResultIter& o)		:result(o.result),keyitr(o.keyitr),active(o.active){}
+	MergeResultIter& operator=( const MergeResultIter& o)	{result=o.result; keyitr=o.keyitr; active=o.active; return *this;}
 };
 
 static bool mergeResultAddKeyPart( MergeResult& mr, const char* key, std::size_t keylen, papuga_ErrorCode* errcode)
@@ -1180,7 +1184,7 @@ static bool serializeMergeResultValue( papuga_Serialization* self, MergeResultIt
 		}
 		else
 		{
-			*errcode = papuga_AddressedItemNotFound;
+			*errcode = papuga_ValueUndefined;
 			rt = false;
 		}
 	}
@@ -1191,7 +1195,7 @@ static bool serializeMergeResultValue( papuga_Serialization* self, MergeResultIt
 	}
 	else
 	{
-		*errcode = papuga_AddressedItemNotFound;
+		*errcode = papuga_ValueUndefined;
 		rt = false;
 	}
 	return rt;
@@ -1226,9 +1230,16 @@ static bool testMergeResultUsed( const MergeResult* mr, std::size_t mrsize)
 	std::size_t mi = 0;
 	for (; mi < mrsize; ++mi)
 	{
-		if ((mr[mi].var->isArray && !papuga_SerializationIter_eof( &mr[mi].iter)) || !mr[mi].used) break;
+		if (mr[mi].var->isArray)
+		{
+			if (!papuga_SerializationIter_eof( &mr[mi].iter)) return false;
+		}
+		else
+		{
+			if (!mr[mi].used) return false;
+		}
 	}
-	return mi == mrsize;
+	return true;
 }
 
 static bool serializeMergeResultArray( papuga_Serialization* self, MergeResultIter* ar, std::size_t asize, papuga_ErrorCode* errcode)
@@ -1319,6 +1330,24 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 		Stack( papuga_ErrorCode* errcode_, MergeResult* mergeResult_, std::size_t mergeResultSize_)
 			:errcode(errcode_),mergeResult(mergeResult_),mergeResultSize(mergeResultSize_),ar(),mergeResultMatch(0){}
 
+		bool push()
+		{
+			// Open without name is an array element. An array element inherits the properties of the parent for the merge
+			try
+			{
+				MergeResultIter follow( ar.back());
+				ar.back().inactivate();
+				follow.activate();
+				ar.push_back( follow);
+				return true;
+			}
+			catch (const std::bad_alloc&)
+			{
+				*errcode = papuga_NoMemError;
+				return false;
+			}
+		}
+
 		bool push( const papuga_ValueVariant& name)
 		{
 			try
@@ -1331,6 +1360,7 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 						if (ar.back().more())
 						{
 							MergeResultIter follow( ar.back());
+							follow.activate();
 							follow.next();
 							ar.back().clear();
 							ar.push_back( follow);
@@ -1350,8 +1380,8 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 							MergeResultIter follow( res);
 							if (follow.more())
 							{
+								follow.activate();
 								follow.next();
-								ar.back().clear();
 								ar.push_back( follow);
 							}
 							else
@@ -1427,6 +1457,7 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 	papuga_Serialization inputser;
 	papuga_init_Serialization( &inputser, self->allocator);
 	papuga_SerializationIter inputitr;
+	papuga_ValueVariant* nameval = NULL;
 	
 	switch (input_doctype)
 	{
@@ -1444,45 +1475,86 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 	papuga_init_SerializationIter( &inputitr, &inputser);
 	Stack stk( errcode, mergeResult, mergeResultSize);
 
-	while (rt)
+	while (rt && !papuga_SerializationIter_eof( &inputitr))
 	{
-		switch (papuga_SerializationIter_tag( &inputitr))
+		papuga_Tag tg = papuga_SerializationIter_tag( &inputitr);
+		switch (tg)
 		{
 			case papuga_TagValue:
-				rt &= papuga_Serialization_pushValue( self, papuga_SerializationIter_value( &inputitr));
+				if (nameval)
+				{
+					rt &= stk.push( *nameval);
+					if (stk.match().valid())
+					{
+						rt &= serializeMergeResult( self, stk.match(), false/*all*/, errcode);
+						rt &= stk.pop();
+					}
+					else
+					{
+						rt &= stk.pop();
+						if (stk.match().valid())
+						{
+							rt &= papuga_Serialization_pushName( self, nameval);
+							rt &= serializeMergeResult( self, stk.match(), false/*all*/, errcode);
+						}
+						else
+						{
+							rt &= papuga_Serialization_pushName( self, nameval);
+							rt &= papuga_Serialization_pushValue( self, papuga_SerializationIter_value( &inputitr));
+						}
+					}
+				}
+				else
+				{
+					rt &= papuga_Serialization_pushValue( self, papuga_SerializationIter_value( &inputitr));
+				}
 				papuga_SerializationIter_skip( &inputitr);
+				nameval = NULL;
 				break;
 			case papuga_TagOpen:
-				rt &= papuga_Serialization_pushOpen( self);
-				papuga_SerializationIter_skip( &inputitr);
+				if (nameval)
+				{
+					rt &= stk.push( *nameval);
+					if (stk.match().valid())
+					{
+						rt &= serializeMergeResult( self, stk.match(), false/*all*/, errcode);
+						papuga_SerializationIter_skip_structure( &inputitr);
+						stk.pop();
+					}
+					else
+					{
+						rt &= papuga_Serialization_pushName( self, nameval);
+						rt &= papuga_Serialization_push( self, tg, papuga_SerializationIter_value( &inputitr));
+						papuga_SerializationIter_skip( &inputitr);
+					}
+				}
+				else
+				{
+					rt &= stk.push();
+					rt &= papuga_Serialization_push( self, tg, papuga_SerializationIter_value( &inputitr));
+					papuga_SerializationIter_skip( &inputitr);
+				}
+				nameval = NULL;
 				break;
 			case papuga_TagClose:
 				rt &= stk.pop();
-				if (stk.match().valid())
+				if (stk.match().hasResult())
 				{
 					rt &= serializeMergeResult( self, stk.match(), false/*all*/, errcode);
 				}
 				rt &= papuga_Serialization_pushClose( self);
 				papuga_SerializationIter_skip( &inputitr);
+				nameval = NULL;
 				break;
 			case papuga_TagName:
-				rt &= stk.push( *papuga_SerializationIter_value( &inputitr));
-				if (stk.match().valid())
-				{
-					rt &= serializeMergeResult( self, stk.match(), false/*all*/, errcode);
-					rt &= papuga_SerializationIter_skip_structure( &inputitr);
-				}
-				else
-				{
-					rt &= papuga_Serialization_pushName( self, papuga_SerializationIter_value( &inputitr));
-					papuga_SerializationIter_skip( &inputitr);
-				}
+				nameval = papuga_SerializationIter_value( &inputitr);
+				papuga_SerializationIter_skip( &inputitr);
 				break;
 		}
 	}
 	if (rt && !testMergeResultUsed( mergeResult, mergeResultSize))
 	{
-		*errcode = papuga_AddressedItemNotFound;
+		*errcode = papuga_ValueUndefined;
 		rt = false;
 	}
 	if (!rt && *errcode == papuga_Ok)
