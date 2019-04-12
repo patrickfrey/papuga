@@ -250,10 +250,11 @@ bool papuga_Serialization_pushValue_bool( papuga_Serialization* self, bool value
 * @param[in] content pointer to content of the JSON document to append
 * @param[in] contentlen length of the content of the JSON document in bytes
 * @param[in] enc encoding of the content of the JSON document to append
+* @param[in] withRoot true if to serialize with single root element, false if the root element is not part of the serialization
 * @param[out] errcode error code in case of error
 * @return true on success, false on error, see error code returned as out parameter for the error
 */
-bool papuga_Serialization_append_json( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, papuga_ErrorCode* errcode);
+bool papuga_Serialization_append_json( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool withRoot, papuga_ErrorCode* errcode);
 
 /*
 * @brief Add an XML document as structure without starting/ending open/close to the serialization
@@ -261,11 +262,12 @@ bool papuga_Serialization_append_json( papuga_Serialization* self, const char* c
 * @param[in] content pointer to content of the JSON document to append
 * @param[in] contentlen length of the content of the JSON document in bytes
 * @param[in] enc encoding of the content of the JSON document to append
+* @param[in] withRoot true if to serialize with single root element, false if the root element is not part of the serialization
 * @param[in] ignoreEmptyContent true, accept beautified XML, ignoring content containing only spaces and end of lines, false standard XML behaviour
 * @param[out] errcode error code in case of error
 * @return true on success, false on error, see error code returned as out parameter for the error
 */
-bool papuga_Serialization_append_xml( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool ignoreEmptyContent, papuga_ErrorCode* errcode);
+bool papuga_Serialization_append_xml( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool withRoot, bool ignoreEmptyContent, papuga_ErrorCode* errcode);
 
 /*
 * @brief Conversing a tail sequence from an array to an associative array

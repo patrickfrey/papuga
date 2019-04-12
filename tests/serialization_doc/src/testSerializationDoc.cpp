@@ -92,7 +92,7 @@ int main( int argc, const char* argv[])
 		papuga_init_Serialization( &ser, &allocator);
 		if (doctype == "XML")
 		{
-			if (!papuga_Serialization_append_xml( &ser, input.c_str(), input.size(), papuga_UTF8, true/*ignoreEmptyContent*/, &errcode))
+			if (!papuga_Serialization_append_xml( &ser, input.c_str(), input.size(), papuga_UTF8, true/*withRoot*/, true/*ignoreEmptyContent*/, &errcode))
 			{
 				papuga_destroy_Allocator( &allocator);
 				throw std::runtime_error( std::string("failed serializing XML input: ") + papuga_ErrorCode_tostring(errcode));
@@ -100,7 +100,7 @@ int main( int argc, const char* argv[])
 		}
 		else if (doctype == "JSON")
 		{
-			if (!papuga_Serialization_append_json( &ser, input.c_str(), input.size(), papuga_UTF8, &errcode))
+			if (!papuga_Serialization_append_json( &ser, input.c_str(), input.size(), papuga_UTF8, true/*withRoot*/, &errcode))
 			{
 				papuga_destroy_Allocator( &allocator);
 				throw std::runtime_error( std::string("failed serializing XML input: ") + papuga_ErrorCode_tostring(errcode));

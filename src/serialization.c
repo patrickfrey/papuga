@@ -457,7 +457,7 @@ void papuga_SerializationIter_skip( papuga_SerializationIter* self)
 static bool SerializationIter_skip_structure_open( papuga_SerializationIter* self)
 {
 	int taglevel = 1;
-	while (taglevel > 1 && !papuga_SerializationIter_eof( self))
+	while (taglevel > 0 && !papuga_SerializationIter_eof( self))
 	{
 		papuga_Tag tg = papuga_SerializationIter_tag( self);
 		papuga_SerializationIter_skip( self);

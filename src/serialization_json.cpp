@@ -89,7 +89,7 @@ static bool Serialization_append_json( papuga_Serialization* self, const cJSON* 
 	return rt;
 }
 
-extern "C" bool papuga_Serialization_append_json( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, papuga_ErrorCode* errcode)
+extern "C" bool papuga_Serialization_append_json( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool withRoot, papuga_ErrorCode* errcode)
 {
 	bool rt = false;
 	if (enc != papuga_UTF8)
@@ -120,14 +120,56 @@ extern "C" bool papuga_Serialization_append_json( papuga_Serialization* self, co
 	}
 	else if (tree->child)
 	{
-		try
+		if (withRoot)
 		{
-			rt = Serialization_append_json( self, tree->child, true/*isDict*/, 0/*depth*/, errcode);
+			try
+			{
+				rt = Serialization_append_json( self, tree->child, true/*isDict*/, 0/*depth*/, errcode);
+			}
+			catch (const std::bad_alloc&)
+			{
+				*errcode = papuga_NoMemError;
+				rt = false;
+			}
 		}
-		catch (const std::bad_alloc&)
+		else
 		{
-			*errcode = papuga_NoMemError;
-			rt = false;
+			// Skip root element:
+			if (tree->child->next)
+			{
+				// ... forbidden for multiple root elements
+				*errcode = papuga_DuplicateDefinition;
+				rt = false;
+			}
+			else if (tree->child->child)
+			{
+				try
+				{
+					rt = Serialization_append_json( self, tree->child->child, true/*isDict*/, 0/*depth*/, errcode);
+				}
+				catch (const std::bad_alloc&)
+				{
+					*errcode = papuga_NoMemError;
+					rt = false;
+				}
+			}
+			else if (tree->child->valuestring)
+			{
+				const char* valuestr = papuga_Allocator_copy_string( self->allocator, tree->child->valuestring, std::strlen(tree->child->valuestring));
+				if (!valuestr)
+				{
+					*errcode = papuga_NoMemError;
+					rt = false;
+				}
+				else
+				{
+					rt = papuga_Serialization_pushValue_charp( self, valuestr);
+				}
+			}
+			else
+			{
+				rt = papuga_Serialization_pushValue_void( self);
+			}
 		}
 	}
 	else if (tree->valuestring)

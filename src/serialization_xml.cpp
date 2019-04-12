@@ -157,7 +157,7 @@ static bool isEmptyContent( const char* str, std::size_t size)
 	return si == size;
 }
 
-extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool ignoreEmptyContent, papuga_ErrorCode* errcode)
+extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool withRoot, bool ignoreEmptyContent, papuga_ErrorCode* errcode)
 {
 	struct Structure
 	{
@@ -343,10 +343,12 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 			bool isArray;
 			bool isNew;
 			bool isEndOfArray;
+			bool isRoot;
 		};
 		struct CloseFlags
 		{
 			bool isEndOfArray;
+			bool isRoot;
 		};
 
 		int m_arrays[ PAPUGA_MAX_RECURSION_DEPTH];
@@ -389,6 +391,7 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 				return false;
 			}
 			++m_depth;
+			flags.isRoot = m_depth == 1;
 			if (m_arrayStack[ m_depth].namelen == tagnamelen && 0==std::memcmp( m_arrayStack[ m_depth].name, tagname, tagnamelen))
 			{
 				flags.isNew = false;
@@ -414,6 +417,7 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 		bool pop( CloseFlags& flags)
 		{
 			flags.isEndOfArray = m_arrayStack[ m_depth+1].isArrayElem;
+			flags.isRoot = m_depth == 1;
 			if (m_depth == 0)
 			{
 				*m_errcode = papuga_SyntaxError;
@@ -535,12 +539,15 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 					{
 						if (flags.isNew)
 						{
-							rt &= papuga_Serialization_pushName_string( self, valstr, valsize);
-							rt &= papuga_Serialization_pushOpen( self);
+							if (withRoot || !flags.isRoot)
+							{
+								rt &= papuga_Serialization_pushName_string( self, valstr, valsize);
+								rt &= papuga_Serialization_pushOpen( self);
+							}
 						}
 						rt &= currentStruct.addOpen();
 					}
-					else
+					else if (withRoot || !flags.isRoot)
 					{
 						rt &= currentStruct.addOpen( valstr, valsize);
 					}
@@ -555,7 +562,10 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 					{
 						rt &= papuga_Serialization_pushClose( self);
 					}
-					rt &= currentStruct.addClose();
+					if (withRoot || !flags.isRoot)
+					{
+						rt &= currentStruct.addClose();
+					}
 					rt &= currentStruct.flushStructure( self);
 					break;
 				}
