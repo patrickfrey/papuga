@@ -11,6 +11,7 @@
 */
 #include "papuga/valueVariant.h"
 #include "papuga/allocator.h"
+#include "papuga/serialization.h"
 #include "papuga/typedefs.h"
 #include <stdlib.h>
 
@@ -85,5 +86,90 @@ bool papuga_ValueVariant_print( FILE* out, const papuga_ValueVariant* val)
 		papuga_destroy_Allocator( &allocator);
 		return false;
 	}
+}
+
+static bool isValidStructId( int64_t id)
+{
+	return id >= 0 && id <= 255;
+}
+
+static bool ValueVariant_isvalid( const papuga_ValueVariant* value);
+
+static bool Serialization_isvalid( const papuga_Serialization* ser)
+{
+	int taglevel = 0;
+	papuga_SerializationIter iter;
+
+	if (!isValidStructId( ser->structid)) return false;
+	papuga_init_SerializationIter( &iter, (papuga_Serialization*)ser);
+	for (; !papuga_SerializationIter_eof( &iter); papuga_SerializationIter_skip( &iter))
+	{
+		papuga_ValueVariant* value = papuga_SerializationIter_value( &iter);
+		switch (papuga_SerializationIter_tag( &iter))
+		{
+			case papuga_TagValue:
+				if (!ValueVariant_isvalid( value))
+				{
+					return false;
+				}
+				break;
+			case papuga_TagOpen:
+				++taglevel;
+				if (papuga_ValueVariant_defined( value))
+				{
+					if (value->valuetype != papuga_TypeInt || !isValidStructId( value->value.Int))
+					{
+						return false;
+					}
+				}
+				break;
+			case papuga_TagClose:
+				--taglevel;
+				if (papuga_ValueVariant_defined( value))
+				{
+					return false;
+				}
+				break;
+			case papuga_TagName:
+				if (papuga_ValueVariant_defined( value))
+				{
+					if (!papuga_ValueVariant_isatomic( value)) return false;
+				}
+				break;
+			default:
+				return false;
+		}
+	}
+	if (taglevel != 0) return false;
+	return true;
+}
+
+static bool ValueVariant_isvalid( const papuga_ValueVariant* value)
+{
+	if (!papuga_ValueVariant_defined( value))
+	{
+		return true;
+	}
+	else if (papuga_ValueVariant_isatomic( value))
+	{
+		return true;
+	}
+	else if (value->valuetype == papuga_TypeSerialization)
+	{
+		return Serialization_isvalid( value->value.serialization);
+	}
+	else if (value->valuetype == papuga_TypeHostObject || value->valuetype == papuga_TypeIterator)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool papuga_ValueVariant_isvalid( const papuga_ValueVariant* self)
+{
+	return ValueVariant_isvalid( self);
 }
 

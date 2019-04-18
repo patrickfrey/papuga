@@ -5,6 +5,7 @@ cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 # --------------------------------------
 set( source_files
 	allocator.c
+	typedefs.c
 	serialization.c
 	serialization_json.cpp
 	serialization_xml.cpp

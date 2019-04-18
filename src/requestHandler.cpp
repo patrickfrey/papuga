@@ -14,6 +14,7 @@
 #include "papuga/classdef.h"
 #include "papuga/allocator.h"
 #include "papuga/serialization.h"
+#include "papuga/serialization.hpp"
 #include "papuga/valueVariant.h"
 #include "papuga/valueVariant.hpp"
 #include "papuga/errors.h"
@@ -32,6 +33,7 @@
 
 /* @brief Hook for GETTEXT */
 #define _TXT(x) x
+#undef PAPUGA_LOWLEVEL_DEBUG
 
 template <typename TYPE>
 static TYPE* alloc_type( papuga_Allocator* allocator)
@@ -749,6 +751,13 @@ static bool RequestVariable_add_result( RequestVariable& var, papuga_ValueVarian
 		errcode = papuga_MixedConstruction;
 		return false;
 	}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	if (!papuga_ValueVariant_isvalid( &var.value))
+	{
+		errcode = papuga_LogicError;
+		return false;
+	}
+#endif
 	return true;
 }
 
@@ -988,10 +997,9 @@ static bool serializeResultValue( papuga_Serialization* self, const papuga_Value
 		//... variable content is array
 		rt &= papuga_Serialization_pushOpen( self);
 
-		papuga_Serialization elemser;
-		papuga_init_Serialization( &elemser, self->allocator);
+		papuga_Serialization* elemser = papuga_Allocator_alloc_Serialization( self->allocator);
 		papuga_ValueVariant elemserval;
-		papuga_init_ValueVariant_serialization( &elemserval, &elemser);
+		papuga_init_ValueVariant_serialization( &elemserval, elemser);
 
 		papuga_SerializationIter elemiter;
 		papuga_init_SerializationIter( &elemiter, value.value.serialization);
@@ -1007,7 +1015,7 @@ static bool serializeResultValue( papuga_Serialization* self, const papuga_Value
 			papuga_SerializationIter_skip( &elemiter);
 			++elementcnt;
 
-			papuga_Serialization_push( &elemser, tag, elemvalue);
+			papuga_Serialization_push( elemser, tag, elemvalue);
 
 			switch (tag)
 			{
@@ -1016,7 +1024,7 @@ static bool serializeResultValue( papuga_Serialization* self, const papuga_Value
 					{
 						rt &= papuga_Serialization_pushValue( self, elemvalue);
 
-						papuga_init_Serialization( &elemser, self->allocator);
+						papuga_init_Serialization( elemser, self->allocator);
 						elementcnt = 0;
 					}
 					break;
@@ -1029,7 +1037,9 @@ static bool serializeResultValue( papuga_Serialization* self, const papuga_Value
 					{
 						++resultcnt;
 						rt &= papuga_Serialization_pushValue( self, &elemserval);
-						papuga_init_Serialization( &elemser, self->allocator);
+
+						elemser = papuga_Allocator_alloc_Serialization( self->allocator);
+						papuga_init_ValueVariant_serialization( &elemserval, elemser);
 						elementcnt = 0;
 					}
 					break;
@@ -1171,6 +1181,13 @@ static bool serializeMergeResultValue( papuga_Serialization* self, MergeResultIt
 			while (!papuga_SerializationIter_eof( &res.iter))
 			{
 				papuga_ValueVariant* value = papuga_SerializationIter_value( &res.iter);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+				if (!papuga_ValueVariant_isvalid( value))
+				{
+					*errcode = papuga_LogicError;
+					return false;
+				}
+#endif
 				papuga_SerializationIter_skip( &res.iter);
 				rt &= serializeResultValue( self, *value, errcode);
 			}
@@ -1222,6 +1239,15 @@ static bool serializeMergeResult( papuga_Serialization* self, MergeResultIter& r
 	{
 		*errcode = papuga_NoMemError;
 	}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	papuga_ValueVariant serval;
+	papuga_init_ValueVariant_serialization( &serval, self);
+	if (!papuga_ValueVariant_isvalid( &serval))
+	{
+		*errcode = papuga_LogicError;
+		return false;
+	}
+#endif
 	return rt;
 }
 
@@ -1478,6 +1504,10 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 	while (rt && !papuga_SerializationIter_eof( &inputitr))
 	{
 		papuga_Tag tg = papuga_SerializationIter_tag( &inputitr);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		const papuga_ValueVariant* tgval = papuga_SerializationIter_value( &inputitr);
+		std::cerr << "TAG " << papuga_Tag_name( tg) << " " << papuga::ValueVariant_tostring( *tgval, *errcode) << std::endl;
+#endif
 		switch (tg)
 		{
 			case papuga_TagValue:
@@ -1561,6 +1591,12 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 	{
 		*errcode = papuga_NoMemError;
 	}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	if (rt)
+	{
+		std::cerr << "RESULT " << papuga::Serialization_tostring( *self, true/*linemode*/, 30/*maxdepth*/, *errcode) << std::endl;
+	}
+#endif
 	return rt;
 }
 

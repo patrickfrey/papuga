@@ -454,6 +454,29 @@ void papuga_SerializationIter_skip( papuga_SerializationIter* self)
 	}
 }
 
+papuga_Tag papuga_SerializationIter_follow_tag( const papuga_SerializationIter* self)
+{
+	int chunkpos = self->chunkpos + 1;
+	if (chunkpos >= self->chunk->size)
+	{
+		if (self->chunk->next)
+		{
+			const papuga_NodeChunk* chunk = self->chunk->next;
+			const papuga_ValueVariant* value = &chunk->ar[0].content;
+			return (papuga_Tag)value->_tag;
+		}
+		else
+		{
+			return papuga_TagClose;
+		}
+	}
+	else
+	{
+		const papuga_ValueVariant* value = &self->chunk->ar[ chunkpos].content;
+		return (papuga_Tag)value->_tag;
+	}
+}
+
 static bool SerializationIter_skip_structure_open( papuga_SerializationIter* self)
 {
 	int taglevel = 1;

@@ -140,6 +140,8 @@ typedef enum papuga_Tag
 	papuga_TagName						/*< The name of the following value (Value) or structure (Open) */
 } papuga_Tag;
 
+const char* papuga_Tag_name( papuga_Tag tg);
+
 /*
 * @brief Representation of a variadic value type
 */

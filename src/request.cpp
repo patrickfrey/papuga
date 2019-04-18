@@ -1640,29 +1640,22 @@ public:
 			for (; mi != me; ++mi)
 			{
 				TagLevelRange taglevelRange = getTagLevelRange( stdef->members[ mi].resolvetype, taglevel, stdef->members[ mi].max_tag_diff);
-				if (stdef->members[ mi].name)
+				if (stdef->members[ mi].name == 0)
 				{
-					if (stdef->members[ mi].name == 0)
+					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, true/*embedded*/))
 					{
-						if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, true/*embedded*/))
-						{
-							m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
-							return false;
-						}
-					}
-					else
-					{
-						sink.pushName( stdef->members[ mi].name);
-						if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, false/*embedded*/))
-						{
-							m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
-							return false;
-						}
+						m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
+						return false;
 					}
 				}
 				else
 				{
-					
+					sink.pushName( stdef->members[ mi].name);
+					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, false/*embedded*/))
+					{
+						m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
+						return false;
+					}
 				}
 			}
 			return true;

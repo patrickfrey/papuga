@@ -148,6 +148,15 @@ extern "C" {
 #define papuga_ValueVariant_isstring(self_)			(0!=((1U << (self_)->valuetype) & papuga_StringTypeMask))
 
 /*
+ * @brief Check a value variant to be valid
+ * @note Tests for data corruption
+ * @remark Costly operation
+ * @param[in] self_ pointer to structure
+ * @return true, if yes
+ */
+bool papuga_ValueVariant_isvalid( const papuga_ValueVariant* self);
+
+/*
 * @brief Convert a value variant to an UTF-8 string with its length specified (not necessarily null terminated)
 * @param[in] self pointer to structure
 * @param[in,out] allocator allocator to use for deep copy of string

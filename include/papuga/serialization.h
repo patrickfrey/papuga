@@ -351,6 +351,13 @@ bool papuga_SerializationIter_skip_structure( papuga_SerializationIter* self);
 #define papuga_SerializationIter_tag(self_)		((papuga_Tag)(self_)->tag)
 
 /*
+* @brief Get the follow tag of the current element
+* @param[in,out] self pointer to structure 
+* @return the tag of the following element
+*/
+papuga_Tag papuga_SerializationIter_follow_tag( const papuga_SerializationIter* self);
+
+/*
 * @brief Read the current value
 * @param[in] self pointer to structure 
 */
