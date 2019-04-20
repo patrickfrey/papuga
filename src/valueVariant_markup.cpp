@@ -789,6 +789,11 @@ static bool ValueVariant_tomarkup_node( OutputContext& ctx, const char* name, co
 		{
 			case StructType::Array:
 				ctx.setNextTagInvisible();
+				if (!name)
+				{
+					ctx.errcode = papuga_SyntaxError;
+					return false;
+				}
 				return ValueVariant_tomarkup( ctx, name, value);
 			case StructType::Dict:
 			case StructType::Struct:
@@ -1129,18 +1134,29 @@ static void* ValueVariant_tomarkup(
 	OutputContext ctx( styleType, structdefs, PAPUGA_MAX_RECURSION_DEPTH);
 
 	ctx.out.append( hdr);
-	if (rootname)
+	if (rootname && !elemname)
 	{
-		append_tag_open_root( ctx, rootname);
+		if (!ValueVariant_tomarkup_node( ctx, rootname, *self))
+		{
+			*err = ctx.errcode;
+			return NULL;
+		}
 	}
-	if (!ValueVariant_tomarkup_node( ctx, elemname, *self))
+	else
 	{
-		*err = ctx.errcode;
-		return NULL;
-	}
-	if (rootname)
-	{
-		append_tag_close_root( ctx, rootname);
+		if (rootname)
+		{
+			append_tag_open_root( ctx, rootname);
+		}
+		if (!ValueVariant_tomarkup_node( ctx, elemname, *self))
+		{
+			*err = ctx.errcode;
+			return NULL;
+		}
+		if (rootname)
+		{
+			append_tag_close_root( ctx, rootname);
+		}
 	}
 	ctx.out.append( tail);
 	void* rt = encodeRequestResultString( ctx.out, enc, len, &ctx.errcode);
