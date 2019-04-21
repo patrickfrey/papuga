@@ -208,7 +208,7 @@ bool papuga_execute_request(
 	switch (doctype)
 	{
 		case papuga_ContentType_XML:  resstr = (char*)papuga_ValueVariant_toxml( &result, &allocator, structdefs, encoding, rootname, "element", &reslen, &errcode); break;
-		case papuga_ContentType_JSON: resstr = (char*)papuga_ValueVariant_tojson( &result, &allocator, structdefs, encoding, rootname, &reslen, &errcode); break;
+		case papuga_ContentType_JSON: resstr = (char*)papuga_ValueVariant_tojson( &result, &allocator, structdefs, encoding, rootname, "element", &reslen, &errcode); break;
 		case papuga_ContentType_Unknown:
 		default: break;
 	}

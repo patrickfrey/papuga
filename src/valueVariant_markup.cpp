@@ -771,7 +771,7 @@ static bool getStructType( StructType& st, const papuga_Serialization* ser, cons
 }
 
 
-static bool ValueVariant_tomarkup_node( OutputContext& ctx, const char* name, const papuga_ValueVariant& value)
+static bool ValueVariant_tomarkup_node( OutputContext& ctx, const char* elemname, const papuga_ValueVariant& value)
 {
 	if (value.valuetype == papuga_TypeSerialization)
 	{
@@ -789,12 +789,12 @@ static bool ValueVariant_tomarkup_node( OutputContext& ctx, const char* name, co
 		{
 			case StructType::Array:
 				ctx.setNextTagInvisible();
-				if (!name)
+				if (!elemname)
 				{
 					ctx.errcode = papuga_SyntaxError;
 					return false;
 				}
-				return ValueVariant_tomarkup( ctx, name, value);
+				return ValueVariant_tomarkup( ctx, elemname, value);
 			case StructType::Dict:
 			case StructType::Struct:
 				return ValueVariant_tomarkup_fwd( ctx, value);
@@ -805,7 +805,7 @@ static bool ValueVariant_tomarkup_node( OutputContext& ctx, const char* name, co
 	}
 	else
 	{
-		return ValueVariant_tomarkup( ctx, name, value);
+		return ValueVariant_tomarkup( ctx, elemname, value);
 	}
 }
 
@@ -1134,29 +1134,18 @@ static void* ValueVariant_tomarkup(
 	OutputContext ctx( styleType, structdefs, PAPUGA_MAX_RECURSION_DEPTH);
 
 	ctx.out.append( hdr);
-	if (rootname && !elemname)
+	if (rootname)
 	{
-		if (!ValueVariant_tomarkup_node( ctx, rootname, *self))
-		{
-			*err = ctx.errcode;
-			return NULL;
-		}
+		append_tag_open_root( ctx, rootname);
 	}
-	else
+	if (!ValueVariant_tomarkup_node( ctx, elemname, *self))
 	{
-		if (rootname)
-		{
-			append_tag_open_root( ctx, rootname);
-		}
-		if (!ValueVariant_tomarkup_node( ctx, elemname, *self))
-		{
-			*err = ctx.errcode;
-			return NULL;
-		}
-		if (rootname)
-		{
-			append_tag_close_root( ctx, rootname);
-		}
+		*err = ctx.errcode;
+		return NULL;
+	}
+	if (rootname)
+	{
+		append_tag_close_root( ctx, rootname);
 	}
 	ctx.out.append( tail);
 	void* rt = encodeRequestResultString( ctx.out, enc, len, &ctx.errcode);
@@ -1271,12 +1260,13 @@ extern "C" void* papuga_ValueVariant_tojson(
 		const papuga_StructInterfaceDescription* structdefs,
 		papuga_StringEncoding enc,
 		const char* rootname,
+		const char* elemname,
 		size_t* len,
 		papuga_ErrorCode* err)
 {
 	try
 	{
-		return ValueVariant_tomarkup( self, StyleJSON, allocator, structdefs, enc, rootname, NULL, "{"/*hdr*/, "\n}\n"/*tail*/, len, err);
+		return ValueVariant_tomarkup( self, StyleJSON, allocator, structdefs, enc, rootname, elemname, "{"/*hdr*/, "\n}\n"/*tail*/, len, err);
 	}
 	catch (const std::bad_alloc&)
 	{

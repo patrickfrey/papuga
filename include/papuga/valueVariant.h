@@ -336,6 +336,7 @@ void* papuga_ValueVariant_tohtml5(
 * @param[in] structdefs structure descriptions
 * @param[in] enc encoding of the output
 * @param[in] rootname name of root element
+* @param[in] elemname optional name of element in case of an array
 * @param[out] len length of the output in bytes
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the dumped JSON (allocated in result allocator) on success, NULL on failure
@@ -346,6 +347,7 @@ void* papuga_ValueVariant_tojson(
 		const papuga_StructInterfaceDescription* structdefs,
 		papuga_StringEncoding enc,
 		const char* rootname,
+		const char* elemname,
 		size_t* len,
 		papuga_ErrorCode* err);
 
