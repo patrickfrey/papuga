@@ -770,6 +770,20 @@ static bool getStructType( StructType& st, const papuga_Serialization* ser, cons
 	return rt;
 }
 
+static bool ValueVariant_isArray( const papuga_ValueVariant& value)
+{
+	if (value.valuetype == papuga_TypeSerialization)
+	{
+		papuga_SerializationIter seritr;
+		papuga_init_SerializationIter( &seritr, value.value.serialization);
+		papuga_Tag tg = papuga_SerializationIter_tag( &seritr);
+		return (tg == papuga_TagOpen || tg == papuga_TagValue);
+	}
+	else
+	{
+		return false;
+	}
+}
 
 static bool ValueVariant_tomarkup_node( OutputContext& ctx, const char* elemname, const papuga_ValueVariant& value)
 {
@@ -788,7 +802,6 @@ static bool ValueVariant_tomarkup_node( OutputContext& ctx, const char* elemname
 		switch (stid)
 		{
 			case StructType::Array:
-				ctx.setNextTagInvisible();
 				if (!elemname)
 				{
 					ctx.errcode = papuga_SyntaxError;
@@ -1137,6 +1150,10 @@ static void* ValueVariant_tomarkup(
 	if (rootname)
 	{
 		append_tag_open_root( ctx, rootname);
+	}
+	if ((styleType == StyleTEXT || styleType == StyleHTML) && ValueVariant_isArray( *self))
+	{
+		ctx.setNextTagInvisible();
 	}
 	if (!ValueVariant_tomarkup_node( ctx, elemname, *self))
 	{
