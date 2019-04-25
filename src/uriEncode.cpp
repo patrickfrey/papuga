@@ -77,6 +77,7 @@ public:
 	{
 		char const* si = input;
 		char const* se = input + inputlen;
+		bufpos = 0;
 		for (; si != se; ++si)
 		{
 			if (!printCharEncoded( buf, bufsize, bufpos, *si, ar[(unsigned char)*si])) return false;
@@ -114,6 +115,7 @@ public:
 	{
 		char const* si = input;
 		char const* se = input + inputlen;
+		bufpos = 0;
 		for (; si != se; ++si)
 		{
 			if (!printCharEncoded( buf, bufsize, bufpos, *si, ar[(unsigned char)*si])) return false;
