@@ -13,6 +13,7 @@ set( source_files
 	callArgs.c
 	errors.c
 	encoding.c
+	uriEncode.cpp
 	${CMAKE_CURRENT_BINARY_DIR}/internationalization.c
 	stack.c
 	errors.cpp

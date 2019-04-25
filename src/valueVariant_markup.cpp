@@ -17,6 +17,7 @@
 #include "papuga/callResult.h"
 #include "papuga/interfaceDescription.h"
 #include "papuga/stack.h"
+#include "papuga/uriEncode.h"
 #include <string>
 #include <cstring>
 #include <cstdlib>
@@ -402,6 +403,47 @@ static bool append_value( OutputContext& ctx, const papuga_ValueVariant& value)
 	return true;
 }
 
+static bool append_linkid( OutputContext& ctx, const papuga_ValueVariant& value)
+{
+	char buf[ 4096];
+	std::string utf8string;
+	const char* input;
+	size_t inputlen;
+	size_t encodedlen;
+	const char* encoded;
+
+	if (value.valuetype == papuga_TypeString)
+	{
+		if ((papuga_StringEncoding)value.encoding == papuga_UTF8)
+		{
+			input = value.value.string;
+			inputlen = value.length;
+		}
+		else
+		{
+			if (!papuga::ValueVariant_append_string( utf8string, value, ctx.errcode)) return false;
+			input = utf8string.c_str();
+			inputlen = utf8string.size();
+		}
+		if (ctx.styleType == StyleHTML)
+		{
+			encoded = papuga_uri_encode_Html5( buf, sizeof(buf), &encodedlen, input, inputlen, &ctx.errcode);
+		}
+		else
+		{
+			encoded = papuga_uri_encode_Rfc3986( buf, sizeof(buf), &encodedlen, input, inputlen, &ctx.errcode);
+		}
+		if (!encoded) return false;
+
+		ctx.out.append( encoded, encodedlen);
+	}
+	else
+	{
+		if (!papuga::ValueVariant_append_string( ctx.out, value, ctx.errcode)) return false;
+	}
+	return true;
+}
+
 static void append_null_value( OutputContext& ctx)
 {
 	switch (ctx.styleType)
@@ -423,7 +465,14 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 			ctx.out.push_back( '<');
 			ctx.out.append( name);
 			ctx.out.push_back( '>');
-			if (!append_value( ctx, value)) return false;
+			if (isEqual( name, PAPUGA_HTML_LINK_ELEMENT))
+			{
+				if (!append_linkid( ctx, value)) return false;
+			}
+			else
+			{
+				if (!append_value( ctx, value)) return false;
+			}
 			ctx.out.append( "</");
 			ctx.out.append( name);
 			ctx.out.push_back( '>');
@@ -435,7 +484,7 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 			if (isEqual( name, PAPUGA_HTML_LINK_ELEMENT))
 			{
 				ctx.out.append( "<a href=\"");
-				if (!append_value( ctx, value)) return false;
+				if (!append_linkid( ctx, value)) return false;
 				ctx.out.append( "\">");
 				ctx.out.append( "<span class=\"value\">");
 				if (!append_value( ctx, value)) return false;
@@ -463,7 +512,14 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 				ctx.out.append( name);
 				ctx.out.append( ": ");
 			}
-			if (!append_value( ctx, value)) return false;
+			if (isEqual( name, PAPUGA_HTML_LINK_ELEMENT))
+			{
+				if (!append_linkid( ctx, value)) return false;
+			}
+			else
+			{
+				if (!append_value( ctx, value)) return false;
+			}
 			break;
 		case StyleJSON:
 			ctx.out.append( ctx.indent);
@@ -473,7 +529,14 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 				ctx.out.append( name);
 				ctx.out.append( "\": ");
 			}
-			if (!append_value( ctx, value)) return false;
+			if (isEqual( name, PAPUGA_HTML_LINK_ELEMENT))
+			{
+				if (!append_linkid( ctx, value)) return false;
+			}
+			else
+			{
+				if (!append_value( ctx, value)) return false;
+			}
 			break;
 	}
 	return true;
