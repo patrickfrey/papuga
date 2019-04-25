@@ -138,7 +138,7 @@ static void append_tag_close_array_json( OutputContext& ctx)
 
 static void append_tag_open_struct( OutputContext& ctx)
 {
-	if (ctx.styleType != StyleJSON) throw std::logic_error("must not get here with other than JSON");
+	if (ctx.styleType != StyleJSON) throw std::runtime_error("logic error: must not get here with other than JSON");
 	ctx.out.append( ctx.indent);
 	ctx.out.append( "{");
 	ctx.indent.push_back( '\t');
@@ -146,7 +146,7 @@ static void append_tag_open_struct( OutputContext& ctx)
 
 static void append_tag_close_struct( OutputContext& ctx)
 {
-	if (ctx.styleType != StyleJSON) throw std::logic_error("must not get here with other than JSON");
+	if (ctx.styleType != StyleJSON) throw std::runtime_error("logic error: must not get here with other than JSON");
 	if (!ctx.indent.empty()) ctx.indent.resize( ctx.indent.size()-1);
 	ctx.out.push_back( '}');
 }
@@ -442,6 +442,24 @@ static bool append_linkid( OutputContext& ctx, const papuga_ValueVariant& value)
 		if (!papuga::ValueVariant_append_string( ctx.out, value, ctx.errcode)) return false;
 	}
 	return true;
+}
+
+static void append_linkid_elem( OutputContext& ctx, const papuga_ValueVariant& value)
+{
+	switch (ctx.styleType)
+	{
+		case StyleXML:
+		case StyleHTML:
+			throw std::runtime_error("logic error: must not get here with other than JSON or TEXT");
+		case StyleTEXT:
+			append_linkid( ctx, value);
+			break;
+		case StyleJSON:
+			ctx.out.push_back( '\"');
+			append_linkid( ctx, value);
+			ctx.out.push_back( '\"');
+			break;
+	}
 }
 
 static void append_null_value( OutputContext& ctx)
@@ -762,6 +780,7 @@ static bool ValueVariant_tomarkup_fwd( OutputContext& ctx, const papuga_ValueVar
 // Forward declarations:
 static bool SerializationIter_tomarkup_array( OutputContext& ctx, papuga_SerializationIter* seritr, const char* name);
 static bool SerializationIter_tomarkup_array_fwd( OutputContext& ctx, papuga_SerializationIter* seritr);
+static bool SerializationIter_tomarkup_linkid_array_fwd( OutputContext& ctx, papuga_SerializationIter* seritr);
 static bool SerializationIter_tomarkup_struct( OutputContext& ctx, papuga_SerializationIter* seritr, int structid);
 static bool SerializationIter_tomarkup_dict( OutputContext& ctx, papuga_SerializationIter* seritr);
 
@@ -1037,7 +1056,14 @@ static bool SerializationIter_tomarkup_array( OutputContext& ctx, papuga_Seriali
 	if (ctx.styleType == StyleJSON)
 	{
 		append_tag_open_array_json( ctx, name);
-		rt &= SerializationIter_tomarkup_array_fwd( ctx, seritr);
+		if (isEqual( name, PAPUGA_HTML_LINK_ELEMENT))
+		{
+			rt &= SerializationIter_tomarkup_linkid_array_fwd( ctx, seritr);
+		}
+		else
+		{
+			rt &= SerializationIter_tomarkup_array_fwd( ctx, seritr);
+		}
 		append_tag_close_array_json( ctx);
 	}
 	else
@@ -1074,6 +1100,44 @@ static bool SerializationIter_tomarkup_array_fwd( OutputContext& ctx, papuga_Ser
 	{
 		if (elemcnt) ctx.out.append( ctx.array_separator);
 		rt &= SerializationIter_tomarkup_elem_fwd( ctx, seritr);
+	}
+	++ctx.maxDepth;
+	return rt;
+}
+
+static bool SerializationIter_tomarkup_linkid_array_fwd( OutputContext& ctx, papuga_SerializationIter* seritr)
+{
+	bool rt = true;
+
+	if (--ctx.maxDepth == 0)
+	{
+		ctx.errcode = papuga_MaxRecursionDepthReached;
+		return false;
+	}
+	if (!ctx.array_separator)
+	{
+		ctx.errcode = papuga_SyntaxError;
+		return false;
+	}
+	for (int elemcnt=0; rt && papuga_SerializationIter_tag(seritr) != papuga_TagClose; papuga_SerializationIter_skip(seritr),++elemcnt)
+	{
+		if (elemcnt) ctx.out.append( ctx.array_separator);
+		if (papuga_SerializationIter_tag(seritr) == papuga_TagValue)
+		{
+			papuga_ValueVariant* value = papuga_SerializationIter_value( seritr);
+			if (value)
+			{
+				append_linkid_elem( ctx, *value);
+			}
+			else
+			{
+				append_null_value( ctx);
+			}
+		}
+		else
+		{
+			rt &= SerializationIter_tomarkup_elem_fwd( ctx, seritr);
+		}
 	}
 	++ctx.maxDepth;
 	return rt;
