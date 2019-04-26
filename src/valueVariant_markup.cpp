@@ -403,6 +403,18 @@ static bool append_value( OutputContext& ctx, const papuga_ValueVariant& value)
 	return true;
 }
 
+static bool isAlpha( char ch)
+{
+	return (ch|32) >= 'a' && (ch|32) <= 'z';
+}
+
+static bool hasProtocolPrefix( char const* linkstr, size_t linklen)
+{
+	size_t ii = 0;
+	for (; ii<linklen && ii<7 && isAlpha( linkstr[ii]); ++ii){}
+	return (ii+3 < linklen && linkstr[ii] == ':' && linkstr[ii+1] == '/' && linkstr[ii+2] == '/');
+}
+
 static bool append_linkid( OutputContext& ctx, const papuga_ValueVariant& value)
 {
 	char buf[ 4096];
@@ -425,17 +437,24 @@ static bool append_linkid( OutputContext& ctx, const papuga_ValueVariant& value)
 			input = utf8string.c_str();
 			inputlen = utf8string.size();
 		}
-		if (ctx.styleType == StyleHTML)
+		if (hasProtocolPrefix( input, inputlen))
 		{
-			encoded = papuga_uri_encode_Html5( buf, sizeof(buf), &encodedlen, input, inputlen, &ctx.errcode);
+			ctx.out.append( input, inputlen);
 		}
 		else
 		{
-			encoded = papuga_uri_encode_Rfc3986( buf, sizeof(buf), &encodedlen, input, inputlen, &ctx.errcode);
+			if (ctx.styleType == StyleHTML)
+			{
+				encoded = papuga_uri_encode_Html5( buf, sizeof(buf), &encodedlen, input, inputlen, &ctx.errcode);
+			}
+			else
+			{
+				encoded = papuga_uri_encode_Rfc3986( buf, sizeof(buf), &encodedlen, input, inputlen, &ctx.errcode);
+			}
+			if (!encoded) return false;
+	
+			ctx.out.append( encoded, encodedlen);
 		}
-		if (!encoded) return false;
-
-		ctx.out.append( encoded, encodedlen);
 	}
 	else
 	{
