@@ -445,14 +445,14 @@ static bool append_linkid( OutputContext& ctx, const papuga_ValueVariant& value)
 		{
 			if (ctx.styleType == StyleHTML)
 			{
-				encoded = papuga_uri_encode_Html5( buf, sizeof(buf), &encodedlen, input, inputlen, &ctx.errcode);
+				encoded = papuga_uri_encode_Html5( buf, sizeof(buf), &encodedlen, input, inputlen, "/", &ctx.errcode);
 			}
 			else
 			{
-				encoded = papuga_uri_encode_Rfc3986( buf, sizeof(buf), &encodedlen, input, inputlen, &ctx.errcode);
+				encoded = papuga_uri_encode_Rfc3986( buf, sizeof(buf), &encodedlen, input, inputlen, "/", &ctx.errcode);
 			}
 			if (!encoded) return false;
-	
+
 			ctx.out.append( encoded, encodedlen);
 		}
 	}

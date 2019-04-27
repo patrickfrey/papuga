@@ -10,6 +10,7 @@
 #include "papuga/uriEncode.h"
 #include <cstdio>
 #include <utility>
+#include <cstring>
 
 static inline bool isAlpha( unsigned char ch)
 {
@@ -35,7 +36,7 @@ static inline bool isPunctHtml5( unsigned char ch)
 {
 	return ch == '*' || ch == '-' || ch == '.' || ch == '_';
 }
-static inline bool printCharEncoded( char* buf, size_t bufsize, size_t& bufpos, unsigned char ch, unsigned char ch_mapped)
+static inline bool printCharEncoded( char* buf, size_t bufsize, size_t& bufpos, unsigned char ch, unsigned char ch_mapped, const char* preserve)
 {
 	static const char HEX[17] = "0123456789abcdef";
 	if (ch_mapped)
@@ -43,8 +44,14 @@ static inline bool printCharEncoded( char* buf, size_t bufsize, size_t& bufpos, 
 		if (bufpos+1 >= bufsize) return false;
 		buf[ bufpos++] = ch_mapped;
 	}
+	else if (0!=std::strchr( preserve, ch))
+	{
+		if (bufpos+1 >= bufsize) return false;
+		buf[ bufpos++] = ch;
+	}
 	else
 	{
+		
 		if (bufpos+4 >= bufsize) return false;
 		buf[ bufpos++] = '%';
 		buf[ bufpos++] = HEX[ ch / 16];
@@ -73,14 +80,14 @@ public:
 		}
 	}
 
-	bool encode( char* buf, size_t bufsize, size_t& bufpos, const char* input, size_t inputlen) const
+	bool encode( char* buf, size_t bufsize, size_t& bufpos, const char* input, size_t inputlen, const char* preserve) const
 	{
 		char const* si = input;
 		char const* se = input + inputlen;
 		bufpos = 0;
 		for (; si != se; ++si)
 		{
-			if (!printCharEncoded( buf, bufsize, bufpos, *si, ar[(unsigned char)*si])) return false;
+			if (!printCharEncoded( buf, bufsize, bufpos, *si, ar[(unsigned char)*si], preserve)) return false;
 		}
 		buf[ bufpos] = 0;
 		return true;
@@ -111,14 +118,14 @@ public:
 		}
 	}
 
-	bool encode( char* buf, size_t bufsize, size_t& bufpos, const char* input, size_t inputlen) const
+	bool encode( char* buf, size_t bufsize, size_t& bufpos, const char* input, size_t inputlen, const char* preserve) const
 	{
 		char const* si = input;
 		char const* se = input + inputlen;
 		bufpos = 0;
 		for (; si != se; ++si)
 		{
-			if (!printCharEncoded( buf, bufsize, bufpos, *si, ar[(unsigned char)*si])) return false;
+			if (!printCharEncoded( buf, bufsize, bufpos, *si, ar[(unsigned char)*si], preserve)) return false;
 		}
 		buf[ bufpos] = 0;
 		return true;
@@ -128,9 +135,9 @@ public:
 static const CharTableRfc3986 g_tab_rfc3986;
 static const CharTableHtml5 g_tab_html5;
 
-extern "C" const char* papuga_uri_encode_Html5( char* destbuf, size_t destbufsize, size_t* destlen, const char* input, size_t inputlen, papuga_ErrorCode* err)
+extern "C" const char* papuga_uri_encode_Html5( char* destbuf, size_t destbufsize, size_t* destlen, const char* input, size_t inputlen, const char* preserve, papuga_ErrorCode* err)
 {
-	if (!g_tab_html5.encode( destbuf, destbufsize, *destlen, input, inputlen))
+	if (!g_tab_html5.encode( destbuf, destbufsize, *destlen, input, inputlen, preserve?preserve:""))
 	{
 		*err = papuga_BufferOverflowError;
 		return NULL;
@@ -138,9 +145,9 @@ extern "C" const char* papuga_uri_encode_Html5( char* destbuf, size_t destbufsiz
 	return destbuf;
 }
 
-extern "C" const char* papuga_uri_encode_Rfc3986( char* destbuf, size_t destbufsize, size_t* destlen, const char* input, size_t inputlen, papuga_ErrorCode* err)
+extern "C" const char* papuga_uri_encode_Rfc3986( char* destbuf, size_t destbufsize, size_t* destlen, const char* input, size_t inputlen, const char* preserve, papuga_ErrorCode* err)
 {
-	if (!g_tab_rfc3986.encode( destbuf, destbufsize, *destlen, input, inputlen))
+	if (!g_tab_rfc3986.encode( destbuf, destbufsize, *destlen, input, inputlen, preserve?preserve:""))
 	{
 		*err = papuga_BufferOverflowError;
 		return NULL;

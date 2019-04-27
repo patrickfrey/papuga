@@ -22,24 +22,26 @@ extern "C" {
 * @param[out] destbuf pointer to buffer for the result (UTF-8)
 * @param[in] destbufsize allocation size of 'destbuf' in bytes
 * @param[out] destlen length of the result string
-* @param[out] input pointer to input string (UTF-8)
-* @param[out] inputlen length of the input string in bytes
+* @param[in] input pointer to input string (UTF-8)
+* @param[in] inputlen length of the input string in bytes
+* @param[in] preserve additional 0-terminated list of ASCII characters to preserve and not to encode
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return a pointer to the buffer of the result in case of success or NULL if failed
 */
-const char* papuga_uri_encode_Html5( char* destbuf, size_t destbufsize, size_t* destlen, const char* input, size_t inputlen, papuga_ErrorCode* err);
+const char* papuga_uri_encode_Html5( char* destbuf, size_t destbufsize, size_t* destlen, const char* input, size_t inputlen, const char* preserve, papuga_ErrorCode* err);
 
 /*
 * @brief Encode an URI reference in a document link according to RFC 3986
 * @param[out] destbuf pointer to buffer for the result (UTF-8)
 * @param[in] destbufsize allocation size of 'destbuf' in bytes
 * @param[out] destlen length of the result string
-* @param[out] input pointer to input string (UTF-8)
-* @param[out] inputlen length of the input string in bytes
+* @param[in] input pointer to input string (UTF-8)
+* @param[in] inputlen length of the input string in bytes
+* @param[in] preserve additional 0-terminated list of ASCII characters to preserve and not to encode
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return a pointer to the buffer of the result in case of success or NULL if failed
 */
-const char* papuga_uri_encode_Rfc3986( char* destbuf, size_t destbufsize, size_t* destlen, const char* input, size_t inputlen, papuga_ErrorCode* err);
+const char* papuga_uri_encode_Rfc3986( char* destbuf, size_t destbufsize, size_t* destlen, const char* input, size_t inputlen, const char* preserve, papuga_ErrorCode* err);
 
 #ifdef __cplusplus
 }
