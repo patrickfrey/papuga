@@ -31,7 +31,7 @@ void fillErrorLocation( char* errlocbuf, size_t errlocbufsize, const char* sourc
 		++start;
 	}
 	ei = 0, ee = errlocbufsize-1;
-	for (; ei < ee && *cc; ++ei,++cc,++start)
+	for (; ei < ee && *cc; ++cc,++start)
 	{
 		if (start == errpos)
 		{
@@ -41,7 +41,18 @@ void fillErrorLocation( char* errlocbuf, size_t errlocbufsize, const char* sourc
 				errlocbuf[ ei] = *mi;
 			}
 		}
-		errlocbuf[ ei] = (unsigned char)*cc > 32 ? *cc : ' ';
+		if ((unsigned char)*cc > 32)
+		{
+			errlocbuf[ ei++] = *cc;
+		}
+		else if (ei > 1 && errlocbuf[ ei-1] == ' ' && errlocbuf[ ei-2] == ' ')
+		{
+			/* ... NOP */
+		}
+		else
+		{
+			errlocbuf[ ei++] = ' ';
+		}
 	}
 	while (ei>0 && isUTF8MidChar( errlocbuf[ ei-1]))
 	{
