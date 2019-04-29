@@ -301,6 +301,18 @@ const papuga_RequestInheritedContextDef* papuga_Request_get_inherited_contextdef
 const papuga_ClassDef* papuga_Request_classdefs( const papuga_Request* self);
 
 /*
+ * @brief Describes details about the error occurred in resolving a method call
+ */
+typedef struct papuga_RequestMethodError
+{
+	papuga_RequestMethodId methodid;		/*< method identifier */
+	papuga_ErrorCode errcode;			/*< error code */
+	int scopestart;					/*< scope start (equals event counter) for reproducing error area */
+	int argcnt;					/*< argument index of erroneous parameter or -1*/
+	const char* argpath;				/*< path of the error in the erroneous parameter or NULL */
+} papuga_RequestMethodError;
+
+/*
  * @brief Describes one method call provided by the request
  */
 typedef struct papuga_RequestMethodCall
@@ -309,9 +321,6 @@ typedef struct papuga_RequestMethodCall
 	const char* resultvarname;			/*< variable where to write the result to */
 	papuga_RequestMethodId methodid;		/*< method identifier */
 	bool appendresult;				/*< wheter to append or to overwrite result */
-	int eventcnt;					/*< event (scope) counter for reproducing error area */
-	int argcnt;					/*< argument index of erroneous parameter or -1*/
-	const char* argpath;				/*< path of the error in the erroneous parameter or NULL */
 	papuga_CallArgs args;				/*< arguments of the call */
 	char membuf[ 4096];				/*< local memory buffer for allocator */
 } papuga_RequestMethodCall;
@@ -343,11 +352,9 @@ const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_Request
 /*
  * @brief Get the last error of the iterator with a pointer to the method call that failed, if available
  * @param[in] self request iterator to get the last error from
- * @param[out] call pointer to call that caused the error
- * @return the error code of papuga_Ok if there was no error
- * @return pointer to the method call description (temporary, only valid until the next one is fetched)
+ * @return the error structure or NULL if there was no error
  */
-papuga_ErrorCode papuga_RequestIterator_get_last_error( papuga_RequestIterator* self, const papuga_RequestMethodCall** call);
+const papuga_RequestMethodError* papuga_RequestIterator_get_last_error( papuga_RequestIterator* self);
 
 /*
  * @brief Get the name of the result produced by this request (e.g. used as toplevel tag for XML of result)

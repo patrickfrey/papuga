@@ -699,24 +699,39 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 	if (call->methodid.functionid)
 	{
 		const char* methodname = classdef[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1];
-		if (call->argcnt >= 0)
+		papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error calling method %s::%s: %s"), classname, methodname, msg);
+	}
+	else
+	{
+		papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error calling constructor of %s: %s"), classname, msg);
+	}
+}
+
+static void reportMethodResolveError( papuga_ErrorBuffer* errorbuf, const papuga_Request* request, const papuga_RequestMethodError* err, const char* msg)
+{
+	const papuga_ClassDef* classdef = papuga_Request_classdefs( request);
+	const char* classname = classdef[ err->methodid.classid-1].name;
+	if (err->methodid.functionid)
+	{
+		const char* methodname = classdef[ err->methodid.classid-1].methodnames[ err->methodid.functionid-1];
+		if (err->argcnt >= 0)
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d %s of the method %s->%s::%s: %s"), call->argcnt+1, call->argpath?call->argpath:"", call->selfvarname, classname, methodname, msg);
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d (path '/%s') of the method %s::%s  \"%s\""), err->argcnt+1, err->argpath?err->argpath:"", classname, methodname, msg);
 		}
 		else
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error for object '%s': %s"), call->selfvarname, msg);
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error for object: %s"), classname, msg);
 		}
 	}
 	else
 	{
-		if (call->argcnt >= 0)
+		if (err->argcnt >= 0)
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d %s of the constructor of %s: %s"), call->argcnt+1, call->argpath?call->argpath:"", classname, msg);
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d (path '/%s') of the constructor of %s: %s"), err->argcnt+1, err->argpath?err->argpath:"", classname, msg);
 		}
 		else
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error creating '%s': %s"), call->resultvarname, msg);
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving constructor of %s: %s"), classname, msg);
 		}
 	}
 }
@@ -812,7 +827,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 							papuga_LogItemArgv, &call->args.argv[0]);
 					}
 					reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &errorbuf_call));
-					*errorpos = call->eventcnt;
+					*errorpos = 0;
 					papuga_destroy_RequestIterator( itr);
 					papuga_destroy_Allocator( &exec_allocator);
 					return false;
@@ -884,7 +899,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 								papuga_LogItemArgv, &call->args.argv[0]);
 					}
 					reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &retval.errorbuf));
-					*errorpos = call->eventcnt;
+					*errorpos = 0;
 					papuga_destroy_RequestIterator( itr);
 					papuga_destroy_Allocator( &exec_allocator);
 					return false;
@@ -961,17 +976,25 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			}
 		}
 		// Report error if we could not resolve all parts of a method call:
-		if (errcode == papuga_Ok)
-		{
-			errcode = papuga_RequestIterator_get_last_error( itr, &call);
-		}
 		if (errcode != papuga_Ok)
 		{
 			reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( errcode));
-			*errorpos = call->eventcnt;
+			*errorpos = 0;
 			papuga_destroy_RequestIterator( itr);
 			papuga_destroy_Allocator( &exec_allocator);
 			return false;
+		}
+		else 
+		{
+			const papuga_RequestMethodError* errstruct = papuga_RequestIterator_get_last_error( itr);
+			if (errstruct)
+			{
+				reportMethodResolveError( errorbuf, request, errstruct, papuga_ErrorCode_tostring( errcode));
+				*errorpos = errstruct->scopestart;
+				papuga_destroy_RequestIterator( itr);
+				papuga_destroy_Allocator( &exec_allocator);
+				return false;
+			}
 		}
 		papuga_destroy_RequestIterator( itr);
 		papuga_destroy_Allocator( &exec_allocator);
