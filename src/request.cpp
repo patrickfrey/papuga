@@ -1381,62 +1381,6 @@ public:
 			return mcnode;
 		}
 
-		bool printMethodCallNode( std::ostream& out, const MethodCallNode* mcnode, int maxdepth)
-		{
-			const CallDef* mcdef = mcnode->def;
-			int cidx = mcdef->methodid.classid-1;
-			int midx = mcdef->methodid.functionid-1;
-			if (mcdef->resultvarname)
-			{
-				out << "RES " << mcdef->resultvarname << std::endl;
-			}
-			if (mcdef->selfvarname)
-			{
-				out << "OBJ " << mcdef->selfvarname << std::endl;
-			}
-			if (midx == -1)
-			{
-				out << "NEW " << m_ctx->classdefs()[cidx].name << std::endl;
-			}
-			else
-			{
-				out << "CALL " << m_ctx->classdefs()[cidx].name << "::" << m_ctx->classdefs()[cidx].methodnames[ midx] << std::endl;
-			}
-			int ai = 0, ae = mcdef->nofargs;
-			for (; ai != ae; ++ai)
-			{
-				out << "ARG " << (ai+1) << std::endl;
-				const CallArgDef& argdef = mcdef->args[ai];
-				if (argdef.varname)
-				{
-					out << "\t$" << argdef.varname << std::endl;
-				}
-				else
-				{
-					TagLevelRange tagLevelRange = getTagLevelRange( argdef.resolvetype, mcnode->taglevel, argdef.max_tag_diff);
-					papuga_ValueVariant argval;
-					papuga_init_ValueVariant( &argval);
-					ValueSink sink( &argval, &m_allocator);
-					if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, mcnode->scope, tagLevelRange, false/*embedded*/))
-					{
-						out << "\t[Unresolvable " << (int)m_errcode << " " << papuga_ErrorCode_tostring( m_errcode) << "]" << std::endl;
-						m_errcode = papuga_Ok;
-					}
-					else switch (argval.valuetype)
-					{
-						case papuga_TypeVoid:		out << "\tNULL" << std::endl; break;
-						case papuga_TypeDouble:
-						case papuga_TypeInt:
-						case papuga_TypeBool:
-						case papuga_TypeString:		out << "\t'" << papuga::ValueVariant_tostring( argval, m_errcode) << "'"<< std::endl; break;
-						case papuga_TypeHostObject:	out << "\t[Object " << argval.value.hostObject->classid << "]" << std::endl; break;
-						case papuga_TypeSerialization:	out << papuga::Serialization_tostring( *argval.value.serialization, false/*linemode*/, maxdepth, m_errcode) << std::endl; break;
-						case papuga_TypeIterator:	out << "\t[Iterator]" << std::endl; break;
-					}
-				}
-			}
-			return true;
-		}
 		papuga_ErrorCode lastError() const
 		{
 			return m_errcode;
@@ -1633,7 +1577,7 @@ public:
 			}
 		}
 
-		bool build_structure( ValueSink& sink, const Scope& scope, int taglevel, int structidx)
+		bool build_structure( ValueSink& sink, const Scope& scope, int taglevel, int structidx, std::vector<const char*>& structstk)
 		{
 			const StructDef* stdef = m_ctx->structs()[ structidx];
 			int mi = 0, me = stdef->nofmembers;
@@ -1642,7 +1586,7 @@ public:
 				TagLevelRange taglevelRange = getTagLevelRange( stdef->members[ mi].resolvetype, taglevel, stdef->members[ mi].max_tag_diff);
 				if (stdef->members[ mi].name == 0)
 				{
-					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, true/*embedded*/))
+					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, true/*embedded*/, structstk))
 					{
 						m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
 						return false;
@@ -1651,7 +1595,7 @@ public:
 				else
 				{
 					sink.pushName( stdef->members[ mi].name);
-					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, false/*embedded*/))
+					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, false/*embedded*/, structstk))
 					{
 						m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
 						return false;
@@ -1661,7 +1605,7 @@ public:
 			return true;
 		}
 
-		bool addResolvedItemValue( ValueSink& sink, const ResolvedObject& resolvedObj, bool embedded)
+		bool addResolvedItemValue( ValueSink& sink, const ResolvedObject& resolvedObj, bool embedded, std::vector<const char*>& structstk)
 		{
 			if (ObjectRef_is_value( resolvedObj.objref))
 			{
@@ -1682,7 +1626,7 @@ public:
 				int structidx = ObjectRef_struct_id( resolvedObj.objref);
 				if (embedded)
 				{
-					if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx)) return false;
+					if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx, structstk)) return false;
 				}
 				else
 				{
@@ -1691,7 +1635,7 @@ public:
 						m_errcode = papuga_NoMemError;
 						return false;
 					}
-					if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx)) return false;
+					if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx, structstk)) return false;
 					if (!sink.closeSerialization())
 					{
 						m_errcode = papuga_NoMemError;
@@ -1711,7 +1655,7 @@ public:
 		}
 
 		/* \brief Build the data requested by an item id and a scope in a manner defined by a class of resolving a reference */
-		bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange, bool embedded)
+		bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange, bool embedded, std::vector<const char*>& structstk)
 		{
 			setResolverUpperBound( scope, itemid);
 			switch (resolvetype)
@@ -1737,7 +1681,7 @@ public:
 					}
 #endif
 					// We try to get a valid node candidate preferring value nodes if defined
-					while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded))
+					while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded, structstk))
 					{
 						if (m_errcode != papuga_Ok) return false;
 						resolvedObj = resolveNextSameScopeItem( itemid);
@@ -1837,7 +1781,7 @@ public:
 					while (resolvedObj.valid())
 					{
 						// We try to get a valid node candidate preferring value nodes if defined
-						while (!addResolvedItemValue( sink, resolvedObj, false/*embedded*/))
+						while (!addResolvedItemValue( sink, resolvedObj, false/*embedded*/, structstk))
 						{
 							resolvedObj = resolveNextSameScopeItem( itemid);
 							if (!resolvedObj.valid()) break;
@@ -1884,6 +1828,7 @@ public:
 
 		bool setCallArgValue( papuga_ValueVariant& arg, const CallArgDef& argdef, const Scope& scope, int taglevel, const papuga_RequestContext* context)
 		{
+			std::vector<const char*> structstk;
 			if (argdef.varname)
 			{
 				const papuga_ValueVariant* value = papuga_RequestContext_get_variable( context, argdef.varname, NULL/*param[out] isArray*/);
@@ -1899,7 +1844,7 @@ public:
 			{
 				TagLevelRange tagLevelRange = getTagLevelRange( argdef.resolvetype, taglevel, argdef.max_tag_diff);
 				ValueSink sink( &arg, &m_allocator);
-				if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, scope, tagLevelRange, false/*embedded*/))
+				if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, scope, tagLevelRange, false/*embedded*/, structstk))
 				{
 					return false;
 				}
@@ -2404,57 +2349,6 @@ papuga_ErrorCode papuga_RequestIterator_get_last_error( papuga_RequestIterator* 
 {
 	*call = self->itr.lastCall();
 	return self->itr.lastError();
-}
-
-extern "C" const char* papuga_Request_tostring( const papuga_Request* self, papuga_Allocator* allocator, papuga_StringEncoding enc, int maxdepth, std::size_t* length, papuga_ErrorCode* errcode)
-{
-	try
-	{
-		AutomatonContext::Iterator itr( &self->ctx);
-		std::ostringstream out;
-		const MethodCallNode* callnode = 0;
-		while (0 != (callnode = itr.nextNode()))
-		{
-			if (!itr.printMethodCallNode( out, callnode, maxdepth)) break;
-			out << std::endl;
-		}
-		if (*errcode == papuga_Ok)
-		{
-			*errcode = itr.lastError();
-		}
-		if (*errcode != papuga_Ok) return NULL;
-		std::string rtbuf( out.str());
-		const char* rt = 0;
-		if (enc == papuga_UTF8)
-		{
-			*length = rtbuf.size();
-			rt = papuga_Allocator_copy_string( allocator, rtbuf.c_str(), rtbuf.size());
-		}
-		else
-		{
-			std::size_t usize = papuga_StringEncoding_unit_size( enc);
-			std::size_t bufsize = rtbuf.size() + usize;
-			void* buf = papuga_Allocator_alloc( allocator, bufsize, usize);
-			papuga_ValueVariant strval;
-			papuga_init_ValueVariant_string( &strval, rtbuf.c_str(), rtbuf.size());
-			rt = (const char*)papuga_ValueVariant_tostring_enc( &strval, enc, buf, bufsize, length, errcode);
-		}
-		if (!rt && *errcode == papuga_Ok)
-		{
-			*errcode = papuga_NoMemError;
-		}
-		return rt;
-	}
-	catch (const std::bad_alloc&)
-	{
-		*errcode = papuga_NoMemError;
-		return NULL;
-	}
-	catch (...)
-	{
-		*errcode = papuga_UncaughtException;
-		return NULL;
-	}
 }
 
 extern "C" const char* papuga_Request_resultname( const papuga_Request* self)
