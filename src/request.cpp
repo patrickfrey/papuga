@@ -1577,7 +1577,7 @@ public:
 			}
 		}
 
-		bool build_structure( ValueSink& sink, const Scope& scope, int taglevel, int structidx, std::vector<const char*>& structstk)
+		bool build_structure( ValueSink& sink, const Scope& scope, int taglevel, int structidx)
 		{
 			const StructDef* stdef = m_ctx->structs()[ structidx];
 			int mi = 0, me = stdef->nofmembers;
@@ -1586,7 +1586,7 @@ public:
 				TagLevelRange taglevelRange = getTagLevelRange( stdef->members[ mi].resolvetype, taglevel, stdef->members[ mi].max_tag_diff);
 				if (stdef->members[ mi].name == 0)
 				{
-					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, true/*embedded*/, structstk))
+					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, true/*embedded*/))
 					{
 						m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
 						return false;
@@ -1595,7 +1595,7 @@ public:
 				else
 				{
 					sink.pushName( stdef->members[ mi].name);
-					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, false/*embedded*/, structstk))
+					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, false/*embedded*/))
 					{
 						m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
 						return false;
@@ -1605,7 +1605,7 @@ public:
 			return true;
 		}
 
-		bool addResolvedItemValue( ValueSink& sink, const ResolvedObject& resolvedObj, bool embedded, std::vector<const char*>& structstk)
+		bool addResolvedItemValue( ValueSink& sink, const ResolvedObject& resolvedObj, bool embedded)
 		{
 			if (ObjectRef_is_value( resolvedObj.objref))
 			{
@@ -1626,7 +1626,7 @@ public:
 				int structidx = ObjectRef_struct_id( resolvedObj.objref);
 				if (embedded)
 				{
-					if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx, structstk)) return false;
+					if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx)) return false;
 				}
 				else
 				{
@@ -1635,7 +1635,7 @@ public:
 						m_errcode = papuga_NoMemError;
 						return false;
 					}
-					if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx, structstk)) return false;
+					if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx)) return false;
 					if (!sink.closeSerialization())
 					{
 						m_errcode = papuga_NoMemError;
@@ -1655,7 +1655,7 @@ public:
 		}
 
 		/* \brief Build the data requested by an item id and a scope in a manner defined by a class of resolving a reference */
-		bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange, bool embedded, std::vector<const char*>& structstk)
+		bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange, bool embedded)
 		{
 			setResolverUpperBound( scope, itemid);
 			switch (resolvetype)
@@ -1681,7 +1681,7 @@ public:
 					}
 #endif
 					// We try to get a valid node candidate preferring value nodes if defined
-					while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded, structstk))
+					while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded))
 					{
 						if (m_errcode != papuga_Ok) return false;
 						resolvedObj = resolveNextSameScopeItem( itemid);
@@ -1781,7 +1781,7 @@ public:
 					while (resolvedObj.valid())
 					{
 						// We try to get a valid node candidate preferring value nodes if defined
-						while (!addResolvedItemValue( sink, resolvedObj, false/*embedded*/, structstk))
+						while (!addResolvedItemValue( sink, resolvedObj, false/*embedded*/))
 						{
 							resolvedObj = resolveNextSameScopeItem( itemid);
 							if (!resolvedObj.valid()) break;
@@ -1828,7 +1828,6 @@ public:
 
 		bool setCallArgValue( papuga_ValueVariant& arg, const CallArgDef& argdef, const Scope& scope, int taglevel, const papuga_RequestContext* context)
 		{
-			std::vector<const char*> structstk;
 			if (argdef.varname)
 			{
 				const papuga_ValueVariant* value = papuga_RequestContext_get_variable( context, argdef.varname, NULL/*param[out] isArray*/);
@@ -1844,7 +1843,7 @@ public:
 			{
 				TagLevelRange tagLevelRange = getTagLevelRange( argdef.resolvetype, taglevel, argdef.max_tag_diff);
 				ValueSink sink( &arg, &m_allocator);
-				if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, scope, tagLevelRange, false/*embedded*/, structstk))
+				if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, scope, tagLevelRange, false/*embedded*/))
 				{
 					return false;
 				}
