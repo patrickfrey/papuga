@@ -178,7 +178,7 @@ public:
 		{
 			if (isLocalVariable( vi->ptr->name))
 			{
-				m_impl.erase( vi);
+				vi = m_impl.erase( vi);
 			}
 			else
 			{
