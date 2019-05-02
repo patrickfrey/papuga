@@ -173,16 +173,16 @@ public:
 	}
 	void removeLocalVariables()
 	{
-		std::vector<RequestVariableRef>::iterator vi = m_impl.begin(), ve = m_impl.end();
-		while (vi != ve)
+		std::size_t vidx = 0;
+		while (vidx < m_impl.size())
 		{
-			if (isLocalVariable( vi->ptr->name))
+			if (isLocalVariable( m_impl[vidx].ptr->name))
 			{
-				vi = m_impl.erase( vi);
+				m_impl.erase( m_impl.begin()+vidx);
 			}
 			else
 			{
-				++vi;
+				++vidx;
 			}
 		}
 	}
