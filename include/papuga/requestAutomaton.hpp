@@ -33,7 +33,6 @@ static inline papuga_ResolveType getResolveType( char resolvechr)
 	}
 }
 
-#if __cplusplus >= 201103L
 /// \brief Request method call (function) definition
 struct RequestAutomaton_FunctionDef
 {
@@ -211,6 +210,7 @@ struct RequestAutomaton_ResolveDef
 	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
+#if __cplusplus >= 201103L
 /// \brief Forward declaration
 class RequestAutomaton_NodeList;
 
