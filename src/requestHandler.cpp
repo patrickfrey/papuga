@@ -1371,153 +1371,153 @@ extern "C" bool papuga_Serialization_serialize_request_result( papuga_Serializat
 	return rt;
 }
 
-extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization* self, const papuga_RequestContext* context, const papuga_Request* request, papuga_StringEncoding input_encoding, papuga_ContentType input_doctype, const char* input_content, size_t input_contentlen, papuga_ErrorCode* errcode)
+struct MergeStackElement
 {
-	struct Stack
+	MergeResultIter iter;
+	bool inArray;
+
+	MergeStackElement( const MergeResultIter& iter_, bool inArray_)
+		:iter(iter_),inArray(inArray_){}
+	MergeStackElement( const MergeStackElement& o)
+		:iter(o.iter),inArray(o.inArray){}
+};
+
+struct MergeStack
+{
+public:
+	MergeStack( papuga_ErrorCode* errcode_, MergeResult* mergeResult_, std::size_t mergeResultSize_)
+		:errcode(errcode_),mergeResult(mergeResult_),mergeResultSize(mergeResultSize_),ar(),mergeResultMatch(0){}
+
+	bool push()
 	{
-	public:
-		Stack( papuga_ErrorCode* errcode_, MergeResult* mergeResult_, std::size_t mergeResultSize_)
-			:errcode(errcode_),mergeResult(mergeResult_),mergeResultSize(mergeResultSize_),ar(),mergeResultMatch(0){}
-
-		bool push()
+		// Open without name is an array element. An array element inherits the properties of the parent for the merge
+		try
 		{
-			// Open without name is an array element. An array element inherits the properties of the parent for the merge
-			try
-			{
-				MergeResultIter follow( ar.back().iter);
-				bool inArray = ar.back().inArray;
-				ar.back().iter.inactivate();
-				follow.activate();
-				ar.push_back( StackElement( follow, inArray));
-				return true;
-			}
-			catch (const std::bad_alloc&)
-			{
-				*errcode = papuga_NoMemError;
-				return false;
-			}
+			MergeResultIter follow( ar.back().iter);
+			bool inArray = ar.back().inArray;
+			ar.back().iter.inactivate();
+			follow.activate();
+			ar.push_back( MergeStackElement( follow, inArray));
+			return true;
 		}
-
-		bool push( const papuga_ValueVariant& name, bool inArray)
+		catch (const std::bad_alloc&)
 		{
-			try
+			*errcode = papuga_NoMemError;
+			return false;
+		}
+	}
+
+	bool push( const papuga_ValueVariant& name, bool inArray)
+	{
+		try
+		{
+			if (!ar.empty())
 			{
-				if (!ar.empty())
+				inArray |= ar.back().inArray;
+			}
+			mergeResultMatch.clear();
+			if (name.valuetype == papuga_TypeString && name.encoding == papuga_UTF8)
+			{
+				if (!ar.empty() && ar.back().iter.valid() && ar.back().iter.namelen() == name.length && 0==std::memcmp( name.value.string, ar.back().iter.name(), name.length))
 				{
-					inArray |= ar.back().inArray;
-				}
-				mergeResultMatch.clear();
-				if (name.valuetype == papuga_TypeString && name.encoding == papuga_UTF8)
-				{
-					if (!ar.empty() && ar.back().iter.valid() && ar.back().iter.namelen() == name.length && 0==std::memcmp( name.value.string, ar.back().iter.name(), name.length))
+					if (ar.back().iter.more())
 					{
-						if (ar.back().iter.more())
-						{
-							MergeResultIter follow( ar.back().iter);
-							follow.activate();
-							follow.next();
-							ar.back().iter.clear();
-							ar.push_back( StackElement( follow, inArray));
-						}
-						else
-						{
-							mergeResultMatch = ar.back().iter;
-							ar.back().iter.clear();
-							ar.push_back( StackElement( MergeResultIter(), inArray));
-						}
+						MergeResultIter follow( ar.back().iter);
+						follow.activate();
+						follow.next();
+						ar.back().iter.clear();
+						ar.push_back( MergeStackElement( follow, inArray));
 					}
 					else
 					{
-						MergeResult* res = findMergeResult( mergeResult, mergeResultSize, name.value.string, name.length);
-						if (res)
-						{
-							MergeResultIter follow( res);
-							if (follow.more())
-							{
-								follow.activate();
-								follow.next();
-								ar.push_back( StackElement( follow, inArray));
-							}
-							else
-							{
-								mergeResultMatch = follow;
-								ar.push_back( StackElement( MergeResultIter(), inArray));
-							}
-						}
-						else
-						{
-							ar.push_back( StackElement( MergeResultIter(), inArray));
-						}
+						mergeResultMatch = ar.back().iter;
+						ar.back().iter.clear();
+						ar.push_back( MergeStackElement( MergeResultIter(), inArray));
 					}
 				}
 				else
 				{
-					ar.push_back( StackElement( MergeResultIter(), inArray));
+					MergeResult* res = findMergeResult( mergeResult, mergeResultSize, name.value.string, name.length);
+					if (res)
+					{
+						MergeResultIter follow( res);
+						if (follow.more())
+						{
+							follow.activate();
+							follow.next();
+							ar.push_back( MergeStackElement( follow, inArray));
+						}
+						else
+						{
+							mergeResultMatch = follow;
+							ar.push_back( MergeStackElement( MergeResultIter(), inArray));
+						}
+					}
+					else
+					{
+						ar.push_back( MergeStackElement( MergeResultIter(), inArray));
+					}
 				}
-				return true;
-			}
-			catch (const std::bad_alloc&)
-			{
-				*errcode = papuga_NoMemError;
-				return false;
-			}
-		}
-
-		MergeResultIter& match()
-		{
-			return mergeResultMatch;
-		}
-
-		bool isInArray() const
-		{
-			return !ar.empty() && ar.back().inArray;
-		}
-
-		bool isRoot() const
-		{
-			return ar.size() <= 1;
-		}
-
-		bool pop()
-		{
-			if (ar.empty())
-			{
-				mergeResultMatch.clear(); 
-				*errcode = papuga_SyntaxError;
-				return false;
 			}
 			else
 			{
-				mergeResultMatch = ar.back().iter;
-				ar.pop_back();
-				return true;
+				ar.push_back( MergeStackElement( MergeResultIter(), inArray));
 			}
+			return true;
 		}
-
-		bool empty() const
+		catch (const std::bad_alloc&)
 		{
-			return ar.empty();
+			*errcode = papuga_NoMemError;
+			return false;
 		}
+	}
 
-	private:
-		struct StackElement
+	MergeResultIter& match()
+	{
+		return mergeResultMatch;
+	}
+
+	bool isInArray() const
+	{
+		return !ar.empty() && ar.back().inArray;
+	}
+
+	bool isRoot() const
+	{
+		return ar.size() <= 1;
+	}
+
+	bool pop()
+	{
+		if (ar.empty())
 		{
-			MergeResultIter iter;
-			bool inArray;
+			mergeResultMatch.clear(); 
+			*errcode = papuga_SyntaxError;
+			return false;
+		}
+		else
+		{
+			mergeResultMatch = ar.back().iter;
+			ar.pop_back();
+			return true;
+		}
+	}
 
-			StackElement( const MergeResultIter& iter_, bool inArray_)
-				:iter(iter_),inArray(inArray_){}
-			StackElement( const StackElement& o)
-				:iter(o.iter),inArray(o.inArray){}
-		};
+	bool empty() const
+	{
+		return ar.empty();
+	}
 
-		papuga_ErrorCode* errcode;
-		MergeResult* mergeResult;
-		std::size_t mergeResultSize;
-		std::vector<StackElement> ar;
-		MergeResultIter mergeResultMatch;
-	};
+private:
+	papuga_ErrorCode* errcode;
+	MergeResult* mergeResult;
+	std::size_t mergeResultSize;
+	std::vector<MergeStackElement> ar;
+	MergeResultIter mergeResultMatch;
+};
 
+extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization* self, const papuga_RequestContext* context, const papuga_Request* request, papuga_StringEncoding input_encoding, papuga_ContentType input_doctype, const char* input_content, size_t input_contentlen, papuga_ErrorCode* errcode)
+{
 	MergeResult mergeResult[ MergeResultBufSize];
 	std::size_t mergeResultSize = 0;
 	if (!initMergeResultArray( mergeResult, MergeResultBufSize, &mergeResultSize, context->varmap, errcode))
@@ -1543,7 +1543,7 @@ extern "C" bool papuga_Serialization_merge_request_result( papuga_Serialization*
 	}
 	bool rt = true;
 	papuga_init_SerializationIter( &inputitr, &inputser);
-	Stack stk( errcode, mergeResult, mergeResultSize);
+	MergeStack stk( errcode, mergeResult, mergeResultSize);
 
 	while (rt && !papuga_SerializationIter_eof( &inputitr))
 	{
