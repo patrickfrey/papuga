@@ -29,6 +29,17 @@ typedef textwolf::XMLScanner<
 		std::string
 	> XMLScanner;
 
+struct TagDef
+{
+	std::string name;
+	int pos;
+
+	TagDef() :name(),pos(0){}
+	TagDef( const char* name_, int namelen_, int pos_) :name(name_,namelen_),pos(pos_){}
+	TagDef( const TagDef& o) :name(o.name),pos(o.pos){}
+	TagDef& operator=( const TagDef& o) {name=o.name;pos=o.pos; return *this;}
+};
+
 static bool getArrays( int* buf, int bufsize, int* len, const char* content, std::size_t contentlen, papuga_ErrorCode* errcode)
 {
 	textwolf::SrcIterator srciter;
@@ -38,17 +49,6 @@ static bool getArrays( int* buf, int bufsize, int* len, const char* content, std
 
 	*len = 0;
 	int cnt = 0;
-
-	struct TagDef
-	{
-		std::string name;
-		int pos;
-
-		TagDef() :name(),pos(0){}
-		TagDef( const char* name_, int namelen_, int pos_) :name(name_,namelen_),pos(pos_){}
-		TagDef( const TagDef& o) :name(o.name),pos(o.pos){}
-		TagDef& operator=( const TagDef& o) {name=o.name;pos=o.pos; return *this;}
-	};
 
 	std::vector<TagDef> tagstack;
 	std::size_t tagstacksize = 0;
