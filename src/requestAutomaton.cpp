@@ -241,6 +241,11 @@ RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, char resol
 {
 	value.resolvedef = new RequestAutomaton_ResolveDef( expression, resolvechr);
 }
+RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, const char* variable, int itemid, char resolvechr)
+	:type(AssignmentDef),rootexpr(),thisid(getClassId())
+{
+	value.assignmentdef = new RequestAutomaton_AssignmentDef( expression, variable, itemid, resolvechr);
+}
 RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_)
 	:type(NodeList),rootexpr(),thisid(getClassId())
 {
