@@ -74,7 +74,7 @@ void RequestAutomaton_AssignmentDef::addToAutomaton( const std::string& rootexpr
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 	fprintf( stderr, "ATM define assignment expression='%s', variable=%s, itemid=%d, resolve=%s\n", fullexpr.c_str(), variable, itemid, papuga_ResolveTypeName( resolvetype));
 #endif
-	if (!papuga_RequestAutomaton_add_assignment( atm, fullexpr.c_str(), varname, itemid, resolvetype, 0/*max_tag_diff*/))
+	if (!papuga_RequestAutomaton_add_assignment( atm, fullexpr.c_str(), varname, itemid, resolvetype, -1/*max_tag_diff unlimited*/))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add assignment, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));

@@ -126,7 +126,7 @@ const char* papuga_ResolveTypeName( papuga_ResolveType resolvetype);
  * @param[in] idx index of the argument to set, starting with 0
  * @param[in] itemid identifier of the item
  * @param[in] resolvetype defines the way an addressed item is resolved and constructed
- * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
+ * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or -1 if not limited (always >= 0 also for inherited values)
  * @return true on success, false on failure (index out of range or memory allocation error)
  */
 bool papuga_RequestAutomaton_set_call_arg_item(
@@ -171,7 +171,7 @@ bool papuga_RequestAutomaton_add_structure(
  * @param[in] name identifier naming the structure element added or NULL if the element does not get a name (for arrays)
  * @param[in] itemid identifier of the structure or value associated with the element added
  * @param[in] resolvetype defines the way an addressed item is resolved and constructed
- * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
+ * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or -1 if not limited (always >= 0 also for inherited values)
  * @return true on success, false on failure (index out of range or memory allocation error)
  */
 bool papuga_RequestAutomaton_set_structure_element(
@@ -202,7 +202,7 @@ bool papuga_RequestAutomaton_add_value(
  * @param[in] varname name of the variable referencing the destination of the assignment (where to append to)
  * @param[in] itemid identifier given to the item to make it addressable in the context of its scope
  * @param[in] resolvetype defines the way an addressed item is resolved and constructed
- * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
+ * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or -1 if not limited (always >= 0 also for inherited values)
  */
 bool papuga_RequestAutomaton_add_assignment(
 		papuga_RequestAutomaton* self,
