@@ -126,7 +126,7 @@ const char* papuga_ResolveTypeName( papuga_ResolveType resolvetype);
  * @param[in] idx index of the argument to set, starting with 0
  * @param[in] itemid identifier of the item
  * @param[in] resolvetype defines the way an addressed item is resolved and constructed
- * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or -1 if not limited (always >= 0 also for inherited values)
+ * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
  * @return true on success, false on failure (index out of range or memory allocation error)
  */
 bool papuga_RequestAutomaton_set_call_arg_item(
@@ -171,7 +171,7 @@ bool papuga_RequestAutomaton_add_structure(
  * @param[in] name identifier naming the structure element added or NULL if the element does not get a name (for arrays)
  * @param[in] itemid identifier of the structure or value associated with the element added
  * @param[in] resolvetype defines the way an addressed item is resolved and constructed
- * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or -1 if not limited (always >= 0 also for inherited values)
+ * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
  * @return true on success, false on failure (index out of range or memory allocation error)
  */
 bool papuga_RequestAutomaton_set_structure_element(
@@ -194,6 +194,23 @@ bool papuga_RequestAutomaton_add_value(
 		const char* scope_expression,
 		const char* select_expression,
 		int itemid);
+
+/*
+ * @brief Add an assignment of input content elements to a variable
+ * @param[in,out] self automaton changed
+ * @param[in] expression xpath expression (abbreviated syntax of xpath) bound to the assignment
+ * @param[in] varname name of the variable referencing the destination of the assignment (where to append to)
+ * @param[in] itemid identifier given to the item to make it addressable in the context of its scope
+ * @param[in] resolvetype defines the way an addressed item is resolved and constructed
+ * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
+ */
+bool papuga_RequestAutomaton_add_assignment(
+		papuga_RequestAutomaton* self,
+		const char* expression,
+		const char* varname,
+		int itemid,
+		papuga_ResolveType resolvetype,
+		int max_tag_diff);
 
 /*
  * @brief Declare building of the automaton terminated
@@ -325,6 +342,17 @@ typedef struct papuga_RequestMethodCall
 	char membuf[ 4096];				/*< local memory buffer for allocator */
 } papuga_RequestMethodCall;
 
+/*
+ * @brief Describes one a variable assignment provided by the request
+ */
+typedef struct papuga_RequestVariableAssignment
+{
+	const char* varname;				/*< variable where to write the result to */
+	bool appendresult;				/*< wheter to append (as array) or to overwrite result */
+	papuga_ValueVariant value;			/*< value assigned */
+} papuga_RequestVariableAssignment;
+
+
 typedef struct papuga_RequestIterator papuga_RequestIterator;
 
 /*
@@ -342,9 +370,17 @@ papuga_RequestIterator* papuga_create_RequestIterator( papuga_Allocator* allocat
 void papuga_destroy_RequestIterator( papuga_RequestIterator* self);
 
 /*
+ * @brief Get the next variable assignment of a request
+ * @param[in] self request iterator to get the next method call from
+ * @param[in] context request context
+ * @return pointer to the variable assignment description (temporary, only valid until the next one is fetched)
+ */
+const papuga_RequestVariableAssignment* papuga_RequestIterator_next_assignment( papuga_RequestIterator* self);
+
+/*
  * @brief Get the next method call of a request
  * @param[in] self request iterator to get the next method call from
- * @param[in] varlist pointer to current list of variables
+ * @param[in] context request context
  * @return pointer to the method call description (temporary, only valid until the next one is fetched)
  */
 const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestContext* context);

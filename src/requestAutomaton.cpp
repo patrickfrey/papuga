@@ -68,6 +68,19 @@ void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, 
 	}
 }
 
+void RequestAutomaton_AssignmentDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
+{
+	std::string fullexpr = joinExpression( rootexpr, expression);
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	fprintf( stderr, "ATM define assignment expression='%s', variable=%s, itemid=%d, resolve=%s\n", fullexpr.c_str(), variable, itemid, papuga_ResolveTypeName( resolvetype));
+#endif
+	if (!papuga_RequestAutomaton_add_assignment( atm, fullexpr.c_str(), varname, itemid, resolvetype, 0/*max_tag_diff*/))
+	{
+		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add assignment, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+	}
+}
+
 void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
 {
 	std::string fullexpr = joinExpression( rootexpr, expression);
@@ -186,6 +199,9 @@ RequestAutomaton_Node::~RequestAutomaton_Node()
 		case ResolveDef:
 			delete value.resolvedef;
 			break;
+		case AssignmentDef:
+			delete value.assignmentdef;
+			break;
 	}
 }
 
@@ -256,6 +272,9 @@ static void copyNodeValueUnion( RequestAutomaton_Node::Type type, RequestAutomat
 		case RequestAutomaton_Node::ResolveDef:
 			dest.resolvedef = new RequestAutomaton_ResolveDef( *src.resolvedef);
 			break;
+		case RequestAutomaton_Node::AssignmentDef:
+			dest.assignmentdef = new RequestAutomaton_AssignmentDef( *src.assignmentdef);
+			break;
 	}
 }
 
@@ -324,6 +343,9 @@ void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga
 			break;
 		case ResolveDef:
 			value.resolvedef->addToAutomaton( rootpath, atm, descr);
+			break;
+		case AssignmentDef:
+			value.assignmentdef->addToAutomaton( rootpath, atm, descr);
 			break;
 	}
 }
@@ -429,6 +451,12 @@ void RequestAutomaton::addFunction( const char* expression, const char* resultva
 	for (; ai->itemid || ai->varname; ++ai) argvec.push_back( *ai);
 	RequestAutomaton_FunctionDef func( expression, resultvar?resultvar:"", selfvar, methodid, argvec);
 	func.addToAutomaton( m_rootexpr, m_atm, m_descr);
+}
+
+void RequestAutomaton::addAssignment( const char* expression, const char* varname, int itemid, char resolvechr)
+{
+	RequestAutomaton_AssignmentDef assignment( expression, varname, itemid, resolvechr);
+	assignment.addToAutomaton( m_rootexpr, m_atm, m_descr);
 }
 
 void RequestAutomaton::addInheritContext( const char* typenam, const char* expression, bool required)

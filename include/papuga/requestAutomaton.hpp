@@ -150,7 +150,7 @@ struct RequestAutomaton_ValueDef
 {
 	const char* scope_expression;	///< selecting expression addressing the scope of this value definition
 	const char* select_expression;	///< selecting expression addressing the value itself
-	int itemid;			///< identifier given to the item to make it uniquely addressable in the context of its scope
+	int itemid;			///< identifier given to the item to make it addressable in the context of its scope
 	papuga_Type valuetype;		///< expected value type of the item
 	const char* examples;		///< semicolon ';' separated list of examples or NULL if no examples defined
 
@@ -160,7 +160,7 @@ struct RequestAutomaton_ValueDef
 	/// \brief Constructor
 	/// \param[in] scope_expression_ selecting expression addressing the scope of this value definition
 	/// \param[in] select_expression_ selecting expression addressing the value itself
-	/// \param[in] itemid_ identifier given to the item to make it uniquely addressable in the context of its scope
+	/// \param[in] itemid_ identifier given to the item to make it addressable in the context of its scope
 	RequestAutomaton_ValueDef( const char* scope_expression_, const char* select_expression_, int itemid_, papuga_Type valuetype_, const char* examples_)
 		:scope_expression(scope_expression_),select_expression(select_expression_),itemid(itemid_),valuetype(valuetype_),examples(examples_){}
 
@@ -210,6 +210,29 @@ struct RequestAutomaton_ResolveDef
 	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
+/// \brief Definition of an assignment of input to a variable (append)
+struct RequestAutomaton_AssignmentDef
+{
+	const char* expression;		///< selecting expression addressing the assignment
+	const char* varname;		///< name of the variable referencing the destination of the assignment (where to append to)
+	int itemid;			///< identifier given to the item to make it addressable in the context of its scope
+	papuga_ResolveType resolvetype;	///< describes the occurrence of the element addressed
+
+	/// \brief Copy constructor
+	RequestAutomaton_AssignmentDef( const RequestAutomaton_AssignmentDef& o)
+		:expression(o.expression),varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype){}
+	/// \brief Constructor
+	/// \param[in] expression_ selecting expression of the element
+	/// \param[in] varname_	name of the variable referencing the destination of the assignment (where to append to)
+	/// \param[in] itemid_	identifier given to the item to make it addressable in the context of its scope
+	/// \param[in] resolvechr_ describes the occurrence of the element
+	RequestAutomaton_AssignmentDef( const char* expression_, const char* varname_, int itemid_, char resolvechr_)
+		:expression(expression_),varname(varname_),itemid(itemid_),resolvetype(getResolveType(resolvechr_)){}
+
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+};
+
+
 #if __cplusplus >= 201103L
 /// \brief Forward declaration
 class RequestAutomaton_NodeList;
@@ -225,7 +248,8 @@ struct RequestAutomaton_Node
 		Struct,
 		Value,
 		NodeList,
-		ResolveDef
+		ResolveDef,
+		AssignmentDef
 	};
 	Type type;
 	typedef union
@@ -236,6 +260,7 @@ struct RequestAutomaton_Node
 		RequestAutomaton_ValueDef* valuedef;
 		RequestAutomaton_NodeList* nodelist;
 		RequestAutomaton_ResolveDef* resolvedef;
+		RequestAutomaton_AssignmentDef* assignmentdef;
 	} ValueUnion;
 	ValueUnion value;
 	std::string rootexpr;
@@ -255,6 +280,12 @@ struct RequestAutomaton_Node
 	/// \param[in] methodid identifier of the method to call
 	/// \param[in] args list of references addressing the arguments of the method call
 	RequestAutomaton_Node( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args);
+	///\brief Contructor as RequestAutomaton_AssignmentDef
+	/// \param[in] expression select expression addressing the scope of this method call definition
+	/// \param[in] resultvar variable where the result of the call is stored to, empty or NULL if the result is void or dropped
+	/// \param[in] itemid identifier given to the item to make it addressable in the context of its scope
+	/// \param[in] resolvechr describes the occurrence of the element addressed
+	RequestAutomaton_Node( const char* expression, const char* resultvar, int itemid, char resolvechr);
 	///\brief Contructor as RequestAutomaton_StructDef
 	/// \param[in] expression select expression addressing the scope of this structure definition
 	/// \param[in] itemid item identifier unique in its scope (referencing a value or a structure)
@@ -263,7 +294,7 @@ struct RequestAutomaton_Node
 	///\brief Contructor as RequestAutomaton_ValueDef
 	/// \param[in] scope_expression selecting expression addressing the scope of this value definition
 	/// \param[in] select_expression selecting expression addressing the value itself
-	/// \param[in] itemid identifier given to the item to make it uniquely addressable in the context of its scope
+	/// \param[in] itemid identifier given to the item to make it addressable in the context of its scope
 	/// \param[in] valuetype type of the value
 	/// \param[in] examples semicolon ';' separated list of examples or NULL if no examples defined
 	RequestAutomaton_Node( const char* scope_expression, const char* select_expression, int itemid, papuga_Type valuetype, const char* examples);
@@ -373,6 +404,13 @@ public:
 	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
 	void addFunction( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const RequestAutomaton_FunctionDef::Arg* args);
 
+	/// \brief Add a variable assignment of a content element
+	/// \param[in] expression selecting expression of the element
+	/// \param[in] varname	name of the variable referencing the destination of the assignment (where to append to)
+	/// \param[in] itemid	identifier given to the item to make it addressable in the context of its scope
+	/// \param[in] resolvechr describes the occurrence of the element
+	void addAssignment( const char* expression, const char* varname, int itemid, char resolvechr);
+
 	/// \brief Add a structure definition
 	/// \remark Only available if this automaton has been constructed as empty
 	/// \param[in] expression select expression addressing the scope of this structure definition
@@ -385,7 +423,7 @@ public:
 	/// \remark Only available if this automaton has been constructed as empty
 	/// \param[in] scope_expression selecting expression addressing the scope of this value definition
 	/// \param[in] select_expression selecting expression addressing the value itself
-	/// \param[in] itemid identifier given to the item to make it uniquely addressable in the context of its scope
+	/// \param[in] itemid identifier given to the item to make it addressable in the context of its scope
 	/// \param[in] valuetype type of the value
 	/// \param[in] examples semicolon ';' separated list of examples or NULL if no examples defined
 	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available

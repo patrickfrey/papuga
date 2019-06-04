@@ -140,13 +140,37 @@ struct CallDef
 #endif
 };
 
+struct AssignmentDef
+{
+	const char* varname;
+	int itemid;
+	papuga_ResolveType resolvetype;
+	int max_tag_diff;
+
+	AssignmentDef()
+		:varname(0),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
+	AssignmentDef( const char* varname_, int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
+		:varname(varname_),itemid(itemid_),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
+	void assign( const AssignmentDef& o)
+		{varname=o.varname;itemid=o.itemid;resolvetype=o.resolvetype;max_tag_diff=o.max_tag_diff;}
+
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+	std::string tostring() const
+	{
+		std::ostringstream out;
+		out << varname << " = " << itemid << " " << papuga_ResolveTypeName( resolvetype);
+		return out.str();
+	}
+#endif
+};
+
 typedef int AtmRef;
-enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom};
+enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom,AssignVariable};
 enum {MaxAtmRefType=InheritFrom};
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 static const char* atmRefTypeName( AtmRefType t)
 {
-	const char* ar[ MaxAtmRefType+1] = {"InstantiateValue","CollectValue","CloseStruct","MethodCall","InheritFrom"};
+	const char* ar[ MaxAtmRefType+1] = {"InstantiateValue","CollectValue","CloseStruct","MethodCall","InheritFrom","AssignVariable"};
 	return ar[t];
 }
 #endif
@@ -183,7 +207,7 @@ public:
 	explicit AutomatonDescription( const papuga_ClassDef* classdefs_, const char* resultname_, bool mergeInputResult_)
 		:m_classdefs(classdefs_),m_resultname(resultname_),m_mergeInputResult(mergeInputResult_)
 		,m_nof_classdefs(nofClassDefs(classdefs_))
-		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs()
+		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs(),m_assignments()
 		,m_atm(),m_maxitemid(0)
 		,m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
 	{
@@ -617,6 +641,41 @@ public:
 		return true;
 	}
 
+	bool addAssignment( const char* expression, const char* varname, int itemid, papuga_ResolveType resolvetype, int max_tag_diff)
+	{
+		try
+		{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton add assignment expression='%s', variable=%s, item id=%d, resolvetype=%s\n", expression, varname, itemid, papuga_ResolveTypeName(resolvetype));
+#endif
+			if (!checkItemId( itemid))
+			{
+				return false;
+			}
+			if (m_done)
+			{
+				m_errcode = papuga_ExecutionOrder;
+				return false;
+			}
+			std::string open_expression( cut_trailing_slashes( expression));
+			std::string close_expression( open_expression + "~");
+
+			int evid = AtmRef_get( AssignVariable, m_assignments.size());
+			if (0!=m_atm.addExpression( evid, close_expression.c_str(), close_expression.size()))
+			{
+				m_errcode = papuga_SyntaxError;
+				return false;
+			}
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+			fprintf( stderr, "automaton add event [%s %d] assignment expression='%s'\n",
+				 atmRefTypeName(AssignVariable), (int)m_assignments.size(), close_expression.c_str());
+#endif
+			m_assignments.push_back( AssignmentDef( varname, itemid, resolvetype, max_tag_diff));
+		}
+		CATCH_LOCAL_EXCEPTION(m_errcode,false)
+		return true;
+	}
+
 	bool done()
 	{
 #ifdef PAPUGA_LOWLEVEL_DEBUG
@@ -647,6 +706,7 @@ public:
 	const std::vector<StructDef>& structdefs() const		{return m_structdefs;}
 	const std::vector<ValueDef>& valuedefs() const			{return m_valuedefs;}
 	const std::vector<InheritFromDef>& inheritdefs() const		{return m_inheritdefs;}
+	const std::vector<AssignmentDef>& assignments() const		{return m_assignments;}
 	const XMLPathSelectAutomaton& atm() const			{return m_atm;}
 	std::size_t maxitemid() const					{return m_maxitemid;}
 
@@ -676,7 +736,7 @@ private:
 	static std::string cut_trailing_slashes( const char* expression)
 	{
 		std::size_t size = std::strlen( expression);
-		while (size && expression[size-1] == '/') --size;
+		while (size && (expression[size-1] == '/' || expression[size-1] == '~')) --size;
 		return std::string( expression, size);
 	}
 
@@ -689,6 +749,7 @@ private:
 	std::vector<StructDef> m_structdefs;
 	std::vector<ValueDef> m_valuedefs;
 	std::vector<InheritFromDef> m_inheritdefs;
+	std::vector<AssignmentDef> m_assignments;
 	papuga_Allocator m_allocator;
 	XMLPathSelectAutomaton m_atm;
 	std::size_t m_maxitemid;
@@ -907,6 +968,18 @@ struct MethodCallNode
 		:MethodCallKey(key_),def(def_),scope(scope_),taglevel(taglevel_){}
 	MethodCallNode( const MethodCallNode& o)
 		:MethodCallKey(o),def(o.def),scope(o.scope),taglevel(o.taglevel){}
+};
+
+struct AssignmentNode
+{
+	const AssignmentDef* def;
+	Scope scope;
+	int taglevel;
+
+	AssignmentNode( const AssignmentDef* def_, const Scope& scope_, int taglevel_)
+		:def(def_),scope(scope_),taglevel(taglevel_){}
+	AssignmentNode( const AssignmentNode& o)
+		:def(o.def),scope(o.scope),taglevel(o.taglevel){}
 };
 
 static void papuga_init_RequestMethodCall( papuga_RequestMethodCall* self)
@@ -1219,6 +1292,10 @@ public:
 	{
 		return (idx >= (int)m_methodcalls.size()) ? NULL : &m_methodcalls[ idx];
 	}
+	const AssignmentNode* assignmentNode( int idx) const
+	{
+		return (idx >= (int)m_assignments.size()) ? NULL : &m_assignments[ idx];
+	}
 	const std::vector<Value>& values() const
 	{
 		return m_values;
@@ -1279,6 +1356,7 @@ public:
 			:m_ctx(0)
 			,m_resolvers()
 			,m_curr_methodidx(0)
+			,m_curr_assignmentidx(0)
 			,m_errpath()
 			,m_errpathstr()
 		{
@@ -1296,6 +1374,7 @@ public:
 			:m_ctx(ctx_)
 			,m_resolvers(ctx_->scopeobjmap().size(),ScopeObjItr())
 			,m_curr_methodidx(0)
+			,m_curr_assignmentidx(0)
 			,m_errpath()
 			,m_errpathstr()
 		{
@@ -1320,7 +1399,7 @@ public:
 			papuga_destroy_Allocator( &m_allocator);
 		}
 
-		papuga_RequestMethodCall* next( const papuga_RequestContext* context)
+		papuga_RequestMethodCall* nextCall( const papuga_RequestContext* context)
 		{
 			try
 			{
@@ -1385,13 +1464,50 @@ public:
 			}
 		}
 
-		const MethodCallNode* nextNode()
+		papuga_RequestVariableAssignment* nextAssignment()
 		{
-			if (!m_ctx) return NULL;
-			const MethodCallNode* mcnode = m_ctx->methodCallNode( m_curr_methodidx);
-			if (!mcnode) return NULL;
-			++m_curr_methodidx;
-			return mcnode;
+			try
+			{
+				if (!m_ctx) return NULL;
+				const AssignmentNode* asnode = m_ctx->assignmentNode( m_curr_assignmentidx);
+				if (!asnode)
+				{
+					std::memset( &m_curr_assignment, 0, sizeof(m_curr_assignment));
+					return NULL;
+				}
+				m_curr_assignment.varname = asnode->def->varname;
+				m_curr_assignment.appendresult = (asnode->def->resolvetype == papuga_ResolveTypeArray || asnode->def->resolvetype == papuga_ResolveTypeArrayNonEmpty);
+				papuga_init_ValueVariant( &m_curr_assignment.value);
+
+				m_errstruct.scopestart = asnode->scope.from;
+				m_errstruct.argcnt = -1;
+				m_errstruct.argpath = NULL;
+	
+				const AssignmentDef* asdef = asnode->def;
+
+				TagLevelRange tagLevelRange = getTagLevelRange( asdef->resolvetype, asnode->taglevel, asdef->max_tag_diff);
+				ValueSink sink( &m_curr_assignment.value, &m_allocator);
+				if (!resolveItem( sink, asdef->itemid, asdef->resolvetype, asnode->scope, tagLevelRange, false/*embedded*/))
+				{
+					if (m_errstruct.scopestart < asnode->scope.from)
+					{
+						m_errstruct.scopestart = asnode->scope.from;
+					}
+					return NULL;
+				}
+				++m_curr_assignmentidx;
+				return &m_curr_assignment;
+			}
+			catch (const std::bad_alloc&)
+			{
+				m_errstruct.errcode = papuga_NoMemError;
+				return NULL;
+			}
+			catch (...)
+			{
+				m_errstruct.errcode = papuga_UncaughtException;
+				return NULL;
+			}
 		}
 
 		const papuga_RequestMethodError* lastError() const
@@ -1878,9 +1994,11 @@ public:
 
 	private:
 		papuga_RequestMethodCall m_curr_methodcall;
+		papuga_RequestVariableAssignment m_curr_assignment;
 		const AutomatonContext* m_ctx;
 		std::vector<ScopeObjItr> m_resolvers;
 		int m_curr_methodidx;
+		int m_curr_assignmentidx;
 		papuga_Allocator m_allocator;
 		char m_allocator_membuf[ 4096];
 		std::vector<std::string> m_errpath;
@@ -2039,6 +2157,17 @@ private:
 				}
 				break;
 			}
+			case AssignVariable:
+			{
+				const AssignmentDef* adef = &m_atm->assignments()[ evidx];
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+				std::string assigndefstr = adef->tostring();
+				fprintf( stderr, "process event [%s %d] assignment: %s scope=[%d,%d] taglevel=%d\n",
+					 atmRefTypeName(MethodCall), evidx, assigndefstr.c_str(), curscope().from, curscope().to, taglevel());
+#endif
+				m_assignments.push_back( AssignmentNode( adef, curscope(), taglevel()));
+				break;
+			}
 		}
 		return true;
 	}
@@ -2125,6 +2254,7 @@ private:
 	std::vector<const StructDef*> m_structs;
 	std::vector<ScopeObjMap> m_scopeobjmap;
 	std::vector<MethodCallNode> m_methodcalls;
+	std::vector<AssignmentNode> m_assignments;
 	enum {MaxNofInheritedContexts=31};
 	int m_maskOfRequiredInheritedContexts;
 	int m_nofInheritedContexts;
@@ -2253,6 +2383,17 @@ extern "C" bool papuga_RequestAutomaton_add_value(
 	return self->atm.addValue( scope_expression, select_expression, itemid);
 }
 
+extern "C" bool papuga_RequestAutomaton_add_assignment(
+		papuga_RequestAutomaton* self,
+		const char* expression,
+		const char* varname,
+		int itemid,
+		papuga_ResolveType resolvetype,
+		int max_tag_diff)
+{
+	return self->atm.addAssignment( expression, varname, itemid, resolvetype, max_tag_diff);
+}
+
 extern "C" bool papuga_RequestAutomaton_done( papuga_RequestAutomaton* self)
 {
 	return self->atm.done();
@@ -2364,9 +2505,14 @@ extern "C" void papuga_destroy_RequestIterator( papuga_RequestIterator* self)
 	self->itr.~Iterator();
 }
 
+extern "C" const papuga_RequestVariableAssignment* papuga_RequestIterator_next_assignment( papuga_RequestIterator* self)
+{
+	return self->itr.nextAssignment();
+}
+
 extern "C" const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestContext* context)
 {
-	return self->itr.next( context);
+	return self->itr.nextCall( context);
 }
 
 extern "C" const papuga_RequestMethodError* papuga_RequestIterator_get_last_error( papuga_RequestIterator* self)

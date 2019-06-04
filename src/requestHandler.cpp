@@ -736,7 +736,7 @@ static void reportMethodResolveError( papuga_ErrorBuffer* errorbuf, const papuga
 	}
 }
 
-static bool RequestVariable_add_result( RequestVariable& var, papuga_ValueVariant& resultvalue, bool appendresult, papuga_ErrorCode& errcode)
+static bool RequestVariable_add_result( RequestVariable& var, const papuga_ValueVariant& resultvalue, bool appendresult, papuga_ErrorCode& errcode)
 {
 	if (appendresult)
 	{
@@ -799,9 +799,20 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		}
 		papuga_init_ErrorBuffer( &errorbuf_call, membuf_err, sizeof(membuf_err));
 		const papuga_RequestMethodCall* call;
+		const papuga_RequestVariableAssignment* assignment;
 
-		while (!!(call = papuga_RequestIterator_next_call( itr, context)))
+		while (!!(assignment = papuga_RequestIterator_next_assignment( itr)))
 		{
+			// Execute all assignments of variables with content:
+			RequestVariable* var = context->varmap.getOrCreate( assignment->varname);
+			if (!RequestVariable_add_result( *var, assignment->value, assignment->appendresult, errcode))
+			{
+				break;
+			}
+		}
+		if (!assignment) while (!!(call = papuga_RequestIterator_next_call( itr, context)))
+		{
+			// Execute all method calls:
 			RequestVariable* var;
 			if (call->resultvarname)
 			{

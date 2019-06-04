@@ -21,6 +21,7 @@ extern "C" {
 /*
 * @brief Serialization constructor
 * @param[out] self pointer to structure 
+* @param[in] allocator_ pointer to allocator to use
 */
 #define papuga_init_Serialization(self_,allocator_)		{papuga_Serialization* s = (self_); s->head.next=NULL; s->head.size=0; s->allocator=(allocator_); s->current=&s->head; s->structid=0;}
 
