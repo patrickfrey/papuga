@@ -166,7 +166,7 @@ struct AssignmentDef
 
 typedef int AtmRef;
 enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom,AssignVariable};
-enum {MaxAtmRefType=InheritFrom};
+enum {MaxAtmRefType=AssignVariable};
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 static const char* atmRefTypeName( AtmRefType t)
 {
