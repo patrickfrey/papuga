@@ -348,7 +348,6 @@ typedef struct papuga_RequestMethodCall
 typedef struct papuga_RequestVariableAssignment
 {
 	const char* varname;				/*< variable where to write the result to */
-	bool appendresult;				/*< wheter to append (as array) or to overwrite result */
 	papuga_ValueVariant value;			/*< value assigned */
 } papuga_RequestVariableAssignment;
 
@@ -372,7 +371,6 @@ void papuga_destroy_RequestIterator( papuga_RequestIterator* self);
 /*
  * @brief Get the next variable assignment of a request
  * @param[in] self request iterator to get the next method call from
- * @param[in] context request context
  * @return pointer to the variable assignment description (temporary, only valid until the next one is fetched)
  */
 const papuga_RequestVariableAssignment* papuga_RequestIterator_next_assignment( papuga_RequestIterator* self);

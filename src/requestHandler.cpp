@@ -805,9 +805,15 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		{
 			// Execute all assignments of variables with content:
 			RequestVariable* var = context->varmap.getOrCreate( assignment->varname);
-			if (!RequestVariable_add_result( *var, assignment->value, assignment->appendresult, errcode))
+			papuga_ValueVariant* source = const_cast<papuga_ValueVariant*>(&assignment->value);
+			// ... HACK const_cast: We know that the source is only modified by the following deepcopy_value in the case 
+			//	of a host object moved. But we know that a variable assignment is constructed from content and cannot 
+			//	contain host object references.
+			if (!papuga_Allocator_deepcopy_value( &var->allocator, &var->value, source, false/*movehostobj*/, &errcode))
 			{
-				break;
+				papuga_ErrorBuffer_reportError( errorbuf, _TXT("error handling variable assignment in request: %s"), papuga_ErrorCode_tostring( errcode));
+				papuga_destroy_Allocator( &exec_allocator);
+				return false;
 			}
 		}
 		if (!assignment) while (!!(call = papuga_RequestIterator_next_call( itr, context)))

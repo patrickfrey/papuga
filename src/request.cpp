@@ -1476,7 +1476,6 @@ public:
 					return NULL;
 				}
 				m_curr_assignment.varname = asnode->def->varname;
-				m_curr_assignment.appendresult = false;
 				papuga_init_ValueVariant( &m_curr_assignment.value);
 
 				m_errstruct.scopestart = asnode->scope.from;
