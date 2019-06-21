@@ -11,6 +11,7 @@
 #ifndef _PAPUGA_REQUEST_RESULT_H_INCLUDED
 #define _PAPUGA_REQUEST_RESULT_H_INCLUDED
 #include "papuga/typedefs.h"
+#include "papuga/request.h"
 #include "papuga/serialization.h"
 
 #ifdef __cplusplus
@@ -33,29 +34,35 @@ typedef struct papuga_RequestResultNodeDescription
 {
 	const char* inputselect;
 	papuga_RequestResultNodeType type;
+	papuga_ResolveType resolvetype;
 	const char* tagname;
 	union
 	{
-		int nodeid;
-		const char* variable;
-		const char* constant;
+		int itemid;
+		const char* str;
 	} value;
 } papuga_RequestResultNodeDescription;
 
 typedef struct papuga_RequestResultDescription
 {
-	papuga_Allocator* allocator;
+	const char* name;
 	papuga_RequestResultNodeDescription* nodear;
 	int nodearallocsize;
 	int nodearsize;
 } papuga_RequestResultDescription;
 
 /*
-* @brief RequestResultDescription constructor
-* @param[out] self pointer to structure 
-* @param[in] allocator_ pointer to allocator to use
+* @brief RequestResultDescription constructor function
+* @param[in] name_ name of the result, root element (constant, string not copied)
+* @return structure to free with papuga_destroy_RequestResultDescription
 */
-#define papuga_init_RequestResultDescription(self_,allocator_)		{papuga_RequestResultDescription* s = (self_); s->allocator=(allocator_); s->nodear=0; s->nodearallocsize=0; s->nodearsize=0;}
+papuga_RequestResultDescription* papuga_create_RequestResultDescription( const char* name_);
+
+/*
+ * @brief Destructor function
+ * @param[in] self pointer to structure to free content
+ */
+void papuga_destroy_RequestResultDescription( papuga_RequestResultDescription* self);
 
 /*
  * @brief Add a constant node to this output description
@@ -78,10 +85,11 @@ bool papuga_RequestResultDescription_push_structure( papuga_RequestResultDescrip
  * @brief Add a node referring to an item of the input to this output description
  * @param[in] inputselect tag select expression that triggers the output of this result node
  * @param[in] tagname name of the output tag of this node or NULL for an open array element
- * @param[in] nodeid identifier of the node taken from input
+ * @param[in] itemid identifier of the node taken from input
+ * @param[in] resolvetype the resolve type 
  * @return true in case of success, false in case of a memory allocation error
  */
-bool papuga_RequestResultDescription_push_input( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, int nodeid);
+bool papuga_RequestResultDescription_push_input( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, int itemid, papuga_ResolveType resolvetype);
 
 /*
  * @brief Add a node referring to a result of a call to this output description
@@ -92,3 +100,7 @@ bool papuga_RequestResultDescription_push_input( papuga_RequestResultDescription
  */
 bool papuga_RequestResultDescription_push_callresult( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, const char* variable);
 
+#ifdef __cplusplus
+}
+#endif
+#endif

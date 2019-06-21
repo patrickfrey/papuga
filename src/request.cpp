@@ -23,6 +23,8 @@
 #include "textwolf/xmlpathautomatonparse.hpp"
 #include "textwolf/xmlpathselect.hpp"
 #include "textwolf/charset.hpp"
+#include "request_utils.hpp"
+#include "requestResult_utils.hpp"
 #include <stdexcept>
 #include <sstream>
 #include <iostream>
@@ -165,18 +167,23 @@ struct AssignmentDef
 };
 
 typedef int AtmRef;
-enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom,AssignVariable};
-enum {MaxAtmRefType=AssignVariable};
+enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom,AssignVariable,ResultInstruction};
+enum {MaxAtmRefType=ResultInstruction};
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 static const char* atmRefTypeName( AtmRefType t)
 {
-	const char* ar[ MaxAtmRefType+1] = {"InstantiateValue","CollectValue","CloseStruct","MethodCall","InheritFrom","AssignVariable"};
+	const char* ar[ MaxAtmRefType+1] = {"InstantiateValue","CollectValue","CloseStruct","MethodCall","InheritFrom","AssignVariable","ResultInstruction"};
 	return ar[t];
 }
 #endif
 static AtmRef AtmRef_get( AtmRefType type, int idx)	{return (AtmRef)(((int)type<<28) | (idx+1));}
 static AtmRefType AtmRef_type( AtmRef atmref)		{return (AtmRefType)((atmref>>28) & 0x7);}
 static int AtmRef_index( AtmRef atmref)			{return ((int)atmref & 0x0fFFffFF)-1;}
+
+static bool ResRef_check( int resultidx, int instridx)	{return (resultidx >= 0 && resultidx < 256 && instridx >= 0 && instridx <= 1<<16);}
+static int ResRef_get( int resultidx, int instridx)	{return (resultidx << 16) + instridx;}
+static int ResRef_resultidx( int idx)			{return (idx >> 16) & 0xff;}
+static int ResRef_instridx( int idx)			{return idx & 0xffFF;}
 
 #define CATCH_LOCAL_EXCEPTION(ERRCODE,RETVAL)\
 	catch (const std::bad_alloc&)\
@@ -204,8 +211,8 @@ class AutomatonDescription
 public:
 	typedef textwolf::XMLPathSelectAutomatonParser<> XMLPathSelectAutomaton;
 
-	explicit AutomatonDescription( const papuga_ClassDef* classdefs_, const char* resultname_, bool mergeInputResult_)
-		:m_classdefs(classdefs_),m_resultname(resultname_),m_mergeInputResult(mergeInputResult_)
+	explicit AutomatonDescription( const papuga_ClassDef* classdefs_)
+		:m_classdefs(classdefs_),m_resultname()
 		,m_nof_classdefs(nofClassDefs(classdefs_))
 		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs(),m_assignments()
 		,m_atm(),m_maxitemid(0)
@@ -216,6 +223,9 @@ public:
 	~AutomatonDescription()
 	{
 		papuga_destroy_Allocator( &m_allocator);
+
+		std::vector<papuga_RequestResultDescription*>::const_iterator ri = m_resultdefs.begin(), re = m_resultdefs.end();
+		for (; ri != re; ++ri) papuga_destroy_RequestResultDescription( *ri);
 	}
 
 	const papuga_ClassDef* classdefs() const
@@ -225,10 +235,6 @@ public:
 	const char* resultname() const
 	{
 		return m_resultname;
-	}
-	bool mergeInputResult() const
-	{
-		return m_mergeInputResult;
 	}
 	const char* copyIfDefined( const char* str)
 	{
@@ -676,6 +682,43 @@ public:
 		return true;
 	}
 
+	bool addResultDescription( papuga_RequestResultDescription* descr)
+	{
+		try
+		{
+			papuga_RequestResultNodeDescription* ni = descr->nodear;
+			papuga_RequestResultNodeDescription* ne = descr->nodear + descr->nodearsize;
+			for (std::size_t nidx=0; ni != ne; ++ni,++nidx)
+			{
+				switch (ni->type)
+				{
+					case papuga_ResultNodeConstant:
+					case papuga_ResultNodeOpenStructure:
+					case papuga_ResultNodeInputReference:
+					case papuga_ResultNodeResultReference:
+						if (!addResultInstructionTrigger( ni->inputselect, std::strlen( ni->inputselect), m_resultdefs.size(), nidx))
+						{
+							return false;
+						}
+						break;
+					case papuga_ResultNodeCloseStructure:
+					{
+						std::string closeexpr = cut_trailing_slashes( ni->inputselect);
+						closeexpr.push_back( '~');
+						if (!addResultInstructionTrigger( closeexpr.c_str(), closeexpr.size(), m_resultdefs.size(), nidx))
+						{
+							return false;
+						}
+						break;
+					}
+				}
+			}
+			m_resultdefs.push_back( descr);
+		}
+		CATCH_LOCAL_EXCEPTION(m_errcode,false)
+		return true;
+	}
+
 	bool done()
 	{
 #ifdef PAPUGA_LOWLEVEL_DEBUG
@@ -702,15 +745,33 @@ public:
 			:type(o.type),required(o.required){}
 	};
 
-	const std::vector<CallDef>& calldefs() const			{return m_calldefs;}
-	const std::vector<StructDef>& structdefs() const		{return m_structdefs;}
-	const std::vector<ValueDef>& valuedefs() const			{return m_valuedefs;}
-	const std::vector<InheritFromDef>& inheritdefs() const		{return m_inheritdefs;}
-	const std::vector<AssignmentDef>& assignments() const		{return m_assignments;}
-	const XMLPathSelectAutomaton& atm() const			{return m_atm;}
-	std::size_t maxitemid() const					{return m_maxitemid;}
+	const std::vector<CallDef>& calldefs() const				{return m_calldefs;}
+	const std::vector<StructDef>& structdefs() const			{return m_structdefs;}
+	const std::vector<ValueDef>& valuedefs() const				{return m_valuedefs;}
+	const std::vector<InheritFromDef>& inheritdefs() const			{return m_inheritdefs;}
+	const std::vector<AssignmentDef>& assignments() const			{return m_assignments;}
+	const std::vector<papuga_RequestResultDescription*>& resultdefs() const	{return m_resultdefs;}
+	const XMLPathSelectAutomaton& atm() const				{return m_atm;}
+	std::size_t maxitemid() const						{return m_maxitemid;}
 
 private:
+	bool addResultInstructionTrigger( const char* expression, std::size_t expressionsize, std::size_t resultidx, std::size_t instridx)
+	{
+		if (!ResRef_check( resultidx, instridx)) 
+		{
+			m_errcode = papuga_BufferOverflowError;
+			return false;
+		}
+		int idx = ResRef_get( resultidx, instridx);
+		int evid = AtmRef_get( ResultInstruction, idx);
+		if (0!=m_atm.addExpression( evid, expression, expressionsize))
+		{
+			m_errcode = papuga_SyntaxError;
+			return false;
+		}
+		return true;
+	}
+
 	static bool isSelectAttributeExpression( const std::string& expr)
 	{
 		const char* si = expr.c_str();
@@ -743,13 +804,13 @@ private:
 private:
 	const papuga_ClassDef* m_classdefs;			//< array of classes
 	const char* m_resultname;				//< label of result (top level tag for XML)
-	bool m_mergeInputResult;				//< true if the result is the input with the result elements merged in, false if the result contains the list of result variables as elements
 	int m_nof_classdefs;					//< number of classes defined in m_classdefs
 	std::vector<CallDef> m_calldefs;
 	std::vector<StructDef> m_structdefs;
 	std::vector<ValueDef> m_valuedefs;
 	std::vector<InheritFromDef> m_inheritdefs;
 	std::vector<AssignmentDef> m_assignments;
+	std::vector<papuga_RequestResultDescription*> m_resultdefs;
 	papuga_Allocator m_allocator;
 	XMLPathSelectAutomaton m_atm;
 	std::size_t m_maxitemid;
@@ -788,34 +849,6 @@ static std::string ObjectRef_descr( ObjectRef objref)
 	return out.str();
 }
 #endif
-
-struct Scope
-{
-	int from;
-	int to;
-
-	Scope( int from_, int to_)
-		:from(from_),to(to_){}
-	Scope( const Scope& o)
-		:from(o.from),to(o.to){}
-
-	bool inside( const Scope& o) const
-	{
-		return (from >= o.from && to <= o.to);
-	}
-	Scope inner() const
-	{
-		return Scope( from+1, to);
-	}
-	bool operator==( const Scope& o) const
-	{
-		return from == o.from && to == o.to;
-	}
-	bool operator!=( const Scope& o) const
-	{
-		return from != o.from || to != o.to;
-	}
-};
 
 enum ScopeKeyType {SearchScope,ValueScope,ObjectScope};
 
@@ -950,9 +983,9 @@ struct MethodCallKey
 private:
 	int compare( const MethodCallKey& o) const
 	{
-		if (group != o.group) return -(int)( group < o.group);
-		if (scope != o.scope) return -(int)( scope < o.scope);
-		if (elemidx != o.elemidx) return -(int)( elemidx < o.elemidx);
+		if (group != o.group) return (group < o.group) ? -1 : +1;
+		if (scope != o.scope) return (scope < o.scope) ? -1 : +1;
+		if (elemidx != o.elemidx) return (elemidx < o.elemidx) ? -1 : +1;
 		return 0;
 	}
 };
@@ -1125,6 +1158,7 @@ public:
 	explicit AutomatonContext( const AutomatonDescription* atm_)
 		:m_atm(atm_),m_atmstate(&atm_->atm()),m_scopecnt(0),m_scopestack()
 		,m_valuenodes(),m_values(),m_structs(),m_scopeobjmap( atm_->maxitemid()+1, ScopeObjMap()),m_methodcalls()
+		,m_assignments(),m_results( new RequestResultTemplate[ atm_->resultdefs().size()])
 		,m_maskOfRequiredInheritedContexts(getRequiredInheritedContextsMask(atm_)),m_nofInheritedContexts(0)
 		,m_done(false),m_errcode(papuga_Ok)
 	{
@@ -1137,9 +1171,16 @@ public:
 		papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
 		m_scopestack.reserve( 32);
 		m_scopestack.push_back( 0);
+
+		std::size_t ri = 0, re = atm_->resultdefs().size();
+		for (; ri != re; ++ri)
+		{
+			m_results[ ri].setName( atm_->resultdefs()[ ri]->name);
+		}
 	}
 	~AutomatonContext()
 	{
+		delete [] m_results;
 		papuga_destroy_Allocator( &m_allocator);
 	}
 
@@ -1332,10 +1373,6 @@ public:
 	{
 		return m_atm->resultname();
 	}
-	bool mergeInputResult() const
-	{
-		return m_atm->mergeInputResult();
-	}
 	const papuga_RequestInheritedContextDef* getRequiredInheritedContextsDefs( papuga_ErrorCode& errcode) const
 	{
 		if (m_maskOfRequiredInheritedContexts)
@@ -1344,6 +1381,15 @@ public:
 			return NULL;
 		}
 		return m_inheritedContexts;
+	}
+
+	RequestResultTemplate* results() const
+	{
+		return m_results;
+	}
+	std::size_t nofResults() const
+	{
+		return m_atm->resultdefs().size();
 	}
 
 	class Iterator
@@ -1464,6 +1510,41 @@ public:
 			}
 		}
 
+		bool pushCallResult( papuga_ValueVariant& result)
+		{
+			bool used = false;
+			if (m_curr_methodidx <= 0)
+			{
+				m_errstruct.errcode = papuga_ExecutionOrder;
+				return false;
+			}
+			try
+			{
+				std::size_t ri = 0, re = m_ctx->nofResults();
+				for (; ri != re; ++ri)
+				{
+					const MethodCallNode* mcnode = m_ctx->methodCallNode( m_curr_methodidx-1);
+					if (!mcnode)
+					{
+						m_errstruct.errcode = papuga_ExecutionOrder;
+						return false;
+					}
+					used |= m_ctx->results()[ ri].pushResult( m_curr_methodcall.resultvarname, mcnode->scope, result, m_errstruct.errcode);
+				}
+			}
+			catch (const std::bad_alloc&)
+			{
+				m_errstruct.errcode = papuga_NoMemError;
+				return false;
+			}
+			catch (...)
+			{
+				m_errstruct.errcode = papuga_UncaughtException;
+				return false;
+			}
+			return used;
+		}
+
 		papuga_RequestVariableAssignment* nextAssignment()
 		{
 			try
@@ -1506,6 +1587,89 @@ public:
 			{
 				m_errstruct.errcode = papuga_UncaughtException;
 				return NULL;
+			}
+		}
+
+		int nofResults() const
+		{
+			return m_ctx->nofResults();
+		}
+		bool serializeResult( int idx, const char*& name, papuga_Serialization& serialization)
+		{
+			try
+			{
+				if (idx >= (int)m_ctx->nofResults())
+				{
+					m_errstruct.errcode = papuga_OutOfRangeError;
+					return false;
+				}
+				name = m_ctx->results()[ idx].name();
+
+				std::vector<RequestResultInputElementRef> irefs = m_ctx->results()[ idx].inputElementRefs();
+				{
+					std::vector<RequestResultInputElementRef>::iterator ri = irefs.begin(), re = irefs.end();
+					for (; ri != re; ++ri)
+					{
+						TagLevelRange tagLevelRange = getTagLevelRange( ri->resolvetype, ri->taglevel, 1/*max_tag_diff*/);
+						ValueSink sink( ri->value, serialization.allocator);
+						if (!resolveItem( sink, ri->itemid, ri->resolvetype, ri->scope, tagLevelRange, false/*embedded*/))
+						{
+							if (m_errstruct.scopestart < ri->scope.from)
+							{
+								m_errstruct.scopestart = ri->scope.from;
+							}
+							return NULL;
+						}
+					}
+				}{
+					std::vector<RequestResultItem>::const_iterator
+						ri = m_ctx->results()[ idx].items().begin(),
+						re = m_ctx->results()[ idx].items().end();
+					for (; ri != re; ++ri)
+					{
+						switch (ri->nodetype)
+						{
+							case papuga_ResultNodeConstant:
+								if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
+								if (!papuga_Serialization_pushValue( &serialization, &ri->value)) throw std::bad_alloc();
+								break;
+							case papuga_ResultNodeOpenStructure:
+								if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
+								if (!papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
+								break;
+							case papuga_ResultNodeCloseStructure:
+								if (!papuga_Serialization_pushClose( &serialization)) throw std::bad_alloc();
+								break;
+							case papuga_ResultNodeInputReference:
+							{
+								if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
+								if (!papuga_Serialization_pushValue( &serialization, &ri->value)) throw std::bad_alloc();
+								break;
+							}
+							case papuga_ResultNodeResultReference:
+							{
+								if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
+								papuga_ValueVariant value_copy;
+								//PF:HACK: The const cast has no influence, as movehostobj parameter is false and the contents of evalue remain
+								//	untouched, but it is still ugly and a bad hack:
+								if (!papuga_Allocator_deepcopy_value( serialization.allocator, &value_copy, const_cast<papuga_ValueVariant*>(&ri->value), false, &m_errstruct.errcode)) return false;
+								if (!papuga_Serialization_push( &serialization, papuga_TagValue, &value_copy)) throw std::bad_alloc();
+								break;
+							}
+						}
+					}
+				}
+				return true;
+			}
+			catch (const std::bad_alloc&)
+			{
+				m_errstruct.errcode = papuga_NoMemError;
+				return false;
+			}
+			catch (...)
+			{
+				m_errstruct.errcode = papuga_UncaughtException;
+				return false;
 			}
 		}
 
@@ -2167,6 +2331,42 @@ private:
 				m_assignments.push_back( AssignmentNode( adef, curscope(), taglevel()));
 				break;
 			}
+			case ResultInstruction:
+			{
+				std::size_t resultidx = ResRef_resultidx( evidx);
+				int instridx = ResRef_instridx( evidx);
+				if (resultidx >= m_atm->resultdefs().size())
+				{
+					m_errcode = papuga_LogicError;
+					return false;
+				}
+				const papuga_RequestResultDescription* resultdef = m_atm->resultdefs()[ resultidx];
+				if (instridx >= resultdef->nodearsize)
+				{
+					m_errcode = papuga_LogicError;
+					return false;
+				}
+				const papuga_RequestResultNodeDescription& node = resultdef->nodear[ instridx];
+				switch (node.type)
+				{
+					case papuga_ResultNodeConstant:
+						m_results[ resultidx].addResultNodeConstant( node.tagname, node.value.str);
+						break;
+					case papuga_ResultNodeOpenStructure:
+						m_results[ resultidx].addResultNodeOpenStructure( node.tagname);
+						break;
+					case papuga_ResultNodeCloseStructure:
+						m_results[ resultidx].addResultNodeCloseStructure( node.tagname);
+						break;
+					case papuga_ResultNodeInputReference:
+						m_results[ resultidx].addResultNodeInputReference( curscope(), node.tagname, node.value.itemid, node.resolvetype, taglevel());
+						break;
+					case papuga_ResultNodeResultReference:
+						m_results[ resultidx].addResultNodeResultReference( curscope(), node.tagname, node.value.str);
+						break;
+				}
+				break;
+			}
 		}
 		return true;
 	}
@@ -2254,6 +2454,7 @@ private:
 	std::vector<ScopeObjMap> m_scopeobjmap;
 	std::vector<MethodCallNode> m_methodcalls;
 	std::vector<AssignmentNode> m_assignments;
+	RequestResultTemplate* m_results;
 	enum {MaxNofInheritedContexts=31};
 	int m_maskOfRequiredInheritedContexts;
 	int m_nofInheritedContexts;
@@ -2280,15 +2481,13 @@ struct papuga_RequestAutomaton
 
 extern "C" papuga_RequestAutomaton* papuga_create_RequestAutomaton(
 		const papuga_ClassDef* classdefs,
-		const papuga_StructInterfaceDescription* structdefs,
-		const char* resultname,
-		bool mergeInputResult)
+		const papuga_StructInterfaceDescription* structdefs)
 {
 	papuga_RequestAutomaton* rt = (papuga_RequestAutomaton*)std::calloc( 1, sizeof(*rt));
 	if (!rt) return NULL;
 	try
 	{
-		new (&rt->atm) AutomatonDescription( classdefs, resultname, mergeInputResult);
+		new (&rt->atm) AutomatonDescription( classdefs);
 		rt->structdefs = structdefs;
 		return rt;
 	}
@@ -2391,6 +2590,13 @@ extern "C" bool papuga_RequestAutomaton_add_assignment(
 		int max_tag_diff)
 {
 	return self->atm.addAssignment( expression, varname, itemid, resolvetype, max_tag_diff);
+}
+
+extern "C" bool papuga_RequestAutomation_add_result(
+		papuga_RequestAutomaton* self,
+		papuga_RequestResultDescription* descr)
+{
+	return self->atm.addResultDescription( descr);
 }
 
 extern "C" bool papuga_RequestAutomaton_done( papuga_RequestAutomaton* self)
@@ -2514,19 +2720,26 @@ extern "C" const papuga_RequestMethodCall* papuga_RequestIterator_next_call( pap
 	return self->itr.nextCall( context);
 }
 
+extern "C" bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, papuga_ValueVariant* result)
+{
+	return self->itr.pushCallResult( *result);
+}
+
+extern "C" int papuga_RequestIterator_nof_results( const papuga_RequestIterator* self)
+{
+	return self->itr.nofResults();
+}
+
+extern "C" bool papuga_RequestIterator_serialize_result( papuga_RequestIterator* self, int idx, char const** name, papuga_Serialization* serialization)
+{
+	return self->itr.serializeResult( idx, *name, *serialization);
+}
+
 extern "C" const papuga_RequestMethodError* papuga_RequestIterator_get_last_error( papuga_RequestIterator* self)
 {
 	return self->itr.lastError();
 }
 
-extern "C" const char* papuga_Request_resultname( const papuga_Request* self)
-{
-	return self->ctx.resultname();
-}
-extern "C" bool papuga_Request_resultmerge( const papuga_Request* self)
-{
-	return self->ctx.mergeInputResult();
-}
 extern "C" const papuga_StructInterfaceDescription* papuga_Request_struct_descriptions( const papuga_Request* self)
 {
 	return self->structdefs;

@@ -8,6 +8,7 @@
 /// \brief Structure to define an automaton mapping a request to function calls in C++ in a convenient way
 /// \file requestAutomaton.cpp
 #include "papuga/requestAutomaton.hpp"
+#include "papuga/requestResult.h"
 #include "papuga/classdef.h"
 #include "papuga/request.h"
 #include "papuga/errors.hpp"
@@ -172,6 +173,35 @@ void RequestAutomaton_ResolveDef::addToAutomaton( const std::string& rootexpr, p
 		papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( descr);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("schema description add resolve type, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 	}
+}
+
+void RequestAutomaton_ResultDef::addToAutomaton( papuga_RequestAutomaton* atm) const
+{
+	papuga_RequestResultDescription* descr = papuga_create_RequestResultDescription( m_name);
+	if (!descr) throw std::bad_alloc();
+	RequestAutomaton_ResultElementDefList::const_iterator ei = m_elements.begin(), ee = m_elements.end();
+	for (; ei != ee; ++ei)
+	{
+		switch (ei->type)
+		{
+			case RequestAutomaton_ResultElementDef::Empty:
+				throw std::runtime_error(_TXT("empty element in result definition structure"));
+				break;
+			case RequestAutomaton_ResultElementDef::Structure:
+				if (!papuga_RequestResultDescription_push_structure( descr, ei->inputselect, ei->tagname)) throw std::bad_alloc();
+				break;
+			case RequestAutomaton_ResultElementDef::Constant:
+				if (!papuga_RequestResultDescription_push_constant( descr, ei->inputselect, ei->tagname, ei->str)) throw std::bad_alloc();
+				break;
+			case RequestAutomaton_ResultElementDef::InputReference:
+				if (!papuga_RequestResultDescription_push_input( descr, ei->inputselect, ei->tagname, ei->itemid, ei->resolvetype)) throw std::bad_alloc();
+				break;
+			case RequestAutomaton_ResultElementDef::ResultReference:
+				if (!papuga_RequestResultDescription_push_callresult( descr, ei->inputselect, ei->tagname, ei->str)) throw std::bad_alloc();
+				break;
+		}
+	}
+	if (!papuga_RequestAutomation_add_result( atm, descr)) throw std::bad_alloc();
 }
 
 #if __cplusplus >= 201103L
@@ -358,10 +388,8 @@ void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga
 
 RequestAutomaton::RequestAutomaton(
 		const papuga_ClassDef* classdefs,
-		const papuga_StructInterfaceDescription* structdefs,
-		const char* answername,
-		bool mergeInputAnswer)
-	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername,mergeInputAnswer))
+		const papuga_StructInterfaceDescription* structdefs)
+	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs))
 	,m_descr(papuga_create_SchemaDescription())
 {
 	if (!m_atm || !m_descr)
@@ -375,12 +403,13 @@ RequestAutomaton::RequestAutomaton(
 #if __cplusplus >= 201103L
 RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 					const papuga_StructInterfaceDescription* structdefs,
-					const char* answername,
-					bool mergeInputAnswer,
+					const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs_,
 					const std::initializer_list<InheritedDef>& inherited,
 					const std::initializer_list<RequestAutomaton_Node>& nodes)
-	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,answername,mergeInputAnswer))
+	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs))
 	,m_descr(papuga_create_SchemaDescription())
+	,m_resultdefs(resultdefs_.begin(), resultdefs_.end())
+	,m_rootexpr(),m_rootstk()
 {
 	if (!m_atm || !m_descr)
 	{
@@ -485,6 +514,11 @@ void RequestAutomaton::addInheritContext( const char* typenam, const char* expre
 			throw papuga::runtime_error( _TXT("schema description check and compile error (expression %s): %s"), errexpr, papuga_ErrorCode_tostring(errcode));
 		}
 	}
+}
+
+void RequestAutomaton::addResult( const RequestAutomaton_ResultDef& resultdef)
+{
+	m_resultdefs.push_back( resultdef);
 }
 
 void RequestAutomaton::addStruct( const char* expression, int itemid, const RequestAutomaton_StructDef::Element* elems)

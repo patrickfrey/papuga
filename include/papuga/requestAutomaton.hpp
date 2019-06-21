@@ -232,6 +232,39 @@ struct RequestAutomaton_AssignmentDef
 	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
+/// \class RequestAutomaton_ResultElementDef
+/// \brief Result element declaration for using in C++ initializer lists
+struct RequestAutomaton_ResultElementDef
+{
+	enum Type {
+		Empty,
+		Structure,
+		Constant,
+		InputReference,
+		ResultReference
+	};
+	Type type;
+	papuga_ResolveType resolvetype;
+	const char* inputselect;
+	const char* tagname;
+	int itemid;
+	const char* str;
+
+	RequestAutomaton_ResultElementDef( const RequestAutomaton_ResultElementDef& o)
+		:type(o.type),resolvetype(o.resolvetype),inputselect(o.inputselect),tagname(o.tagname),itemid(o.itemid),str(o.str){}
+	RequestAutomaton_ResultElementDef()
+		:type(Empty),resolvetype(papuga_ResolveTypeRequired),inputselect(0),tagname(0),itemid(-1),str(0){}
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_)
+		:type(Structure),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char* constant_)
+		:type(Constant),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(constant_){}
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, int itemid_, char resolvechr='!')
+		:type(InputReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char** varname_)
+		:type(ResultReference),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(varname_[0])
+		{if (!varname_[0] || varname_[1]) throw std::runtime_error("syntax error");}
+};
+
 
 #if __cplusplus >= 201103L
 /// \brief Forward declaration
@@ -346,7 +379,56 @@ public:
 		insert( end(), o.begin(), o.end());
 	}
 };
+
 #endif
+
+class RequestAutomaton_ResultElementDefList
+	:public std::vector<RequestAutomaton_ResultElementDef>
+{
+public:
+#if __cplusplus >= 201103L
+	RequestAutomaton_ResultElementDefList( const std::initializer_list<RequestAutomaton_ResultElementDef>& nodes)
+		:std::vector<RequestAutomaton_ResultElementDef>( nodes.begin(), nodes.end()){}
+#endif
+	RequestAutomaton_ResultElementDefList()
+		:std::vector<RequestAutomaton_ResultElementDef>(){}
+	RequestAutomaton_ResultElementDefList( const std::vector<RequestAutomaton_ResultElementDef>& nodes)
+		:std::vector<RequestAutomaton_ResultElementDef>( nodes.begin(), nodes.end()){}
+	RequestAutomaton_ResultElementDefList( const RequestAutomaton_ResultElementDefList& o)
+		:std::vector<RequestAutomaton_ResultElementDef>( o){}
+
+	/// \brief Append an other node list (join lists)
+	void append( const RequestAutomaton_ResultElementDefList& o)
+	{
+		insert( end(), o.begin(), o.end());
+	}
+};
+
+class RequestAutomaton_ResultDef
+{
+public:
+#if __cplusplus >= 201103L
+	RequestAutomaton_ResultDef( const char* name_, const std::initializer_list<RequestAutomaton_ResultElementDef>& elements_)
+		:m_name(name_),m_elements(elements_){}
+#endif
+	RequestAutomaton_ResultDef( const char* name_, const std::vector<RequestAutomaton_ResultElementDef>& elements_)
+		:m_name(name_),m_elements(elements_){}
+	RequestAutomaton_ResultDef( const char* name_)
+		:m_name(name_),m_elements(){}
+	
+	const char* name() const					{return m_name;}
+	const RequestAutomaton_ResultElementDefList& elements() const	{return m_elements;}
+
+	/// \brief Add this node definition to the automaton given as argument
+	/// \param[in] path prefix for all selection expressions
+	/// \param[in] atm automaton to add this definition to
+	void addToAutomaton( papuga_RequestAutomaton* atm) const;
+
+private:
+	const char* m_name;
+	RequestAutomaton_ResultElementDefList m_elements;
+};
+
 
 /// \brief Structure defining the mapping of requests of a certain type to a list of method calls
 class RequestAutomaton
@@ -361,9 +443,7 @@ public:
 	/// \brief Constructor defining an empty automaton to be filled with further method calls
 	RequestAutomaton(
 		const papuga_ClassDef* classdefs,
-		const papuga_StructInterfaceDescription* structdefs,
-		const char* answername,
-		bool mergeInputAnswer);
+		const papuga_StructInterfaceDescription* structdefs);
 
 #if __cplusplus >= 201103L
 	struct InheritedDef
@@ -379,7 +459,7 @@ public:
 	};
 	/// \brief Constructor defining the whole automaton from an initializer list
 	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs,
-				const char* answername, bool mergeInputAnswer,
+				const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs_,
 				const std::initializer_list<InheritedDef>& inherited,
 				const std::initializer_list<RequestAutomaton_Node>& nodes);
 #endif
@@ -393,6 +473,10 @@ public:
 	/// \remark Only available if this automaton has been constructed as empty
 	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
 	void addInheritContext( const char* typenam, const char* expression, bool required);
+
+	/// \brief Add a result template definition
+	/// \param[in] resultdef the result definition
+	void addResult( const RequestAutomaton_ResultDef& resultdef);
 
 	/// \brief Add a method call
 	/// \param[in] expression select expression addressing the scope of this method call definition
@@ -462,11 +546,14 @@ public:
 	/// \return the schema description XSD source
 	const papuga_SchemaDescription* description() const	{return m_descr;}
 
+	const std::vector<RequestAutomaton_ResultDef>& resultdefs() const	{return m_resultdefs;}
+
 private:
-	papuga_RequestAutomaton* m_atm;			///< automaton definition
-	papuga_SchemaDescription* m_descr;		///< schema description
-	std::string m_rootexpr;				///< current root expression
-	std::vector<int> m_rootstk;			///< stack for open close root expressions
+	papuga_RequestAutomaton* m_atm;				///< automaton definition
+	papuga_SchemaDescription* m_descr;			///< schema description
+	std::vector<RequestAutomaton_ResultDef> m_resultdefs;	///< list of result templates
+	std::string m_rootexpr;					///< current root expression
+	std::vector<int> m_rootstk;				///< stack for open close root expressions
 };
 
 

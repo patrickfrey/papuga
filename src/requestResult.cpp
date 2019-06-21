@@ -31,20 +31,37 @@
 
 using namespace papuga;
 
+extern "C" papuga_RequestResultDescription* papuga_create_RequestResultDescription( const char* name_)
+{
+	papuga_RequestResultDescription* rt = (papuga_RequestResultDescription*)std::malloc( sizeof( papuga_RequestResultDescription));
+	if (!rt) return NULL;
+	rt->name = name_;
+	rt->nodear = 0;
+	rt->nodearallocsize = 0;
+	rt->nodearsize = 0;
+	return rt;
+}
+
+void papuga_destroy_RequestResultDescription( papuga_RequestResultDescription* self)
+{
+	if (!self) return;
+	if (self->nodear) std::free( self->nodear);
+	std::free( self);
+}
+
 static papuga_RequestResultNodeDescription* allocNode( papuga_RequestResultDescription* descr)
 {
 	if (!descr->nodear)
 	{
-		descr->nodear = (papuga_RequestResultNodeDescription*)papuga_Allocator_alloc( descr->allocator, INIT_RESULT_SIZE * sizeof(papuga_RequestResultNodeDescription), 0/*default alignment*/);
-		if (!descr->nodear) return 0;
+		descr->nodear = (papuga_RequestResultNodeDescription*)std::malloc( INIT_RESULT_SIZE * sizeof(papuga_RequestResultNodeDescription));
+		if (!descr->nodear) return NULL;
 	}
 	else if (descr->nodearsize == descr->nodearallocsize)
 	{
 		if (descr->nodearsize <= MAX_RESULT_SIZE) return 0;
 		int newallocsize = descr->nodearallocsize * 2;
-		papuga_RequestResultNodeDescription* newar = (papuga_RequestResultNodeDescription*)papuga_Allocator_alloc( descr->allocator, newallocsize * sizeof(papuga_RequestResultNodeDescription), 0/*default alignment*/);
+		papuga_RequestResultNodeDescription* newar = (papuga_RequestResultNodeDescription*)std::realloc( descr->nodear, newallocsize * sizeof(papuga_RequestResultNodeDescription));
 		if (!newar) return 0;
-		std::memcpy( newar, descr->nodear, descr->nodearsize * sizeof(papuga_RequestResultNodeDescription));
 		descr->nodear = newar;
 	}
 	return &descr->nodear[ descr->nodearsize++];
@@ -56,8 +73,9 @@ extern "C" bool papuga_RequestResultDescription_push_constant( papuga_RequestRes
 	if (!nd) return false;
 	nd->inputselect = inputselect;
 	nd->type = papuga_ResultNodeConstant;
+	nd->resolvetype = papuga_ResolveTypeRequired;
 	nd->tagname = tagname;
-	nd->value.constant = constant;
+	nd->value.str = constant;
 	return true;
 }
 
@@ -67,33 +85,29 @@ extern "C" bool papuga_RequestResultDescription_push_structure( papuga_RequestRe
 	papuga_RequestResultNodeDescription* nd_close = allocNode( descr);
 	if (!nd_open || !nd_close) return false;
 
-	std::size_t inputselectlen = std::strlen( inputselect);
-	char* closeselect = (char*)papuga_Allocator_alloc( descr->allocator, inputselectlen+1, 1);
-	if (!closeselect) return false;
-	std::memcpy( closeselect, inputselect, inputselectlen);
-	closeselect[ inputselectlen+0] = '~';
-	closeselect[ inputselectlen+1] = 0;
-
 	nd_open->inputselect = inputselect;
 	nd_open->type = papuga_ResultNodeOpenStructure;
 	nd_open->tagname = tagname;
-	nd_open->value.constant = NULL;
+	nd_open->resolvetype = papuga_ResolveTypeRequired;
+	nd_open->value.str = NULL;
 
-	nd_close->inputselect = closeselect;
+	nd_close->inputselect = inputselect;
 	nd_close->type = papuga_ResultNodeCloseStructure;
+	nd_close->resolvetype = papuga_ResolveTypeRequired;
 	nd_close->tagname = tagname;
-	nd_close->value.constant = NULL;
+	nd_close->value.str = NULL;
 	return true;
 }
 
-extern "C" bool papuga_RequestResultDescription_push_input( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, int nodeid)
+extern "C" bool papuga_RequestResultDescription_push_input( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, int itemid, papuga_ResolveType resolvetype)
 {
 	papuga_RequestResultNodeDescription* nd = allocNode( descr);
 	if (!nd) return false;
 	nd->inputselect = inputselect;
 	nd->type = papuga_ResultNodeInputReference;
+	nd->resolvetype = resolvetype;
 	nd->tagname = tagname;
-	nd->value.nodeid = nodeid;
+	nd->value.itemid = itemid;
 	return true;
 }
 
@@ -103,8 +117,9 @@ extern "C" bool papuga_RequestResultDescription_push_callresult( papuga_RequestR
 	if (!nd) return false;
 	nd->inputselect = inputselect;
 	nd->type = papuga_ResultNodeResultReference;
+	nd->resolvetype = papuga_ResolveTypeRequired;
 	nd->tagname = tagname;
-	nd->value.variable = variable;
+	nd->value.str = variable;
 	return true;
 }
 

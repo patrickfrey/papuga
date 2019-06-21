@@ -26,6 +26,7 @@ set( source_files
 set( source_files_request
 	request.cpp
 	requestHandler.cpp
+	requestResult.cpp
 	requestAutomaton.cpp
 	requestParser.c
 	requestParser_json.cpp

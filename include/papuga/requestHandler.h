@@ -40,6 +40,15 @@ typedef struct papuga_RequestMethodDescription
 } papuga_RequestMethodDescription;
 
 /*
+ * @brief Describes a result of a request
+ */
+typedef struct papuga_RequestResult
+{
+	const char* name;
+	papuga_Serialization serialization;
+} papuga_RequestResult;
+
+/*
  * @brief Creates a new context for handling a request
  * @param[in] classname name of the class of this context used to distinguish different context types or NULL if undefined
  * @return the request context created or NULL in case of a memory allocation error
@@ -226,27 +235,19 @@ const char** papuga_RequestHandler_list_methods( const papuga_RequestHandler* se
 bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_RequestLogger* logger, papuga_ErrorBuffer* errorbuf, int* errorpos);
 
 /*
- * @brief Initialize the result of a request as value variant
- * @param[in,out] self serialization where to serialize the request result in a context to
- * @param[in] context context of the request execution
- * @param[in] request content of the request
- * @return true on success, false on out of memory
+ * @brief Get the number of a result structures of a request
+ * @param[in] self request context to get the result from
+ * @return the number of result structures on success, 0 if undefined
  */
-bool papuga_Serialization_serialize_request_result( papuga_Serialization* self, const papuga_RequestContext* context, const papuga_Request* request, papuga_ErrorCode* errcode);
+int papuga_RequestContext_nof_results( const papuga_RequestContext* self);
 
 /*
- * @brief Merge input with result into serialization
- * @param[in,out] self serialization where to serialize the request result in a context to
- * @param[in] context context of the request execution
- * @param[in] request content of the request
- * @param[in] input_encoding character set encoding of the input
- * @param[in] input_doctype content type of the input
- * @param[in] input_content pointer to input string
- * @param[in] input_contentlen length of inout in bytes
- * @param[out] errcode error code in case of error
- * @return true on success, false on error
+ * @brief Get a specific result structure of a request
+ * @param[in] self request context to get the result from
+ * @param[in] idx index of the result starting with 0
+ * @return the result structure pointer on success, NULL if undefined
  */
-bool papuga_Serialization_merge_request_result( papuga_Serialization* self, const papuga_RequestContext* context, const papuga_Request* request, papuga_StringEncoding input_encoding, papuga_ContentType input_doctype, const char* input_content, size_t input_contentlen, papuga_ErrorCode* errcode);
+const papuga_RequestResult* papuga_RequestContext_get_result( const papuga_RequestContext* self, int idx);
 
 #ifdef __cplusplus
 }

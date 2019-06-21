@@ -22,6 +22,7 @@ extern "C" {
 typedef struct papuga_RequestAutomaton papuga_RequestAutomaton;
 typedef struct papuga_Request papuga_Request;
 typedef struct papuga_RequestContext papuga_RequestContext;
+typedef struct papuga_RequestResultDescription papuga_RequestResultDescription;
 
 /*
  * @brief Defines an identifier for a method
@@ -36,15 +37,11 @@ typedef struct papuga_RequestMethodId
  * @brief Create an automaton to configure
 * \param[in] classdefs class definitions referred to in host object references
 * \param[in] structdefs structure definitions
-* \param[in] resultname name of the result (root tag)
-* \param[in] mergeInputResult true if the result is the input with the results merged in, false if the result if a structure with the results as elements
  * @return The automaton structure
  */
 papuga_RequestAutomaton* papuga_create_RequestAutomaton(
 		const papuga_ClassDef* classdefs,
-		const papuga_StructInterfaceDescription* structdefs,
-		const char* resultname,
-		bool mergeInputResult);
+		const papuga_StructInterfaceDescription* structdefs);
 
 /*
  * @brief Destroy an automaton
@@ -137,9 +134,9 @@ bool papuga_RequestAutomaton_set_call_arg_item(
 		int max_tag_diff);
 
 /*
- * @brief Define the start of a call group. Calls inside a group are executed in sequential order for their context. 
- * @note Groups define the first order criterion for call execution. The three criterions are (groupid,position,elementid), single elements are implicitely assigned to a group with one element. Calls without grouping are executed in order of their definition.
- * @remark Only one level of grouping allowed
+ * @brief Define the start of a call group. Calls inside a group are executed in sequential order for appearing in input.
+ * @note Calls without grouping are executed in order of their definition.
+ * @remark Only one level of grouping allowed (no nesting of group definitions allowed)
  * @return true on success, false if already a group defined
  */
 bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self);
@@ -147,7 +144,7 @@ bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self);
 /*
  * @brief Define the end of a call group. Calls inside a group are executed in sequential order for their context
  * @remark Only one level of grouping allowed
- * @return true on success, false if no group defined yet
+ * @return true on success, false if not in the context of an opened group
  */
 bool papuga_RequestAutomaton_close_group( papuga_RequestAutomaton* self);
 
@@ -211,6 +208,15 @@ bool papuga_RequestAutomaton_add_assignment(
 		int itemid,
 		papuga_ResolveType resolvetype,
 		int max_tag_diff);
+
+/*
+ * @brief Add a description of a result
+ * @param[in,out] self automaton changed
+ * @param[in] descr description of how to build the result (passed with ownership)
+ */
+bool papuga_RequestAutomation_add_result(
+		papuga_RequestAutomaton* self,
+		papuga_RequestResultDescription* descr);
 
 /*
  * @brief Declare building of the automaton terminated
@@ -384,23 +390,34 @@ const papuga_RequestVariableAssignment* papuga_RequestIterator_next_assignment( 
 const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestContext* context);
 
 /*
+ * @brief Declare the value of the last call fetched
+ * @note This method counteracts the idea of an iterator. It indicates a flaw in the organization of this API. Every result of a call has to be notified so that the request results can be built in the request module. In a future redesign this has to be fixed.
+ */
+bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, papuga_ValueVariant* result);
+
+/*
+ * @brief Get the number of results stored in the context when handling the request
+ * @param[in] self this context pointer
+ * @return the number of results
+ */
+int papuga_RequestIterator_nof_results( const papuga_RequestIterator* self);
+
+/*
+ * @brief Serialize the content of a results result and return its name and root element
+ * @param[in,out] self this context pointer
+ * @param[in] idx index of the result to serialize
+ * @param[out] name identifier of the result, root element
+ * @param[in,out] serialization where to write the serialization of the result to
+ * @return true on success, false on out of memory
+ */
+bool papuga_RequestIterator_serialize_result( papuga_RequestIterator* self, int idx, char const** name, papuga_Serialization* serialization);
+
+/*
  * @brief Get the last error of the iterator with a pointer to the method call that failed, if available
  * @param[in] self request iterator to get the last error from
  * @return the error structure or NULL if there was no error
  */
 const papuga_RequestMethodError* papuga_RequestIterator_get_last_error( papuga_RequestIterator* self);
-
-/*
- * @brief Get the name of the result produced by this request (e.g. used as toplevel tag for XML of result)
- * @return the name of the result used as root element of the result structure
- */
-const char* papuga_Request_resultname( const papuga_Request* self);
-
-/*
- * @brief Get a boolean deciding wheter the result is built as structure of elements (0) or if the results are merged into the input as result (1)
- * @return 1, if the result is the input with the results merged into or 0 if the result is built from the exported variables assigned in the result context
- */
-bool papuga_Request_resultmerge( const papuga_Request* self);
 
 /*
  * @brief Get the structure descriptions of the request for mapping the output
