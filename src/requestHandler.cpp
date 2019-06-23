@@ -1027,11 +1027,18 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			}
 		}
 		context->nofResults = papuga_RequestIterator_nof_results( itr);
-		context->results = (papuga_RequestResult*) papuga_Allocator_alloc( &context->allocator, sizeof(papuga_RequestResult) * context->nofResults, 0);
-		if (!context->results)
+		if (!context->nofResults)
 		{
-			context->nofResults = 0;
-			throw std::bad_alloc();
+			context->results = 0;
+		}
+		else
+		{
+			context->results = (papuga_RequestResult*) papuga_Allocator_alloc( &context->allocator, sizeof(papuga_RequestResult) * context->nofResults, 0);
+			if (!context->results)
+			{
+				context->nofResults = 0;
+				throw std::bad_alloc();
+			}
 		}
 		std::size_t ri = 0, re = context->nofResults;
 		for (; ri != re; ++ri)
@@ -1061,7 +1068,7 @@ extern "C" int papuga_RequestContext_nof_results( const papuga_RequestContext* s
 	return self->nofResults;
 }
 
-extern "C" const papuga_RequestResult* papuga_RequestContext_get_result( const papuga_RequestContext* self, int idx)
+extern "C" papuga_RequestResult* papuga_RequestContext_get_result( const papuga_RequestContext* self, int idx)
 {
 	return idx >= self->nofResults ? 0 : (self->results + idx);
 }

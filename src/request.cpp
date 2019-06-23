@@ -212,7 +212,7 @@ public:
 	typedef textwolf::XMLPathSelectAutomatonParser<> XMLPathSelectAutomaton;
 
 	explicit AutomatonDescription( const papuga_ClassDef* classdefs_)
-		:m_classdefs(classdefs_),m_resultname()
+		:m_classdefs(classdefs_)
 		,m_nof_classdefs(nofClassDefs(classdefs_))
 		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs(),m_assignments()
 		,m_atm(),m_maxitemid(0)
@@ -231,10 +231,6 @@ public:
 	const papuga_ClassDef* classdefs() const
 	{
 		return m_classdefs;
-	}
-	const char* resultname() const
-	{
-		return m_resultname;
 	}
 	const char* copyIfDefined( const char* str)
 	{
@@ -803,7 +799,6 @@ private:
 
 private:
 	const papuga_ClassDef* m_classdefs;			//< array of classes
-	const char* m_resultname;				//< label of result (top level tag for XML)
 	int m_nof_classdefs;					//< number of classes defined in m_classdefs
 	std::vector<CallDef> m_calldefs;
 	std::vector<StructDef> m_structdefs;
@@ -1368,10 +1363,6 @@ public:
 	const papuga_ClassDef* classdefs() const
 	{
 		return m_atm->classdefs();
-	}
-	const char* resultname() const
-	{
-		return m_atm->resultname();
 	}
 	const papuga_RequestInheritedContextDef* getRequiredInheritedContextsDefs( papuga_ErrorCode& errcode) const
 	{

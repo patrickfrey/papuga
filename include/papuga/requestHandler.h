@@ -247,7 +247,7 @@ int papuga_RequestContext_nof_results( const papuga_RequestContext* self);
  * @param[in] idx index of the result starting with 0
  * @return the result structure pointer on success, NULL if undefined
  */
-const papuga_RequestResult* papuga_RequestContext_get_result( const papuga_RequestContext* self, int idx);
+papuga_RequestResult* papuga_RequestContext_get_result( const papuga_RequestContext* self, int idx);
 
 #ifdef __cplusplus
 }

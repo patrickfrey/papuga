@@ -260,6 +260,11 @@ struct RequestAutomaton_ResultElementDef
 		:type(Constant),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(constant_){}
 	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, int itemid_, char resolvechr='!')
 		:type(InputReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
+#if __cplusplus >= 201103L
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const std::initializer_list<const char*>& varname_)
+		:type(ResultReference),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(*varname_.begin())
+		{if (varname_.size() != 1) throw std::runtime_error("syntax error");}
+#endif
 	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char** varname_)
 		:type(ResultReference),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(varname_[0])
 		{if (!varname_[0] || varname_[1]) throw std::runtime_error("syntax error");}
@@ -459,7 +464,7 @@ public:
 	};
 	/// \brief Constructor defining the whole automaton from an initializer list
 	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs,
-				const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs_,
+				const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs,
 				const std::initializer_list<InheritedDef>& inherited,
 				const std::initializer_list<RequestAutomaton_Node>& nodes);
 #endif
@@ -546,12 +551,9 @@ public:
 	/// \return the schema description XSD source
 	const papuga_SchemaDescription* description() const	{return m_descr;}
 
-	const std::vector<RequestAutomaton_ResultDef>& resultdefs() const	{return m_resultdefs;}
-
 private:
 	papuga_RequestAutomaton* m_atm;				///< automaton definition
 	papuga_SchemaDescription* m_descr;			///< schema description
-	std::vector<RequestAutomaton_ResultDef> m_resultdefs;	///< list of result templates
 	std::string m_rootexpr;					///< current root expression
 	std::vector<int> m_rootstk;				///< stack for open close root expressions
 };

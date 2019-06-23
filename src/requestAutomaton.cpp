@@ -403,12 +403,11 @@ RequestAutomaton::RequestAutomaton(
 #if __cplusplus >= 201103L
 RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 					const papuga_StructInterfaceDescription* structdefs,
-					const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs_,
+					const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs,
 					const std::initializer_list<InheritedDef>& inherited,
 					const std::initializer_list<RequestAutomaton_Node>& nodes)
 	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs))
 	,m_descr(papuga_create_SchemaDescription())
-	,m_resultdefs(resultdefs_.begin(), resultdefs_.end())
 	,m_rootexpr(),m_rootstk()
 {
 	if (!m_atm || !m_descr)
@@ -440,6 +439,10 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 		for (auto ni : nodes)
 		{
 			ni.addToAutomaton( "", m_atm, m_descr);
+		}
+		for (auto ri : resultdefs)
+		{
+			ri.addToAutomaton( m_atm);
 		}
 		if (!papuga_RequestAutomaton_done( m_atm))
 		{
@@ -518,7 +521,7 @@ void RequestAutomaton::addInheritContext( const char* typenam, const char* expre
 
 void RequestAutomaton::addResult( const RequestAutomaton_ResultDef& resultdef)
 {
-	m_resultdefs.push_back( resultdef);
+	resultdef.addToAutomaton( m_atm);
 }
 
 void RequestAutomaton::addStruct( const char* expression, int itemid, const RequestAutomaton_StructDef::Element* elems)

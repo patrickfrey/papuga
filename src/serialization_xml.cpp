@@ -157,144 +157,170 @@ static bool isEmptyContent( const char* str, std::size_t size)
 	return si == size;
 }
 
-extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool withRoot, bool ignoreEmptyContent, papuga_ErrorCode* errcode)
+struct Structure
 {
-	struct Structure
+	enum {MaxNofAttributes=32};
+	const char* m_name;
+	int m_namelen;
+	struct {
+		const char* name;
+		int namelen;
+		const char* value;
+		int valuelen;
+	} m_attributes[ MaxNofAttributes];
+	int m_nofAttributes;
+	const char* m_content;
+	int m_contentlen;
+	bool m_hasOpen;
+	bool m_hasClose;
+	papuga_ErrorCode* m_errcode;
+
+	explicit Structure( papuga_ErrorCode* errcode_)
+		:m_errcode(errcode_)
 	{
-		enum {MaxNofAttributes=32};
-		const char* m_name;
-		int m_namelen;
-		struct {
-			const char* name;
-			int namelen;
-			const char* value;
-			int valuelen;
-		} m_attributes[ MaxNofAttributes];
-		int m_nofAttributes;
-		const char* m_content;
-		int m_contentlen;
-		bool m_hasOpen;
-		bool m_hasClose;
-		papuga_ErrorCode* m_errcode;
+		reset();
+	}
 
-		explicit Structure( papuga_ErrorCode* errcode_)
-			:m_errcode(errcode_)
+	void resetAttribute( int idx)
+	{
+		m_attributes[ idx].name = 0;
+		m_attributes[ idx].namelen = 0;
+		m_attributes[ idx].value = 0;
+		m_attributes[ idx].valuelen = 0;
+	}
+	void reset()
+	{
+		m_name = 0;
+		m_namelen = 0;
+		resetAttribute( 0);
+		m_nofAttributes = 0;
+		m_content = 0;
+		m_contentlen = 0;
+		m_hasOpen = false;
+		m_hasClose = false;
+	}
+	bool addOpen( const char* str, int sz)
+	{
+		if (m_nofAttributes || m_content || m_hasOpen)
 		{
-			reset();
+			*m_errcode = papuga_SyntaxError;
+			return false;
 		}
-
-		void resetAttribute( int idx)
+		m_name = str;
+		m_namelen = sz;
+		m_hasOpen = true;
+		return true;
+	}
+	bool addOpen()
+	{
+		if (m_nofAttributes || m_content || m_hasOpen)
 		{
-			m_attributes[ idx].name = 0;
-			m_attributes[ idx].namelen = 0;
-			m_attributes[ idx].value = 0;
-			m_attributes[ idx].valuelen = 0;
+			*m_errcode = papuga_SyntaxError;
+			return false;
 		}
-		void reset()
+		m_hasOpen = true;
+		return true;
+	}
+	bool addClose()
+	{
+		m_hasClose = true;
+		return true;
+	}
+	bool addAttributeName( const char* str, int sz)
+	{
+		if (m_nofAttributes >= MaxNofAttributes-1)
 		{
-			m_name = 0;
-			m_namelen = 0;
-			resetAttribute( 0);
-			m_nofAttributes = 0;
-			m_content = 0;
-			m_contentlen = 0;
-			m_hasOpen = false;
-			m_hasClose = false;
+			*m_errcode = papuga_BufferOverflowError;
+			return false;
 		}
-		bool addOpen( const char* str, int sz)
+		if (m_attributes[ m_nofAttributes].name || m_content || sz == 0)
 		{
-			if (m_nofAttributes || m_content || m_hasOpen)
+			*m_errcode = papuga_SyntaxError;
+			return false;
+		}
+		m_attributes[ m_nofAttributes].name = str;
+		m_attributes[ m_nofAttributes].namelen = sz;
+		return true;
+	}
+	bool addAttributeValue( const char* str, int sz)
+	{
+		if (m_nofAttributes >= MaxNofAttributes-1)
+		{
+			*m_errcode = papuga_BufferOverflowError;
+			return false;
+		}
+		if (!m_attributes[ m_nofAttributes].name || m_content)
+		{
+			*m_errcode = papuga_SyntaxError;
+			return false;
+		}
+		m_attributes[ m_nofAttributes].value = str;
+		m_attributes[ m_nofAttributes].valuelen = sz;
+		++m_nofAttributes;
+		resetAttribute( m_nofAttributes);
+		return true;
+	}
+	bool addContentValue( const char* str, int sz)
+	{
+		if (m_content)
+		{
+			*m_errcode = papuga_SyntaxError;
+			return false;
+		}
+		m_content = str;
+		m_contentlen = sz;
+		return true;
+	}
+	bool flushStructure( papuga_Serialization* self)
+	{
+		bool rt = true;
+		if (m_name)
+		{
+			rt &= papuga_Serialization_pushName_string( self, m_name, m_namelen);
+		}
+		if (m_nofAttributes)
+		{
+			if (m_hasOpen)
 			{
-				*m_errcode = papuga_SyntaxError;
-				return false;
+				rt &= papuga_Serialization_pushOpen( self);
 			}
-			m_name = str;
-			m_namelen = sz;
-			m_hasOpen = true;
-			return true;
-		}
-		bool addOpen()
-		{
-			if (m_nofAttributes || m_content || m_hasOpen)
+			int ai = 0, ae = m_nofAttributes;
+			for (; ai != ae; ++ai)
 			{
-				*m_errcode = papuga_SyntaxError;
-				return false;
+				rt &= papuga_Serialization_pushName_string( self, m_attributes[ ai].name, m_attributes[ ai].namelen);
+				rt &= papuga_Serialization_pushValue_string( self, m_attributes[ ai].value, m_attributes[ ai].valuelen);
 			}
-			m_hasOpen = true;
-			return true;
-		}
-		bool addClose()
-		{
-			m_hasClose = true;
-			return true;
-		}
-		bool addAttributeName( const char* str, int sz)
-		{
-			if (m_nofAttributes >= MaxNofAttributes-1)
-			{
-				*m_errcode = papuga_BufferOverflowError;
-				return false;
-			}
-			if (m_attributes[ m_nofAttributes].name || m_content || sz == 0)
-			{
-				*m_errcode = papuga_SyntaxError;
-				return false;
-			}
-			m_attributes[ m_nofAttributes].name = str;
-			m_attributes[ m_nofAttributes].namelen = sz;
-			return true;
-		}
-		bool addAttributeValue( const char* str, int sz)
-		{
-			if (m_nofAttributes >= MaxNofAttributes-1)
-			{
-				*m_errcode = papuga_BufferOverflowError;
-				return false;
-			}
-			if (!m_attributes[ m_nofAttributes].name || m_content)
-			{
-				*m_errcode = papuga_SyntaxError;
-				return false;
-			}
-			m_attributes[ m_nofAttributes].value = str;
-			m_attributes[ m_nofAttributes].valuelen = sz;
-			++m_nofAttributes;
-			resetAttribute( m_nofAttributes);
-			return true;
-		}
-		bool addContentValue( const char* str, int sz)
-		{
 			if (m_content)
 			{
-				*m_errcode = papuga_SyntaxError;
-				return false;
+				rt &= papuga_Serialization_pushName_string( self, "", 0);
+				rt &= papuga_Serialization_pushValue_string( self, m_content, m_contentlen);
 			}
-			m_content = str;
-			m_contentlen = sz;
-			return true;
-		}
-		bool flushStructure( papuga_Serialization* self)
-		{
-			bool rt = true;
-			if (m_name)
+			if (m_hasClose)
 			{
-				rt &= papuga_Serialization_pushName_string( self, m_name, m_namelen);
+				papuga_Serialization_pushClose( self);
 			}
-			if (m_nofAttributes)
+		}
+		else
+		{
+			if (m_hasOpen && m_hasClose)
+			{
+				if (m_content)
+				{
+					rt &= papuga_Serialization_pushValue_string( self, m_content, m_contentlen);
+				}
+				else
+				{
+					rt &= papuga_Serialization_pushValue_void( self);
+				}
+			}
+			else
 			{
 				if (m_hasOpen)
 				{
 					rt &= papuga_Serialization_pushOpen( self);
 				}
-				int ai = 0, ae = m_nofAttributes;
-				for (; ai != ae; ++ai)
-				{
-					rt &= papuga_Serialization_pushName_string( self, m_attributes[ ai].name, m_attributes[ ai].namelen);
-					rt &= papuga_Serialization_pushValue_string( self, m_attributes[ ai].value, m_attributes[ ai].valuelen);
-				}
 				if (m_content)
 				{
-					rt &= papuga_Serialization_pushName_string( self, "", 0);
 					rt &= papuga_Serialization_pushValue_string( self, m_content, m_contentlen);
 				}
 				if (m_hasClose)
@@ -302,140 +328,114 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 					papuga_Serialization_pushClose( self);
 				}
 			}
-			else
-			{
-				if (m_hasOpen && m_hasClose)
-				{
-					if (m_content)
-					{
-						rt &= papuga_Serialization_pushValue_string( self, m_content, m_contentlen);
-					}
-					else
-					{
-						rt &= papuga_Serialization_pushValue_void( self);
-					}
-				}
-				else
-				{
-					if (m_hasOpen)
-					{
-						rt &= papuga_Serialization_pushOpen( self);
-					}
-					if (m_content)
-					{
-						rt &= papuga_Serialization_pushValue_string( self, m_content, m_contentlen);
-					}
-					if (m_hasClose)
-					{
-						papuga_Serialization_pushClose( self);
-					}
-				}
-			}
-			reset();
-			return rt;
 		}
-	};
+		reset();
+		return rt;
+	}
+};
 
-	struct TagStack
+struct TagStack
+{
+	struct OpenFlags
 	{
-		struct OpenFlags
-		{
-			bool isArray;
-			bool isNew;
-			bool isEndOfArray;
-			bool isRoot;
-		};
-		struct CloseFlags
-		{
-			bool isEndOfArray;
-			bool isRoot;
-		};
-
-		int m_arrays[ PAPUGA_MAX_RECURSION_DEPTH];
-		int m_nofarrays;
-		int m_arrayidx;
-		int m_cnt;
-		int m_depth;
-		papuga_ErrorCode* m_errcode;
-
-		struct {
-			const char* name;
-			int namelen;
-			bool isArrayElem;
-		} m_arrayStack[ PAPUGA_MAX_RECURSION_DEPTH]; //stack of last array element names
-		
-		explicit TagStack( papuga_ErrorCode* errcode_)
-			:m_errcode(errcode_)
-		{
-			m_arrayStack[ 0].name = 0;
-			m_arrayStack[ 0].namelen = -1;
-			m_arrayStack[ 0].isArrayElem = false;
-			m_nofarrays = 0;
-			m_arrayidx = 0;
-			m_cnt = 0;
-			m_depth = 0;
-		}
-		bool init( const char* content, int contentlen)
-		{
-			return getArrays( m_arrays, PAPUGA_MAX_RECURSION_DEPTH/*bufsize*/, &m_nofarrays, content, contentlen, m_errcode);
-		}
-		void next()
-		{
-			++m_cnt;
-		}
-		bool push( const char* tagname, int tagnamelen, OpenFlags& flags)
-		{
-			if (m_depth >= PAPUGA_MAX_RECURSION_DEPTH-1)
-			{
-				*m_errcode = papuga_MaxRecursionDepthReached;
-				return false;
-			}
-			++m_depth;
-			flags.isRoot = m_depth == 1;
-			if (m_arrayStack[ m_depth].namelen == tagnamelen && 0==std::memcmp( m_arrayStack[ m_depth].name, tagname, tagnamelen))
-			{
-				flags.isNew = false;
-				flags.isArray = true;
-				flags.isEndOfArray = false;
-			}
-			else
-			{
-				flags.isNew = true;
-				flags.isEndOfArray = m_arrayStack[ m_depth].isArrayElem;
-				while (m_arrayidx < m_nofarrays && m_arrays[ m_arrayidx] < m_cnt) ++m_arrayidx;
-				flags.isArray = m_arrays[ m_arrayidx] == m_cnt;
-				m_arrayStack[ m_depth].namelen = tagnamelen;
-				m_arrayStack[ m_depth].name = tagname;
-			}
-			m_arrayStack[ m_depth].isArrayElem = flags.isArray;
-
-			m_arrayStack[ m_depth+1].name = 0;
-			m_arrayStack[ m_depth+1].namelen = -1;
-			m_arrayStack[ m_depth+1].isArrayElem = false;
-			return true;
-		}
-		bool pop( CloseFlags& flags)
-		{
-			flags.isEndOfArray = m_arrayStack[ m_depth+1].isArrayElem;
-			flags.isRoot = m_depth == 1;
-			if (m_depth == 0)
-			{
-				*m_errcode = papuga_SyntaxError;
-				return false;
-			}
-			else
-			{
-				--m_depth;
-				return true;
-			}
-		}
-		bool end( CloseFlags& flags)
-		{
-			flags.isEndOfArray = m_arrayStack[ m_depth+1].isArrayElem;
-			return true;
-		}
+		bool isArray;
+		bool isNew;
+		bool isEndOfArray;
+		bool isRoot;
+	};
+	struct CloseFlags
+	{
+		bool isEndOfArray;
+		bool isRoot;
 	};
 
+	int m_arrays[ PAPUGA_MAX_RECURSION_DEPTH];
+	int m_nofarrays;
+	int m_arrayidx;
+	int m_cnt;
+	int m_depth;
+	papuga_ErrorCode* m_errcode;
+
+	struct {
+		const char* name;
+		int namelen;
+		bool isArrayElem;
+	} m_arrayStack[ PAPUGA_MAX_RECURSION_DEPTH]; //stack of last array element names
+	
+	explicit TagStack( papuga_ErrorCode* errcode_)
+		:m_errcode(errcode_)
+	{
+		m_arrayStack[ 0].name = 0;
+		m_arrayStack[ 0].namelen = -1;
+		m_arrayStack[ 0].isArrayElem = false;
+		m_nofarrays = 0;
+		m_arrayidx = 0;
+		m_cnt = 0;
+		m_depth = 0;
+	}
+	bool init( const char* content, int contentlen)
+	{
+		return getArrays( m_arrays, PAPUGA_MAX_RECURSION_DEPTH/*bufsize*/, &m_nofarrays, content, contentlen, m_errcode);
+	}
+	void next()
+	{
+		++m_cnt;
+	}
+	bool push( const char* tagname, int tagnamelen, OpenFlags& flags)
+	{
+		if (m_depth >= PAPUGA_MAX_RECURSION_DEPTH-1)
+		{
+			*m_errcode = papuga_MaxRecursionDepthReached;
+			return false;
+		}
+		++m_depth;
+		flags.isRoot = m_depth == 1;
+		if (m_arrayStack[ m_depth].namelen == tagnamelen && 0==std::memcmp( m_arrayStack[ m_depth].name, tagname, tagnamelen))
+		{
+			flags.isNew = false;
+			flags.isArray = true;
+			flags.isEndOfArray = false;
+		}
+		else
+		{
+			flags.isNew = true;
+			flags.isEndOfArray = m_arrayStack[ m_depth].isArrayElem;
+			while (m_arrayidx < m_nofarrays && m_arrays[ m_arrayidx] < m_cnt) ++m_arrayidx;
+			flags.isArray = m_arrays[ m_arrayidx] == m_cnt;
+			m_arrayStack[ m_depth].namelen = tagnamelen;
+			m_arrayStack[ m_depth].name = tagname;
+		}
+		m_arrayStack[ m_depth].isArrayElem = flags.isArray;
+
+		m_arrayStack[ m_depth+1].name = 0;
+		m_arrayStack[ m_depth+1].namelen = -1;
+		m_arrayStack[ m_depth+1].isArrayElem = false;
+		return true;
+	}
+	bool pop( CloseFlags& flags)
+	{
+		flags.isEndOfArray = m_arrayStack[ m_depth+1].isArrayElem;
+		flags.isRoot = m_depth == 1;
+		if (m_depth == 0)
+		{
+			*m_errcode = papuga_SyntaxError;
+			return false;
+		}
+		else
+		{
+			--m_depth;
+			return true;
+		}
+	}
+	bool end( CloseFlags& flags)
+	{
+		flags.isEndOfArray = m_arrayStack[ m_depth+1].isArrayElem;
+		return true;
+	}
+};
+
+extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool withRoot, bool ignoreEmptyContent, papuga_ErrorCode* errcode)
+{
 	Structure currentStruct( errcode);
 	TagStack tagStack( errcode);
 

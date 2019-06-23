@@ -22,7 +22,7 @@
 #include <iostream>
 #include <sstream>
 
-#undef PAPUGA_LOWLEVEL_DEBUG
+#define PAPUGA_LOWLEVEL_DEBUG
 
 struct LoggerContext
 {
@@ -122,8 +122,6 @@ bool papuga_execute_request(
 	papuga_Request* request = 0;
 	papuga_RequestParser* parser = 0;
 	papuga_RequestContext* ctx = 0;
-	papuga_Serialization* resultser;
-	papuga_ValueVariant result;
 	RequestVariable const* vi;
 	LoggerContext logctx;
 	char* resstr = 0;
@@ -155,14 +153,6 @@ bool papuga_execute_request(
 		papuga_ErrorBuffer_reportError( &errorbuf, "error at position %d: %s, feeding request, location: %s", pos, papuga_ErrorCode_tostring( errcode), buf);
 		goto ERROR;
 	}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	{
-		std::size_t requestdumplen;
-		const char* requestdump = papuga_Request_tostring( request, &allocator, papuga_UTF8, 5/*maxdepth*/, &requestdumplen, &errcode);
-		if (!requestdump) throw papuga::error_exception( errcode, "dumping request");
-		std::cerr << "ITEMS REQUEST:\n" << requestdump << std::endl;
-	}
-#endif
 	// Add variables to the request:
 	vi = variables;
 	if (vi) for (; vi->name; ++vi)
@@ -181,45 +171,39 @@ bool papuga_execute_request(
 		errcode = papuga_HostObjectError;
 		goto ERROR;
 	}
-	resultser = papuga_Allocator_alloc_Serialization( &allocator);
-	if (!resultser)
 	{
-		errcode = papuga_NoMemError;
-		goto ERROR;
-	}
-	papuga_init_ValueVariant_serialization( &result, resultser);
-	if (!papuga_Serialization_serialize_request_result( resultser, ctx, request, &errcode))
-	{
-		errcode = papuga_NoMemError;
-		goto ERROR;
-	}
+		int ri=0, re=papuga_RequestContext_nof_results( ctx);
+		for (; ri != re; ++ri)
+		{
+			papuga_RequestResult* result = papuga_RequestContext_get_result( ctx, ri);
+			papuga_ValueVariant resultval;
+			papuga_init_ValueVariant_serialization( &resultval, &result->serialization);
+			rootname = result->name;
+			structdefs = papuga_Request_struct_descriptions( request);
 #ifdef PAPUGA_LOWLEVEL_DEBUG
-	{
-		size_t dumplen = 0;
-		char* dumpstr = papuga_ValueVariant_todump( &result, &dumplen);
-		if (!dumpstr) throw papuga::error_exception( papuga_NoMemError, "dumping result");
-		std::cerr << "RESULT DUMP:\n" << dumpstr << std::endl;
-	}
+			size_t dumplen = 0;
+			char* dumpstr = papuga_ValueVariant_todump( &resultval, &allocator, structdefs, &dumplen);
+			if (!dumpstr) throw papuga::error_exception( papuga_NoMemError, "dumping result");
+			std::cerr << "RESULT DUMP " << ri << ":\n" << dumpstr << std::endl;
 #endif
-	rootname = papuga_Request_resultname( request);
-	structdefs = papuga_Request_struct_descriptions( request);
-
-	// Map the result:
-	switch (doctype)
-	{
-		case papuga_ContentType_XML:  resstr = (char*)papuga_ValueVariant_toxml( &result, &allocator, structdefs, encoding, rootname, "element", &reslen, &errcode); break;
-		case papuga_ContentType_JSON: resstr = (char*)papuga_ValueVariant_tojson( &result, &allocator, structdefs, encoding, rootname, "element", &reslen, &errcode); break;
-		case papuga_ContentType_Unknown:
-		default: break;
+			// Map the result:
+			switch (doctype)
+			{
+				case papuga_ContentType_XML:  resstr = (char*)papuga_ValueVariant_toxml( &resultval, &allocator, structdefs, encoding, rootname, "element", &reslen, &errcode); break;
+				case papuga_ContentType_JSON: resstr = (char*)papuga_ValueVariant_tojson( &resultval, &allocator, structdefs, encoding, rootname, "element", &reslen, &errcode); break;
+				case papuga_ContentType_Unknown:
+				default: break;
+			}
+			if (!resstr) goto ERROR;
+			resultblob.append( resstr, reslen);
+			try
+			{
+				logout.append( logctx.out.str());
+			}
+			catch (const std::bad_alloc&)
+			{}
+		}
 	}
-	if (!resstr) goto ERROR;
-	resultblob.append( resstr, reslen);
-	try
-	{
-		logout.append( logctx.out.str());
-	}
-	catch (const std::bad_alloc&)
-	{}
 	goto RELEASE;
 ERROR:
 	rt = false;
