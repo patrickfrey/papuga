@@ -111,13 +111,13 @@ extern "C" bool papuga_RequestResultDescription_push_input( papuga_RequestResult
 	return true;
 }
 
-extern "C" bool papuga_RequestResultDescription_push_callresult( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, const char* variable)
+extern "C" bool papuga_RequestResultDescription_push_callresult( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, const char* variable, papuga_ResolveType resolvetype)
 {
 	papuga_RequestResultNodeDescription* nd = allocNode( descr);
 	if (!nd) return false;
 	nd->inputselect = inputselect;
 	nd->type = papuga_ResultNodeResultReference;
-	nd->resolvetype = papuga_ResolveTypeRequired;
+	nd->resolvetype = resolvetype;
 	nd->tagname = tagname;
 	nd->value.str = variable;
 	return true;

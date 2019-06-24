@@ -260,14 +260,8 @@ struct RequestAutomaton_ResultElementDef
 		:type(Constant),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(constant_){}
 	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, int itemid_, char resolvechr='!')
 		:type(InputReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
-#if __cplusplus >= 201103L
-	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const std::initializer_list<const char*>& varname_)
-		:type(ResultReference),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(*varname_.begin())
-		{if (varname_.size() != 1) throw std::runtime_error("syntax error");}
-#endif
-	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char** varname_)
-		:type(ResultReference),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(varname_[0])
-		{if (!varname_[0] || varname_[1]) throw std::runtime_error("syntax error");}
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char* varname_, char resolvechr='!')
+		:type(ResultReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(-1),str(varname_){}
 };
 
 

@@ -326,14 +326,15 @@ const papuga_ClassDef* papuga_Request_classdefs( const papuga_Request* self);
 /*
  * @brief Describes details about the error occurred in resolving a method call
  */
-typedef struct papuga_RequestMethodError
+typedef struct papuga_RequestError
 {
 	papuga_RequestMethodId methodid;		/*< method identifier */
+	const char* variable;				/*< variable name causing the error */
 	papuga_ErrorCode errcode;			/*< error code */
 	int scopestart;					/*< scope start (equals event counter) for reproducing error area */
 	int argcnt;					/*< argument index of erroneous parameter or -1*/
 	const char* argpath;				/*< path of the error in the erroneous parameter or NULL */
-} papuga_RequestMethodError;
+} papuga_RequestError;
 
 /*
  * @brief Describes one method call provided by the request
@@ -417,7 +418,7 @@ bool papuga_RequestIterator_serialize_result( papuga_RequestIterator* self, int 
  * @param[in] self request iterator to get the last error from
  * @return the error structure or NULL if there was no error
  */
-const papuga_RequestMethodError* papuga_RequestIterator_get_last_error( papuga_RequestIterator* self);
+const papuga_RequestError* papuga_RequestIterator_get_last_error( papuga_RequestIterator* self);
 
 /*
  * @brief Get the structure descriptions of the request for mapping the output

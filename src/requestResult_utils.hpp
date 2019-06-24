@@ -74,9 +74,9 @@ public:
 		m_inputrefs.push_back( InputRef( scope_, itemid_, resolvetype_, taglevel_, m_ar.size()));
 		m_ar.push_back( RequestResultItem( papuga_ResultNodeInputReference, tagname_));
 	}
-	void addResultNodeResultReference( const Scope& scope_, const char* tagname_, const char* str_)
+	void addResultNodeResultReference( const Scope& scope_, const char* tagname_, const char* str_, papuga_ResolveType resolvetype_)
 	{
-		m_resultrefs.push_back( ResultRef( scope_, str_, m_ar.size()));
+		m_resultrefs.push_back( ResultRef( scope_, resolvetype_, str_, m_ar.size()));
 		m_ar.push_back( RequestResultItem( papuga_ResultNodeResultReference, tagname_));
 	}
 	void addResultNodeOpenStructure( const char* tagname_)
@@ -100,21 +100,82 @@ public:
 		{
 			if (scope_.inside( ri->scope) && 0==std::strcmp( varname, ri->varname))
 			{
-				if (papuga_ValueVariant_defined( &m_ar[ ri->index].value))
-				{
-					errcode = papuga_AmbiguousReference;
-					return false;
-				}
-				if (matches)
-				{
-					errcode = papuga_DuplicateDefinition;
-					return false;
-				}
-				if (!papuga_Allocator_deepcopy_value( &m_allocator, &m_ar[ ri->index].value, &value, false/*movehostobj*/, &errcode)) return false;
 				++matches;
+				papuga_ValueVariant valuecopy;
+				if (!papuga_Allocator_deepcopy_value( &m_allocator, &valuecopy, &value, false/*movehostobj*/, &errcode)) return false;
+
+				switch (ri->resolvetype)
+				{
+					case papuga_ResolveTypeOptional:
+					case papuga_ResolveTypeRequired:
+						if (papuga_ValueVariant_defined( &m_ar[ ri->index].value))
+						{
+							errcode = papuga_AmbiguousReference;
+							return false;
+						}
+						else
+						{
+							papuga_init_ValueVariant_value( &m_ar[ ri->index].value, &valuecopy);
+						}
+						break;
+					case papuga_ResolveTypeInherited:
+						errcode = papuga_NotImplemented;
+						return false;
+						break;
+					case papuga_ResolveTypeArray:
+					case papuga_ResolveTypeArrayNonEmpty:
+					{
+						papuga_Serialization* ser;
+
+						if (papuga_ValueVariant_defined( &m_ar[ ri->index].value))
+						{
+							if (m_ar[ ri->index].value.valuetype == papuga_TypeSerialization)
+							{
+								ser = m_ar[ ri->index].value.value.serialization;
+							}
+							else
+							{
+								errcode = papuga_MixedConstruction;
+								return false;
+							}
+						}
+						else
+						{
+							ser = papuga_Allocator_alloc_Serialization( &m_allocator);
+							if (!ser)
+							{
+								errcode = papuga_NoMemError;
+								return false;
+							}
+							papuga_init_ValueVariant_serialization( &m_ar[ ri->index].value, ser);
+						}
+						if (!papuga_Serialization_pushValue( ser, &valuecopy))
+						{
+							errcode = papuga_NoMemError;
+							return false;
+						}
+						break;
+					}
+				}
 			}
 		}
 		return !!matches;
+	}
+
+	const char* findUnresolvedResultVariable()
+	{
+		std::vector<ResultRef>::iterator ri = m_resultrefs.begin(), re = m_resultrefs.end();
+		for (; ri != re; ++ri)
+		{
+			if (ri->resolvetype == papuga_ResolveTypeRequired || ri->resolvetype == papuga_ResolveTypeArrayNonEmpty)
+			{
+				if (!papuga_ValueVariant_defined( &m_ar[ ri->index].value))
+				{
+					return ri->varname;
+				}
+			}
+		}
+		return NULL;
 	}
 
 	std::vector<RequestResultInputElementRef> inputElementRefs()
@@ -150,13 +211,14 @@ private:
 	struct ResultRef
 	{
 		Scope scope;
+		papuga_ResolveType resolvetype;
 		const char* varname;
 		std::size_t index;
 
-		ResultRef( const Scope& scope_, const char* varname_, std::size_t index_)
-			:scope(scope_),varname(varname_),index(index_){}
+		ResultRef( const Scope& scope_, papuga_ResolveType resolvetype_, const char* varname_, std::size_t index_)
+			:scope(scope_),resolvetype(resolvetype_),varname(varname_),index(index_){}
 		ResultRef( const ResultRef& o)
-			:scope(o.scope),varname(o.varname),index(o.index){}
+			:scope(o.scope),resolvetype(o.resolvetype),varname(o.varname),index(o.index){}
 	};
 	struct InputRef
 	{

@@ -197,7 +197,7 @@ void RequestAutomaton_ResultDef::addToAutomaton( papuga_RequestAutomaton* atm) c
 				if (!papuga_RequestResultDescription_push_input( descr, ei->inputselect, ei->tagname, ei->itemid, ei->resolvetype)) throw std::bad_alloc();
 				break;
 			case RequestAutomaton_ResultElementDef::ResultReference:
-				if (!papuga_RequestResultDescription_push_callresult( descr, ei->inputselect, ei->tagname, ei->str)) throw std::bad_alloc();
+				if (!papuga_RequestResultDescription_push_callresult( descr, ei->inputselect, ei->tagname, ei->str, ei->resolvetype)) throw std::bad_alloc();
 				break;
 		}
 	}

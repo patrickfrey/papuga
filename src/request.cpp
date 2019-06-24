@@ -691,12 +691,12 @@ public:
 					case papuga_ResultNodeConstant:
 					case papuga_ResultNodeOpenStructure:
 					case papuga_ResultNodeInputReference:
-					case papuga_ResultNodeResultReference:
 						if (!addResultInstructionTrigger( ni->inputselect, std::strlen( ni->inputselect), m_resultdefs.size(), nidx))
 						{
 							return false;
 						}
 						break;
+					case papuga_ResultNodeResultReference:
 					case papuga_ResultNodeCloseStructure:
 					{
 						std::string closeexpr = cut_trailing_slashes( ni->inputselect);
@@ -1401,6 +1401,7 @@ public:
 			m_errstruct.errcode = papuga_Ok;
 			m_errstruct.methodid.classid = 0;
 			m_errstruct.methodid.functionid = 0;
+			m_errstruct.variable = 0;
 			m_errstruct.argcnt = -1;
 			m_errstruct.argpath = 0;
 
@@ -1419,6 +1420,7 @@ public:
 			m_errstruct.errcode = papuga_Ok;
 			m_errstruct.methodid.classid = 0;
 			m_errstruct.methodid.functionid = 0;
+			m_errstruct.variable = 0;
 			m_errstruct.argcnt = -1;
 			m_errstruct.argpath = 0;
 
@@ -1596,6 +1598,13 @@ public:
 				}
 				name = m_ctx->results()[ idx].name();
 
+				const char* unresolvedVar = m_ctx->results()[ idx].findUnresolvedResultVariable();
+				if (unresolvedVar)
+				{
+					m_errstruct.variable = unresolvedVar;
+					m_errstruct.errcode = papuga_ValueUndefined;
+					return false;
+				}
 				std::vector<RequestResultInputElementRef> irefs = m_ctx->results()[ idx].inputElementRefs();
 				{
 					std::vector<RequestResultInputElementRef>::iterator ri = irefs.begin(), re = irefs.end();
@@ -1664,7 +1673,7 @@ public:
 			}
 		}
 
-		const papuga_RequestMethodError* lastError() const
+		const papuga_RequestError* lastError() const
 		{
 			return m_errstruct.errcode == papuga_Ok ? NULL : &m_errstruct;
 		}
@@ -2157,7 +2166,7 @@ public:
 		char m_allocator_membuf[ 4096];
 		std::vector<std::string> m_errpath;
 		std::string m_errpathstr;
-		papuga_RequestMethodError m_errstruct;
+		papuga_RequestError m_errstruct;
 	};
 
 private:
@@ -2353,7 +2362,7 @@ private:
 						m_results[ resultidx].addResultNodeInputReference( curscope(), node.tagname, node.value.itemid, node.resolvetype, taglevel());
 						break;
 					case papuga_ResultNodeResultReference:
-						m_results[ resultidx].addResultNodeResultReference( curscope(), node.tagname, node.value.str);
+						m_results[ resultidx].addResultNodeResultReference( curscope(), node.tagname, node.value.str, node.resolvetype);
 						break;
 				}
 				break;
@@ -2726,7 +2735,7 @@ extern "C" bool papuga_RequestIterator_serialize_result( papuga_RequestIterator*
 	return self->itr.serializeResult( idx, *name, *serialization);
 }
 
-extern "C" const papuga_RequestMethodError* papuga_RequestIterator_get_last_error( papuga_RequestIterator* self)
+extern "C" const papuga_RequestError* papuga_RequestIterator_get_last_error( papuga_RequestIterator* self)
 {
 	return self->itr.lastError();
 }

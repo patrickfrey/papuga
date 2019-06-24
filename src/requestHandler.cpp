@@ -716,31 +716,45 @@ static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Re
 	}
 }
 
-static void reportMethodResolveError( papuga_ErrorBuffer* errorbuf, const papuga_Request* request, const papuga_RequestMethodError* err, const char* msg)
+static void reportResolveError( papuga_ErrorBuffer* errorbuf, const papuga_Request* request, const papuga_RequestError* err, const char* msg)
 {
-	const papuga_ClassDef* classdef = papuga_Request_classdefs( request);
-	const char* classname = classdef[ err->methodid.classid-1].name;
-	if (err->methodid.functionid)
+	if (err->methodid.classid == 0)
 	{
-		const char* methodname = classdef[ err->methodid.classid-1].methodnames[ err->methodid.functionid-1];
-		if (err->argcnt >= 0)
+		if (err->variable)
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d (path '/%s') of the method %s::%s  \"%s\""), err->argcnt+1, err->argpath?err->argpath:"", classname, methodname, msg);
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving variable '%s': %s"), err->variable, msg);
 		}
 		else
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error for object: %s"), classname, msg);
+			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "resolve error: %s"), msg);
 		}
 	}
 	else
 	{
-		if (err->argcnt >= 0)
+		const papuga_ClassDef* classdef = papuga_Request_classdefs( request);
+		const char* classname = classdef[ err->methodid.classid-1].name;
+		if (err->methodid.functionid)
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d (path '/%s') of the constructor of %s: %s"), err->argcnt+1, err->argpath?err->argpath:"", classname, msg);
+			const char* methodname = classdef[ err->methodid.classid-1].methodnames[ err->methodid.functionid-1];
+			if (err->argcnt >= 0)
+			{
+				papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d (path '/%s') of the method %s::%s  \"%s\""), err->argcnt+1, err->argpath?err->argpath:"", classname, methodname, msg);
+			}
+			else
+			{
+				papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error for object: %s"), classname, msg);
+			}
 		}
 		else
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving constructor of %s: %s"), classname, msg);
+			if (err->argcnt >= 0)
+			{
+				papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d (path '/%s') of the constructor of %s: %s"), err->argcnt+1, err->argpath?err->argpath:"", classname, msg);
+			}
+			else
+			{
+				papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving constructor of %s: %s"), classname, msg);
+			}
 		}
 	}
 }
@@ -1016,10 +1030,10 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		}
 		else 
 		{
-			const papuga_RequestMethodError* errstruct = papuga_RequestIterator_get_last_error( itr);
+			const papuga_RequestError* errstruct = papuga_RequestIterator_get_last_error( itr);
 			if (errstruct)
 			{
-				reportMethodResolveError( errorbuf, request, errstruct, papuga_ErrorCode_tostring( errcode));
+				reportResolveError( errorbuf, request, errstruct, papuga_ErrorCode_tostring( errstruct->errcode));
 				*errorpos = errstruct->scopestart;
 				papuga_destroy_RequestIterator( itr);
 				papuga_destroy_Allocator( &exec_allocator);
@@ -1047,6 +1061,15 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			if (!papuga_RequestIterator_serialize_result( itr, ri, &context->results[ ri].name, &context->results[ ri].serialization))
 			{
 				context->nofResults = ri;
+				const papuga_RequestError* errstruct = papuga_RequestIterator_get_last_error( itr);
+				if (errstruct)
+				{
+					reportResolveError( errorbuf, request, errstruct, papuga_ErrorCode_tostring( errstruct->errcode));
+					*errorpos = errstruct->scopestart;
+					papuga_destroy_RequestIterator( itr);
+					papuga_destroy_Allocator( &exec_allocator);
+					return false;
+				}
 				throw std::bad_alloc();
 			}
 		}

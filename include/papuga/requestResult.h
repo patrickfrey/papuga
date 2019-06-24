@@ -96,9 +96,10 @@ bool papuga_RequestResultDescription_push_input( papuga_RequestResultDescription
  * @param[in] inputselect tag select expression that triggers the output of this result node
  * @param[in] tagname name of the output tag of this node or NULL for an open array element
  * @param[in] variable name of the variable the result is assigned to
+ * @param[in] resolvetype the resolve type 
  * @return true in case of success, false in case of a memory allocation error
  */
-bool papuga_RequestResultDescription_push_callresult( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, const char* variable);
+bool papuga_RequestResultDescription_push_callresult( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, const char* variable, papuga_ResolveType resolvetype);
 
 #ifdef __cplusplus
 }

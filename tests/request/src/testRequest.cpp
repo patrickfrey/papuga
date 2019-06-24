@@ -332,7 +332,7 @@ static TestData* createTestData_1()
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, 
 		{
-			{"person", {{"/doc", "var", {"var"}}}}
+			{"person", {{"/doc", "var", "var", '!'}}}
 		},
 		{},
 		{
@@ -398,7 +398,7 @@ static TestData* createTestData_3()
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs,
 		{
-			{"list", { {"/doc/city", "lo", {"lo"}},{"/doc/city", "hi", {"hi"}} }}
+			{"list", { {"/doc", "lo", "lo", '+'},{"/doc", "hi", "hi", '*'} }}
 		},
 		{},
 		{
@@ -427,7 +427,11 @@ static TestData* createTestData_3()
 	data->calls = expected_calls;
 	data->expected = new papuga::test::Document(
 		"list", {
+			{"lo", {{"bern"}} },
+			{"lo", {{"luzern"}} },
 			{"lo", {{"biel"}} },
+			{"hi", {{"BERN"}} },
+			{"hi", {{"LUZERN"}} },
 			{"hi", {{"BIEL"}} }
 			}
 		);
@@ -448,7 +452,7 @@ static TestData* createTestData_4()
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs,
 		{
-			{"list", { {"/doc/city", "lo", {"lo"}},{"/doc/city", "hi", {"hi"}} }}
+			{"list", { {"/doc", "lo", "lo", '*'},{"/doc", "hi", "hi", '+'} }}
 		},
 		{},
 		{
@@ -480,7 +484,11 @@ static TestData* createTestData_4()
 	data->calls = expected_calls;
 	data->expected = new papuga::test::Document(
 		"list", {
+			{"lo", {{"bern"}} },
+			{"lo", {{"luzern"}} },
 			{"lo", {{"biel"}} },
+			{"hi", {{"BERN"}} },
+			{"hi", {{"LUZERN"}} },
 			{"hi", {{"BIEL"}} }
 			}
 		);
@@ -501,7 +509,7 @@ static TestData* createTestData_5()
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs,
 		{
-			{"list", { {"/doc/city", "lo", {"lo"}},{"/doc/city", "hi", {"hi"}} }}
+			{"list", { {"/doc", "lo", "lo", '!'},{"/doc", "hi", "hi", '!'} }}
 		},
 		{},
 		{
@@ -562,7 +570,7 @@ static TestData* createTestData_6()
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs,
 		{
-			{"result", { {"/tree", "lo", {"lo"}},{"/tree", "hi", {"hi"}} }}
+			{"result", { {"/tree", "lo", "lo", '!'},{"/tree", "hi", "hi", '!'} }}
 		},
 		{},
 		{
@@ -591,7 +599,7 @@ static TestData* createTestData_6()
 		0
 	};
 	data->calls = expected_calls;
-	data->expected = new papuga::test::Document(	
+	data->expected = new papuga::test::Document(
 		"result", {
 			{"lo", {
 				{"value", {{"c"}}},
