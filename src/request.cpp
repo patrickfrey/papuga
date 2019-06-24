@@ -1618,7 +1618,7 @@ public:
 							{
 								m_errstruct.scopestart = ri->scope.from;
 							}
-							return NULL;
+							return false;
 						}
 					}
 				}{
