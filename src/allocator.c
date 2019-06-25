@@ -451,6 +451,7 @@ static bool copy_ValueVariant( papuga_ValueVariant* dest, papuga_ValueVariant* o
 		case papuga_TypeSerialization:
 		{
 			papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( allocator);
+			ser->structid = orig->value.serialization->structid;
 			if (!serializeValueVariant( ser, orig, allocator, moveobj, errcode)) goto ERROR;
 			papuga_init_ValueVariant_serialization( dest, ser);
 		}

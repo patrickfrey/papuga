@@ -79,13 +79,13 @@ public:
 		m_resultrefs.push_back( ResultRef( scope_, resolvetype_, str_, m_ar.size()));
 		m_ar.push_back( RequestResultItem( papuga_ResultNodeResultReference, tagname_));
 	}
-	void addResultNodeOpenStructure( const char* tagname_)
+	void addResultNodeOpenStructure( const char* tagname_, bool array)
 	{
-		m_ar.push_back( RequestResultItem( papuga_ResultNodeOpenStructure, tagname_));
+		m_ar.push_back( RequestResultItem( array ? papuga_ResultNodeOpenArray : papuga_ResultNodeOpenStructure, tagname_));
 	}
-	void addResultNodeCloseStructure( const char* tagname_)
+	void addResultNodeCloseStructure( const char* tagname_, bool array)
 	{
-		m_ar.push_back( RequestResultItem( papuga_ResultNodeCloseStructure, tagname_));
+		m_ar.push_back( RequestResultItem( array ? papuga_ResultNodeCloseArray : papuga_ResultNodeCloseStructure, tagname_));
 	}
 	void addResultNodeConstant( const char* tagname_, const char* str_)
 	{

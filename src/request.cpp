@@ -690,14 +690,16 @@ public:
 				{
 					case papuga_ResultNodeConstant:
 					case papuga_ResultNodeOpenStructure:
-					case papuga_ResultNodeInputReference:
+					case papuga_ResultNodeOpenArray:
 						if (!addResultInstructionTrigger( ni->inputselect, std::strlen( ni->inputselect), m_resultdefs.size(), nidx))
 						{
 							return false;
 						}
 						break;
+					case papuga_ResultNodeInputReference:
 					case papuga_ResultNodeResultReference:
 					case papuga_ResultNodeCloseStructure:
+					case papuga_ResultNodeCloseArray:
 					{
 						std::string closeexpr = cut_trailing_slashes( ni->inputselect);
 						closeexpr.push_back( '~');
@@ -1622,6 +1624,8 @@ public:
 						}
 					}
 				}{
+					/*[-]*/int tglevel = 0;
+					std::vector<bool> structStack;
 					std::vector<RequestResultItem>::const_iterator
 						ri = m_ctx->results()[ idx].items().begin(),
 						re = m_ctx->results()[ idx].items().end();
@@ -1634,30 +1638,89 @@ public:
 								if (!papuga_Serialization_pushValue( &serialization, &ri->value)) throw std::bad_alloc();
 								break;
 							case papuga_ResultNodeOpenStructure:
-								if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
-								if (!papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
+								if (!papuga_Serialization_pushName_charp( &serialization, ri->tagname)
+								||  !papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
+								/*[-]*/++tglevel;
 								break;
+							case papuga_ResultNodeOpenArray:
+							{
+								std::vector<RequestResultItem>::const_iterator next = ri;
+								++next;
+								bool valuelist = next != re && next->tagname == NULL;
+
+								if (!papuga_Serialization_pushName_charp( &serialization, ri->tagname)
+								||  !papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
+								/*[-]*/++tglevel;
+								if (valuelist)
+								{
+									structStack.push_back( false);
+								}
+								else
+								{
+									structStack.push_back( true);
+									/*[-]*/++tglevel;
+									if (!papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
+								}
+								break;
+							}
 							case papuga_ResultNodeCloseStructure:
+								/*[-]*/--tglevel;
 								if (!papuga_Serialization_pushClose( &serialization)) throw std::bad_alloc();
 								break;
+							case papuga_ResultNodeCloseArray:
+							{
+								std::vector<RequestResultItem>::const_iterator next = ri;
+								++next;
+								bool reopen = (next != re && next->nodetype == papuga_ResultNodeOpenArray && 0==std::strcmp( ri->tagname, next->tagname));
+								if (reopen)
+								{
+									++ri;
+									if (structStack.back())
+									{
+										if (!papuga_Serialization_pushClose( &serialization)
+										||  !papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
+									}
+								}
+								else
+								{
+									if (!papuga_Serialization_pushClose( &serialization)) throw std::bad_alloc();
+									/*[-]*/--tglevel;
+									if (structStack.back())
+									{
+										/*[-]*/--tglevel;
+										if (!papuga_Serialization_pushClose( &serialization)) throw std::bad_alloc();
+									}
+									structStack.pop_back();
+								}
+								break;
+							}
 							case papuga_ResultNodeInputReference:
 							{
-								if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
-								if (!papuga_Serialization_pushValue( &serialization, &ri->value)) throw std::bad_alloc();
+								if (papuga_ValueVariant_defined( &ri->value))
+								{
+									if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
+									if (!papuga_Serialization_pushValue( &serialization, &ri->value)) throw std::bad_alloc();
+								}
 								break;
 							}
 							case papuga_ResultNodeResultReference:
 							{
-								if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
-								papuga_ValueVariant value_copy;
-								//PF:HACK: The const cast has no influence, as movehostobj parameter is false and the contents of evalue remain
-								//	untouched, but it is still ugly and a bad hack:
-								if (!papuga_Allocator_deepcopy_value( serialization.allocator, &value_copy, const_cast<papuga_ValueVariant*>(&ri->value), false, &m_errstruct.errcode)) return false;
-								if (!papuga_Serialization_push( &serialization, papuga_TagValue, &value_copy)) throw std::bad_alloc();
+								if (papuga_ValueVariant_defined( &ri->value))
+								{
+									if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
+									papuga_ValueVariant value_copy;
+									//PF:HACK: The const cast has no influence, as movehostobj parameter is false and the contents of evalue remain
+									//	untouched, but it is still ugly and a bad hack:
+									if (!papuga_Allocator_deepcopy_value( serialization.allocator, &value_copy, const_cast<papuga_ValueVariant*>(&ri->value), false, &m_errstruct.errcode)) return false;
+									if (!papuga_Serialization_push( &serialization, papuga_TagValue, &value_copy)) throw std::bad_alloc();
+								}
 								break;
 							}
 						}
 					}
+					/*[-]*/std::cerr << "++CONTENT:" << std::endl;
+					/*[-]*/std::cerr << papuga::Serialization_tostring( serialization, true/*linemode*/, 20/*maxdepth*/, m_errstruct.errcode) << std::endl;
+					/*[-]*/std::cerr << "++TAGLEVEL " << tglevel << std::endl;
 				}
 				return true;
 			}
@@ -2353,10 +2416,16 @@ private:
 						m_results[ resultidx].addResultNodeConstant( node.tagname, node.value.str);
 						break;
 					case papuga_ResultNodeOpenStructure:
-						m_results[ resultidx].addResultNodeOpenStructure( node.tagname);
+						m_results[ resultidx].addResultNodeOpenStructure( node.tagname, false);
 						break;
 					case papuga_ResultNodeCloseStructure:
-						m_results[ resultidx].addResultNodeCloseStructure( node.tagname);
+						m_results[ resultidx].addResultNodeCloseStructure( node.tagname, false);
+						break;
+					case papuga_ResultNodeOpenArray:
+						m_results[ resultidx].addResultNodeOpenStructure( node.tagname, true);
+						break;
+					case papuga_ResultNodeCloseArray:
+						m_results[ resultidx].addResultNodeCloseStructure( node.tagname, true);
 						break;
 					case papuga_ResultNodeInputReference:
 						m_results[ resultidx].addResultNodeInputReference( curscope(), node.tagname, node.value.itemid, node.resolvetype, taglevel());

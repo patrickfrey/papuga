@@ -26,6 +26,8 @@ typedef enum papuga_RequestResultNodeType
 	papuga_ResultNodeConstant,
 	papuga_ResultNodeOpenStructure,
 	papuga_ResultNodeCloseStructure,
+	papuga_ResultNodeOpenArray,
+	papuga_ResultNodeCloseArray,
 	papuga_ResultNodeInputReference,
 	papuga_ResultNodeResultReference
 } papuga_RequestResultNodeType;
@@ -77,9 +79,10 @@ bool papuga_RequestResultDescription_push_constant( papuga_RequestResultDescript
  * @brief Add a structure node to this output description
  * @param[in] inputselect tag select expression that triggers the output of this result node
  * @param[in] tagname name of the output tag of this node or NULL for an open array element
+ * @param[in] array true if the structure is an array
  * @return true in case of success, false in case of a memory allocation error
  */
-bool papuga_RequestResultDescription_push_structure( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname);
+bool papuga_RequestResultDescription_push_structure( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, bool array);
 
 /*
  * @brief Add a node referring to an item of the input to this output description

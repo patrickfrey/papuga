@@ -79,20 +79,20 @@ extern "C" bool papuga_RequestResultDescription_push_constant( papuga_RequestRes
 	return true;
 }
 
-extern "C" bool papuga_RequestResultDescription_push_structure( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname)
+extern "C" bool papuga_RequestResultDescription_push_structure( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, bool array)
 {
 	papuga_RequestResultNodeDescription* nd_open = allocNode( descr);
 	papuga_RequestResultNodeDescription* nd_close = allocNode( descr);
 	if (!nd_open || !nd_close) return false;
 
 	nd_open->inputselect = inputselect;
-	nd_open->type = papuga_ResultNodeOpenStructure;
+	nd_open->type = array ? papuga_ResultNodeOpenArray : papuga_ResultNodeOpenStructure;
 	nd_open->tagname = tagname;
 	nd_open->resolvetype = papuga_ResolveTypeRequired;
 	nd_open->value.str = NULL;
 
 	nd_close->inputselect = inputselect;
-	nd_close->type = papuga_ResultNodeCloseStructure;
+	nd_close->type = array ? papuga_ResultNodeCloseArray : papuga_ResultNodeCloseStructure;
 	nd_close->resolvetype = papuga_ResolveTypeRequired;
 	nd_close->tagname = tagname;
 	nd_close->value.str = NULL;

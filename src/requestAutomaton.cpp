@@ -188,7 +188,10 @@ void RequestAutomaton_ResultDef::addToAutomaton( papuga_RequestAutomaton* atm) c
 				throw std::runtime_error(_TXT("empty element in result definition structure"));
 				break;
 			case RequestAutomaton_ResultElementDef::Structure:
-				if (!papuga_RequestResultDescription_push_structure( descr, ei->inputselect, ei->tagname)) throw std::bad_alloc();
+				if (!papuga_RequestResultDescription_push_structure( descr, ei->inputselect, ei->tagname, false)) throw std::bad_alloc();
+				break;
+			case RequestAutomaton_ResultElementDef::Array:
+				if (!papuga_RequestResultDescription_push_structure( descr, ei->inputselect, ei->tagname, true)) throw std::bad_alloc();
 				break;
 			case RequestAutomaton_ResultElementDef::Constant:
 				if (!papuga_RequestResultDescription_push_constant( descr, ei->inputselect, ei->tagname, ei->str)) throw std::bad_alloc();

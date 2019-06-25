@@ -239,6 +239,7 @@ struct RequestAutomaton_ResultElementDef
 	enum Type {
 		Empty,
 		Structure,
+		Array,
 		Constant,
 		InputReference,
 		ResultReference
@@ -254,12 +255,12 @@ struct RequestAutomaton_ResultElementDef
 		:type(o.type),resolvetype(o.resolvetype),inputselect(o.inputselect),tagname(o.tagname),itemid(o.itemid),str(o.str){}
 	RequestAutomaton_ResultElementDef()
 		:type(Empty),resolvetype(papuga_ResolveTypeRequired),inputselect(0),tagname(0),itemid(-1),str(0){}
-	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_)
-		:type(Structure),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, bool array_=false)
+		:type(array_?Array:Structure),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
 	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char* constant_)
 		:type(Constant),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(constant_){}
 	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, int itemid_, char resolvechr='!')
-		:type(InputReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
+		:type(InputReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(itemid_),str(0){}
 	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char* varname_, char resolvechr='!')
 		:type(ResultReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(-1),str(varname_){}
 };
