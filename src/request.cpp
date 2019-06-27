@@ -1589,6 +1589,7 @@ public:
 		{
 			return m_ctx->nofResults();
 		}
+
 		bool serializeResult( int idx, const char*& name, papuga_Serialization& serialization)
 		{
 			try
@@ -1624,7 +1625,6 @@ public:
 						}
 					}
 				}{
-					/*[-]*/int tglevel = 0;
 					std::vector<bool> structStack;
 					std::vector<RequestResultItem>::const_iterator
 						ri = m_ctx->results()[ idx].items().begin(),
@@ -1640,7 +1640,6 @@ public:
 							case papuga_ResultNodeOpenStructure:
 								if (!papuga_Serialization_pushName_charp( &serialization, ri->tagname)
 								||  !papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
-								/*[-]*/++tglevel;
 								break;
 							case papuga_ResultNodeOpenArray:
 							{
@@ -1650,7 +1649,6 @@ public:
 
 								if (!papuga_Serialization_pushName_charp( &serialization, ri->tagname)
 								||  !papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
-								/*[-]*/++tglevel;
 								if (valuelist)
 								{
 									structStack.push_back( false);
@@ -1658,13 +1656,11 @@ public:
 								else
 								{
 									structStack.push_back( true);
-									/*[-]*/++tglevel;
 									if (!papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
 								}
 								break;
 							}
 							case papuga_ResultNodeCloseStructure:
-								/*[-]*/--tglevel;
 								if (!papuga_Serialization_pushClose( &serialization)) throw std::bad_alloc();
 								break;
 							case papuga_ResultNodeCloseArray:
@@ -1684,10 +1680,8 @@ public:
 								else
 								{
 									if (!papuga_Serialization_pushClose( &serialization)) throw std::bad_alloc();
-									/*[-]*/--tglevel;
 									if (structStack.back())
 									{
-										/*[-]*/--tglevel;
 										if (!papuga_Serialization_pushClose( &serialization)) throw std::bad_alloc();
 									}
 									structStack.pop_back();
@@ -1718,9 +1712,6 @@ public:
 							}
 						}
 					}
-					/*[-]*/std::cerr << "++CONTENT:" << std::endl;
-					/*[-]*/std::cerr << papuga::Serialization_tostring( serialization, true/*linemode*/, 20/*maxdepth*/, m_errstruct.errcode) << std::endl;
-					/*[-]*/std::cerr << "++TAGLEVEL " << tglevel << std::endl;
 				}
 				return true;
 			}
