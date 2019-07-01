@@ -384,8 +384,8 @@ static void RequestContextMap_transfer( RequestContextMapRef& cm, const char* ty
 	SymKey key = SymKey::create( keybuf, sizeof(keybuf), type, name);
 	RequestContextMapRef cm_ref( cm);
 	RequestContextMapRef cm_copy( new RequestContextMap( *cm_ref));
-	cm_copy->addOwnership( key, context);
 	context->varmap.removeLocalVariables();
+	cm_copy->addOwnership( key, context);
 	cm = cm_copy;
 }
 
