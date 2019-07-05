@@ -104,7 +104,7 @@ static bool Serialization_isvalid( const papuga_Serialization* ser)
 	papuga_init_SerializationIter( &iter, (papuga_Serialization*)ser);
 	for (; !papuga_SerializationIter_eof( &iter); papuga_SerializationIter_skip( &iter))
 	{
-		papuga_ValueVariant* value = papuga_SerializationIter_value( &iter);
+		const papuga_ValueVariant* value = papuga_SerializationIter_value( &iter);
 		switch (papuga_SerializationIter_tag( &iter))
 		{
 			case papuga_TagValue:
