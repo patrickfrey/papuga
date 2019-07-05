@@ -409,14 +409,20 @@ class RequestAutomaton_ResultDef
 public:
 #if __cplusplus >= 201103L
 	RequestAutomaton_ResultDef( const char* name_, const std::initializer_list<RequestAutomaton_ResultElementDef>& elements_)
-		:m_name(name_),m_elements(elements_){}
+		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_elements(elements_){}
+	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const std::initializer_list<RequestAutomaton_ResultElementDef>& elements_)
+		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_elements(elements_){}
 #endif
-	RequestAutomaton_ResultDef( const char* name_, const std::vector<RequestAutomaton_ResultElementDef>& elements_)
-		:m_name(name_),m_elements(elements_){}
+	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const std::vector<RequestAutomaton_ResultElementDef>& elements_)
+		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_elements(elements_){}
 	RequestAutomaton_ResultDef( const char* name_)
-		:m_name(name_),m_elements(){}
+		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_elements(){}
 	
 	const char* name() const					{return m_name;}
+	const char* schema() const					{return m_schema;}
+	const char* requestmethod() const				{return m_requestmethod;}
+	const char* addressvar() const					{return m_addressvar;}
+
 	const RequestAutomaton_ResultElementDefList& elements() const	{return m_elements;}
 
 	/// \brief Add this node definition to the automaton given as argument
@@ -426,6 +432,9 @@ public:
 
 private:
 	const char* m_name;
+	const char* m_schema;
+	const char* m_requestmethod;
+	const char* m_addressvar;
 	RequestAutomaton_ResultElementDefList m_elements;
 };
 

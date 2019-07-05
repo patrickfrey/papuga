@@ -335,6 +335,12 @@ papuga_Allocator* papuga_Allocator_alloc_Allocator( papuga_Allocator* self)
 
 static bool copy_ValueVariant( papuga_ValueVariant* dest, papuga_ValueVariant* orig, papuga_Allocator* allocator, bool moveobj, papuga_ErrorCode* errcode);
 
+static inline papuga_ValueVariant* papuga_SerializationIter_value_const_cast( const papuga_SerializationIter* seritr)
+{
+	/* PF:HACK: We do a hard const cast to make the implementation of 'papuga_Allocator_deepcopy_value_move' possible */
+	return (papuga_ValueVariant*)papuga_SerializationIter_value( seritr);
+}
+
 static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVariant* orig, papuga_Allocator* allocator, bool moveobj, papuga_ErrorCode* errcode)
 {
 	switch (orig->valuetype)
@@ -363,12 +369,12 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 			{
 				if (papuga_SerializationIter_tag( &seritr) == papuga_TagValue)
 				{
-					if (!serializeValueVariant( dest, papuga_SerializationIter_value( &seritr), allocator, moveobj, errcode)) goto ERROR;
+					if (!serializeValueVariant( dest, papuga_SerializationIter_value_const_cast( &seritr), allocator, moveobj, errcode)) goto ERROR;
 				}
 				else
 				{
 					papuga_ValueVariant valuecopy;
-					if (!copy_ValueVariant( &valuecopy, papuga_SerializationIter_value( &seritr), allocator, moveobj, errcode)) goto ERROR;
+					if (!copy_ValueVariant( &valuecopy, papuga_SerializationIter_value_const_cast( &seritr), allocator, moveobj, errcode)) goto ERROR;
 					if (!papuga_Serialization_push( dest, papuga_SerializationIter_tag( &seritr), &valuecopy)) goto ERROR;
 				}
 				papuga_SerializationIter_skip( &seritr);

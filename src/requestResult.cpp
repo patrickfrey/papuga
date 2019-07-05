@@ -31,11 +31,14 @@
 
 using namespace papuga;
 
-extern "C" papuga_RequestResultDescription* papuga_create_RequestResultDescription( const char* name_)
+extern "C" papuga_RequestResultDescription* papuga_create_RequestResultDescription( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_)
 {
 	papuga_RequestResultDescription* rt = (papuga_RequestResultDescription*)std::malloc( sizeof( papuga_RequestResultDescription));
 	if (!rt) return NULL;
 	rt->name = name_;
+	rt->schema = schema_;
+	rt->requestmethod = requestmethod_;
+	rt->addressvar = addressvar_;
 	rt->nodear = 0;
 	rt->nodearallocsize = 0;
 	rt->nodearsize = 0;

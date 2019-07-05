@@ -1057,8 +1057,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		std::size_t ri = 0, re = context->nofResults;
 		for (; ri != re; ++ri)
 		{
-			papuga_init_Serialization( &context->results[ ri].serialization, &context->allocator);
-			if (!papuga_RequestIterator_serialize_result( itr, ri, &context->results[ ri].name, &context->results[ ri].serialization))
+			if (!papuga_init_RequestResult( &context->results[ ri], &context->allocator, itr, ri))
 			{
 				context->nofResults = ri;
 				const papuga_RequestError* errstruct = papuga_RequestIterator_get_last_error( itr);

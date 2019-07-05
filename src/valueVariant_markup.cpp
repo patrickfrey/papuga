@@ -1143,7 +1143,7 @@ static bool SerializationIter_tomarkup_linkid_array_fwd( OutputContext& ctx, pap
 		if (elemcnt) ctx.out.append( ctx.array_separator);
 		if (papuga_SerializationIter_tag(seritr) == papuga_TagValue)
 		{
-			papuga_ValueVariant* value = papuga_SerializationIter_value( seritr);
+			const papuga_ValueVariant* value = papuga_SerializationIter_value( seritr);
 			if (value)
 			{
 				append_linkid_elem( ctx, *value);

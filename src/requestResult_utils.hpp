@@ -65,7 +65,7 @@ class RequestResultTemplate
 {
 public:
 	RequestResultTemplate()
-		:m_name(0)
+		:m_name(0),m_schema(0),m_requestmethod(0),m_addressvar(0)
 	{
 		papuga_init_Allocator( &m_allocator, m_allocatormem, sizeof(m_allocatormem));
 	}
@@ -193,14 +193,32 @@ public:
 	{
 		return m_ar;
 	}
+
 	void setName( const char* name_)
 	{
 		m_name = name_;
 	}
-
+	void setTarget( const char* schema_, const char* requestmethod_, const char* addressvar_)
+	{
+		m_schema = schema_;
+		m_requestmethod = requestmethod_;
+		m_addressvar = addressvar_;
+	}
 	const char* name() const
 	{
 		return m_name;
+	}
+	const char* schema() const
+	{
+		return m_schema;
+	}
+	const char* requestmethod() const
+	{
+		return m_requestmethod;
+	}
+	const char* addressvar() const
+	{
+		return m_addressvar;
 	}
 
 private:
@@ -236,6 +254,9 @@ private:
 
 private:
 	const char* m_name;
+	const char* m_schema;
+	const char* m_requestmethod;
+	const char* m_addressvar;
 	std::vector<RequestResultItem> m_ar;
 	std::vector<ResultRef> m_resultrefs;
 	std::vector<InputRef> m_inputrefs;

@@ -295,7 +295,7 @@ const char* papuga_Serialization_tostring( const papuga_Serialization* self, pap
 * @param[out] self pointer to structure 
 * @param[in] ser serialization to iterate on
 */
-void papuga_init_SerializationIter( papuga_SerializationIter* self, papuga_Serialization* ser);
+void papuga_init_SerializationIter( papuga_SerializationIter* self, const papuga_Serialization* ser);
 
 /*
 * @brief Serialization iterator constructor for empty serialization

@@ -267,10 +267,10 @@ struct papuga_Serialization
 */
 typedef struct papuga_SerializationIter
 {
-	papuga_NodeChunk* chunk;				/*< current chunk */
+	const papuga_NodeChunk* chunk;				/*< current chunk */
 	papuga_Tag tag;						/*< current tag */
 	int chunkpos;						/*< current position in current chunk */
-	papuga_ValueVariant* value;				/*< pointer to current value */
+	const papuga_ValueVariant* value;			/*< pointer to current value */
 } papuga_SerializationIter;
 
 #define papuga_MAX_NOF_RETURNS 8

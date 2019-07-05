@@ -1173,6 +1173,7 @@ public:
 		for (; ri != re; ++ri)
 		{
 			m_results[ ri].setName( atm_->resultdefs()[ ri]->name);
+			m_results[ ri].setTarget( atm_->resultdefs()[ ri]->schema, atm_->resultdefs()[ ri]->requestmethod, atm_->resultdefs()[ ri]->addressvar);
 		}
 	}
 	~AutomatonContext()
@@ -1590,7 +1591,7 @@ public:
 			return m_ctx->nofResults();
 		}
 
-		bool serializeResult( int idx, const char*& name, papuga_Serialization& serialization)
+		bool initResult( papuga_RequestResult* result, papuga_Allocator* allocator, int idx)
 		{
 			try
 			{
@@ -1599,7 +1600,11 @@ public:
 					m_errstruct.errcode = papuga_OutOfRangeError;
 					return false;
 				}
-				name = m_ctx->results()[ idx].name();
+				result->name = m_ctx->results()[ idx].name();
+				result->schema = m_ctx->results()[ idx].schema();
+				result->requestmethod = m_ctx->results()[ idx].requestmethod();
+				result->addressvar = m_ctx->results()[ idx].addressvar();
+				papuga_init_Serialization( &result->serialization, allocator);
 
 				const char* unresolvedVar = m_ctx->results()[ idx].findUnresolvedResultVariable();
 				if (unresolvedVar)
@@ -1614,7 +1619,7 @@ public:
 					for (; ri != re; ++ri)
 					{
 						TagLevelRange tagLevelRange = getTagLevelRange( ri->resolvetype, ri->taglevel, 1/*max_tag_diff*/);
-						ValueSink sink( ri->value, serialization.allocator);
+						ValueSink sink( ri->value, allocator);
 						if (!resolveItem( sink, ri->itemid, ri->resolvetype, ri->scope, tagLevelRange, false/*embedded*/))
 						{
 							if (m_errstruct.scopestart < ri->scope.from)
@@ -1634,12 +1639,12 @@ public:
 						switch (ri->nodetype)
 						{
 							case papuga_ResultNodeConstant:
-								if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
-								if (!papuga_Serialization_pushValue( &serialization, &ri->value)) throw std::bad_alloc();
+								if (ri->tagname && !papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)) throw std::bad_alloc();
+								if (!papuga_Serialization_pushValue( &result->serialization, &ri->value)) throw std::bad_alloc();
 								break;
 							case papuga_ResultNodeOpenStructure:
-								if (!papuga_Serialization_pushName_charp( &serialization, ri->tagname)
-								||  !papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
+								if (!papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)
+								||  !papuga_Serialization_pushOpen( &result->serialization)) throw std::bad_alloc();
 								break;
 							case papuga_ResultNodeOpenArray:
 							{
@@ -1647,8 +1652,8 @@ public:
 								++next;
 								bool valuelist = next != re && next->tagname == NULL;
 
-								if (!papuga_Serialization_pushName_charp( &serialization, ri->tagname)
-								||  !papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
+								if (!papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)
+								||  !papuga_Serialization_pushOpen( &result->serialization)) throw std::bad_alloc();
 								if (valuelist)
 								{
 									structStack.push_back( false);
@@ -1656,12 +1661,12 @@ public:
 								else
 								{
 									structStack.push_back( true);
-									if (!papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
+									if (!papuga_Serialization_pushOpen( &result->serialization)) throw std::bad_alloc();
 								}
 								break;
 							}
 							case papuga_ResultNodeCloseStructure:
-								if (!papuga_Serialization_pushClose( &serialization)) throw std::bad_alloc();
+								if (!papuga_Serialization_pushClose( &result->serialization)) throw std::bad_alloc();
 								break;
 							case papuga_ResultNodeCloseArray:
 							{
@@ -1673,16 +1678,16 @@ public:
 									++ri;
 									if (structStack.back())
 									{
-										if (!papuga_Serialization_pushClose( &serialization)
-										||  !papuga_Serialization_pushOpen( &serialization)) throw std::bad_alloc();
+										if (!papuga_Serialization_pushClose( &result->serialization)
+										||  !papuga_Serialization_pushOpen( &result->serialization)) throw std::bad_alloc();
 									}
 								}
 								else
 								{
-									if (!papuga_Serialization_pushClose( &serialization)) throw std::bad_alloc();
+									if (!papuga_Serialization_pushClose( &result->serialization)) throw std::bad_alloc();
 									if (structStack.back())
 									{
-										if (!papuga_Serialization_pushClose( &serialization)) throw std::bad_alloc();
+										if (!papuga_Serialization_pushClose( &result->serialization)) throw std::bad_alloc();
 									}
 									structStack.pop_back();
 								}
@@ -1692,8 +1697,8 @@ public:
 							{
 								if (papuga_ValueVariant_defined( &ri->value))
 								{
-									if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
-									if (!papuga_Serialization_pushValue( &serialization, &ri->value)) throw std::bad_alloc();
+									if (ri->tagname && !papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)) throw std::bad_alloc();
+									if (!papuga_Serialization_pushValue( &result->serialization, &ri->value)) throw std::bad_alloc();
 								}
 								break;
 							}
@@ -1701,12 +1706,12 @@ public:
 							{
 								if (papuga_ValueVariant_defined( &ri->value))
 								{
-									if (ri->tagname && !papuga_Serialization_pushName_charp( &serialization, ri->tagname)) throw std::bad_alloc();
+									if (ri->tagname && !papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)) throw std::bad_alloc();
 									papuga_ValueVariant value_copy;
 									//PF:HACK: The const cast has no influence, as movehostobj parameter is false and the contents of evalue remain
 									//	untouched, but it is still ugly and a bad hack:
-									if (!papuga_Allocator_deepcopy_value( serialization.allocator, &value_copy, const_cast<papuga_ValueVariant*>(&ri->value), false, &m_errstruct.errcode)) return false;
-									if (!papuga_Serialization_push( &serialization, papuga_TagValue, &value_copy)) throw std::bad_alloc();
+									if (!papuga_Allocator_deepcopy_value( allocator, &value_copy, const_cast<papuga_ValueVariant*>(&ri->value), false, &m_errstruct.errcode)) return false;
+									if (!papuga_Serialization_push( &result->serialization, papuga_TagValue, &value_copy)) throw std::bad_alloc();
 								}
 								break;
 							}
@@ -2790,9 +2795,9 @@ extern "C" int papuga_RequestIterator_nof_results( const papuga_RequestIterator*
 	return self->itr.nofResults();
 }
 
-extern "C" bool papuga_RequestIterator_serialize_result( papuga_RequestIterator* self, int idx, char const** name, papuga_Serialization* serialization)
+extern "C" bool papuga_init_RequestResult( papuga_RequestResult* result, papuga_Allocator* allocator, papuga_RequestIterator* self, int idx)
 {
-	return self->itr.serializeResult( idx, *name, *serialization);
+	return self->itr.initResult( result, allocator, idx);
 }
 
 extern "C" const papuga_RequestError* papuga_RequestIterator_get_last_error( papuga_RequestIterator* self)

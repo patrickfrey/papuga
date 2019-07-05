@@ -34,6 +34,18 @@ typedef struct papuga_RequestMethodId
 } papuga_RequestMethodId;
 
 /*
+ * @brief Describes a result of a request
+ */
+typedef struct papuga_RequestResult
+{
+	const char* name;
+	const char* schema;
+	const char* requestmethod;
+	const char* addressvar;
+	papuga_Serialization serialization;
+} papuga_RequestResult;
+
+/*
  * @brief Create an automaton to configure
 * \param[in] classdefs class definitions referred to in host object references
 * \param[in] structdefs structure definitions
@@ -404,14 +416,18 @@ bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, papu
 int papuga_RequestIterator_nof_results( const papuga_RequestIterator* self);
 
 /*
- * @brief Serialize the content of a results result and return its name and root element
+ * @brief Serialize the content of a results result
+ * @param[out] result result structure to initialize
  * @param[in,out] self this context pointer
  * @param[in] idx index of the result to serialize
  * @param[out] name identifier of the result, root element
+ * @param[out] schema identifier identifying the schema handling the result in case of a delegate request to another server
+ * @param[out] requestmethod request method in case of a delegate request to another server
+ * @param[out] addressvar server to call in case of a delegate request to another server
  * @param[in,out] serialization where to write the serialization of the result to
  * @return true on success, false on out of memory
  */
-bool papuga_RequestIterator_serialize_result( papuga_RequestIterator* self, int idx, char const** name, papuga_Serialization* serialization);
+bool papuga_init_RequestResult( papuga_RequestResult* result, papuga_Allocator* allocator, papuga_RequestIterator* self, int idx);
 
 /*
  * @brief Get the last error of the iterator with a pointer to the method call that failed, if available

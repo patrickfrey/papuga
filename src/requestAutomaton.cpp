@@ -177,7 +177,7 @@ void RequestAutomaton_ResolveDef::addToAutomaton( const std::string& rootexpr, p
 
 void RequestAutomaton_ResultDef::addToAutomaton( papuga_RequestAutomaton* atm) const
 {
-	papuga_RequestResultDescription* descr = papuga_create_RequestResultDescription( m_name);
+	papuga_RequestResultDescription* descr = papuga_create_RequestResultDescription( m_name, m_schema, m_requestmethod, m_addressvar);
 	if (!descr) throw std::bad_alloc();
 	RequestAutomaton_ResultElementDefList::const_iterator ei = m_elements.begin(), ee = m_elements.end();
 	for (; ei != ee; ++ei)

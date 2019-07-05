@@ -40,15 +40,6 @@ typedef struct papuga_RequestMethodDescription
 } papuga_RequestMethodDescription;
 
 /*
- * @brief Describes a result of a request
- */
-typedef struct papuga_RequestResult
-{
-	const char* name;
-	papuga_Serialization serialization;
-} papuga_RequestResult;
-
-/*
  * @brief Creates a new context for handling a request
  * @param[in] classname name of the class of this context used to distinguish different context types or NULL if undefined
  * @return the request context created or NULL in case of a memory allocation error

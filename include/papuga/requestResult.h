@@ -48,6 +48,9 @@ typedef struct papuga_RequestResultNodeDescription
 typedef struct papuga_RequestResultDescription
 {
 	const char* name;
+	const char* schema;
+	const char* requestmethod;
+	const char* addressvar;
 	papuga_RequestResultNodeDescription* nodear;
 	int nodearallocsize;
 	int nodearsize;
@@ -56,9 +59,12 @@ typedef struct papuga_RequestResultDescription
 /*
 * @brief RequestResultDescription constructor function
 * @param[in] name_ name of the result, root element (constant, string not copied)
+* @param[in] schema_ name of the schema that handles the request if the result forms a request to other servers
+* @param[in] requestmethod_ request method if the result forms a request to other servers
+* @param[in] addressvar_ name of the variable with the urls if the result forms a request to other servers
 * @return structure to free with papuga_destroy_RequestResultDescription
 */
-papuga_RequestResultDescription* papuga_create_RequestResultDescription( const char* name_);
+papuga_RequestResultDescription* papuga_create_RequestResultDescription( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_);
 
 /*
  * @brief Destructor function
