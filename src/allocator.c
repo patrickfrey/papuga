@@ -183,13 +183,10 @@ struct MaxAlignStruct {int _;};
 #define STDBLOCKSIZE	4096
 #define MAXBLOCKSIZE	(1<<31)
 
-static unsigned int getPointerOfsAligned( void* ptr, size_t ofs)
-{
-	return (unsigned int)(uintptr_t)((char*)ptr + ofs) & (MAXALIGN-1);
-}
 static unsigned int getPointerAlignIncr( void* ptr, size_t ofs, unsigned int alignment)
 {
-	return (alignment + MAXALIGN - getPointerOfsAligned( ptr, ofs)) & (MAXALIGN-1);
+	unsigned int alignofs = (unsigned int)(uintptr_t)((char*)ptr + ofs) & (alignment -1);
+	return (alignment - alignofs) & (alignment -1);
 }
 
 void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned int alignment)
@@ -197,19 +194,23 @@ void* papuga_Allocator_alloc( papuga_Allocator* self, size_t blocksize, unsigned
 	void* rt;
 	papuga_AllocatorNode* next;
 	unsigned int alignmentofs;
-	if (alignment == 0) alignment = MAXALIGN;
-	if (!isPowerOfTwo( alignment)
-		|| alignment > MAXALIGN
-		|| blocksize == 0
-		|| blocksize >= MAXBLOCKSIZE) return 0;
+	unsigned int mm;
+	if (alignment == 0)
+	{
+		alignment = sizeof(struct MaxAlignStruct);
+	}
+	else if (!isPowerOfTwo( alignment) || alignment > MAXALIGN || blocksize == 0 || blocksize >= MAXBLOCKSIZE)
+	{
+		return 0;
+	}
 	if (self->root.ar != NULL)
 	{
 		alignmentofs = getPointerAlignIncr( self->root.ar, self->root.arsize, alignment);
-		if (self->root.allocsize - self->root.arsize >= blocksize + alignmentofs)
+		mm = blocksize + alignmentofs;
+		if (self->root.allocsize >= self->root.arsize + mm)
 		{
-			self->root.arsize += alignmentofs;
-			rt = self->root.ar + self->root.arsize;
-			self->root.arsize += blocksize;
+			rt = self->root.ar + (self->root.arsize + alignmentofs);
+			self->root.arsize += mm;
 			return rt;
 		}
 		next = (papuga_AllocatorNode*)calloc( 1, sizeof( papuga_AllocatorNode));
