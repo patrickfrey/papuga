@@ -437,6 +437,7 @@ static bool append_linkid( OutputContext& ctx, const papuga_ValueVariant& value)
 			input = utf8string.c_str();
 			inputlen = utf8string.size();
 		}
+		if (ctx.styleType == StyleJSON) ctx.out.push_back( '\"');
 		if (hasProtocolPrefix( input, inputlen))
 		{
 			ctx.out.append( input, inputlen);
@@ -455,6 +456,7 @@ static bool append_linkid( OutputContext& ctx, const papuga_ValueVariant& value)
 
 			ctx.out.append( encoded, encodedlen);
 		}
+		if (ctx.styleType == StyleJSON) ctx.out.push_back( '\"');
 	}
 	else
 	{
