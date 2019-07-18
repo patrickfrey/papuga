@@ -1076,7 +1076,14 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		papuga_destroy_Allocator( &exec_allocator);
 		return true;
 	}
-	catch (const std::exception& err)
+	catch (const std::bad_alloc& err)
+	{
+		if (itr) papuga_destroy_RequestIterator( itr);
+		papuga_destroy_Allocator( &exec_allocator);
+		papuga_ErrorBuffer_reportError( errorbuf, _TXT("out of memory handling request"));
+		return false;
+	}
+	catch (const std::runtime_error& err)
 	{
 		if (itr) papuga_destroy_RequestIterator( itr);
 		papuga_destroy_Allocator( &exec_allocator);
