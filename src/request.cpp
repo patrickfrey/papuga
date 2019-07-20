@@ -33,12 +33,22 @@
 #include <cstdio>
 #include <algorithm>
 #include <limits>
+#include <set>
 
 #undef PAPUGA_LOWLEVEL_DEBUG
 
 using namespace papuga;
 
 namespace {
+struct CString
+{
+	const char* value;
+	CString( const char* value_) :value(value_){}
+	CString( const CString& o) :value(o.value){}
+
+	bool operator<( const CString& o) const {return std::strcmp(value,o.value) < 0;}
+};
+
 struct ValueDef
 {
 	int itemid;
@@ -696,8 +706,10 @@ public:
 							return false;
 						}
 						break;
-					case papuga_ResultNodeInputReference:
 					case papuga_ResultNodeResultReference:
+						m_resultVariables.insert( ni->value.str);
+						/* no break here! */
+					case papuga_ResultNodeInputReference:
 					case papuga_ResultNodeCloseStructure:
 					case papuga_ResultNodeCloseArray:
 					{
@@ -715,6 +727,11 @@ public:
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 		return true;
+	}
+
+	bool isResultVariable( const char* name) const
+	{
+		return m_resultVariables.find( name) != m_resultVariables.end();
 	}
 
 	bool done()
@@ -808,6 +825,7 @@ private:
 	std::vector<InheritFromDef> m_inheritdefs;
 	std::vector<AssignmentDef> m_assignments;
 	std::vector<papuga_RequestResultDescription*> m_resultdefs;
+	std::set<CString> m_resultVariables;
 	papuga_Allocator m_allocator;
 	XMLPathSelectAutomaton m_atm;
 	std::size_t m_maxitemid;
@@ -1386,6 +1404,11 @@ public:
 		return m_atm->resultdefs().size();
 	}
 
+	bool isResultVariable( const char* name) const
+	{
+		return m_atm->isResultVariable( name);
+	}
+	
 	class Iterator
 	{
 	private:
@@ -1707,11 +1730,7 @@ public:
 								if (papuga_ValueVariant_defined( &ri->value))
 								{
 									if (ri->tagname && !papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)) throw std::bad_alloc();
-									papuga_ValueVariant value_copy;
-									//PF:HACK: The const cast has no influence, as movehostobj parameter is false and the contents of evalue remain
-									//	untouched, but it is still ugly and a bad hack:
-									if (!papuga_Allocator_deepcopy_value( allocator, &value_copy, const_cast<papuga_ValueVariant*>(&ri->value), false, &m_errstruct.errcode)) return false;
-									if (!papuga_Serialization_push( &result->serialization, papuga_TagValue, &value_copy)) throw std::bad_alloc();
+									if (!papuga_Serialization_push( &result->serialization, papuga_TagValue, &ri->value)) throw std::bad_alloc();
 								}
 								break;
 							}
@@ -2741,6 +2760,11 @@ extern "C" bool papuga_Request_done( papuga_Request* self)
 extern "C" papuga_ErrorCode papuga_Request_last_error( const papuga_Request* self)
 {
 	return self->ctx.lastError();
+}
+
+extern "C" bool papuga_Request_is_result_variable( const papuga_Request* self, const char* varname)
+{
+	return self->ctx.isResultVariable( varname);
 }
 
 struct papuga_RequestIterator

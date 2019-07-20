@@ -19,6 +19,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define PAPUGA_LOWLEVEL_DEBUG
+#define PAPUGA_FREEMEM_FILL 0x61
+
 typedef struct papuga_ReferenceHostObject
 {
 	papuga_ReferenceHeader header;
@@ -148,26 +151,30 @@ void papuga_Allocator_destroy_Allocator( papuga_Allocator* self, papuga_Allocato
 	}
 }
 
+static void destroy_AllocatorNode_ar( papuga_AllocatorNode* self)
+{
+	if (self->ar != NULL)
+	{
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+		memset( self->ar, PAPUGA_FREEMEM_FILL, self->allocsize);
+#endif
+		if (self->allocated) free( self->ar);
+		self->ar = NULL;
+	}
+}
+
 void papuga_destroy_AllocatorNode( papuga_AllocatorNode* self)
 {
 	papuga_AllocatorNode* itr;
-
-	if (self->ar != NULL && self->allocated)
-	{
-		free( self->ar);
-		self->ar = 0;
-	}
+	destroy_AllocatorNode_ar( self);
 	itr = self->next;
 	self->next = 0;
+
 	while (itr != NULL)
 	{
 		papuga_AllocatorNode* next;
+		destroy_AllocatorNode_ar( itr);
 
-		if (itr->ar != NULL && itr->allocated)
-		{
-			free( itr->ar);
-			itr->ar = 0;
-		}
 		next = itr->next;
 		free( itr);
 		itr = next;

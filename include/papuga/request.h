@@ -312,6 +312,15 @@ bool papuga_Request_done( papuga_Request* self);
 papuga_ErrorCode papuga_Request_last_error( const papuga_Request* self);
 
 /*
+ * @brief Check if a variable is declared as part of the result
+ * @param[in] self request to evaluate the variable for
+ * @param[in] varname name of the variable to test
+ * @note The request handler uses this method to decide wheter to assign the result of a call in the request to a context variable or map it as part of the result, referenced by the result template.
+ * @return true, if yes, false if no
+ */
+bool papuga_Request_is_result_variable( const papuga_Request* self, const char* varname);
+
+/*
  * @brief Describes a context inherited by name
  */
 typedef struct papuga_RequestInheritedContextDef

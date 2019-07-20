@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 /*
- * @brief Describes a result node
+ * @brief Type of a result node
  */
 typedef enum papuga_RequestResultNodeType
 {

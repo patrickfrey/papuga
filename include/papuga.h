@@ -34,7 +34,6 @@
 #include "papuga/request.h"
 #include "papuga/requestParser.h"
 #include "papuga/requestHandler.h"
-#include "papuga/requestResult.h"
 #include "papuga/requestLogger.h"
 
 #endif

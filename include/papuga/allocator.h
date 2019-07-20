@@ -37,7 +37,7 @@ extern "C" {
 * @brief Destructor of Allocator
 * @param[in] self_ pointer to structure destroyed
 */
-#define papuga_destroy_Allocator(self_)			{papuga_Allocator* s = self_; if (s->reflist != NULL) papuga_destroy_ReferenceHeader( s->reflist); if ((s->root.ar != NULL && s->root.allocated) || s->root.next != NULL) papuga_destroy_AllocatorNode( &s->root);}
+#define papuga_destroy_Allocator(self_)			{papuga_Allocator* s = self_; if (s->reflist != NULL) papuga_destroy_ReferenceHeader( s->reflist); papuga_destroy_AllocatorNode( &s->root);}
 
 /*
 * @brief Destructor of linked list of AllocatorNode

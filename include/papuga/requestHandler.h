@@ -219,26 +219,15 @@ const char** papuga_RequestHandler_list_methods( const papuga_RequestHandler* se
  * @brief Execute a request
  * @param[in,out] context context of the request
  * @param[in] request content of the request
+ * @param[in] allocator
+ * @param[in] logger logger for logging errors and the calls of the request
+ * @param[out] results array of results of the request
+ * @param[out] nofResults number of results of the request
  * @param[out] errorbuf buffer for the error message in case of error
  * @param[out] errorpos position in case of an error counted in request parser events (to reproduce the error location you have to rescan the source)
  * @return true on success, false on failure
  */
-bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_RequestLogger* logger, papuga_ErrorBuffer* errorbuf, int* errorpos);
-
-/*
- * @brief Get the number of a result structures of a request
- * @param[in] self request context to get the result from
- * @return the number of result structures on success, 0 if undefined
- */
-int papuga_RequestContext_nof_results( const papuga_RequestContext* self);
-
-/*
- * @brief Get a specific result structure of a request
- * @param[in] self request context to get the result from
- * @param[in] idx index of the result starting with 0
- * @return the result structure pointer on success, NULL if undefined
- */
-papuga_RequestResult* papuga_RequestContext_get_result( const papuga_RequestContext* self, int idx);
+bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_Allocator* allocator, papuga_RequestLogger* logger, papuga_RequestResult** results, int* nofResults, papuga_ErrorBuffer* errorbuf, int* errorpos);
 
 #ifdef __cplusplus
 }

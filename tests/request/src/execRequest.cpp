@@ -166,19 +166,20 @@ bool papuga_execute_request(
 		}
 	}
 	// Execute the request and initialize the result:
-	if (!papuga_RequestContext_execute_request( ctx, request, &logger, &errorbuf, &errorpos))
+	papuga_RequestResult* results;
+	int nofResults;
+	if (!papuga_RequestContext_execute_request( ctx, request, &allocator, &logger, &results, &nofResults, &errorbuf, &errorpos))
 	{
 		errcode = papuga_HostObjectError;
 		goto ERROR;
 	}
 	{
-		int ri=0, re=papuga_RequestContext_nof_results( ctx);
-		for (; ri != re; ++ri)
+		int ri=0;
+		for (; ri != nofResults; ++ri)
 		{
-			papuga_RequestResult* result = papuga_RequestContext_get_result( ctx, ri);
 			papuga_ValueVariant resultval;
-			papuga_init_ValueVariant_serialization( &resultval, &result->serialization);
-			rootname = result->name;
+			papuga_init_ValueVariant_serialization( &resultval, &results[ ri].serialization);
+			rootname = results[ri].name;
 			structdefs = papuga_Request_struct_descriptions( request);
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 			size_t dumplen = 0;
