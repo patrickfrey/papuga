@@ -32,6 +32,13 @@ typedef enum papuga_RequestResultNodeType
 	papuga_ResultNodeResultReference
 } papuga_RequestResultNodeType;
 
+/*
+* @brief Get the result not type as string
+* @param[in] tp the type
+* @result the name as string
+*/
+const char* papuga_RequestResultNodeTypeName( papuga_RequestResultNodeType tp);
+
 typedef struct papuga_RequestResultNodeDescription
 {
 	const char* inputselect;

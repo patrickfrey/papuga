@@ -31,6 +31,12 @@
 
 using namespace papuga;
 
+extern "C" const char* papuga_RequestResultNodeTypeName( papuga_RequestResultNodeType tp)
+{
+	static const char* ar[] = {"Constant", "OpenStructure", "CloseStructure", "OpenArray", "CloseArray", "InputReference", "ResultReference", 0};
+	return ar[ tp];
+}
+
 extern "C" papuga_RequestResultDescription* papuga_create_RequestResultDescription( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_)
 {
 	papuga_RequestResultDescription* rt = (papuga_RequestResultDescription*)std::malloc( sizeof( papuga_RequestResultDescription));

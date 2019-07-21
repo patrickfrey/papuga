@@ -91,6 +91,33 @@ public:
 	{
 		m_ar.push_back( RequestResultItem( papuga_ResultNodeConstant, tagname_, str_));
 	}
+	std::string tostring() const
+	{
+		std::string rt;
+		std::vector<RequestResultItem>::const_iterator ai = m_ar.begin(), ae = m_ar.end();
+		for (; ai != ae; ++ai)
+		{
+			rt.append( papuga_RequestResultNodeTypeName( ai->nodetype));
+			rt.push_back( ' ');
+			if (ai->tagname)
+			{
+				rt.append( ai->tagname);
+				rt.push_back( ' ');
+			}
+			if (papuga_ValueVariant_isstring( &ai->value))
+			{
+				rt.push_back( '[');
+				papuga_ErrorCode errcode;
+				if (!ValueVariant_append_string( rt, ai->value, errcode))
+				{
+					throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
+				}
+				rt.push_back( ']');
+			}
+			rt.push_back('\n');
+		}
+		return rt;
+	}
 
 	bool pushResult( const char* varname, const Scope& scope_, papuga_ValueVariant& value, papuga_ErrorCode& errcode)
 	{
