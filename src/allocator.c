@@ -19,7 +19,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define PAPUGA_LOWLEVEL_DEBUG
+#undef PAPUGA_LOWLEVEL_DEBUG
 #define PAPUGA_FREEMEM_FILL 0x61
 
 typedef struct papuga_ReferenceHostObject

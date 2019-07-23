@@ -370,9 +370,7 @@ static void append_encoded_entities_as_string( OutputContext& ctx, const char* s
 			ctx.out.append( str, len);
 			break;
 		case StyleJSON:
-			ctx.out.push_back( '"');
 			append_encoded_entities_ansi_c( ctx, str, len);
-			ctx.out.push_back( '"');
 			break;
 		case StyleHTML:
 		case StyleXML:
@@ -437,7 +435,6 @@ static bool append_linkid( OutputContext& ctx, const papuga_ValueVariant& value)
 			input = utf8string.c_str();
 			inputlen = utf8string.size();
 		}
-		if (ctx.styleType == StyleJSON) ctx.out.push_back( '\"');
 		if (hasProtocolPrefix( input, inputlen))
 		{
 			ctx.out.append( input, inputlen);
@@ -456,7 +453,6 @@ static bool append_linkid( OutputContext& ctx, const papuga_ValueVariant& value)
 
 			ctx.out.append( encoded, encodedlen);
 		}
-		if (ctx.styleType == StyleJSON) ctx.out.push_back( '\"');
 	}
 	else
 	{
@@ -570,11 +566,15 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 			}
 			if (isEqual( name, PAPUGA_HTML_LINK_ELEMENT))
 			{
+				ctx.out.push_back( '\"');
 				if (!append_linkid( ctx, value)) return false;
+				ctx.out.push_back( '\"');
 			}
 			else
 			{
+				ctx.out.push_back( '\"');
 				if (!append_value( ctx, value)) return false;
+				ctx.out.push_back( '\"');
 			}
 			break;
 	}
@@ -772,7 +772,16 @@ static bool ValueVariant_tomarkup_fwd( OutputContext& ctx, const papuga_ValueVar
 	bool rt = true;
 	if (papuga_ValueVariant_isatomic(&value))
 	{
-		if (!append_value( ctx, value)) return false;
+		if (ctx.styleType == StyleJSON)
+		{
+			ctx.out.push_back( '\"');
+			if (!append_value( ctx, value)) return false;
+			ctx.out.push_back( '\"');
+		}
+		else
+		{
+			if (!append_value( ctx, value)) return false;
+		}
 	}
 	else if (value.valuetype == papuga_TypeSerialization)
 	{
