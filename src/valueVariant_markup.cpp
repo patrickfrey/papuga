@@ -570,11 +570,16 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 				if (!append_linkid( ctx, value)) return false;
 				ctx.out.push_back( '\"');
 			}
-			else
+			else if (papuga_ValueVariant_isstring( &value))
 			{
+				
 				ctx.out.push_back( '\"');
 				if (!append_value( ctx, value)) return false;
 				ctx.out.push_back( '\"');
+			}
+			else
+			{
+				if (!append_value( ctx, value)) return false;
 			}
 			break;
 	}
@@ -774,9 +779,16 @@ static bool ValueVariant_tomarkup_fwd( OutputContext& ctx, const papuga_ValueVar
 	{
 		if (ctx.styleType == StyleJSON)
 		{
-			ctx.out.push_back( '\"');
-			if (!append_value( ctx, value)) return false;
-			ctx.out.push_back( '\"');
+			if (papuga_ValueVariant_isstring( &value))
+			{
+				ctx.out.push_back( '\"');
+				if (!append_value( ctx, value)) return false;
+				ctx.out.push_back( '\"');
+			}
+			else
+			{
+				if (!append_value( ctx, value)) return false;
+			}
 		}
 		else
 		{
