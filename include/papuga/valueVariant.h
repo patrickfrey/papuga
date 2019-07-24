@@ -124,7 +124,7 @@ extern "C" {
 * @param[in] self_ pointer to structure 
 * @return true, if yes
 */
-#define papuga_ValueVariant_defined(self_)			((self_)->valuetype!=papuga_TypeVoid)
+#define papuga_ValueVariant_defined(self_)			((papuga_Type)(self_)->valuetype!=papuga_TypeVoid)
 
 /*
 * @brief Test if the variant value is numeric
