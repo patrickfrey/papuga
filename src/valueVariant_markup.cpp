@@ -479,19 +479,6 @@ static void append_linkid_elem( OutputContext& ctx, const papuga_ValueVariant& v
 	}
 }
 
-static void append_null_value( OutputContext& ctx)
-{
-	switch (ctx.styleType)
-	{
-		case StyleXML:
-		case StyleHTML:
-		case StyleTEXT: break;
-		case StyleJSON:
-			ctx.out.append( "null");
-			break;
-	}
-}
-
 static bool append_key_value( OutputContext& ctx, const char* name, const papuga_ValueVariant& value)
 {
 	switch (ctx.styleType)
@@ -582,6 +569,35 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 				if (!append_value( ctx, value)) return false;
 			}
 			break;
+	}
+	return true;
+}
+
+static void append_null_value( OutputContext& ctx)
+{
+	switch (ctx.styleType)
+	{
+		case StyleXML:
+		case StyleHTML:
+		case StyleTEXT: break;
+		case StyleJSON:
+			ctx.out.append( "null");
+			break;
+	}
+}
+
+static bool append_key_nullvalue( OutputContext& ctx, const char* name)
+{
+	if (ctx.styleType == StyleJSON)
+	{
+		ctx.out.append( ctx.indent);
+		if (ctx.titleVisible())
+		{
+			ctx.out.push_back( '\"');
+			ctx.out.append( name);
+			ctx.out.append( "\": ");
+		}
+		append_null_value( ctx);
 	}
 	return true;
 }
@@ -759,7 +775,9 @@ static bool ValueVariant_tomarkup( OutputContext& ctx, const char* name, const p
 		rt &= Iterator_tomarkup( ctx, name, value.value.iterator);
 	}
 	else if (!papuga_ValueVariant_defined( &value))
-	{}
+	{
+		append_key_nullvalue( ctx, name);
+	}
 	else
 	{
 		ctx.errcode = papuga_TypeError;
