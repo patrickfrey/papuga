@@ -249,17 +249,13 @@ struct papuga_RequestContext
 	std::string classname;
 	papuga_ErrorCode errcode;		//< last error in the request context
 	RequestVariableMap varmap;		//< map of variables defined in this context
-//[-]	papuga_Allocator allocator;		//< allocator for the request results
 
 	explicit papuga_RequestContext( const char* classname_)
 		:classname(classname_?classname_:""),errcode(papuga_Ok),varmap()
 	{
-//[-]		papuga_init_Allocator( &allocator, 0, 0);
 	}
 	~papuga_RequestContext()
-	{
-//[-]		papuga_destroy_Allocator( &allocator);
-	}
+	{}
 
 	std::string tostring() const
 	{
