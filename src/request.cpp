@@ -2211,7 +2211,7 @@ public:
 				const papuga_ValueVariant* value = papuga_RequestContext_get_variable( context, argdef.varname, NULL/*param[out] isArray*/);
 				if (!value)
 				{
-					m_errpath.insert( m_errpath.begin(), std::string("variable ") + argdef.varname);
+					m_errstruct.variable = argdef.varname;
 					m_errstruct.errcode = papuga_ValueUndefined;
 					return false;
 				}

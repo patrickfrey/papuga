@@ -64,7 +64,7 @@ extern "C" {
 * @param[in] node pointer to the added node
 * @return true on success, false on memory allocation error
 */
-bool papuga_Serialization_push_node( papuga_Serialization* self, papuga_Node* node);
+bool papuga_Serialization_push_node( papuga_Serialization* self, const papuga_Node* node);
 
 /*
 * @brief Add a node to the serialization
@@ -271,13 +271,14 @@ bool papuga_Serialization_append_json( papuga_Serialization* self, const char* c
 bool papuga_Serialization_append_xml( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool withRoot, bool ignoreEmptyContent, papuga_ErrorCode* errcode);
 
 /*
-* @brief Conversing a tail sequence from an array to an associative array
+* @brief Converting a tail sequence from an array to an associative array
 * @param[in,out] self pointer to structure
 * @param[in] seriter iterator pointing to start of the serialization of the array to convert
 * @param[in] countfrom start counting of the inserted indices
 * @return true on success, false on error
 */
 bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, const papuga_SerializationIter* seriter, unsigned int countfrom, papuga_ErrorCode* errcode);
+
 
 /*
 * @brief Print serialization in readable form as null terminated string, 
@@ -289,6 +290,13 @@ bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, const
 * @return NULL on memory allocation error, null terminated string with serialization printed, allocated with malloc, to free by the caller, on success
 */
 const char* papuga_Serialization_tostring( const papuga_Serialization* self, papuga_Allocator* allocator, bool linemode, int maxdepth, papuga_ErrorCode* errcode);
+
+/*
+* @brief Bring serialization into a flat form, without inner serializations as value elements
+* @param[in,out] self pointer to structure
+* @return true on success, false on memory allocation error
+*/
+bool papuga_Serialization_flatten( papuga_Serialization* ser);
 
 /*
 * @brief Serialization iterator constructor
@@ -363,6 +371,12 @@ papuga_Tag papuga_SerializationIter_follow_tag( const papuga_SerializationIter* 
 * @param[in] self pointer to structure 
 */
 #define papuga_SerializationIter_value(self_)		((self_)->value)
+
+/*
+* @brief Get the current node if defined
+* @param[in] self pointer to structure 
+*/
+const papuga_Node* papuga_SerializationIter_node( const papuga_SerializationIter* self);
 
 #ifdef __cplusplus
 }

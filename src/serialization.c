@@ -86,7 +86,7 @@ static bool insertChunk_filled( papuga_NodeChunk* chunk, int arsize, papuga_Allo
 	nd->content._tag = TAG;\
 	return true;
 
-bool papuga_Serialization_push_node( papuga_Serialization* self, papuga_Node* nd)
+bool papuga_Serialization_push_node( papuga_Serialization* self, const papuga_Node* nd)
 {
 	papuga_Node* new_nd = alloc_node( self);
 	if (!new_nd) return false;
@@ -396,6 +396,69 @@ ERROR:
 	return false;
 }
 
+static bool hasInnerSerialization( const papuga_Serialization* ser)
+{
+	papuga_SerializationIter itr;
+	papuga_init_SerializationIter( &itr, ser);
+
+	while (!papuga_SerializationIter_eof( &itr))
+	{
+		const papuga_ValueVariant* val = papuga_SerializationIter_value( &itr);
+		if (val && val->valuetype == papuga_TypeSerialization)
+		{
+			return true;
+		}
+		papuga_SerializationIter_skip( &itr);
+	}
+	return false;
+}
+
+static bool Serialization_flatten( papuga_Serialization* dest, const papuga_Serialization* ser)
+{
+	bool rt = true;
+	papuga_SerializationIter itr;
+	papuga_init_SerializationIter( &itr, ser);
+
+	while (rt && !papuga_SerializationIter_eof( &itr))
+	{
+		const papuga_ValueVariant* val = papuga_SerializationIter_value( &itr);
+		if (val && val->valuetype == papuga_TypeSerialization)
+		{
+			if (val->value.serialization->structid)
+			{
+				rt &= papuga_Serialization_pushOpen_struct( dest, val->value.serialization->structid);
+			}
+			else
+			{
+				rt &= papuga_Serialization_pushOpen( dest);
+			}
+			rt &= Serialization_flatten( dest, val->value.serialization);
+			rt &= papuga_Serialization_pushClose( dest);
+		}
+		else
+		{
+			rt &= papuga_Serialization_push_node( dest, papuga_SerializationIter_node( &itr));
+		}
+		papuga_SerializationIter_skip( &itr);
+	}
+	return rt;
+}
+
+bool papuga_Serialization_flatten( papuga_Serialization* ser)
+{
+	if (hasInnerSerialization( ser))
+	{
+		papuga_Serialization res;
+		papuga_SerializationIter itr;
+
+		papuga_init_Serialization( &res, ser->allocator);
+		papuga_init_SerializationIter( &itr, ser);
+		if (!Serialization_flatten( &res, ser)) return false;
+		memcpy( ser, &res, sizeof(papuga_Serialization));
+	}
+	return true;
+}
+
 void papuga_init_SerializationIter( papuga_SerializationIter* self, const papuga_Serialization* ser)
 {
 	self->chunk = &ser->head;
@@ -452,6 +515,15 @@ void papuga_SerializationIter_skip( papuga_SerializationIter* self)
 		self->value = &self->chunk->ar[ self->chunkpos].content;
 		self->tag = (papuga_Tag)self->value->_tag;
 	}
+}
+
+const papuga_Node* papuga_SerializationIter_node( const papuga_SerializationIter* self)
+{
+	if (self->value)
+	{
+		return &self->chunk->ar[ self->chunkpos];
+	}
+	return NULL;
 }
 
 papuga_Tag papuga_SerializationIter_follow_tag( const papuga_SerializationIter* self)
