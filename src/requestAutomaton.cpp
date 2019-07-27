@@ -37,7 +37,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, 
 	fprintf( stderr, "ATM define function expression='%s', method=[%d,%d], self=%s, result=%s, n=%d\n",
 		 fullexpr.c_str(), methodid.classid, methodid.functionid, selfvar, resultvar, (int)args.size());
 #endif
-	if (!papuga_RequestAutomaton_add_call( atm, fullexpr.c_str(), &methodid, selfvar, resultvar, appendresult, args.size()))
+	if (!papuga_RequestAutomaton_add_call( atm, fullexpr.c_str(), &methodid, selfvar, resultvar, args.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add function, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));

@@ -74,16 +74,15 @@ papuga_ErrorCode papuga_RequestContext_last_error( papuga_RequestContext* self, 
  * @param[in] value value of the variable to add, ownership of host object references are moved to created variable
  * @return true on success, false on failure
  */
-bool papuga_RequestContext_add_variable( papuga_RequestContext* self, const char* name, papuga_ValueVariant* value);
+bool papuga_RequestContext_define_variable( papuga_RequestContext* self, const char* name, papuga_ValueVariant* value);
 
 /*
  * @brief Get a variable reference in the context
  * @param[in] self this pointer to the object to get the variable reference from
  * @param[in] name name of variable to get
- * @param[out] isArray (optional) boolean value telling if the variable value has been constructed by appending (as array) or not
  * @return the variable value on success, NULL if it does not exist
  */
-const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name, int* isArray);
+const papuga_ValueVariant* papuga_RequestContext_get_variable( const papuga_RequestContext* self, const char* name);
 
 /*
 * @brief List the names of variables defined in a context

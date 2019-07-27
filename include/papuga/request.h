@@ -87,7 +87,6 @@ bool papuga_RequestAutomaton_inherit_from(
  * @param[in] method identifier of the method to call
  * @param[in] selfvarname identifier of the owner object for the method to call
  * @param[in] resultvarname identifier to use for the result
- * @param[in] appendresult true if the result is a list where each result of a call is appended to, false if each call replaces the previous result
  * @param[in] nofargs number of arguments of the call
  */
 bool papuga_RequestAutomaton_add_call(
@@ -96,7 +95,6 @@ bool papuga_RequestAutomaton_add_call(
 		const papuga_RequestMethodId* method,
 		const char* selfvarname,
 		const char* resultvarname,
-		bool appendresult,
 		int nofargs);
 
 /*
@@ -208,7 +206,7 @@ bool papuga_RequestAutomaton_add_value(
  * @brief Add an assignment of input content elements to a variable
  * @param[in,out] self automaton changed
  * @param[in] expression xpath expression (abbreviated syntax of xpath) bound to the assignment
- * @param[in] varname name of the variable referencing the destination of the assignment (where to append to)
+ * @param[in] varname name of the variable referencing the destination of the assignment (where to assign to)
  * @param[in] itemid identifier given to the item to make it addressable in the context of its scope
  * @param[in] resolvetype defines the way an addressed item is resolved and constructed
  * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or -1 if not limited (always >= 0 also for inherited values)
@@ -365,7 +363,6 @@ typedef struct papuga_RequestMethodCall
 	const char* selfvarname;			/*< variable referencing the object for the method call */
 	const char* resultvarname;			/*< variable where to write the result to */
 	papuga_RequestMethodId methodid;		/*< method identifier */
-	bool appendresult;				/*< wheter to append or to overwrite result */
 	papuga_CallArgs args;				/*< arguments of the call */
 	char membuf[ 4096];				/*< local memory buffer for allocator */
 } papuga_RequestMethodCall;

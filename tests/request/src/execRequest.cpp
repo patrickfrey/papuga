@@ -159,7 +159,7 @@ bool papuga_execute_request(
 	{
 		papuga_ValueVariant value;
 		papuga_init_ValueVariant_charp( &value, vi->value);
-		if (!papuga_RequestContext_add_variable( ctx, vi->name, &value))
+		if (!papuga_RequestContext_define_variable( ctx, vi->name, &value))
 		{
 			errcode = papuga_NoMemError;
 			goto ERROR;
