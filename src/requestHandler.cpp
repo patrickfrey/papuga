@@ -987,7 +987,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 						break;
 					}
 				}
-				else
+				else if (papuga_ValueVariant_defined( &resultvalue))
 				{
 					// [4.2] Add the result to be substituted in the result content template:
 					(void)papuga_RequestIterator_push_call_result( itr, &resultvalue);

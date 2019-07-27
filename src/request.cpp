@@ -1531,6 +1531,11 @@ public:
 
 		bool pushCallResult( papuga_ValueVariant& result)
 		{
+			if (!m_curr_methodcall.resultvarname)
+			{
+				m_errstruct.errcode = papuga_ValueUndefined;
+				return false;
+			}
 			bool used = false;
 			if (m_curr_methodidx <= 0)
 			{
