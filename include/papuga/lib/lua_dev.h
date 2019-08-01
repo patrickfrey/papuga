@@ -102,5 +102,12 @@ bool papuga_lua_set_CallArgs( papuga_CallArgs* arg, lua_State *ls, int argc, con
 int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* callres,
 				const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
+/*
+* @brief Push a variant value to the lua stack
+* @param[in,out] ls lua state context
+* @param[in] value value to push
+*/
+void papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, const papuga_lua_ClassEntryMap* cemap);
+
 #endif
 
