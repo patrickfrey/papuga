@@ -14,6 +14,10 @@
 #include "papuga/typedefs.h"
 #include "papuga/allocator.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
 * @brief Handles for PHP internal structures
 * @remark Tunnel them (explicit reinterpret cast on both sides) to avoid poisoned includes
@@ -75,5 +79,8 @@ bool papuga_php_set_CallArgs( papuga_CallArgs* arg, void* selfzval, int argc, co
 */
 bool papuga_php_move_CallResult( void* zval_return_value, papuga_CallResult* retval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 

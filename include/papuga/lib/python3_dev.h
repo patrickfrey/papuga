@@ -15,6 +15,10 @@
 #include "papuga/allocator.h"
 #include <Python.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
 * @brief Maps for Python object type structures (for creating objects with id as only info)
 */
@@ -132,5 +136,9 @@ void papuga_python_error( const char* msg, ...)
 	__attribute__ ((format (printf, 1, 2)))
 #endif
 ;
+
+#ifdef __cplusplus
+}
+#endif
 #endif
 

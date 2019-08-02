@@ -14,8 +14,18 @@
 #include "papuga/typedefs.h"
 #include "papuga/allocator.h"
 #include <setjmp.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "lua.h"
 #include "lauxlib.h"
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /*
 * @brief Map of class identifiers to class names (for accessing lua metatable by name)
@@ -117,5 +127,8 @@ void papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, con
 */
 void papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* value);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
 
