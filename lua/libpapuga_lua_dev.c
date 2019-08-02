@@ -33,6 +33,7 @@
 void STACKTRACE( lua_State* ls, const char* where)
 {
 	int ii;
+	int tp;
 	int top = lua_gettop( ls);
 
 	fprintf( stderr, "CALLING %s STACK %d: ", where, top);
@@ -40,8 +41,8 @@ void STACKTRACE( lua_State* ls, const char* where)
 	for (ii = 1; ii <= top; ii++)
 	{
 		if (ii>1) fprintf( stderr, ", ");
-		int t = lua_type( ls, ii);
-		switch (t) {
+		tp = lua_type( ls, ii);
+		switch (tp) {
 			case LUA_TNIL:
 				fprintf( stderr, "NIL");
 				break;
@@ -64,14 +65,33 @@ void STACKTRACE( lua_State* ls, const char* where)
 				fprintf( stderr, "%f", lua_tonumber( ls, ii));
 				break;
 			default:
-				fprintf( stderr, "<%s>", lua_typename( ls, t));
+				fprintf( stderr, "<%s>", lua_typename( ls, tp));
 				break;
 		}
 	}
 	fprintf( stderr, "\n");
 }
+void DUMP_SERIALIZATION( const char* title, papuga_Serialization* ser)
+{
+	papuga_Allocator allocator;
+	const char* str;
+	papuga_ErrorCode errcode;
+
+	papuga_init_Allocator( &allocator, 0, 0);
+	str = papuga_Serialization_tostring( ser, &allocator, true/*linemode*/, 30/*maxdepth*/, &errcode);
+	if (ser)
+	{
+		fprintf( stderr, "%s:\n%s\n", title, str);
+	}
+	else
+	{
+		fprintf( stderr, "%s:\nERR %s\n", title, papuga_ErrorCode_tostring( errcode));
+	}
+	papuga_destroy_Allocator( &allocator);
+}
 #else
 #define STACKTRACE( ls, where)
+#define DUMP_SERIALIZATION( title, ser)
 #endif
 
 static const char* get_classname( const papuga_lua_ClassEntryMap* cemap, unsigned int classid)
@@ -469,9 +489,9 @@ static bool serialize_root( papuga_CallArgs* as, lua_State* ls, int li)
 	return rt;
 }
 
-static void deserialize_root( papuga_Serialization* ser, lua_State* ls, const papuga_lua_ClassEntryMap* cemap);
+static bool deserialize_root( papuga_Serialization* ser, lua_State* ls, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
-static void push_string( lua_State* ls, const papuga_ValueVariant* item)
+static bool push_string( lua_State* ls, const papuga_ValueVariant* item, papuga_ErrorCode* errcode)
 {
 	if (item->encoding == papuga_UTF8 || item->encoding == papuga_Binary)
 	{
@@ -479,26 +499,25 @@ static void push_string( lua_State* ls, const papuga_ValueVariant* item)
 	}
 	else
 	{
-		papuga_ErrorCode err = papuga_Ok;
 		papuga_Allocator allocator;
 		size_t len = 0;
 		const char* str;
 
 		papuga_init_Allocator( &allocator, 0, 0);
-		str = papuga_ValueVariant_tostring( item, &allocator, &len, &err);
+		str = papuga_ValueVariant_tostring( item, &allocator, &len, errcode);
 		if (!str)
 		{
 			papuga_destroy_Allocator( &allocator);
-			papuga_lua_error( ls, "deserialize result (value)", err);
-			/* exit function, lua throws (longjumps) */
+			return false;
 		}
 		/* MEMORY LEAK ON ERROR: allocator not freed if lua_pushlstring fails */
 		lua_pushlstring( ls, str, len);
 		papuga_destroy_Allocator( &allocator);
 	}
+	return true;
 }
 
-static void deserialize_key( const papuga_ValueVariant* item, lua_State* ls)
+static bool deserialize_key( const papuga_ValueVariant* item, lua_State* ls, papuga_ErrorCode* errcode)
 {
 	switch (item->valuetype)
 	{
@@ -515,20 +534,20 @@ static void deserialize_key( const papuga_ValueVariant* item, lua_State* ls)
 			lua_pushboolean( ls, item->value.Bool);
 			break;
 		case papuga_TypeString:
-			push_string( ls, item);
-			break;
+			return push_string( ls, item, errcode);
 		case papuga_TypeSerialization:
 		case papuga_TypeHostObject:
-			papuga_lua_error( ls, "deserialize result (key)", papuga_TypeError);
-			/* exit function, lua throws (longjumps) */
+			*errcode = papuga_TypeError;
+			return false;
 		case papuga_TypeIterator:
 		default:
-			papuga_lua_error( ls, "deserialize result (key)", papuga_NotImplemented);
-			/* exit function, lua throws (longjumps) */
+			*errcode = papuga_NotImplemented;
+			return false;
 	}
+	return true;
 }
 
-static void deserialize_value( const papuga_ValueVariant* item, lua_State* ls, const papuga_lua_ClassEntryMap* cemap)
+static bool deserialize_value( const papuga_ValueVariant* item, lua_State* ls, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	switch (item->valuetype)
 	{
@@ -545,17 +564,23 @@ static void deserialize_value( const papuga_ValueVariant* item, lua_State* ls, c
 			lua_pushboolean( ls, item->value.Bool);
 			break;
 		case papuga_TypeString:
-			push_string( ls, item);
-			break;
+			return push_string( ls, item, errcode);
 		case papuga_TypeHostObject:
 		{
-			papuga_HostObject* obj = item->value.hostObject;
+			papuga_HostObject* obj;
 			papuga_lua_UserData* udata;
-			const char* cname = get_classname( cemap, obj->classid);
+			const char* cname;
+			if (!cemap)
+			{
+				*errcode = papuga_TypeError;
+				return false;
+			}
+			obj = item->value.hostObject;
+			cname = get_classname( cemap, obj->classid);
 			if (!cname)
 			{
-				papuga_lua_error( ls, "deserialize result (value)", papuga_LogicError);
-				/* exit function, lua throws (longjumps) */
+				*errcode = papuga_LogicError;
+				return false;
 			}
 			udata = papuga_lua_new_userdata( ls, cname);
 			papuga_lua_init_UserData( udata, obj->classid, obj->data, obj->destroy, cemap);
@@ -564,20 +589,26 @@ static void deserialize_value( const papuga_ValueVariant* item, lua_State* ls, c
 		}
 		case papuga_TypeSerialization:
 		{
-			deserialize_root( item->value.serialization, ls, cemap);
-			break;
+			return deserialize_root( item->value.serialization, ls, cemap, errcode);
 		}
 		case papuga_TypeIterator:
 		{
-			papuga_Iterator* itr = item->value.iterator;
+			papuga_Iterator* itr;
+			if (!cemap)
+			{
+				*errcode = papuga_TypeError;
+				return false;
+			}
+			itr = item->value.iterator;
 			pushIterator( ls, itr->data, itr->destroy, itr->getNext, cemap);
 			papuga_release_Iterator( itr);
 			break;
 		}
 		default:
-			papuga_lua_error( ls, "deserialize result (value)", papuga_NotImplemented);
-			/* exit function, lua throws (longjumps) */
+			*errcode = papuga_NotImplemented;
+			return false;
 	}
+	return true;
 }
 
 typedef enum {NamedStruct,PositionalStruct,UndefStruct} StructElementNamingCategory;
@@ -597,6 +628,11 @@ static bool init_StructElementNaming( StructElementNaming* ths, int structid, co
 	papuga_init_ValueVariant( &ths->membername);
 	if (structid)
 	{
+		if (!cemap)
+		{
+			*errcode = papuga_AtomicValueExpected;
+			return false;
+		}
 		ths->members = get_structmembers( cemap, structid);
 		if (!ths->members)
 		{
@@ -708,17 +744,14 @@ static void StructElementNaming_reset_name( StructElementNaming* ths)
 	ths->name = NULL;
 }
 
-static void deserialize_node( papuga_SerializationIter* seriter, lua_State* ls, int structid, const papuga_lua_ClassEntryMap* cemap)
+static bool deserialize_node( papuga_SerializationIter* seriter, lua_State* ls, int structid, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	StructElementNaming state;
-	papuga_ErrorCode errcode = papuga_Ok;
 
-	if (!init_StructElementNaming( &state, structid, cemap, &errcode))
+	if (!init_StructElementNaming( &state, structid, cemap, errcode))
 	{
-		papuga_lua_error( ls, "deserialize result", errcode);
-		/* exit function, lua throws (longjumps) */
+		return false;
 	}
-
 	for (; papuga_SerializationIter_tag(seriter) != papuga_TagClose; papuga_SerializationIter_skip(seriter))
 	{
 		switch (papuga_SerializationIter_tag(seriter))
@@ -731,27 +764,28 @@ static void deserialize_node( papuga_SerializationIter* seriter, lua_State* ls, 
 				{
 					if (openarg->value.Int < 0 || openarg->value.Int > 0x7fFF)
 					{
-						papuga_lua_error( ls, "deserialize result", papuga_InvalidAccess);
-						/* exit function, lua throws (longjumps) */
+						*errcode = papuga_InvalidAccess;
+						return false;
 					}
 					substructure_structid  = openarg->value.Int;
 				}
 				STACKTRACE( ls, "deserialize node open");
 				lua_newtable( ls);
 				papuga_SerializationIter_skip( seriter);
-				deserialize_node( seriter, ls, substructure_structid, cemap);
-
+				if (!deserialize_node( seriter, ls, substructure_structid, cemap, errcode))
+				{
+					return false;
+				}
 				if (structid)
 				{
-					if (!StructElementNaming_set_implicit_name( &state, &errcode))
+					if (!StructElementNaming_set_implicit_name( &state, errcode))
 					{
-						papuga_lua_error( ls, "deserialize result", errcode);
-						/* exit function, lua throws (longjumps) */
+						return false;
 					}
 				}
 				if (state.name)
 				{
-					deserialize_key( state.name, ls);
+					if (!deserialize_key( state.name, ls, errcode)) return false;
 					StructElementNaming_reset_name( &state);
 				}
 				else
@@ -760,8 +794,8 @@ static void deserialize_node( papuga_SerializationIter* seriter, lua_State* ls, 
 				}
 				if (papuga_SerializationIter_tag(seriter) != papuga_TagClose)
 				{
-					papuga_lua_error( ls, "deserialize node", papuga_TypeError);
-					/* exit function, lua throws (longjumps) */
+					*errcode = papuga_TypeError;
+					return false;
 				}
 				lua_insert( ls, -2);
 				lua_rawset( ls, -3);
@@ -770,65 +804,61 @@ static void deserialize_node( papuga_SerializationIter* seriter, lua_State* ls, 
 			}
 			case papuga_TagClose:
 				STACKTRACE( ls, "deserialize node close");
-				return;
+				return true;
 			case papuga_TagName:
 				STACKTRACE( ls, "deserialize node name");
-				if (!StructElementNaming_set_name( &state, papuga_SerializationIter_value(seriter), &errcode))
+				if (!StructElementNaming_set_name( &state, papuga_SerializationIter_value(seriter), errcode))
 				{
-					papuga_lua_error( ls, "deserialize node", errcode);
-					/* exit function, lua throws (longjumps) */
+					return false;
 				}
 				break;
 			case papuga_TagValue:
 				STACKTRACE( ls, "deserialize node value");
 				if (structid)
 				{
-					if (!StructElementNaming_set_implicit_name( &state, &errcode))
+					if (!StructElementNaming_set_implicit_name( &state, errcode))
 					{
-						papuga_lua_error( ls, "deserialize node", errcode);
-						/* exit function, lua throws (longjumps) */
+						return false;
 					}
 				}
 				if (state.name)
 				{
-					deserialize_key( state.name, ls);
+					if (!deserialize_key( state.name, ls, errcode)) return false;
 					StructElementNaming_reset_name( &state);
 				}
 				else
 				{
 					lua_pushinteger( ls, ++state.memberidx);
 				}
-				deserialize_value( papuga_SerializationIter_value(seriter), ls, cemap);
+				if (!deserialize_value( papuga_SerializationIter_value(seriter), ls, cemap, errcode))
+				{
+					return false;
+				}
 				lua_rawset( ls, -3);
 				break;
 		}
 	}
 	STACKTRACE( ls, "deserialize node close");
+	return true;
 }
 
-static void deserialize_root( papuga_Serialization* ser, lua_State* ls, const papuga_lua_ClassEntryMap* cemap)
+static bool deserialize_root( papuga_Serialization* ser, lua_State* ls, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	papuga_SerializationIter seriter;
 	int structid = papuga_Serialization_structid( ser);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	papuga_Allocator allocator;
-	const char* str;
-
-	papuga_init_Allocator( &allocator, 0, 0);
-	str = papuga_Serialization_tostring( ser, &allocator);
-	if (ser)
-	{
-		fprintf( stderr, "DESERIALIZE STRUCT:\n%s\n", str);
-	}
-#endif
+	DUMP_SERIALIZATION( "DESERIALIZE STRUCT", ser);
 	papuga_init_SerializationIter( &seriter, ser);
 	lua_newtable( ls);
-	deserialize_node( &seriter, ls, structid, cemap);
+	if (!deserialize_node( &seriter, ls, structid, cemap, errcode))
+	{
+		return false;
+	}
 	if (!papuga_SerializationIter_eof( &seriter))
 	{
-		papuga_lua_error( ls, "deserialize result", papuga_TypeError);
-		/* exit function, lua throws (longjumps) */
+		*errcode = papuga_TypeError;
+		return false;
 	}
+	return false;
 }
 
 DLL_PUBLIC void papuga_lua_init( lua_State* ls)
@@ -933,12 +963,12 @@ DLL_PUBLIC bool papuga_lua_set_CallArgs( papuga_CallArgs* as, lua_State* ls, int
 				break;
 			case LUA_TUSERDATA:
 			{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-				fprintf( stderr, "PARAM %u USERDATA\n", argi);
-#endif
 				papuga_HostObject* hostobj;
 				const papuga_lua_UserData* udata = get_UserData( ls, argi);
 				if (!udata) goto ERROR;
+#ifdef PAPUGA_LOWLEVEL_DEBUG
+				fprintf( stderr, "PARAM %u USERDATA\n", argi);
+#endif
 				hostobj = (papuga_HostObject*)papuga_Allocator_alloc_HostObject( &as->allocator, udata->classid, udata->objectref, 0);
 				if (!hostobj) goto ERROR;
 				papuga_init_ValueVariant_hostobj( &as->argv[as->argc], hostobj);
@@ -982,10 +1012,14 @@ static bool lua_push_ValueVariant( lua_State *ls, const papuga_ValueVariant* val
 			lua_pushboolean( ls, value->value.Bool);
 			break;
 		case papuga_TypeString:
-			push_string( ls, value);
-			break;
+			return push_string( ls, value, errcode);
 		case papuga_TypeHostObject:
 			/* REMARK: Ownership of hostobject transfered */
+			if (!cemap)
+			{
+				*errcode = papuga_AtomicValueExpected;
+				return false;
+			}
 			obj = value->value.hostObject;
 			cname = get_classname( cemap, obj->classid);
 			if (cname)
@@ -1001,9 +1035,13 @@ static bool lua_push_ValueVariant( lua_State *ls, const papuga_ValueVariant* val
 			}
 			break;
 		case papuga_TypeSerialization:
-			deserialize_root( value->value.serialization, ls, cemap);
-			break;
+			return deserialize_root( value->value.serialization, ls, cemap, errcode);
 		case papuga_TypeIterator:
+			if (!cemap)
+			{
+				*errcode = papuga_AtomicValueExpected;
+				return false;
+			}
 			/* REMARK: Ownership of iterator transfered */
 			itr = value->value.iterator;
 			pushIterator( ls, itr->data, itr->destroy, itr->getNext, cemap);
@@ -1045,6 +1083,16 @@ DLL_PUBLIC void papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant*
 {
 	papuga_ErrorCode errcode = papuga_Ok;
 	if (!lua_push_ValueVariant( ls, value, cemap, &errcode))
+	{
+		papuga_lua_error( ls, "push value", errcode);
+		/* exit function, lua throws (longjumps) */
+	}
+}
+
+DLL_PUBLIC void papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* value)
+{
+	papuga_ErrorCode errcode = papuga_Ok;
+	if (!lua_push_ValueVariant( ls, value, NULL, &errcode))
 	{
 		papuga_lua_error( ls, "push value", errcode);
 		/* exit function, lua throws (longjumps) */

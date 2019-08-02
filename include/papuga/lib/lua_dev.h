@@ -106,8 +106,16 @@ int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* callres,
 * @brief Push a variant value to the lua stack
 * @param[in,out] ls lua state context
 * @param[in] value value to push
+* @param[in] cemap class description for object meta data
 */
 void papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, const papuga_lua_ClassEntryMap* cemap);
+
+/*
+* @brief Push a variant value to the lua stack in plain (not accepting host objects or iterators or data without all meta data in plain)
+* @param[in,out] ls lua state context
+* @param[in] value value to push
+*/
+void papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* value);
 
 #endif
 
