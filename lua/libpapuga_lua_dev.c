@@ -858,7 +858,7 @@ static bool deserialize_root( papuga_Serialization* ser, lua_State* ls, const pa
 		*errcode = papuga_TypeError;
 		return false;
 	}
-	return false;
+	return true;
 }
 
 DLL_PUBLIC void papuga_lua_init( lua_State* ls)
