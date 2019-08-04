@@ -232,39 +232,50 @@ static std::string any_string_enc_to_uft8string_stl( papuga_StringEncoding enc, 
 }
 
 template <class LANGCHARSET>
-static char* string_enc_toascii( char* destbuf, size_t destbufsize, const char* str, size_t strsize)
+static char* string_enc_toascii( char* destbuf, size_t destbufsize, const char* str, size_t strsize, char nonAsciiSubstChar)
 {
 	typedef textwolf::TextScanner<textwolf::CStringIterator,LANGCHARSET> ScannerStringEnc;
 	ScannerStringEnc itr( textwolf::CStringIterator( str, strsize));
 	size_t destpos = 0;
 	unsigned char chr;
-	for (; 0!=(chr=itr.ascii()) && destpos < destbufsize; ++itr)
+	for (; destpos < destbufsize; ++itr)
 	{
-		destbuf[ destpos++] = chr;
+		if (0!=(chr=itr.ascii()))
+		{
+			destbuf[ destpos++] = chr;
+		}
+		else if (nonAsciiSubstChar)
+		{
+			destbuf[ destpos++] = nonAsciiSubstChar;
+		}
+		else
+		{
+			return 0;
+		}
 	}
 	if (destpos >= destbufsize) return 0;
 	destbuf[ destpos] = 0;
-	return (chr == 0) ? destbuf : 0;
+	return destbuf;
 }
 
-static char* any_string_enc_toascii( papuga_StringEncoding enc, char* destbuf, size_t destbufsize, void const* str, size_t strsize)
+static char* any_string_enc_toascii( papuga_StringEncoding enc, char* destbuf, size_t destbufsize, void const* str, size_t strsize, char nonAsciiSubstChar)
 {
 	switch (enc)
 	{
 		case papuga_UTF8:
-			return string_enc_toascii<textwolf::charset::UTF8>( destbuf, destbufsize, (const char*)str, strsize);
+			return string_enc_toascii<textwolf::charset::UTF8>( destbuf, destbufsize, (const char*)str, strsize, nonAsciiSubstChar);
 		case papuga_UTF16BE:
-			return string_enc_toascii<textwolf::charset::UTF16BE>( destbuf, destbufsize, (const char*)str, strsize);
+			return string_enc_toascii<textwolf::charset::UTF16BE>( destbuf, destbufsize, (const char*)str, strsize, nonAsciiSubstChar);
 		case papuga_UTF16LE:
-			return string_enc_toascii<textwolf::charset::UTF16LE>( destbuf, destbufsize, (const char*)str, strsize);
+			return string_enc_toascii<textwolf::charset::UTF16LE>( destbuf, destbufsize, (const char*)str, strsize, nonAsciiSubstChar);
 		case papuga_UTF16:
-			return string_enc_toascii<W16CHARSET>( destbuf, destbufsize, (const char*)str, strsize);
+			return string_enc_toascii<W16CHARSET>( destbuf, destbufsize, (const char*)str, strsize, nonAsciiSubstChar);
 		case papuga_UTF32BE:
-			return string_enc_toascii<textwolf::charset::UCS4BE>( destbuf, destbufsize, (const char*)str, strsize);
+			return string_enc_toascii<textwolf::charset::UCS4BE>( destbuf, destbufsize, (const char*)str, strsize, nonAsciiSubstChar);
 		case papuga_UTF32LE:
-			return string_enc_toascii<textwolf::charset::UCS4LE>( destbuf, destbufsize, (const char*)str, strsize);
+			return string_enc_toascii<textwolf::charset::UCS4LE>( destbuf, destbufsize, (const char*)str, strsize, nonAsciiSubstChar);
 		case papuga_UTF32:
-			return string_enc_toascii<W32CHARSET>( destbuf, destbufsize, (const char*)str, strsize);
+			return string_enc_toascii<W32CHARSET>( destbuf, destbufsize, (const char*)str, strsize, nonAsciiSubstChar);
 		case papuga_Binary:
 		default:
 			return 0;
@@ -425,7 +436,7 @@ static bool bufprint_number_variant( char* buf, std::size_t bufsize, std::size_t
 	return true;
 }
 
-static char* string_toascii( char* destbuf, size_t destbufsize, papuga_StringEncoding encoding, char const* src, size_t srcsize)
+static char* string_toascii( char* destbuf, size_t destbufsize, papuga_StringEncoding encoding, char const* src, size_t srcsize, char nonAsciiSubstChar)
 {
 	if (encoding == papuga_UTF8)
 	{
@@ -433,24 +444,35 @@ static char* string_toascii( char* destbuf, size_t destbufsize, papuga_StringEnc
 		char const* si = src;
 		const char* se = src + srcsize;
 		char* di = destbuf;
-		while (si != se && (unsigned char)*si < 128 && *si)
+		while (si != se)
 		{
-			*di++ = *si++;
+			if (*si && (unsigned char)*si < 128)
+			{
+				*di++ = *si++;
+			}
+			else if (nonAsciiSubstChar)
+			{
+				*di++ = nonAsciiSubstChar;
+			}
+			else
+			{
+				return NULL;
+			}
 		}
 		*di = 0;
-		return (si != se) ? NULL : destbuf;
+		return destbuf;
 	}
 	else
 	{
-		return any_string_enc_toascii( encoding, destbuf, destbufsize, src, srcsize);
+		return any_string_enc_toascii( encoding, destbuf, destbufsize, src, srcsize, nonAsciiSubstChar);
 	}
 }
 
-extern "C" const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbufsize, const papuga_ValueVariant* val)
+extern "C" const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbufsize, const papuga_ValueVariant* val, char nonAsciiSubstChar)
 {
 	if (val->valuetype == papuga_TypeString)
 	{
-		return string_toascii( destbuf, destbufsize, (papuga_StringEncoding)val->encoding, (const char*)val->value.string, val->length);
+		return string_toascii( destbuf, destbufsize, (papuga_StringEncoding)val->encoding, (const char*)val->value.string, val->length, nonAsciiSubstChar);
 	}
 	else if (papuga_ValueVariant_isnumeric( val) && destbufsize)
 	{
@@ -909,7 +931,7 @@ extern "C" bool papuga_ValueVariant_tobool( const papuga_ValueVariant* value, pa
 		}
 		else if (value->valuetype == papuga_TypeString)
 		{
-			numstr = string_toascii( destbuf, sizeof(destbuf), (papuga_StringEncoding)value->encoding, (const char*)value->value.string, value->length);
+			numstr = string_toascii( destbuf, sizeof(destbuf), (papuga_StringEncoding)value->encoding, (const char*)value->value.string, value->length, 0/*nonAsciiSubstChar*/);
 			if (numstr == NULL) return 0;
 			if (!numstr[1])
 			{

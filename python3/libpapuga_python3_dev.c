@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <signal.h>
 #include <inttypes.h>
 #include <stdarg.h>
@@ -487,10 +488,10 @@ static bool serialize_members( papuga_Serialization* ser, papuga_Allocator* allo
 					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( unsigned long, pyobj, mi->offset))) goto ERROR_NOMEM;
 					break;
 			case T_LONGLONG:if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
-					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( long long, pyobj, mi->offset))) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( int64_t, pyobj, mi->offset))) goto ERROR_NOMEM;
 					break;
 			case T_ULONGLONG: if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
-					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( unsigned long long, pyobj, mi->offset))) goto ERROR_NOMEM;
+					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( uint64_t, pyobj, mi->offset))) goto ERROR_NOMEM;
 					break;
 			case T_PYSSIZET:if (!papuga_Serialization_pushName_charp( ser, mi->name)) goto ERROR_NOMEM;
 					if (!papuga_Serialization_pushValue_int( ser, GET_PYSTRUCT_MEMBER( Py_ssize_t, pyobj, mi->offset))) goto ERROR_NOMEM;

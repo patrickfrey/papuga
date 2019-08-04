@@ -233,9 +233,10 @@ papuga_ValueVariant* papuga_ValueVariant_tonumeric( const papuga_ValueVariant* s
 * @param[out] destbuf buffer to use if a copy of the result string is needed to be made
 * @param[in] destbufsize allocation size of 'destbuf' in bytes
 * @param[in] self pointer to structure 
+* @param[in] nonAsciiSubstChar character to substitute non ascii characters in output or 0 if non ascii should result in NULL returned
 * @return the pointer to the result string if succeeded, NULL else
 */
-const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbufsize, const papuga_ValueVariant* self);
+const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbufsize, const papuga_ValueVariant* self, char nonAsciiSubstChar);
 
 /*
 * @brief Get the value of a type enum as string

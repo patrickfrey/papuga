@@ -150,7 +150,14 @@ bool papuga_execute_request(
 	{
 		char buf[ 2048];
 		int pos = papuga_RequestParser_get_position( parser, buf, sizeof(buf));
-		papuga_ErrorBuffer_reportError( &errorbuf, "error at position %d: %s, feeding request, location: %s", pos, papuga_ErrorCode_tostring( errcode), buf);
+		if (pos >= 0)
+		{
+			papuga_ErrorBuffer_reportError( &errorbuf, "error feeding request at position %d: %s, location: %s", pos, papuga_ErrorCode_tostring( errcode), buf);
+		}
+		else
+		{
+			papuga_ErrorBuffer_reportError( &errorbuf, "error feeding request: %s, location: %s", papuga_ErrorCode_tostring( errcode), buf);
+		}
 		goto ERROR;
 	}
 	// Add variables to the request:
