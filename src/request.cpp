@@ -1409,17 +1409,18 @@ public:
 
 	class Iterator
 	{
-	private:
-		Iterator( const Iterator&){}		//... non copyable
-		void operator=( const Iterator&){}	//... non copyable
+#if __cplusplus >= 201103L
+		Iterator( const Iterator&) = delete;		//... non copyable
+		void operator=( const Iterator&) = delete;	//... non copyable
+#endif
 	public:
 		explicit Iterator( papuga_ErrorCode errcode_)
 			:m_ctx(0)
 			,m_resolvers()
 			,m_curr_methodidx(0)
 			,m_curr_assignmentidx(0)
-			,m_errpath()
-			,m_errpathstr()
+			,m_structpath()
+			,m_errstruct()
 		{
 			initErrStruct();
 			papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
@@ -1430,8 +1431,7 @@ public:
 			,m_resolvers(ctx_->scopeobjmap().size(),ScopeObjItr())
 			,m_curr_methodidx(0)
 			,m_curr_assignmentidx(0)
-			,m_errpath()
-			,m_errpathstr()
+			,m_structpath()
 		{
 			initErrStruct();
 			papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
@@ -1443,21 +1443,59 @@ public:
 			}
 		}
 
+		~Iterator()
+		{
+			papuga_destroy_Allocator( &m_allocator);
+		}
+
 		void initErrStruct()
 		{
 			m_errstruct.scopestart = -1;
 			m_errstruct.errcode = papuga_Ok;
-			m_errstruct.methodid.classid = 0;
-			m_errstruct.methodid.functionid = 0;
+			m_errstruct.classname = 0;
+			m_errstruct.methodname = 0;
 			m_errstruct.variable = 0;
 			m_errstruct.argcnt = -1;
-			m_errstruct.argpath = 0;
+			m_errstruct.structpath[0] = '\0';
 			m_errstruct.itemid = 0;
 		}
 
-		~Iterator()
+		void assignErrPath()
 		{
-			papuga_destroy_Allocator( &m_allocator);
+			std::string errpathstr;
+			std::vector<std::string>::const_iterator ei = m_structpath.begin(), ee = m_structpath.end();
+			for (; ei != ee; ++ei)
+			{
+				if (!errpathstr.empty()) errpathstr.push_back('/');
+				errpathstr.append( *ei);
+			}
+			if (!m_structpath.empty())
+			{
+				std::size_t structpathlen = errpathstr.size() >= sizeof(m_errstruct.structpath) ? (sizeof(m_errstruct.structpath)-1) : errpathstr.size();
+				std::memcpy( m_errstruct.structpath, errpathstr.c_str(), structpathlen);
+				m_errstruct.structpath[ structpathlen] = 0;
+			}
+		}
+		void assignErrMethod( const papuga_RequestMethodId& mid)
+		{
+			if (mid.classid)
+			{
+				const papuga_ClassDef* cd = m_ctx->classdefs();
+				m_errstruct.classname = cd[ mid.classid-1].name;
+				if (mid.functionid)
+				{
+					m_errstruct.methodname = cd[ mid.classid-1].methodnames[ mid.functionid-1];
+				}
+				else
+				{
+					m_errstruct.methodname = 0;
+				}
+			}
+			else
+			{
+				m_errstruct.classname = 0;
+				m_errstruct.methodname = 0;
+			}
 		}
 
 		papuga_RequestMethodCall* nextCall( const papuga_RequestContext* context)
@@ -1487,19 +1525,9 @@ public:
 					papuga_init_ValueVariant( args->argv + ai);
 					if (!setCallArgValue( args->argv[ai], mcdef->args[ai], mcnode->scope, mcnode->taglevel, context))
 					{
-						std::vector<std::string>::const_iterator ei = m_errpath.begin(), ee = m_errpath.end();
-						for (; ei != ee; ++ei)
-						{
-							if (!m_errpathstr.empty()) m_errpathstr.push_back('/');
-							m_errpathstr.append( *ei);
-						}
-						if (!m_errpath.empty())
-						{
-							m_errstruct.argpath = m_errpathstr.c_str();
-						}
+						assignErrPath();
 						m_errstruct.argcnt = ai;
-						m_errstruct.methodid.classid = mcnode->def->methodid.classid;
-						m_errstruct.methodid.functionid = mcnode->def->methodid.functionid;
+						assignErrMethod( mcdef->methodid);
 						return NULL;
 					}
 				}
@@ -1577,8 +1605,6 @@ public:
 				papuga_init_ValueVariant( &m_curr_assignment.value);
 
 				m_errstruct.scopestart = asnode->scope.from;
-				m_errstruct.argcnt = -1;
-				m_errstruct.argpath = NULL;
 	
 				const AssignmentDef* asdef = asnode->def;
 
@@ -1646,10 +1672,6 @@ public:
 							if (m_errstruct.scopestart < ri->scope.from)
 							{
 								m_errstruct.scopestart = ri->scope.from;
-							}
-							if (!m_errstruct.itemid)
-							{
-								m_errstruct.itemid = ri->itemid;
 							}
 							return false;
 						}
@@ -1960,14 +1982,10 @@ public:
 				{
 					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, true/*embedded*/))
 					{
-						m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
+						m_structpath.insert( m_structpath.begin(), stdef->members[ mi].name);
 						if (m_errstruct.scopestart < scope.from)
 						{
 							m_errstruct.scopestart = scope.from;
-						}
-						if (!m_errstruct.itemid)
-						{
-							m_errstruct.itemid = stdef->members[ mi].itemid;
 						}
 						return false;
 					}
@@ -1977,14 +1995,10 @@ public:
 					sink.pushName( stdef->members[ mi].name);
 					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, false/*embedded*/))
 					{
-						m_errpath.insert( m_errpath.begin(), stdef->members[ mi].name);
+						m_structpath.insert( m_structpath.begin(), stdef->members[ mi].name);
 						if (m_errstruct.scopestart < scope.from)
 						{
 							m_errstruct.scopestart = scope.from;
-						}
-						if (!m_errstruct.itemid)
-						{
-							m_errstruct.itemid = stdef->members[ mi].itemid;
 						}
 						return false;
 					}
@@ -2071,6 +2085,10 @@ public:
 					// We try to get a valid node candidate preferring value nodes if defined
 					while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded))
 					{
+						if (!m_errstruct.itemid)
+						{
+							m_errstruct.itemid = itemid;
+						}
 						if (m_errstruct.errcode != papuga_Ok) return false;
 						resolvedObj = resolveNextSameScopeItem( itemid);
 					}
@@ -2078,12 +2096,23 @@ public:
 					{
 						if (resolvetype == papuga_ResolveTypeRequired)
 						{
+							if (!m_errstruct.itemid)
+							{
+								m_errstruct.itemid = itemid;
+							}
 							m_errstruct.errcode = papuga_ValueUndefined;
 							return false;
 						}
 						else
 						{
-							if (m_errstruct.errcode != papuga_Ok) return false;
+							if (m_errstruct.errcode != papuga_Ok)
+							{
+								return false;
+							}
+							if (!m_errstruct.itemid)
+							{
+								m_errstruct.itemid = itemid;
+							}
 							sink.pushVoid();
 							// ... we get here only if we found a value that matches, but was undefined
 						}
@@ -2192,7 +2221,14 @@ public:
 						}
 						if (!resolvedObj.valid())
 						{
-							if (m_errstruct.errcode != papuga_Ok) return false;
+							if (m_errstruct.errcode != papuga_Ok)
+							{
+								if (!m_errstruct.itemid)
+								{
+									m_errstruct.itemid = itemid;
+								}
+								return false;
+							}
 							sink.pushVoid();
 							// ... we get here only if we found a value that matches, but was undefined
 						}
@@ -2225,6 +2261,10 @@ public:
 					}
 					if (!sink.closeSerialization())
 					{
+						if (!m_errstruct.itemid)
+						{
+							m_errstruct.itemid = itemid;
+						}
 						m_errstruct.errcode = papuga_NoMemError;
 						return false;
 					}
@@ -2272,8 +2312,7 @@ public:
 		int m_curr_assignmentidx;
 		papuga_Allocator m_allocator;
 		char m_allocator_membuf[ 4096];
-		std::vector<std::string> m_errpath;
-		std::string m_errpathstr;
+		std::vector<std::string> m_structpath;
 		papuga_RequestError m_errstruct;
 	};
 

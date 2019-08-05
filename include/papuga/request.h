@@ -347,13 +347,15 @@ const papuga_ClassDef* papuga_Request_classdefs( const papuga_Request* self);
  */
 typedef struct papuga_RequestError
 {
-	papuga_RequestMethodId methodid;		/*< method identifier */
-	const char* variable;				/*< variable name causing the error or NULL if not defined */
 	papuga_ErrorCode errcode;			/*< error code */
 	int scopestart;					/*< scope start (equals event counter) for reproducing error area */
 	int argcnt;					/*< argument index of erroneous parameter or -1*/
-	const char* argpath;				/*< path of the error in the erroneous parameter or NULL if not defined */
+	char structpath[ 128];				/*< path of the structure accessed when the error occurred */
+	const char* classname;				/*< class name */
+	const char* methodname;				/*< method name */
+	const char* variable;				/*< variable name causing the error or NULL if not defined */
 	int itemid;					/*< item causing the error or 0 if not defined */
+	char errormsg[ 2048];				/*< error message reported by the bindings method call */
 } papuga_RequestError;
 
 /*

@@ -688,84 +688,54 @@ const char** papuga_RequestHandler_list_methods( const papuga_RequestHandler* se
 	return buf;
 }
 
-static void reportMethodCallError( papuga_ErrorBuffer* errorbuf, const papuga_Request* request, const papuga_RequestMethodCall* call, const char* msg)
+static void assignErrMethod( papuga_RequestError& errstruct, const papuga_RequestMethodId& mid, const papuga_ClassDef* classdefs)
 {
-	const papuga_ClassDef* classdef = papuga_Request_classdefs( request);
-	const char* classname = classdef[ call->methodid.classid-1].name;
-	if (call->methodid.functionid)
+	if (mid.classid)
 	{
-		const char* methodname = classdef[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1];
-		papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error calling method %s::%s: %s"), classname, methodname, msg);
-	}
-	else
-	{
-		papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error calling constructor of %s: %s"), classname, msg);
-	}
-}
-
-static void reportResolveError( papuga_ErrorBuffer* errorbuf, const papuga_Request* request, const papuga_RequestError* err, const char* msg)
-{
-	if (err->methodid.classid == 0)
-	{
-		if (err->variable)
+		errstruct.classname = classdefs[ mid.classid-1].name;
+		if (mid.functionid)
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving variable '%s': %s"), err->variable, msg);
+			errstruct.methodname = classdefs[ mid.classid-1].methodnames[ mid.functionid-1];
 		}
 		else
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT( "resolve error: %s"), msg);
+			errstruct.methodname = 0;
 		}
 	}
 	else
 	{
-		const papuga_ClassDef* classdef = papuga_Request_classdefs( request);
-		const char* classname = classdef[ err->methodid.classid-1].name;
-		if (err->methodid.functionid)
-		{
-			const char* methodname = classdef[ err->methodid.classid-1].methodnames[ err->methodid.functionid-1];
-			if (err->argcnt >= 0)
-			{
-				papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d (path '/%s') of the method %s::%s  \"%s\""), err->argcnt+1, err->argpath?err->argpath:"", classname, methodname, msg);
-			}
-			else
-			{
-				papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error for object: %s"), classname, msg);
-			}
-		}
-		else
-		{
-			if (err->argcnt >= 0)
-			{
-				papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving argument %d (path '/%s') of the constructor of %s: %s"), err->argcnt+1, err->argpath?err->argpath:"", classname, msg);
-			}
-			else
-			{
-				papuga_ErrorBuffer_reportError( errorbuf, _TXT( "error resolving constructor of %s: %s"), classname, msg);
-			}
-		}
+		errstruct.classname = 0;
+		errstruct.methodname = 0;
 	}
 }
 
-extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_Allocator* allocator, papuga_RequestLogger* logger, papuga_RequestResult** results, int* nofResults, papuga_ErrorBuffer* errorbuf, int* errorpos)
+static void assignErrMessage( papuga_RequestError& errstruct, const char* msg)
+{
+	std::size_t msgsize = std::strlen(msg);
+	if (msgsize >= sizeof( errstruct.errormsg)) msgsize = sizeof( errstruct.errormsg)-1;
+	std::memcpy( errstruct.errormsg, msg, msgsize);
+}
+
+extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_Allocator* allocator, papuga_RequestLogger* logger, papuga_RequestResult** results, int* nofResults, papuga_RequestError* errstruct)
 {
 	papuga_RequestIterator* itr = 0;
 	*results = 0;
 	*nofResults = 0;
-	*errorpos = 0;
+	std::memset( errstruct, 0, sizeof(*errstruct));
+
 	try
 	{
-		char membuf_err[ 1024];
 		papuga_ErrorBuffer errorbuf_call;
-		papuga_ErrorCode errcode = papuga_Ok;
 
 		const papuga_ClassDef* classdefs = papuga_Request_classdefs( request);
 		itr = papuga_create_RequestIterator( allocator, request);
 		if (!itr)
 		{
-			papuga_ErrorBuffer_reportError( errorbuf, _TXT("error handling request: %s"), papuga_ErrorCode_tostring( papuga_NoMemError));
+			errstruct->errcode = papuga_NoMemError;
 			return false;
 		}
-		papuga_init_ErrorBuffer( &errorbuf_call, membuf_err, sizeof(membuf_err));
+		papuga_init_ErrorBuffer( &errorbuf_call, errstruct->errormsg, sizeof(errstruct->errormsg));
+
 		const papuga_RequestMethodCall* call;
 		const papuga_RequestVariableAssignment* assignment;
 
@@ -777,9 +747,9 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			// ... HACK const_cast: We know that the source is only modified by the following deepcopy_value in the case 
 			//	of a host object moved. But we know that a variable assignment is constructed from content and cannot 
 			//	contain host object references.
-			if (!papuga_Allocator_deepcopy_value( &var->allocator, &var->value, source, false/*movehostobj*/, &errcode))
+			if (!papuga_Allocator_deepcopy_value( &var->allocator, &var->value, source, false/*movehostobj*/, &errstruct->errcode))
 			{
-				papuga_ErrorBuffer_reportError( errorbuf, _TXT("error handling variable assignment in request: %s"), papuga_ErrorCode_tostring( errcode));
+				errstruct->variable = assignment->varname;
 				papuga_destroy_RequestIterator( itr);
 				return false;
 			}
@@ -795,7 +765,9 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				{
 					if (papuga_Request_is_result_variable( request, call->resultvarname))
 					{
-						throw std::runtime_error(_TXT("constructor result referenced in result template"));
+						errstruct->variable = call->resultvarname;
+						errstruct->errcode = papuga_MixedConstruction;
+						return false;
 					}
 					var = context->varmap.createVariable( call->resultvarname);
 				}
@@ -816,7 +788,8 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 							papuga_LogItemArgc, call->args.argc,
 							papuga_LogItemArgv, &call->args.argv[0]);
 					}
-					reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &errorbuf_call));
+					errstruct->errcode = papuga_HostObjectError;
+					assignErrMethod( *errstruct, call->methodid, classdefs);
 					papuga_destroy_RequestIterator( itr);
 					return false;
 				}
@@ -868,18 +841,22 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				const papuga_ValueVariant* selfvalue = context->varmap.findVariable( call->selfvarname);
 				if (!selfvalue)
 				{
-					errcode = papuga_MissingSelf;
+					assignErrMethod( *errstruct, call->methodid, classdefs);
+					errstruct->variable = call->selfvarname;
+					errstruct->errcode = papuga_MissingSelf;
 					break;
 				}
 				if (selfvalue->valuetype != papuga_TypeHostObject || selfvalue->value.hostObject->classid != call->methodid.classid)
 				{
-					errcode = papuga_TypeError;
+					assignErrMethod( *errstruct, call->methodid, classdefs);
+					errstruct->variable = call->selfvarname;
+					errstruct->errcode = papuga_TypeError;
 					break;
 				}
 				// [2] Call the method and report an error on failure:
 				void* self = selfvalue->value.hostObject->data;
 				papuga_CallResult retval;
-				papuga_init_CallResult( &retval, var ? &var->allocator : allocator, false/*ownership*/, membuf_err, sizeof(membuf_err));
+				papuga_init_CallResult( &retval, var ? &var->allocator : allocator, false/*ownership*/, errstruct->errormsg, sizeof(errstruct->errormsg));
 				if (!(*func)( self, &retval, call->args.argc, call->args.argv))
 				{
 					if (logger->logMethodCall)
@@ -890,9 +867,10 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 								papuga_LogItemArgc, call->args.argc,
 								papuga_LogItemArgv, &call->args.argv[0]);
 					}
-					reportMethodCallError( errorbuf, request, call, papuga_ErrorBuffer_lastError( &retval.errorbuf));
-					papuga_destroy_RequestIterator( itr);
-					return false;
+					errstruct->errcode = papuga_HostObjectError;
+					assignErrMethod( *errstruct, call->methodid, classdefs);
+					errstruct->variable = call->selfvarname;
+					break;
 				}
 				// [3] Build the result value:
 				papuga_ValueVariant resultvalue;
@@ -921,7 +899,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					}
 					if (!ser || !sc)
 					{
-						errcode = papuga_NoMemError;
+						errstruct->errcode = papuga_NoMemError;
 						break;
 					}
 					papuga_init_ValueVariant_serialization( &resultvalue, ser);
@@ -961,22 +939,17 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			}
 		}
 		// Report error if we could not resolve all parts of a method call:
-		if (errcode != papuga_Ok)
+		const papuga_RequestError* itr_errstruct = papuga_RequestIterator_get_last_error( itr);
+		if (errstruct->errcode != papuga_Ok)
 		{
-			reportMethodCallError( errorbuf, request, call, papuga_ErrorCode_tostring( errcode));
 			papuga_destroy_RequestIterator( itr);
 			return false;
 		}
-		else 
+		else if (itr_errstruct)
 		{
-			const papuga_RequestError* errstruct = papuga_RequestIterator_get_last_error( itr);
-			if (errstruct)
-			{
-				reportResolveError( errorbuf, request, errstruct, papuga_ErrorCode_tostring( errstruct->errcode));
-				*errorpos = errstruct->scopestart;
-				papuga_destroy_RequestIterator( itr);
-				return false;
-			}
+			std::memcpy( errstruct, itr_errstruct, sizeof(papuga_RequestError));
+			papuga_destroy_RequestIterator( itr);
+			return false;
 		}
 		*nofResults = papuga_RequestIterator_nof_results( itr);
 		if (!*nofResults)
@@ -998,11 +971,10 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			if (!papuga_init_RequestResult( &(*results)[ ri], allocator, itr, ri))
 			{
 				*nofResults = ri;
-				const papuga_RequestError* errstruct = papuga_RequestIterator_get_last_error( itr);
-				if (errstruct)
+				itr_errstruct = papuga_RequestIterator_get_last_error( itr);
+				if (itr_errstruct)
 				{
-					reportResolveError( errorbuf, request, errstruct, papuga_ErrorCode_tostring( errstruct->errcode));
-					*errorpos = errstruct->scopestart;
+					std::memcpy( errstruct, itr_errstruct, sizeof(papuga_RequestError));
 					papuga_destroy_RequestIterator( itr);
 					return false;
 				}
@@ -1015,13 +987,14 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 	catch (const std::bad_alloc& err)
 	{
 		if (itr) papuga_destroy_RequestIterator( itr);
-		papuga_ErrorBuffer_reportError( errorbuf, _TXT("out of memory handling request"));
+		errstruct->errcode = papuga_NoMemError;
 		return false;
 	}
 	catch (const std::runtime_error& err)
 	{
 		if (itr) papuga_destroy_RequestIterator( itr);
-		papuga_ErrorBuffer_reportError( errorbuf, _TXT("error handling request: %s"), err.what());
+		errstruct->errcode = papuga_UncaughtException;
+		assignErrMessage( *errstruct, err.what());
 		return false;
 	}
 }

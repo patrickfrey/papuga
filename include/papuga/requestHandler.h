@@ -222,11 +222,10 @@ const char** papuga_RequestHandler_list_methods( const papuga_RequestHandler* se
  * @param[in] logger logger for logging errors and the calls of the request
  * @param[out] results array of results of the request
  * @param[out] nofResults number of results of the request
- * @param[out] errorbuf buffer for the error message in case of error
- * @param[out] errorpos position in case of an error counted in request parser events (to reproduce the error location you have to rescan the source)
+ * @param[out] errstruct description of the error for a detailed error message
  * @return true on success, false on failure
  */
-bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_Allocator* allocator, papuga_RequestLogger* logger, papuga_RequestResult** results, int* nofResults, papuga_ErrorBuffer* errorbuf, int* errorpos);
+bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_Allocator* allocator, papuga_RequestLogger* logger, papuga_RequestResult** results, int* nofResults, papuga_RequestError* errstruct);
 
 #ifdef __cplusplus
 }
