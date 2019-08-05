@@ -1422,7 +1422,7 @@ public:
 			,m_structpath()
 			,m_errstruct()
 		{
-			initErrStruct();
+			papuga_init_RequestError( &m_errstruct);
 			papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
 			papuga_init_RequestMethodCall( &m_curr_methodcall);
 		}
@@ -1433,7 +1433,7 @@ public:
 			,m_curr_assignmentidx(0)
 			,m_structpath()
 		{
-			initErrStruct();
+			papuga_init_RequestError( &m_errstruct);
 			papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
 			papuga_init_RequestMethodCall( &m_curr_methodcall);
 			std::vector<ScopeObjMap>::const_iterator mi = ctx_->scopeobjmap().begin(), me = ctx_->scopeobjmap().end();
@@ -1446,18 +1446,6 @@ public:
 		~Iterator()
 		{
 			papuga_destroy_Allocator( &m_allocator);
-		}
-
-		void initErrStruct()
-		{
-			m_errstruct.scopestart = -1;
-			m_errstruct.errcode = papuga_Ok;
-			m_errstruct.classname = 0;
-			m_errstruct.methodname = 0;
-			m_errstruct.variable = 0;
-			m_errstruct.argcnt = -1;
-			m_errstruct.structpath[0] = '\0';
-			m_errstruct.itemid = 0;
 		}
 
 		void assignErrPath()
@@ -2619,6 +2607,18 @@ private:
 
 }//anonymous namespace
 
+
+extern "C" void papuga_init_RequestError( papuga_RequestError* self)
+{
+	self->scopestart = -1;
+	self->errcode = papuga_Ok;
+	self->classname = 0;
+	self->methodname = 0;
+	self->variable = 0;
+	self->argcnt = -1;
+	self->structpath[0] = '\0';
+	self->itemid = 0;
+}
 
 extern "C" const char* papuga_ResolveTypeName( papuga_ResolveType resolvetype)
 {

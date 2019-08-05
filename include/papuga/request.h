@@ -359,6 +359,12 @@ typedef struct papuga_RequestError
 } papuga_RequestError;
 
 /*
+* @brief Request error constructor
+* @param[out] self pointer to structure 
+*/
+void papuga_init_RequestError( papuga_RequestError* self);
+
+/*
  * @brief Describes one method call provided by the request
  */
 typedef struct papuga_RequestMethodCall
