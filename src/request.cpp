@@ -1406,7 +1406,7 @@ public:
 	{
 		return m_atm->isResultVariable( name);
 	}
-	
+
 	class Iterator
 	{
 	private:
@@ -1421,14 +1421,7 @@ public:
 			,m_errpath()
 			,m_errpathstr()
 		{
-			m_errstruct.scopestart = -1;
-			m_errstruct.errcode = papuga_Ok;
-			m_errstruct.methodid.classid = 0;
-			m_errstruct.methodid.functionid = 0;
-			m_errstruct.variable = 0;
-			m_errstruct.argcnt = -1;
-			m_errstruct.argpath = 0;
-
+			initErrStruct();
 			papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
 			papuga_init_RequestMethodCall( &m_curr_methodcall);
 		}
@@ -1440,14 +1433,7 @@ public:
 			,m_errpath()
 			,m_errpathstr()
 		{
-			m_errstruct.scopestart = -1;
-			m_errstruct.errcode = papuga_Ok;
-			m_errstruct.methodid.classid = 0;
-			m_errstruct.methodid.functionid = 0;
-			m_errstruct.variable = 0;
-			m_errstruct.argcnt = -1;
-			m_errstruct.argpath = 0;
-
+			initErrStruct();
 			papuga_init_Allocator( &m_allocator, m_allocator_membuf, sizeof(m_allocator_membuf));
 			papuga_init_RequestMethodCall( &m_curr_methodcall);
 			std::vector<ScopeObjMap>::const_iterator mi = ctx_->scopeobjmap().begin(), me = ctx_->scopeobjmap().end();
@@ -1455,6 +1441,18 @@ public:
 			{
 				m_resolvers[ midx] = mi->end();
 			}
+		}
+
+		void initErrStruct()
+		{
+			m_errstruct.scopestart = -1;
+			m_errstruct.errcode = papuga_Ok;
+			m_errstruct.methodid.classid = 0;
+			m_errstruct.methodid.functionid = 0;
+			m_errstruct.variable = 0;
+			m_errstruct.argcnt = -1;
+			m_errstruct.argpath = 0;
+			m_errstruct.itemid = 0;
 		}
 
 		~Iterator()
@@ -1479,8 +1477,6 @@ public:
 				m_curr_methodcall.methodid.functionid = mcnode->def->methodid.functionid;
 
 				m_errstruct.scopestart = mcnode->scope.from;
-				m_errstruct.argcnt = -1;
-				m_errstruct.argpath = NULL;
 				papuga_init_CallArgs( &m_curr_methodcall.args, m_curr_methodcall.membuf, sizeof(m_curr_methodcall.membuf));
 	
 				const CallDef* mcdef = mcnode->def;
@@ -1650,6 +1646,10 @@ public:
 							if (m_errstruct.scopestart < ri->scope.from)
 							{
 								m_errstruct.scopestart = ri->scope.from;
+							}
+							if (!m_errstruct.itemid)
+							{
+								m_errstruct.itemid = ri->itemid;
 							}
 							return false;
 						}
@@ -1965,6 +1965,10 @@ public:
 						{
 							m_errstruct.scopestart = scope.from;
 						}
+						if (!m_errstruct.itemid)
+						{
+							m_errstruct.itemid = stdef->members[ mi].itemid;
+						}
 						return false;
 					}
 				}
@@ -1977,6 +1981,10 @@ public:
 						if (m_errstruct.scopestart < scope.from)
 						{
 							m_errstruct.scopestart = scope.from;
+						}
+						if (!m_errstruct.itemid)
+						{
+							m_errstruct.itemid = stdef->members[ mi].itemid;
 						}
 						return false;
 					}
@@ -2090,6 +2098,10 @@ public:
 							 taglevelRange.first, taglevelRange.second,
 							 resolvedObjNext.scope.from, resolvedObjNext.scope.to, resolvedObjNext.taglevel);
 #endif
+						if (!m_errstruct.itemid)
+						{
+							m_errstruct.itemid = itemid;
+						}
 						m_errstruct.errcode = papuga_AmbiguousReference;
 						return false;
 					}
@@ -2132,17 +2144,29 @@ public:
 								 taglevelRange.first, taglevelRange.second,
 								 resolvedObj.scope.from, resolvedObj.scope.to, resolvedObj.taglevel);
 #endif
+							if (!m_errstruct.itemid)
+							{
+								m_errstruct.itemid = itemid;
+							}
 							m_errstruct.errcode = papuga_AmbiguousReference;
 							return false;
 						}
 					}
 					else if (ObjectRef_is_struct( resolvedObj.objref))
 					{
+						if (!m_errstruct.itemid)
+						{
+							m_errstruct.itemid = itemid;
+						}
 						m_errstruct.errcode = papuga_InvalidAccess;
 						return false;
 					}
 					else
 					{
+						if (!m_errstruct.itemid)
+						{
+							m_errstruct.itemid = itemid;
+						}
 						m_errstruct.errcode = papuga_ValueUndefined;
 						return false;
 					}
@@ -2192,6 +2216,10 @@ public:
 #endif
 					if (arrayElementCount == 0 && resolvetype == papuga_ResolveTypeArrayNonEmpty)
 					{
+						if (!m_errstruct.itemid)
+						{
+							m_errstruct.itemid = itemid;
+						}
 						m_errstruct.errcode = papuga_ValueUndefined;
 						return false;
 					}
