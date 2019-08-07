@@ -14,6 +14,7 @@
 #include "papuga/typedefs.h"
 #include "papuga/interfaceDescription.h"
 #include "papuga/classdef.h"
+#include "papuga/requestLogger.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -242,7 +243,7 @@ bool papuga_RequestAutomaton_done( papuga_RequestAutomaton* self);
  * @param[in] atm the automaton structure (done must be called before)
  * @return the request structure
  */
-papuga_Request* papuga_create_Request( const papuga_RequestAutomaton* atm);
+papuga_Request* papuga_create_Request( const papuga_RequestAutomaton* atm, papuga_RequestLogger* logger);
 
 /*
  * @brief Destroy a request
@@ -310,6 +311,13 @@ bool papuga_Request_done( papuga_Request* self);
 papuga_ErrorCode papuga_Request_last_error( const papuga_Request* self);
 
 /*
+ * @brief Get the item in the automaton definition that caused the last error
+ * @param[in] self request to get the last error from
+ * @return the item identifier
+ */
+int papuga_Request_last_error_itemid( const papuga_Request* self);
+
+/*
  * @brief Check if a variable is declared as part of the result
  * @param[in] self request to evaluate the variable for
  * @param[in] varname name of the variable to test
@@ -350,11 +358,11 @@ typedef struct papuga_RequestError
 	papuga_ErrorCode errcode;			/*< error code */
 	int scopestart;					/*< scope start (equals event counter) for reproducing error area */
 	int argcnt;					/*< argument index of erroneous parameter or -1*/
-	char structpath[ 128];				/*< path of the structure accessed when the error occurred */
 	const char* classname;				/*< class name */
 	const char* methodname;				/*< method name */
 	const char* variable;				/*< variable name causing the error or NULL if not defined */
 	int itemid;					/*< item causing the error or 0 if not defined */
+	char structpath[ 128];				/*< path of the structure accessed when the error occurred */
 	char errormsg[ 2048];				/*< error message reported by the bindings method call */
 } papuga_RequestError;
 

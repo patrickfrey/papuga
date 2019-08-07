@@ -22,8 +22,6 @@
 #include <iostream>
 #include <sstream>
 
-#undef PAPUGA_LOWLEVEL_DEBUG
-
 struct LoggerContext
 {
 	std::ostringstream out;
@@ -99,9 +97,32 @@ static void logMethodCall( void* self, int nofItems, ...)
 	}
 	catch (const std::bad_alloc&)
 	{
-		std::cerr << "out of memory logging method call" << std::endl;
+		ctx->out << "out of memory logging method call" << std::endl;
 	}
 	va_end( arguments);
+}
+
+void logContentEvent( void* self, const char* title, int itemid, const papuga_ValueVariant* value)
+{
+	LoggerContext* ctx = (LoggerContext*)self;
+	try
+	{
+		papuga_ErrorCode errcode = papuga_Ok;
+		std::string valuestr;
+		if (value) valuestr = papuga::ValueVariant_tostring( *value, errcode);
+		if (valuestr.empty() && errcode != papuga_Ok)
+		{
+			ctx->out << "ERROR " << papuga_ErrorCode_tostring( errcode) << std::endl;
+		}
+		else
+		{
+			ctx->out << "EV " << (title?title:"") << " " << itemid << " '" << valuestr << "'" << std::endl;
+		}
+	}
+	catch (const std::bad_alloc&)
+	{
+		ctx->out << "out of memory logging method call" << std::endl;
+	}
 }
 
 static void reportRequestError( papuga_ErrorBuffer& errorbuf, const papuga_RequestError& errstruct, papuga_ContentType doctype, papuga_StringEncoding encoding, const std::string& doc)
@@ -139,7 +160,7 @@ static void reportRequestError( papuga_ErrorBuffer& errorbuf, const papuga_Reque
 	{
 		papuga_ErrorBuffer_appendMessage( &errorbuf, " accessing variable '%s'", errstruct.variable);
 	}
-	if (errstruct.itemid)
+	if (errstruct.itemid >= 0)
 	{
 		if (errstruct.structpath[0])
 		{
@@ -195,7 +216,7 @@ bool papuga_execute_request(
 	const char* rootname = 0;
 
 	papuga_init_Allocator( &allocator, content_mem, sizeof(content_mem));
-	papuga_RequestLogger logger = {&logctx, &logMethodCall};
+	papuga_RequestLogger logger = {&logctx, &logMethodCall, &logContentEvent};
 
 	// Init output:
 	papuga_init_ErrorBuffer( &errorbuf, errbuf_mem, sizeof(errbuf_mem));
@@ -205,7 +226,7 @@ bool papuga_execute_request(
 	if (!ctx) {errstruct.errcode = papuga_NoMemError; goto ERROR;}
 	parser = papuga_create_RequestParser( &allocator, doctype, encoding, doc.c_str(), doc.size(), &errstruct.errcode);
 	if (!parser) goto ERROR;
-	request = papuga_create_Request( atm);
+	request = papuga_create_Request( atm, &logger);
 	if (!request) {errstruct.errcode = papuga_NoMemError; goto ERROR;}
 
 	// Parse the request document and feed it to the request:
@@ -254,12 +275,7 @@ bool papuga_execute_request(
 			papuga_ValueVariant resultval;
 			papuga_init_ValueVariant_serialization( &resultval, &results[ ri].serialization);
 			rootname = results[ri].name;
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			size_t dumplen = 0;
-			char* dumpstr = papuga_ValueVariant_todump( &resultval, &allocator, structdefs, &dumplen);
-			if (!dumpstr) throw papuga::error_exception( papuga_NoMemError, "dumping result");
-			std::cerr << "RESULT DUMP " << ri << ":\n" << dumpstr << std::endl;
-#endif
+
 			// Map the result:
 			switch (doctype)
 			{

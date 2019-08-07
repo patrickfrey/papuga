@@ -27,13 +27,22 @@ typedef enum {
 } papuga_RequestLogItem;
 
 /*
- * @brief Request logging procedure type
+ * @brief Request method logging procedure type
  * @param[in] self logger context
  * @param[in] nofItems number of items logged
  * @param[in] ... pairs of papuga_LogItem, and a type depending on it describing an item logged
  * @example papuga_LoggerProcedure( 2, papuga_LogItemClassName, "context", papuga_LogItemMethodName, "run");
  */
-typedef void (*papuga_RequestLoggerProcedure)( void* self, int nofItems, ...);
+typedef void (*papuga_RequestMethodCallLoggerProcedure)( void* self, int nofItems, ...);
+
+/*
+ * @brief Request event logging
+ * @param[in] self logger context
+ * @param[in] title title of the event
+ * @param[in] itemid event item
+ * @param[in] value value of the event
+ */
+typedef void (*papuga_RequestEventLoggerProcedure)( void* self, const char* title, int itemid, const papuga_ValueVariant* value);
 
 /*
  * @brief Logger structure with object and methods
@@ -41,7 +50,8 @@ typedef void (*papuga_RequestLoggerProcedure)( void* self, int nofItems, ...);
 typedef struct papuga_RequestLogger
 {
 	void* self;
-	papuga_RequestLoggerProcedure logMethodCall;
+	papuga_RequestMethodCallLoggerProcedure logMethodCall;
+	papuga_RequestEventLoggerProcedure logContentEvent;
 } papuga_RequestLogger;
 
 #ifdef __cplusplus

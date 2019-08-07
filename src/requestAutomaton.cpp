@@ -114,6 +114,17 @@ void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, pa
 	}
 }
 
+std::string RequestAutomaton_StructDef::key( const std::string& rootexpr) const
+
+{
+	char itemidbuf[ 64];
+	std::snprintf( itemidbuf, sizeof(itemidbuf), "%d", itemid);
+	std::string rt( joinExpression( rootexpr, expression));
+	rt.push_back(' ');
+	rt.append( itemidbuf);
+	return rt;
+}
+
 void RequestAutomaton_ValueDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
 {
 	std::string scope_fullexpr = joinExpression( rootexpr, scope_expression);
@@ -135,6 +146,16 @@ void RequestAutomaton_ValueDef::addToAutomaton( const std::string& rootexpr, pap
 		papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( descr);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("schema description add element, expression %s: %s"), descr_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 	}
+}
+
+std::string RequestAutomaton_ValueDef::key( const std::string& rootexpr) const
+{
+	char itemidbuf[ 64];
+	std::snprintf( itemidbuf, sizeof(itemidbuf), "%d", itemid);
+	std::string rt = joinExpression( joinExpression( rootexpr, scope_expression), select_expression);
+	rt.push_back(' ');
+	rt.append( itemidbuf);
+	return rt;
 }
 
 void RequestAutomaton_GroupDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
@@ -354,7 +375,7 @@ RequestAutomaton_Node& RequestAutomaton_Node::operator=( const RequestAutomaton_
 	return *this;
 }
 
-void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
+void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, std::set<std::string>& keyset) const
 {
 	std::string rootpath = joinExpression( rootpath_, rootexpr);
 	switch (type)
@@ -365,10 +386,26 @@ void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga
 			value.functiondef->addToAutomaton( rootpath, atm, descr);
 			break;
 		case Struct:
-			value.structdef->addToAutomaton( rootpath, atm, descr);
+			if (keyset.insert( value.structdef->key( rootpath)).second)
+			{
+				value.structdef->addToAutomaton( rootpath, atm, descr);
+			}
+			else
+			{
+				std::string key = value.structdef->key( rootpath);
+				throw papuga::runtime_error( _TXT("request automaton define duplicate structure '%s'"), key.c_str());
+			}
 			break;
 		case Value:
-			value.valuedef->addToAutomaton( rootpath, atm, descr);
+			if (keyset.insert( value.valuedef->key( rootpath)).second)
+			{
+				value.valuedef->addToAutomaton( rootpath, atm, descr);
+			}
+			else
+			{
+				std::string key = value.valuedef->key( rootpath);
+				throw papuga::runtime_error( _TXT("request automaton define duplicate value '%s'"), key.c_str());
+			}
 			break;
 		case Group:
 			value.groupdef->addToAutomaton( rootpath, atm, descr);
@@ -376,7 +413,7 @@ void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga
 		case NodeList:
 			for (auto node: *value.nodelist)
 			{
-				node.addToAutomaton( rootpath, atm, descr);
+				node.addToAutomaton( rootpath, atm, descr, keyset);
 			}
 			break;
 		case ResolveDef:
@@ -413,6 +450,7 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 	,m_descr(papuga_create_SchemaDescription())
 	,m_rootexpr(),m_rootstk()
 {
+	std::set<std::string> keyset;
 	if (!m_atm || !m_descr)
 	{
 		if (m_atm) papuga_destroy_RequestAutomaton( m_atm);
@@ -441,7 +479,7 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 		}
 		for (auto ni : nodes)
 		{
-			ni.addToAutomaton( "", m_atm, m_descr);
+			ni.addToAutomaton( "", m_atm, m_descr, keyset);
 		}
 		for (auto ri : resultdefs)
 		{

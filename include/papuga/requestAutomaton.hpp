@@ -15,6 +15,7 @@
 #include "papuga/schemaDescription.h"
 #include <string>
 #include <vector>
+#include <set>
 #include <utility>
 #include <stdexcept>
 
@@ -143,6 +144,10 @@ struct RequestAutomaton_StructDef
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
 	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+
+	/// \brief Get a unique key of this definition for detecting duplicate definitions
+	/// \param[in] rootexpr path prefix for selection expressions
+	std::string key( const std::string& rootexpr) const;
 };
 
 /// \brief Request atomic value definition 
@@ -169,6 +174,10 @@ struct RequestAutomaton_ValueDef
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
 	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+
+	/// \brief Get a unique key of this definition for detecting duplicate definitions
+	/// \param[in] rootexpr path prefix for selection expressions
+	std::string key( const std::string& rootexpr) const;
 };
 
 /// \brief Request grouping of functions definitions
@@ -353,7 +362,7 @@ struct RequestAutomaton_Node
 	/// \param[in] path prefix for all selection expressions
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
-	void addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+	void addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, std::set<std::string>& keyset) const;
 };
 
 class RequestAutomaton_NodeList

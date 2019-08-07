@@ -35,8 +35,6 @@
 #include <limits>
 #include <set>
 
-#undef PAPUGA_LOWLEVEL_DEBUG
-
 using namespace papuga;
 
 namespace {
@@ -125,7 +123,6 @@ struct CallDef
 		methodid.functionid = o.methodid.functionid;
 	}
 
-#ifdef PAPUGA_LOWLEVEL_DEBUG
 	std::string tostring() const
 	{
 		std::ostringstream out;
@@ -148,7 +145,6 @@ struct CallDef
 		out << ");";
 		return out.str();
 	}
-#endif
 };
 
 struct AssignmentDef
@@ -165,26 +161,18 @@ struct AssignmentDef
 	void assign( const AssignmentDef& o)
 		{varname=o.varname;itemid=o.itemid;resolvetype=o.resolvetype;max_tag_diff=o.max_tag_diff;}
 
-#ifdef PAPUGA_LOWLEVEL_DEBUG
 	std::string tostring() const
 	{
 		std::ostringstream out;
 		out << varname << " = " << itemid << " " << papuga_ResolveTypeName( resolvetype);
 		return out.str();
 	}
-#endif
 };
 
 typedef int AtmRef;
 enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom,AssignVariable,ResultInstruction};
 enum {MaxAtmRefType=ResultInstruction};
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-static const char* atmRefTypeName( AtmRefType t)
-{
-	const char* ar[ MaxAtmRefType+1] = {"InstantiateValue","CollectValue","CloseStruct","MethodCall","InheritFrom","AssignVariable","ResultInstruction"};
-	return ar[t];
-}
-#endif
+
 static AtmRef AtmRef_get( AtmRefType type, int idx)	{return (AtmRef)(((int)type<<28) | (idx+1));}
 static AtmRefType AtmRef_type( AtmRef atmref)		{return (AtmRefType)((atmref>>28) & 0x7);}
 static int AtmRef_index( AtmRef atmref)			{return ((int)atmref & 0x0fFFffFF)-1;}
@@ -280,10 +268,6 @@ public:
 	{
 		try
 		{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			const char* methodname;
-			const char* classname;
-#endif
 			if (m_done)
 			{
 				m_errcode = papuga_ExecutionOrder;
@@ -305,12 +289,6 @@ public:
 				m_errcode = papuga_AddressedItemNotFound;
 				return false;
 			}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			classname = cdef->name;
-			methodname = method_->functionid == 0 ? "new" : cdef->methodnames[ method_->functionid-1];
-			fprintf( stderr, "automaton add call expression='%s', class=%s, method=%s, self='%s', result='%s', nofargs=%d\n",
-					expression, classname, methodname, selfvarname_?selfvarname_:"", resultvarname_?resultvarname_:"", nofargs);
-#endif
 			std::string open_expression( cut_trailing_slashes( expression));
 			std::string close_expression( open_expression + "~");
 			int mm = nofargs * sizeof(CallArgDef);
@@ -335,10 +313,6 @@ public:
 				m_errcode = papuga_SyntaxError;
 				return false;
 			}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add event [%s %d] call expression='%s'\n",
-				 atmRefTypeName(MethodCall), (int)m_calldefs.size(), close_expression.c_str());
-#endif
 			m_calldefs.push_back( CallDef( method_, selfvarname, resultvarname, car, nofargs, m_groupid < 0 ? m_calldefs.size():m_groupid));
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -397,9 +371,6 @@ public:
 	{
 		try
 		{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton set call argument variable=%s\n", argvar);
-#endif
 			if (!argvar)
 			{
 				m_errcode = papuga_TypeError;
@@ -421,9 +392,6 @@ public:
 	{
 		try
 		{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton set call argument item id=%d resolve=%s, max tag diff %d\n", itemid, papuga_ResolveTypeName( resolvetype), max_tag_diff);
-#endif
 			if (itemid <= 0)
 			{
 				m_errcode = papuga_TypeError;
@@ -443,9 +411,6 @@ public:
 	{
 		try
 		{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add structure expression='%s', item id=%d, nofmembers=%d\n", expression, itemid, nofmembers);
-#endif
 			if (!checkItemId( itemid))
 			{
 				return false;
@@ -471,10 +436,6 @@ public:
 				m_errcode = papuga_SyntaxError;
 				return false;
 			}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add event [%s %d] structure close expression='%s'\n",
-				 atmRefTypeName(CloseStruct), (int)m_structdefs.size(), close_expression.c_str());
-#endif
 			m_structdefs.push_back( StructDef( itemid, mar, nofmembers));
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -485,9 +446,6 @@ public:
 	{
 		try
 		{
-	#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton set structure member name='%s', item id=%d, resolve=%s, max tag diff %d\n", name, itemid, papuga_ResolveTypeName( resolvetype), max_tag_diff);
-	#endif
 			if (!checkItemId( itemid))
 			{
 				return false;
@@ -547,9 +505,6 @@ public:
 	{
 		try
 		{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add value scope='%s', select='%s', item id=%d\n", scope_expression, select_expression, itemid);
-#endif
 			if (!checkItemId( itemid))
 			{
 				return false;
@@ -612,12 +567,6 @@ public:
 				m_errcode = papuga_SyntaxError;
 				return false;
 			}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add event [%s %d] instantiate value expression='%s'\n",
-				 atmRefTypeName( InstantiateValue), (int)m_valuedefs.size(), value_expression.c_str());
-			fprintf( stderr, "automaton add event [%s %d] collect value expression='%s'\n",
-				 atmRefTypeName( CollectValue), (int)m_valuedefs.size(), close_expression.c_str());
-#endif
 			m_valuedefs.push_back( ValueDef( itemid));
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -626,9 +575,6 @@ public:
 
 	bool openGroup()
 	{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-		fprintf( stderr, "automaton open group\n");
-#endif
 		if (m_groupid >= 0)
 		{
 			m_errcode = papuga_LogicError;
@@ -640,9 +586,6 @@ public:
 
 	bool closeGroup()
 	{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-		fprintf( stderr, "automaton close group\n");
-#endif
 		if (m_groupid < 0)
 		{
 			m_errcode = papuga_LogicError;
@@ -656,9 +599,6 @@ public:
 	{
 		try
 		{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add assignment expression='%s', variable=%s, item id=%d, resolvetype=%s\n", expression, varname, itemid, papuga_ResolveTypeName(resolvetype));
-#endif
 			if (!checkItemId( itemid))
 			{
 				return false;
@@ -677,10 +617,6 @@ public:
 				m_errcode = papuga_SyntaxError;
 				return false;
 			}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "automaton add event [%s %d] assignment expression='%s'\n",
-				 atmRefTypeName(AssignVariable), (int)m_assignments.size(), close_expression.c_str());
-#endif
 			m_assignments.push_back( AssignmentDef( varname, itemid, resolvetype, max_tag_diff));
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -735,10 +671,6 @@ public:
 
 	bool done()
 	{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-		fprintf( stderr, "automaton done\n");
-		fflush( stderr);
-#endif
 		if (m_done)
 		{
 			m_errcode = papuga_LogicError;
@@ -843,26 +775,6 @@ static int ObjectRef_struct_id( ObjectRef objref)	{return objref < 0 ? -objref-1
 static int ObjectRef_value_id( ObjectRef objref)	{return objref > 0 ? objref-1 : 0;}
 static ObjectRef ObjectRef_value( int idx)		{return (ObjectRef)(idx+1);}
 static ObjectRef ObjectRef_struct( int idx)		{return (ObjectRef)-(idx+1);}
-
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-static std::string ObjectRef_descr( ObjectRef objref)
-{
-	std::ostringstream out;
-	if (ObjectRef_is_struct( objref))
-	{
-		out << "struct " << ObjectRef_struct_id( objref);
-	}
-	else if (ObjectRef_is_value( objref))
-	{
-		out << "value " << ObjectRef_value_id( objref);
-	}
-	else
-	{
-		out << "NULL";
-	}
-	return out.str();
-}
-#endif
 
 enum ScopeKeyType {SearchScope,ValueScope,ObjectScope};
 
@@ -1168,13 +1080,19 @@ private:
 class AutomatonContext
 {
 public:
-	explicit AutomatonContext( const AutomatonDescription* atm_)
-		:m_atm(atm_),m_atmstate(&atm_->atm()),m_scopecnt(0),m_scopestack()
+	AutomatonContext( const AutomatonDescription* atm_, papuga_RequestLogger* logger)
+		:m_atm(atm_),m_logContentEvent(0),m_loggerSelf(0)
+		,m_atmstate(&atm_->atm()),m_scopecnt(0),m_scopestack()
 		,m_valuenodes(),m_values(),m_structs(),m_scopeobjmap( atm_->maxitemid()+1, ScopeObjMap()),m_methodcalls()
 		,m_assignments(),m_results( new RequestResultTemplate[ atm_->resultdefs().size()])
 		,m_maskOfRequiredInheritedContexts(getRequiredInheritedContextsMask(atm_)),m_nofInheritedContexts(0)
-		,m_done(false),m_errcode(papuga_Ok)
+		,m_done(false),m_errcode(papuga_Ok),m_erritemid(-1)
 	{
+		if (logger && logger->logContentEvent && logger->self)
+		{
+			m_loggerSelf = logger->self;
+			m_logContentEvent = logger->logContentEvent;
+		}
 		if (m_atm->inheritdefs().size() >= MaxNofInheritedContexts)
 		{
 			throw std::bad_alloc();
@@ -1203,6 +1121,11 @@ public:
 		return m_errcode;
 	}
 
+	int lastErrorItemId() const
+	{
+		return m_erritemid;
+	}
+
 	bool processEvents( const textwolf::XMLScannerBase::ElementType tp, const papuga_ValueVariant* value, const char* valuestr, size_t valuelen)
 	{
 		AutomatonState::iterator itr = m_atmstate.push( tp, valuestr, valuelen);
@@ -1210,10 +1133,6 @@ public:
 		{
 			int ev = *itr;
 			m_event_stacks[ AtmRef_type(ev)].push( ev);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			fprintf( stderr, "triggered event [%s %d]\n",
-				 atmRefTypeName( AtmRef_type( ev)), AtmRef_index( ev));
-#endif
 		}
 		// Ensure that events are issued in the order InstantiateValue,CollectValue,CloseStruct and MethodCall:
 		int ei = 0, ee = MaxAtmRefType+1;
@@ -1235,39 +1154,20 @@ public:
 		if (!valuestr) return false;
 		localbuf[ valuelen] = 0;	//... textwolf needs null termination
 
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-		fprintf( stderr, "push element type %s value '%s'\n",
-			 textwolf::XMLScannerBase::getElementTypeName( tp), valuestr);
-#endif
 		return processEvents( tp, value, valuestr, valuelen);
 	}
 
 	bool pushEmptyAndProcessEvents( const textwolf::XMLScannerBase::ElementType tp, const papuga_ValueVariant* value)
 	{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-		fprintf( stderr, "push element type %s\n",
-			 textwolf::XMLScannerBase::getElementTypeName( tp));
-#endif
 		return processEvents( tp, value, "", 0);
 	}
-
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	void DEBUG_logProcessEvent( const char* name, const papuga_ValueVariant* value)
-	{
-		papuga_ErrorCode errcode = papuga_Ok;
-		std::string valuestr = ValueVariant_tostring( *value, errcode);
-		fprintf( stderr, "scope [%d,%d]: process %s '%s'\n", curscope().from, curscope().to, name, valuestr.c_str());
-	}
-#else
-#define DEBUG_logProcessEvent( name, value)
-#endif
 
 	bool processOpenTag( const papuga_ValueVariant* tagname)
 	{
 		try
 		{
 			++m_scopecnt;
-			DEBUG_logProcessEvent( "open tag", tagname);
+			if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "open tag", -1/*itemid*/, tagname);
 			m_scopestack.push_back( m_scopecnt);
 			if (!pushValueAndProcessEvents( textwolf::XMLScannerBase::OpenTag, tagname)) return false;
 			return true;
@@ -1280,7 +1180,7 @@ public:
 		try
 		{
 			++m_scopecnt;
-			DEBUG_logProcessEvent( "attribute name", attrname);
+			if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "attribute name", -1/*itemid*/, attrname);
 			if (!pushValueAndProcessEvents( textwolf::XMLScannerBase::TagAttribName, attrname)) return false;
 			return true;
 		}
@@ -1291,7 +1191,7 @@ public:
 		try
 		{
 			++m_scopecnt;
-			DEBUG_logProcessEvent( "attribute value", value);
+			if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "attribute value", -1/*itemid*/, value);
 			if (!pushValueAndProcessEvents( textwolf::XMLScannerBase::TagAttribValue, value)) return false;
 			return true;
 		}
@@ -1303,7 +1203,7 @@ public:
 		try
 		{
 			++m_scopecnt;
-			DEBUG_logProcessEvent( "content value", value);
+			if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "content value", -1/*itemid*/, value);
 			if (!pushEmptyAndProcessEvents( textwolf::XMLScannerBase::Content, value)) return false;
 			return true;
 		}
@@ -1316,7 +1216,7 @@ public:
 		try
 		{
 			++m_scopecnt;
-			DEBUG_logProcessEvent( "close tag", &empty.content);
+			if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "close tag", -1/*itemid*/, NULL/*value*/);
 			if (!pushEmptyAndProcessEvents( textwolf::XMLScannerBase::CloseTag, &empty.content)) return false;
 			m_scopestack.pop_back();
 			return true;
@@ -1331,9 +1231,6 @@ public:
 			++m_scopecnt;
 			if (m_done) return true;
 			std::sort( m_methodcalls.begin(), m_methodcalls.end());
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			printScopeObjMap( std::cerr);
-#endif
 			return m_done = true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -1407,6 +1304,15 @@ public:
 		return m_atm->isResultVariable( name);
 	}
 
+	papuga_RequestEventLoggerProcedure logContentEvent() const
+	{
+		return m_logContentEvent;
+	}
+	void* loggerSelf() const
+	{
+		return m_loggerSelf;
+	}
+
 	class Iterator
 	{
 #if __cplusplus >= 201103L
@@ -1416,6 +1322,8 @@ public:
 	public:
 		explicit Iterator( papuga_ErrorCode errcode_)
 			:m_ctx(0)
+			,m_logContentEvent(0)
+			,m_loggerSelf(0)
 			,m_resolvers()
 			,m_curr_methodidx(0)
 			,m_curr_assignmentidx(0)
@@ -1428,6 +1336,8 @@ public:
 		}
 		explicit Iterator( const AutomatonContext* ctx_)
 			:m_ctx(ctx_)
+			,m_logContentEvent(ctx_->logContentEvent())
+			,m_loggerSelf(ctx_->loggerSelf())
 			,m_resolvers(ctx_->scopeobjmap().size(),ScopeObjItr())
 			,m_curr_methodidx(0)
 			,m_curr_assignmentidx(0)
@@ -2044,6 +1954,28 @@ public:
 			return true;
 		}
 
+		void logObjectEvent( const char* title, int itemid, const ObjectRef& objref)
+		{
+			if (ObjectRef_is_struct( objref))
+			{
+				int structidx = ObjectRef_struct_id( objref);
+				char buf[ 64];
+				std::snprintf( buf, sizeof(buf), "{%d}", structidx);
+				papuga_ValueVariant ov;
+				papuga_init_ValueVariant_charp( &ov, buf);
+				m_logContentEvent( m_loggerSelf, title, itemid, &ov);
+			}
+			else if (ObjectRef_is_value( objref))
+			{
+				int valueidx = ObjectRef_value_id( objref);
+				m_logContentEvent( m_loggerSelf, title, itemid, &m_ctx->values()[ valueidx].content);
+			}
+			else
+			{
+				m_logContentEvent( m_loggerSelf, title, itemid, NULL/*value*/);
+			}
+		}
+
 		/* \brief Build the data requested by an item id and a scope in a manner defined by a class of resolving a reference */
 		bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange, bool embedded)
 		{
@@ -2054,22 +1986,17 @@ public:
 				case papuga_ResolveTypeOptional:
 				{
 					ResolvedObject resolvedObj = resolveNearItemInsideScope( scope, taglevelRange, itemid);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-					if (resolvedObj.valid())
+					if (m_logContentEvent)
 					{
-						std::string objdescr = ObjectRef_descr( resolvedObj.objref);
-						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found %s in scope [%d,%d] taglevel %d\n",
-							 papuga_ResolveTypeName(resolvetype), itemid, scope.from, scope.to,
-							 taglevelRange.first, taglevelRange.second,
-							 objdescr.c_str(), resolvedObj.scope.from, resolvedObj.scope.to, resolvedObj.taglevel);
+						if (resolvedObj.valid())
+						{
+							logObjectEvent( "resolved required", itemid, resolvedObj.objref);
+						}
+						else if (resolvetype == papuga_ResolveTypeRequired)
+						{
+							m_logContentEvent( m_loggerSelf, "unresolved required", itemid, 0);
+						}
 					}
-					else
-					{
-						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] failed\n",
-							 papuga_ResolveTypeName(resolvetype), itemid,
-							 scope.from, scope.to, taglevelRange.first, taglevelRange.second);
-					}
-#endif
 					// We try to get a valid node candidate preferring value nodes if defined
 					while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded))
 					{
@@ -2108,13 +2035,6 @@ public:
 					ResolvedObject resolvedObjNext = resolveNextInsideItem( scope, taglevelRange, itemid);
 					if (resolvedObjNext.valid())
 					{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found another in scope [%d,%d] taglevel %d\n",
-							 papuga_ResolveTypeName(resolvetype), itemid,
-							 scope.from, scope.to,
-							 taglevelRange.first, taglevelRange.second,
-							 resolvedObjNext.scope.from, resolvedObjNext.scope.to, resolvedObjNext.taglevel);
-#endif
 						if (!m_errstruct.itemid)
 						{
 							m_errstruct.itemid = itemid;
@@ -2127,23 +2047,17 @@ public:
 				case papuga_ResolveTypeInherited:
 				{
 					ResolvedObject resolvedObj = resolveNearItemCoveringScope( scope, taglevelRange, itemid);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-					if (resolvedObj.valid())
+					if (m_logContentEvent)
 					{
-						std::string objdescr = ObjectRef_descr( resolvedObj.objref);
-						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found %s in scope [%d,%d] taglevel %d\n",
-							 papuga_ResolveTypeName(resolvetype), itemid,
-							 scope.from, scope.to,
-							 taglevelRange.first, taglevelRange.second,
-							 objdescr.c_str(),
-							 resolvedObj.scope.from, resolvedObj.scope.to, resolvedObj.taglevel);
+						if (resolvedObj.valid())
+						{
+							logObjectEvent( "resolved inherited", itemid, resolvedObj.objref);
+						}
+						else
+						{
+							m_logContentEvent( m_loggerSelf, "unresolved inherited", itemid, 0);
+						}
 					}
-					else
-					{
-						fprintf( stderr, "search %s item %d in scope [%d,%d] failed\n",
-							 papuga_ResolveTypeName(resolvetype), itemid, scope.from, scope.to);
-					}
-#endif
 					if (ObjectRef_is_value( resolvedObj.objref))
 					{
 						int valueidx = ObjectRef_value_id( resolvedObj.objref);
@@ -2154,13 +2068,6 @@ public:
 						}
 						if (hasNextCoveringItem( scope, taglevelRange, itemid))
 						{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-							fprintf( stderr, "search %s item in scope [%d,%d] taglevel [%d,%d] found another in scope [%d,%d] taglevel %d\n",
-								 papuga_ResolveTypeName(resolvetype),
-								 scope.from, scope.to,
-								 taglevelRange.first, taglevelRange.second,
-								 resolvedObj.scope.from, resolvedObj.scope.to, resolvedObj.taglevel);
-#endif
 							if (!m_errstruct.itemid)
 							{
 								m_errstruct.itemid = itemid;
@@ -2193,6 +2100,17 @@ public:
 				case papuga_ResolveTypeArray:
 				{
 					ResolvedObject resolvedObj = resolveNearItemInsideScope( scope, taglevelRange, itemid);
+					if (m_logContentEvent)
+					{
+						if (resolvedObj.valid())
+						{
+							logObjectEvent( "resolved first of array", itemid, resolvedObj.objref);
+						}
+						else
+						{
+							m_logContentEvent( m_loggerSelf, "empty array", itemid, 0);
+						}
+					}
 					if (!sink.openSerialization())
 					{
 						m_errstruct.errcode = papuga_NoMemError;
@@ -2221,23 +2139,8 @@ public:
 							// ... we get here only if we found a value that matches, but was undefined
 						}
 						++arrayElementCount;
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-						std::string objdescr = ObjectRef_descr( resolvedObj.objref);
-						fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found %s in scope [%d,%d] taglevel %d\n",
-							 papuga_ResolveTypeName(resolvetype), itemid,
-							 scope.from, scope.to,
-							 taglevelRange.first, taglevelRange.second,
-							 objdescr.c_str(), resolvedObj.scope.from, resolvedObj.scope.to, resolvedObj.taglevel);
-#endif
 						resolvedObj = resolveNextInsideItem( scope, taglevelRange, itemid);
 					}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-					fprintf( stderr, "search %s item %d in scope [%d,%d] taglevel [%d,%d] found %d elements\n", 
-						 papuga_ResolveTypeName(resolvetype), itemid,
-						 scope.from, scope.to,
-						 taglevelRange.first, taglevelRange.second,
-						 arrayElementCount);
-#endif
 					if (arrayElementCount == 0 && resolvetype == papuga_ResolveTypeArrayNonEmpty)
 					{
 						if (!m_errstruct.itemid)
@@ -2295,6 +2198,8 @@ public:
 		papuga_RequestMethodCall m_curr_methodcall;
 		papuga_RequestVariableAssignment m_curr_assignment;
 		const AutomatonContext* m_ctx;
+		papuga_RequestEventLoggerProcedure m_logContentEvent;
+		void* m_loggerSelf;
 		std::vector<ScopeObjItr> m_resolvers;
 		int m_curr_methodidx;
 		int m_curr_assignmentidx;
@@ -2305,48 +2210,6 @@ public:
 	};
 
 private:
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	void printScopeObjMap( std::ostream& out)
-	{
-		out << "scope object map:" << std::endl;
-		std::vector<ScopeObjMap>::const_iterator ii = m_scopeobjmap.begin(), ie = m_scopeobjmap.end();
-		int itemidx = 0;
-		for (; ii != ie; ++ii,++itemidx)
-		{
-			if (!ii->empty())
-			{
-				ScopeObjMap::const_iterator mi = ii->begin(), me = ii->end();
-				for (; mi != me; ++mi)
-				{
-					const ObjectDescr& objdescr = mi->second;
-					const ScopeKey& key = mi->first;
-					out << "\t"
-						<< "item " << itemidx
-						<< " prio " << (int)key.prio
-						<< ", scope [" << key.from << "," << key.to << "] "
-						<< ObjectRef_descr( objdescr.objref);
-;
-					if (ObjectRef_is_value( objdescr.objref))
-					{
-						int objindex = ObjectRef_value_id( objdescr.objref);
-						if (papuga_ValueVariant_defined( &m_values[ objindex].content))
-						{
-							std::string valuestr = ValueVariant_tostring( m_values[ objindex].content, m_errcode);
-							if (m_errcode != papuga_Ok) throw papuga::error_exception( m_errcode, "debug dump scope object map");
-							out << " taglevel " << objdescr.taglevel << " value '" << valuestr << "'";
-						}
-						else
-						{
-							out << " value undefined";
-						}
-					}
-					out << std::endl;
-				}
-			}
-		}
-	}
-#endif
-
 	bool processEvent( int ev, const papuga_ValueVariant* evalue)
 	{
 		// Process event depending on type:
@@ -2360,28 +2223,18 @@ private:
 			}
 			case InstantiateValue:
 			{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-				papuga_ErrorCode errcode = papuga_Ok;
-				std::string evaluestr = ValueVariant_tostring( *evalue, errcode);
-				fprintf( stderr, "process event [%s %d] value='%s' item id=%d taglevel=%d\n",
-					 atmRefTypeName(InstantiateValue), evidx, evaluestr.c_str(),
-					 m_atm->valuedefs()[ evidx].itemid, taglevel());
-#endif
 				papuga_ValueVariant evalue_copy;
 				//PF:HACK: The const cast has no influence, as movehostobj parameter is false and the contents of evalue remain
 				//	untouched, but it is still ugly and a bad hack:
 				if (!papuga_Allocator_deepcopy_value( &m_allocator, &evalue_copy, const_cast<papuga_ValueVariant*>(evalue), false, &m_errcode)) return false;
 				int itemid = m_atm->valuedefs()[ evidx].itemid;
+				if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "instantiate", itemid, &evalue_copy);
 				m_valuenodes.push_back( ValueNode( itemid, &evalue_copy));
 				break;
 			}
 			case CollectValue:
 			{
 				int itemid = m_atm->valuedefs()[ evidx].itemid;
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-				fprintf( stderr, "process event [%s %d] item id=%d scope=[%d,%d] taglevel=%d\n",
-					 atmRefTypeName( CollectValue), evidx, itemid, curscope().from, curscope().to, taglevel());
-#endif
 				std::vector<ValueNode>::iterator vi = m_valuenodes.begin();
 				int valuecnt = 0;
 				std::size_t vidx = 0;
@@ -2392,12 +2245,7 @@ private:
 						int objref = ObjectRef_value( m_values.size());
 						insertObjectRef( itemid, ValueScope, curscope(), taglevel(), objref);
 						m_values.push_back( Value( &vi->value));
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-						std::string vstr = vi->tostring();
-						std::string objdescr = ObjectRef_descr( objref);
-						fprintf( stderr, "collect value item id=%d %s scope=[%d,%d] taglevel=%d value='%s'\n",
-							 itemid, objdescr.c_str(), curscope().from, curscope().to, taglevel(), vstr.c_str());
-#endif
+						if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "collect", itemid, &vi->value);
 						m_valuenodes.erase( vi);
 						vi = m_valuenodes.begin() + vidx;
 						++valuecnt;
@@ -2413,14 +2261,10 @@ private:
 					int objref = ObjectRef_value( m_values.size());
 					insertObjectRef( itemid, ValueScope, curscope(), taglevel(), objref);
 					m_values.push_back( Value());
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-					std::string objdescr = ObjectRef_descr( objref);
-					fprintf( stderr, "collect void value item id=%d %s scope=[%d,%d] taglevel=%d\n",
-						 itemid, objdescr.c_str(), curscope().from, curscope().to, taglevel());
-#endif
 				}
 				else if (valuecnt > 1)
 				{
+					m_erritemid = itemid;
 					m_errcode = papuga_DuplicateDefinition;
 					return false;
 				}
@@ -2428,23 +2272,14 @@ private:
 			}
 			case CloseStruct:
 			{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-				fprintf( stderr, "process event [%s %d] item id=%d scope=[%d,%d] taglevel=%d\n",
-					 atmRefTypeName(CloseStruct), evidx, m_atm->valuedefs()[ evidx].itemid,
-					 curscope().from, curscope().to, taglevel());
-#endif
 				const StructDef* stdef = &m_atm->structdefs()[ evidx];
 				insertObjectRef( stdef->itemid, ObjectScope, curscope(), taglevel(), ObjectRef_struct( m_structs.size()));
 				m_structs.push_back( stdef);
+				if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "struct", stdef->itemid, 0/*value*/);
 				break;
 			}
 			case MethodCall:
 			{
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-				std::string calldefstr = m_atm->calldefs()[ evidx].tostring();
-				fprintf( stderr, "process event [%s %d] method call: %s scope=[%d,%d] taglevel=%d\n",
-					 atmRefTypeName(MethodCall), evidx, calldefstr.c_str(), curscope().from, curscope().to, taglevel());
-#endif
 				const CallDef* calldef = &m_atm->calldefs()[ evidx];
 				MethodCallKey key( calldef->groupid, m_scopecnt, evidx);
 				m_methodcalls.push_back( MethodCallNode( calldef, curscope(), taglevel(), key));
@@ -2458,11 +2293,6 @@ private:
 			case AssignVariable:
 			{
 				const AssignmentDef* adef = &m_atm->assignments()[ evidx];
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-				std::string assigndefstr = adef->tostring();
-				fprintf( stderr, "process event [%s %d] assignment: %s scope=[%d,%d] taglevel=%d\n",
-					 atmRefTypeName(MethodCall), evidx, assigndefstr.c_str(), curscope().from, curscope().to, taglevel());
-#endif
 				m_assignments.push_back( AssignmentNode( adef, curscope(), taglevel()));
 				break;
 			}
@@ -2584,6 +2414,8 @@ private:
 	typedef textwolf::XMLPathSelect<textwolf::charset::UTF8> AutomatonState;
 
 	const AutomatonDescription* m_atm;
+	papuga_RequestEventLoggerProcedure m_logContentEvent;
+	void* m_loggerSelf;
 	AutomatonState m_atmstate;
 	papuga_Allocator m_allocator;
 	char m_allocator_membuf[ 4096];
@@ -2602,22 +2434,23 @@ private:
 	papuga_RequestInheritedContextDef m_inheritedContexts[ MaxNofInheritedContexts+1];
 	bool m_done;
 	papuga_ErrorCode m_errcode;
+	int m_erritemid;
 	EventStack m_event_stacks[ MaxAtmRefType+1];
 };
 
 }//anonymous namespace
 
-
 extern "C" void papuga_init_RequestError( papuga_RequestError* self)
 {
-	self->scopestart = -1;
 	self->errcode = papuga_Ok;
+	self->scopestart = -1;
+	self->argcnt = -1;
 	self->classname = 0;
 	self->methodname = 0;
 	self->variable = 0;
-	self->argcnt = -1;
+	self->itemid = -1;
 	self->structpath[0] = '\0';
-	self->itemid = 0;
+	self->errormsg[0] = 0;
 }
 
 extern "C" const char* papuga_ResolveTypeName( papuga_ResolveType resolvetype)
@@ -2762,13 +2595,13 @@ struct papuga_Request
 	const papuga_StructInterfaceDescription* structdefs;
 };
 
-extern "C" papuga_Request* papuga_create_Request( const papuga_RequestAutomaton* atm)
+extern "C" papuga_Request* papuga_create_Request( const papuga_RequestAutomaton* atm, papuga_RequestLogger* logger)
 {
 	papuga_Request* rt = (papuga_Request*)std::calloc( 1, sizeof(*rt));
 	if (!rt) return NULL;
 	try
 	{
-		new (&rt->ctx) AutomatonContext( &atm->atm);
+		new (&rt->ctx) AutomatonContext( &atm->atm, logger);
 		rt->structdefs = atm->structdefs;
 		return rt;
 	}
@@ -2828,6 +2661,11 @@ extern "C" bool papuga_Request_done( papuga_Request* self)
 extern "C" papuga_ErrorCode papuga_Request_last_error( const papuga_Request* self)
 {
 	return self->ctx.lastError();
+}
+
+extern "C" int papuga_Request_last_error_itemid( const papuga_Request* self)
+{
+	return self->ctx.lastErrorItemId();
 }
 
 extern "C" bool papuga_Request_is_result_variable( const papuga_Request* self, const char* varname)
