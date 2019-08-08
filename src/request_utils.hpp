@@ -22,14 +22,26 @@ struct Scope
 	int from;
 	int to;
 
+	Scope()
+		:from(-1),to(-1){}
 	Scope( int from_, int to_)
 		:from(from_),to(to_){}
 	Scope( const Scope& o)
 		:from(o.from),to(o.to){}
+	Scope& operator=( const Scope& o)
+		{from=o.from; to=o.to; return *this;}
 
+	bool defined() const
+	{
+		return from >= 0;
+	}
 	bool inside( const Scope& o) const
 	{
 		return (from >= o.from && to <= o.to);
+	}
+	bool covers( const Scope& o) const
+	{
+		return from <= o.from && to >= o.to;
 	}
 	Scope inner() const
 	{

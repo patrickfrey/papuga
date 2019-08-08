@@ -148,7 +148,7 @@ struct CallDef
 };
 
 typedef int AtmRef;
-enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom,ResultInstruction};
+enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,MethodCallPrioritize,InheritFrom,ResultInstruction};
 enum {MaxAtmRefType=ResultInstruction};
 
 static AtmRef AtmRef_get( AtmRefType type, int idx)	{return (AtmRef)(((int)type<<28) | (idx+1));}
@@ -240,6 +240,34 @@ public:
 		return true;
 	}
 
+	/* @param[in] scope_expression selector of the scope where the last call outweighs others with the same destination */
+	bool prioritizeLastCallInScope( const char* scope_expression)
+	{
+		try
+		{
+			if (m_calldefs.empty())
+			{
+				m_errcode = papuga_ExecutionOrder;
+				return false;
+			}
+			std::string open_expression( cut_trailing_slashes( scope_expression));
+			std::string close_expression( open_expression + "~");
+
+			int evid = AtmRef_get( MethodCallPrioritize, m_calldefs.size()-1);
+			if (0!=m_atm.addExpression( evid, close_expression.c_str(), close_expression.size()))
+			{
+				m_errcode = papuga_SyntaxError;
+				return false;
+			}
+			return true;
+		}
+		catch (...)
+		{
+			m_errcode = papuga_NoMemError;
+			return false;
+		}
+	}
+
 	/* @param[in] expression selector of the call scope */
 	/* @param[in] nofargs number of arguments */
 	bool addCall( const char* expression, const papuga_RequestMethodId* method_, const char* selfvarname_, const char* resultvarname_, int nofargs)
@@ -259,6 +287,11 @@ public:
 			if (method_->classid < 0 || method_->classid > m_nof_classdefs)
 			{
 				m_errcode = papuga_AddressedItemNotFound;
+				return false;
+			}
+			if (method_->functionid && !selfvarname_)
+			{
+				m_errcode = papuga_MissingSelf;
 				return false;
 			}
 			const papuga_ClassDef* cdef = 0;
@@ -2169,6 +2202,25 @@ private:
 				if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "struct", stdef->itemid, 0/*value*/);
 				break;
 			}
+			case MethodCallPrioritize:
+			{
+				const CallDef* calldef = &m_atm->calldefs()[ evidx];
+				std::size_t mi = m_methodcalls.size();
+				Scope cscope = curscope();
+				for (; mi > 0 && m_methodcalls[mi-1].scope.from >= cscope.from; --mi)
+				{
+					const MethodCallNode& mc = m_methodcalls[mi-1];
+					if (mc.scope.inside( cscope)
+						&& calldef != mc.def
+						&& mc.def->resultvarname
+						&& calldef->resultvarname
+						&& 0==std::strcmp(mc.def->resultvarname,calldef->resultvarname))
+					{
+						m_methodcalls.erase( m_methodcalls.begin()+(mi-1));
+					}
+				}
+				break;
+			}
 			case MethodCall:
 			{
 				const CallDef* calldef = &m_atm->calldefs()[ evidx];
@@ -2397,7 +2449,6 @@ extern "C" bool papuga_RequestAutomaton_add_call(
 		const char* resultvarname,
 		int nargs)
 {
-	if (method->functionid && !selfvarname) return false;
 	return self->atm.addCall( expression, method, selfvarname, resultvarname, nargs);
 }
 
@@ -2409,6 +2460,13 @@ extern "C" bool papuga_RequestAutomaton_set_call_arg_var( papuga_RequestAutomato
 extern "C" bool papuga_RequestAutomaton_set_call_arg_item( papuga_RequestAutomaton* self, int idx, int itemid, papuga_ResolveType resolvetype, int max_tag_diff)
 {
 	return self->atm.setCallArgItem( idx, itemid, resolvetype, max_tag_diff);
+}
+
+extern "C" bool papuga_RequestAutomaton_prioritize_last_call(
+		papuga_RequestAutomaton* self,
+		const char* scope_expression)
+{
+	return self->atm.prioritizeLastCallInScope( scope_expression);
 }
 
 extern "C" bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self)

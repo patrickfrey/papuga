@@ -12,6 +12,7 @@
 #include "papuga/schemaDescription.h"
 #include "papuga/allocator.h"
 #include "papuga/valueVariant.h"
+#include "request_utils.hpp"
 #include <vector>
 #include <utility>
 #include <new>
@@ -132,21 +133,6 @@ public:
 		return followTypeName( followType);
 	}
 
-	struct Scope
-	{
-		int start;
-		int end;
-
-		Scope()					:start(-1),end(-1){}
-		Scope( int start_, int end_)		:start(start_),end(end_){}
-		Scope( const Scope& o)			:start(o.start),end(o.end){}
-		Scope& operator=(const Scope& o)	{start=o.start; end=o.end; return *this;}
-
-		bool defined() const			{return start >= 0;}
-		bool inside( const Scope& o) const	{return start >= o.start && end <= o.end;}
-		bool covers( const Scope& o) const	{return start <= o.start && end >= o.end;}
-	};
-
 	struct Related
 	{
 		int id;
@@ -166,7 +152,7 @@ public:
 	papuga_Type valueType;
 	FollowType followType;
 	papuga_ResolveType resolveType;
-	Scope scope;
+	papuga::Scope scope;
 	std::vector<Related> related;
 	std::vector<std::string> examples;
 	std::vector<TreeNode> chld;
@@ -194,13 +180,13 @@ public:
 	int assignScope( int start)
 	{
 		int scopecnt = start;
-		scope.start = scopecnt++;
+		scope.from = scopecnt++;
 		std::vector<TreeNode>::iterator ci = chld.begin(), ce = chld.end();
 		for (; ci != ce; ++ci)
 		{
 			scopecnt = ci->assignScope( scopecnt);
 		}
-		return scope.end = scopecnt;
+		return scope.to = scopecnt;
 	}
 
 	void addRelated( const Related& related_)
@@ -882,7 +868,7 @@ public:
 		}
 	}
 
-	void resolveDeepNodeReferences( TreeNode& node, const ItemNameMap& invnamemap, const TreeNode::Scope& parentScope=TreeNode::Scope())
+	void resolveDeepNodeReferences( TreeNode& node, const ItemNameMap& invnamemap, const papuga::Scope& parentScope=papuga::Scope())
 	{
 		if (node.elementType == TreeNode::NullType && node.valueType == papuga_TypeVoid && node.id != TreeNode::NullId && parentScope.defined())
 		{

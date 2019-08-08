@@ -54,8 +54,8 @@ struct RequestAutomaton_FunctionDef
 		Arg( const Arg& o)
 			:varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype),max_tag_diff(o.max_tag_diff){}
 	};
-
-	const char* expression;			///< selecting expression addressing the scope of the request
+	const char* scope_expression;		///< selecting expression addressing the scope of this function definition, used to prioritize variable definitions over function definitions with the same target variable of the same scope or covering scope
+	const char* select_expression;		///< select expression addressing the scope of this function definition
 	const char* resultvar;			///< variable where the result of the call is stored to, empty if the result is void or dropped
 	const char* selfvar;			///< variable addressing the object of the method call
 	papuga_RequestMethodId methodid;	///< identifier of the method to call
@@ -63,7 +63,7 @@ struct RequestAutomaton_FunctionDef
 
 	/// \brief Copy constructor
 	RequestAutomaton_FunctionDef( const RequestAutomaton_FunctionDef& o)
-		:expression(o.expression),resultvar(o.resultvar),selfvar(o.selfvar),args(o.args)
+		:scope_expression(o.scope_expression),select_expression(o.select_expression),resultvar(o.resultvar),selfvar(o.selfvar),args(o.args)
 	{
 		methodid.classid = o.methodid.classid;
 		methodid.functionid = o.methodid.functionid;
@@ -74,8 +74,9 @@ struct RequestAutomaton_FunctionDef
 	/// \param[in] selfvar_ variable where the result of the call is stored to, empty if the result is void or dropped
 	/// \param[in] methodid_ identifier of the method to call
 	/// \param[in] args_ list of references addressing the arguments of the method call
-	RequestAutomaton_FunctionDef( const char* expression_, const char* resultvar_, const char* selfvar_, const papuga_RequestMethodId& methodid_, const std::vector<Arg>& args_)
-		:expression(expression_)
+	RequestAutomaton_FunctionDef( const char* scope_expression_, const char* select_expression_, const char* resultvar_, const char* selfvar_, const papuga_RequestMethodId& methodid_, const std::vector<Arg>& args_)
+		:scope_expression(scope_expression_)
+		,select_expression(select_expression_)
 		,resultvar(resultvar_)
 		,selfvar(selfvar_)
 		,args(args_)
@@ -88,6 +89,14 @@ struct RequestAutomaton_FunctionDef
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
 	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+
+	/// \brief True if this function is prioritized among others in the given scope expression
+	/// \note Prioritized means that other function calls in the given scope with the same target variable are suppressed
+	/// \return true if yes
+	bool prioritize() const
+	{
+		return methodid.classid ? false : true;
+	}
 };
 
 /// \brief Request structure definition 
@@ -173,6 +182,15 @@ struct RequestAutomaton_ValueDef
 /// \brief Request grouping of functions definitions
 struct RequestAutomaton_GroupDef
 {
+	struct Element
+		:public RequestAutomaton_FunctionDef
+	{
+		Element( const char* expression_, const char* resultvar_, const char* selfvar_, papuga_RequestMethodId methodid_, std::vector<RequestAutomaton_FunctionDef::Arg> args_)
+			:RequestAutomaton_FunctionDef( expression_, "", resultvar_, selfvar_, methodid_, args_){}
+		Element( const Element& o)
+			:RequestAutomaton_FunctionDef( o){}
+	};
+
 	std::vector<RequestAutomaton_FunctionDef> nodes;	///< list of function definitions belonging to this group
 
 	/// \brief Copy constructor
@@ -180,8 +198,12 @@ struct RequestAutomaton_GroupDef
 		:nodes(o.nodes){}
 	/// \brief Constructor
 	/// \param[in] nodes_ list of nodes of this group
-	RequestAutomaton_GroupDef( const std::vector<RequestAutomaton_FunctionDef>& nodes_)
-		:nodes(nodes_){}
+	RequestAutomaton_GroupDef( const std::vector<Element>& nodes_)
+		:nodes()
+	{
+		std::vector<Element>::const_iterator ni = nodes_.begin(), ne = nodes_.end();
+		for (; ni != ne; ++ni) nodes.push_back( RequestAutomaton_FunctionDef( *ni));
+	}
 
 	/// \brief Add this group definition to an automaton
 	/// \param[in] rootexpr path prefix for selection expressions
@@ -280,7 +302,7 @@ struct RequestAutomaton_Node
 	RequestAutomaton_Node();
 	///\brief Contructor as RequestAutomaton_GroupDef
 	/// \param[in] nodelist_ list of nodes forming a group of functions
-	RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_FunctionDef>& nodes_);
+	RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_GroupDef::Element>& nodes_);
 	///\brief Contructor as RequestAutomaton_FunctionDef
 	/// \param[in] expression select expression addressing the scope of this method call definition
 	/// \param[in] resultvar variable where the result of the call is stored to, empty or NULL if the result is void or dropped
@@ -289,12 +311,13 @@ struct RequestAutomaton_Node
 	/// \param[in] args list of references addressing the arguments of the method call
 	RequestAutomaton_Node( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args);
 	/// \brief Contructor as RequestAutomaton_FunctionDef (assignment defined as function without call)
-	/// \param[in] expression select expression addressing the scope of this method call definition
+	/// \param[in] scope_expression selecting expression addressing the scope of this variable assignment definition, used to prioritize variable definitions over function definitions with the same target variable of the same scope or covering scope
+	/// \param[in] select_expression select expression addressing the scope of this variable assignment definition
 	/// \param[in] resultvar variable where the result of the call is stored to, empty or NULL if the result is void or dropped
 	/// \param[in] itemid identifier given to the item to make it addressable in the context of its scope
 	/// \param[in] resolvechr describes the occurrence of the element addressed
 	/// \param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
-	RequestAutomaton_Node( const char* expression, const char* resultvar, int itemid, char resolvechr, int max_tag_diff=1);
+	RequestAutomaton_Node( const char* scope_expression, const char* select_expression, const char* resultvar, int itemid, char resolvechr, int max_tag_diff=1);
 	///\brief Contructor as RequestAutomaton_StructDef
 	/// \param[in] expression select expression addressing the scope of this structure definition
 	/// \param[in] itemid item identifier unique in its scope (referencing a value or a structure)
@@ -475,12 +498,13 @@ public:
 
 	/// \brief Add a variable assignment of a content element
 	/// \note Implemented as function without method call specified
-	/// \param[in] expression selecting expression of the element
+	/// \param[in] scope_expression selecting expression addressing the scope of this variable assignment definition, used to prioritize variable definitions over function definitions with the same target variable of the same scope or covering scope
+	/// \param[in] select_expression select expression addressing the scope of this variable assignment definition
 	/// \param[in] varname	name of the variable referencing the destination of the assignment
 	/// \param[in] itemid	identifier given to the item to make it addressable in the context of its scope
 	/// \param[in] resolvechr describes the occurrence of the element
 	/// \param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
-	void addAssignment( const char* expression, const char* varname, int itemid, char resolvechr, int max_tag_diff=1);
+	void addAssignment( const char* scope_expression, const char* select_expression, const char* varname, int itemid, char resolvechr, int max_tag_diff=1);
 
 	/// \brief Add a structure definition
 	/// \remark Only available if this automaton has been constructed as empty

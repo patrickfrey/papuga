@@ -30,11 +30,13 @@ static std::string joinExpression( const std::string& expr1, const std::string& 
 
 void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
 {
-	std::string fullexpr = joinExpression( rootexpr, expression);
-	if (!papuga_RequestAutomaton_add_call( atm, fullexpr.c_str(), &methodid, selfvar, resultvar, args.size()))
+	std::string scope_fullexpr = joinExpression( rootexpr, scope_expression);
+	std::string select_fullexpr = joinExpression( scope_fullexpr, select_expression);
+
+	if (!papuga_RequestAutomaton_add_call( atm, select_fullexpr.c_str(), &methodid, selfvar, resultvar, args.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add function, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add function, expression %s: %s"), select_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 	}
 	std::vector<RequestAutomaton_FunctionDef::Arg>::const_iterator ai = args.begin(), ae = args.end();
 	for (int aidx=0; ai != ae; ++ai,++aidx)
@@ -44,7 +46,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, 
 			if (!papuga_RequestAutomaton_set_call_arg_var( atm, aidx, ai->varname))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add variable call arg, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add variable call arg, expression %s: %s"), select_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 			}
 		}
 		else
@@ -52,14 +54,18 @@ void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, 
 			if (!papuga_RequestAutomaton_set_call_arg_item( atm, aidx, ai->itemid, ai->resolvetype, ai->max_tag_diff))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add item call arg, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add item call arg, expression %s: %s"), select_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 			}
 		}
-		if (!papuga_SchemaDescription_add_dependency( descr, fullexpr.c_str(), ai->itemid, ai->resolvetype))
+		if (!papuga_SchemaDescription_add_dependency( descr, select_fullexpr.c_str(), ai->itemid, ai->resolvetype))
 		{
 			papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( descr);
-			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("schema description add dependency, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("schema description add dependency, expression %s: %s"), select_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 		}
+	}
+	if (prioritize())
+	{
+		papuga_RequestAutomaton_prioritize_last_call( atm, scope_fullexpr.c_str());
 	}
 }
 
@@ -233,15 +239,15 @@ RequestAutomaton_Node::RequestAutomaton_Node()
 {
 	value.functiondef = 0;
 }
-RequestAutomaton_Node::RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_FunctionDef>& nodes)
+RequestAutomaton_Node::RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_GroupDef::Element>& nodes)
 	:type(Group),rootexpr(),thisid(getClassId())
 {
-	value.groupdef = new RequestAutomaton_GroupDef( std::vector<RequestAutomaton_FunctionDef>( nodes.begin(), nodes.end()));
+	value.groupdef = new RequestAutomaton_GroupDef( std::vector<RequestAutomaton_GroupDef::Element>( nodes.begin(), nodes.end()));
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args)
 	:type(Function),rootexpr(),thisid(getClassId())
 {
-	value.functiondef = new RequestAutomaton_FunctionDef( expression, resultvar?resultvar:"", selfvar, methodid, std::vector<RequestAutomaton_FunctionDef::Arg>( args.begin(), args.end()));
+	value.functiondef = new RequestAutomaton_FunctionDef( expression, "", resultvar?resultvar:"", selfvar, methodid, std::vector<RequestAutomaton_FunctionDef::Arg>( args.begin(), args.end()));
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, int itemid, const std::initializer_list<RequestAutomaton_StructDef::Element>& elems)
 	:type(Struct),rootexpr(),thisid(getClassId())
@@ -258,14 +264,14 @@ RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, char resol
 {
 	value.resolvedef = new RequestAutomaton_ResolveDef( expression, resolvechr);
 }
-RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, const char* variable, int itemid, char resolvechr, int max_tag_diff)
+RequestAutomaton_Node::RequestAutomaton_Node( const char* scope_expression, const char* select_expression, const char* variable, int itemid, char resolvechr, int max_tag_diff)
 	:type(Function),rootexpr(),thisid(getClassId())
 {
 	// Assignment implemented as function
 	papuga_RequestMethodId methodid = {0,0};
 	std::vector<RequestAutomaton_FunctionDef::Arg> args;
 	args.push_back( RequestAutomaton_FunctionDef::Arg( itemid, resolvechr, max_tag_diff));
-	value.functiondef = new RequestAutomaton_FunctionDef( expression, variable?variable:"", 0/*selfvar*/, methodid, args);
+	value.functiondef = new RequestAutomaton_FunctionDef( scope_expression, select_expression, variable?variable:"", 0/*selfvar*/, methodid, args);
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_)
 	:type(NodeList),rootexpr(),thisid(getClassId())
@@ -488,17 +494,17 @@ void RequestAutomaton::addFunction( const char* expression, const char* resultva
 	std::vector<RequestAutomaton_FunctionDef::Arg> argvec;
 	RequestAutomaton_FunctionDef::Arg const* ai = args;
 	for (; ai->itemid || ai->varname; ++ai) argvec.push_back( *ai);
-	RequestAutomaton_FunctionDef func( expression, resultvar?resultvar:"", selfvar, methodid, argvec);
+	RequestAutomaton_FunctionDef func( expression, "", resultvar?resultvar:"", selfvar, methodid, argvec);
 	func.addToAutomaton( m_rootexpr, m_atm, m_descr);
 }
 
-void RequestAutomaton::addAssignment( const char* expression, const char* varname, int itemid, char resolvechr, int max_tag_diff)
+void RequestAutomaton::addAssignment( const char* scope_expression, const char* select_expression, const char* varname, int itemid, char resolvechr, int max_tag_diff)
 {
 	// Assignment implemented as function
 	papuga_RequestMethodId methodid = {0,0};
 	std::vector<RequestAutomaton_FunctionDef::Arg> args;
 	args.push_back( RequestAutomaton_FunctionDef::Arg( itemid, resolvechr, max_tag_diff));
-	RequestAutomaton_FunctionDef assignment( expression, varname?varname:"", 0/*selfvar*/, methodid, args);
+	RequestAutomaton_FunctionDef assignment( scope_expression, select_expression, varname?varname:"", 0/*selfvar*/, methodid, args);
 	assignment.addToAutomaton( m_rootexpr, m_atm, m_descr);
 }
 

@@ -145,6 +145,16 @@ bool papuga_RequestAutomaton_set_call_arg_item(
 		int max_tag_diff);
 
 /*
+ * @brief Prioritize the last method call added in the scope passed as selection expression
+ * @param[in,out] self automaton changed
+ * @param[in] expression xpath expression (abbreviated syntax of xpath) of the scope the last method call is prioritized over others with the same destination variable
+ * @return true on success, false on failure (no last call defined or memory allocation error)
+ */
+bool papuga_RequestAutomaton_prioritize_last_call(
+		papuga_RequestAutomaton* self,
+		const char* scope_expression);
+
+/*
  * @brief Define the start of a call group. Calls inside a group are executed in sequential order for appearing in input.
  * @note Calls without grouping are executed in order of their definition.
  * @remark Only one level of grouping allowed (no nesting of group definitions allowed)
