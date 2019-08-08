@@ -737,29 +737,52 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		papuga_init_ErrorBuffer( &errorbuf_call, errstruct->errormsg, sizeof(errstruct->errormsg));
 
 		const papuga_RequestMethodCall* call;
-		const papuga_RequestVariableAssignment* assignment;
+		while (!!(call = papuga_RequestIterator_next_call( itr, context)))
+		{
+			// Execute all method calls and variable assignments:
+			if (call->methodid.classid == 0)
+			{
+				// [A] Variable assignment:
+				// [A.0] Create the result variable
+				if (!call->resultvarname || call->args.argc != 1)
+				{
+					errstruct->errcode = papuga_ValueUndefined;
+					papuga_destroy_RequestIterator( itr);
+					return false;
+				}
+				RequestVariable* var = NULL;
+				if (!papuga_Request_is_result_variable( request, call->resultvarname))
+				{
+					// ... HACK const_cast: We know that the source is only modified by the following deepcopy_value in the case 
+					//	of a host object moved. But we know that a variable assignment is constructed from content and cannot
+					//	contain host object references.
+					papuga_ValueVariant* source = const_cast<papuga_ValueVariant*>( &call->args.argv[0]);
 
-		while (!!(assignment = papuga_RequestIterator_next_assignment( itr)))
-		{
-			// Execute all assignments of variables with content:
-			RequestVariable* var = context->varmap.createVariable( assignment->varname);
-			papuga_ValueVariant* source = const_cast<papuga_ValueVariant*>(&assignment->value);
-			// ... HACK const_cast: We know that the source is only modified by the following deepcopy_value in the case 
-			//	of a host object moved. But we know that a variable assignment is constructed from content and cannot 
-			//	contain host object references.
-			if (!papuga_Allocator_deepcopy_value( &var->allocator, &var->value, source, false/*movehostobj*/, &errstruct->errcode))
-			{
-				errstruct->variable = assignment->varname;
-				papuga_destroy_RequestIterator( itr);
-				return false;
+					var = context->varmap.createVariable( call->resultvarname);
+					if (!papuga_Allocator_deepcopy_value( &var->allocator, &var->value, source, false/*movehostobj*/, &errstruct->errcode))
+					{
+						errstruct->variable = call->resultvarname;
+						papuga_destroy_RequestIterator( itr);
+						return false;
+					}
+				}
+				else
+				{
+					// Add the result to be substituted in the result content template:
+					(void)papuga_RequestIterator_push_call_result( itr, &call->args.argv[0]);
+				}
+				// [A.1] Log the assignment if logging enabled
+				if (logger->logMethodCall)
+				{
+					(*logger->logMethodCall)( logger->self, 2,
+						papuga_LogItemResultVariable, call->resultvarname,
+						papuga_LogItemResult, &call->args.argv[0]);
+				}
 			}
-		}
-		if (!assignment) while (!!(call = papuga_RequestIterator_next_call( itr, context)))
-		{
-			// Execute all method calls:
-			if (call->methodid.functionid == 0)
+			else if (call->methodid.functionid == 0)
 			{
-				// [0] Create the result variable
+				// [B] Constructor call:
+				// [B.0] Create the result variable
 				RequestVariable* var;
 				if (call->resultvarname)
 				{
@@ -767,6 +790,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					{
 						errstruct->variable = call->resultvarname;
 						errstruct->errcode = papuga_MixedConstruction;
+						papuga_destroy_RequestIterator( itr);
 						return false;
 					}
 					var = context->varmap.createVariable( call->resultvarname);
@@ -775,25 +799,18 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				{
 					var = NULL;
 				}
-				// [1] Call the constructor
+				// [B.1] Call the constructor
 				const papuga_ClassConstructor func = classdefs[ call->methodid.classid-1].constructor;
 				void* self;
 	
 				if (!(self=(*func)( &errorbuf_call, call->args.argc, call->args.argv)))
 				{
-					if (logger->logMethodCall)
-					{
-						(*logger->logMethodCall)( logger->self, 3,
-							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
-							papuga_LogItemArgc, call->args.argc,
-							papuga_LogItemArgv, &call->args.argv[0]);
-					}
 					errstruct->errcode = papuga_HostObjectError;
 					assignErrMethod( *errstruct, call->methodid, classdefs);
 					papuga_destroy_RequestIterator( itr);
 					return false;
 				}
-				// [2] Assign the result value to a variant type variable and log the call:
+				// [B.2] Assign the result value to a variant type variable and log the call
 				if (var)
 				{
 					papuga_Deleter destroy_hobj = classdefs[ call->methodid.classid-1].destructor;
@@ -801,22 +818,25 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					if (!hobj)
 					{
 						destroy_hobj( self);
-						throw std::bad_alloc();
+						papuga_destroy_RequestIterator( itr);
+						errstruct->errcode = papuga_NoMemError;
+						return false;
 					}
 					papuga_init_ValueVariant_hostobj( &var->value, hobj);
-
-					if (logger->logMethodCall)
+				}
+				// [B.3] Log the call if logging enabled
+				if (logger->logMethodCall)
+				{
+					if (var)
 					{
-						(*logger->logMethodCall)( logger->self, 4,
+						(*logger->logMethodCall)( logger->self, 5,
 							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
 							papuga_LogItemArgc, call->args.argc,
 							papuga_LogItemArgv, &call->args.argv[0],
+							papuga_LogItemResultVariable, call->resultvarname,
 							papuga_LogItemResult, &var->value);
 					}
-				}
-				else
-				{
-					if (logger->logMethodCall)
+					else
 					{
 						(*logger->logMethodCall)( logger->self, 3,
 							papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
@@ -827,6 +847,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			}
 			else
 			{
+				// [C] Method call:
 				RequestVariable* var;
 				if (call->resultvarname && !papuga_Request_is_result_variable( request, call->resultvarname))
 				{
@@ -836,7 +857,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				{
 					var = NULL;
 				}
-				// [1] Get the method and the object of the method to call:
+				// [C.1] Get the method and the object of the method to call
 				const papuga_ClassMethod func = classdefs[ call->methodid.classid-1].methodtable[ call->methodid.functionid-1];
 				const papuga_ValueVariant* selfvalue = context->varmap.findVariable( call->selfvarname);
 				if (!selfvalue)
@@ -853,26 +874,18 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					errstruct->errcode = papuga_TypeError;
 					break;
 				}
-				// [2] Call the method and report an error on failure:
+				// [C.2] Call the method and report an error on failure
 				void* self = selfvalue->value.hostObject->data;
 				papuga_CallResult retval;
 				papuga_init_CallResult( &retval, var ? &var->allocator : allocator, false/*ownership*/, errstruct->errormsg, sizeof(errstruct->errormsg));
 				if (!(*func)( self, &retval, call->args.argc, call->args.argv))
 				{
-					if (logger->logMethodCall)
-					{
-						(*logger->logMethodCall)( logger->self, 4,
-								papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
-								papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
-								papuga_LogItemArgc, call->args.argc,
-								papuga_LogItemArgv, &call->args.argv[0]);
-					}
 					errstruct->errcode = papuga_HostObjectError;
 					assignErrMethod( *errstruct, call->methodid, classdefs);
 					errstruct->variable = call->selfvarname;
 					break;
 				}
-				// [3] Build the result value:
+				// [C.3] Build the result value
 				papuga_ValueVariant resultvalue;
 				if (retval.nofvalues == 0)
 				{
@@ -904,27 +917,28 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					}
 					papuga_init_ValueVariant_serialization( &resultvalue, ser);
 				}
+				// [C.4] Assign the result
 				if (var)
 				{
-					// [4.1] Assign the result to the result variable:
+					// [C.4.1] Assign the result to the result variable
 					papuga_init_ValueVariant_value( &var->value, &resultvalue);
 				}
 				else if (papuga_ValueVariant_defined( &resultvalue))
 				{
-					// [4.2] Add the result to be substituted in the result content template:
+					// [C.4.2] Add the result to be substituted in the result content template
 					(void)papuga_RequestIterator_push_call_result( itr, &resultvalue);
-					
 				}
-				// [5] Log the call:
+				// [C.5] Log the call if logging enabled
 				if (logger->logMethodCall)
 				{
 					if (papuga_ValueVariant_defined( &resultvalue))
 					{
-						(*logger->logMethodCall)( logger->self, 5, 
+						(*logger->logMethodCall)( logger->self, 6,
 									papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
 									papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
 									papuga_LogItemArgc, call->args.argc,
 									papuga_LogItemArgv, &call->args.argv[0],
+									papuga_LogItemResultVariable, call->resultvarname,
 									papuga_LogItemResult, &resultvalue);
 					}
 					else

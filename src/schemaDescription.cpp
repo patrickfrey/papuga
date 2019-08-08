@@ -759,23 +759,23 @@ public:
 
 	struct ItemReference
 	{
-		TreeNode::Scope scope;
 		int id;
 
-		ItemReference( const TreeNode::Scope& scope_, int id_)			:scope(scope_),id(id_){}
-		ItemReference( const ItemReference& o)					:scope(o.scope),id(o.id){}
-		ItemReference()								:scope(),id(TreeNode::NullId){}
+		explicit ItemReference( int id_)					:id(id_){}
+		ItemReference( const ItemReference& o)					:id(o.id){}
+		ItemReference()								:id(TreeNode::NullId){}
+
+		bool operator==(const ItemReference& o)					{return id==o.id;}
 	};
 	typedef std::map<std::string,ItemReference> NameItemMap;
 
 	struct ItemNameDef
 	{
-		TreeNode::Scope scope;
 		std::string name;
 
-		ItemNameDef( const TreeNode::Scope& scope_, const std::string& name_)	:scope(scope_),name(name_){}
-		ItemNameDef( const ItemNameDef& o)					:scope(o.scope),name(o.name){}
-		ItemNameDef()								:scope(),name(){}
+		explicit ItemNameDef( const std::string& name_)				:name(name_){}
+		ItemNameDef( const ItemNameDef& o)					:name(o.name){}
+		ItemNameDef()								:name(){}
 	};
 	typedef std::multimap<int,ItemNameDef> ItemNameMap;
 
@@ -785,7 +785,7 @@ public:
 		NameItemMap::const_iterator mi = map.begin(), me = map.end();
 		for (; mi != me; ++mi)
 		{
-			rt.insert( std::pair<int,ItemNameDef>( mi->second.id, ItemNameDef( mi->second.scope, mi->first)));
+			rt.insert( std::pair<int,ItemNameDef>( mi->second.id, ItemNameDef( mi->first)));
 		}
 		return rt;
 	}
@@ -798,15 +798,36 @@ public:
 			TreeNode& chldnode = node.chld[ cidx];
 			if (chldnode.followType == TreeNode::FollowDeep)
 			{
-				if (nameItemMap.insert(
-						std::pair<std::string,ItemReference>(
-							chldnode.name,
-							ItemReference( chldnode.scope,chldnode.id))).second == false/*not new*/)
+				ItemReference deepitem( chldnode.id);
+				std::pair<NameItemMap::iterator,bool> update = nameItemMap.insert( NameItemMap::value_type( chldnode.name, deepitem));
+				if (update.second == false/*not new*/)
 				{
-					//... duplicate definition
-					throw ErrorException( papuga_AmbiguousReference);
+					if (deepitem == update.first->second)
+					{
+						std::vector<TreeNode>::iterator ni = newRootNodes.begin(), ne = newRootNodes.end();
+						for (; ni != ne && ni->name != chldnode.name; ++ni){}
+						if (ni == ne) throw ErrorException( papuga_AmbiguousReference);
+
+						node.chld.erase( node.chld.begin() + cidx);
+						if (node.chld.empty())
+						{
+							node.elementType = TreeNode::NullType;
+						}
+					}
+					else
+					{
+						//... duplicate definition
+						throw ErrorException( papuga_AmbiguousReference);
+					}
 				}
-				if (&node != &tree)
+				else if (&node == &tree)
+				{
+					//.. is already top-level node
+					chldnode.followType = TreeNode::FollowImmediate;
+					declareDeepNodesAsGlobals( chldnode, nameItemMap, newRootNodes);
+					++cidx;
+				}
+				else
 				{
 					TreeNode recelem( chldnode);
 					recelem.followType = TreeNode::FollowImmediate;
@@ -817,13 +838,6 @@ public:
 					{
 						node.elementType = TreeNode::NullType;
 					}
-				}
-				else
-				{
-					//.. is alread top-level node
-					chldnode.followType = TreeNode::FollowImmediate;
-					declareDeepNodesAsGlobals( chldnode, nameItemMap, newRootNodes);
-					++cidx;
 				}
 			}
 			else

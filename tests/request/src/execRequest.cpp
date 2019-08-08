@@ -44,11 +44,11 @@ static void logMethodCall( void* self, int nofItems, ...)
 			switch (itype)
 			{
 				case papuga_LogItemClassName:
-					ctx->out << va_arg( arguments,charp);
-					break;
 				case papuga_LogItemMethodName:
+				case papuga_LogItemResultVariable:
 					ctx->out << va_arg( arguments,charp);
 					break;
+				
 				case papuga_LogItemResult:
 				{
 					papuga_ValueVariant* arg = va_arg( arguments, papuga_ValueVariant*);

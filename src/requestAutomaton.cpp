@@ -18,8 +18,6 @@
 #include <cstdio>
 #include <cstring>
 
-#undef PAPUGA_LOWLEVEL_DEBUG
-
 using namespace papuga;
 
 static std::string joinExpression( const std::string& expr1, const std::string& expr2)
@@ -33,10 +31,6 @@ static std::string joinExpression( const std::string& expr1, const std::string& 
 void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
 {
 	std::string fullexpr = joinExpression( rootexpr, expression);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define function expression='%s', method=[%d,%d], self=%s, result=%s, n=%d\n",
-		 fullexpr.c_str(), methodid.classid, methodid.functionid, selfvar, resultvar, (int)args.size());
-#endif
 	if (!papuga_RequestAutomaton_add_call( atm, fullexpr.c_str(), &methodid, selfvar, resultvar, args.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
@@ -69,25 +63,9 @@ void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, 
 	}
 }
 
-void RequestAutomaton_AssignmentDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
-{
-	std::string fullexpr = joinExpression( rootexpr, expression);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define assignment expression='%s', variable=%s, itemid=%d, resolve=%s\n", fullexpr.c_str(), variable, itemid, papuga_ResolveTypeName( resolvetype));
-#endif
-	if (!papuga_RequestAutomaton_add_assignment( atm, fullexpr.c_str(), varname, itemid, resolvetype, -1/*max_tag_diff unlimited*/))
-	{
-		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add assignment, expression %s: %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
-	}
-}
-
 void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
 {
 	std::string fullexpr = joinExpression( rootexpr, expression);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define structure expression='%s', itemid=%d, n=%d\n", fullexpr.c_str(), itemid, (int)elems.size());
-#endif	
 	if (!papuga_RequestAutomaton_add_structure( atm, fullexpr.c_str(), itemid, elems.size()))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
@@ -129,9 +107,6 @@ void RequestAutomaton_ValueDef::addToAutomaton( const std::string& rootexpr, pap
 {
 	std::string scope_fullexpr = joinExpression( rootexpr, scope_expression);
 	std::string descr_fullexpr = joinExpression( scope_fullexpr, select_expression);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define value scope='%s', select=%s, id=%d\n", scope_fullexpr.c_str(), select_expression, itemid);
-#endif	
 	if (valuetype != papuga_TypeVoid)
 	{
 		//... Null value (Void) type triggers only description
@@ -160,9 +135,6 @@ std::string RequestAutomaton_ValueDef::key( const std::string& rootexpr) const
 
 void RequestAutomaton_GroupDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
 {
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM start group\n");
-#endif	
 	if (!papuga_RequestAutomaton_open_group( atm))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
@@ -173,9 +145,6 @@ void RequestAutomaton_GroupDef::addToAutomaton( const std::string& rootexpr, pap
 	{
 		ni->addToAutomaton( rootexpr, atm, descr);
 	}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM end group\n");
-#endif	
 	if (!papuga_RequestAutomaton_close_group( atm))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
@@ -186,9 +155,6 @@ void RequestAutomaton_GroupDef::addToAutomaton( const std::string& rootexpr, pap
 void RequestAutomaton_ResolveDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const
 {
 	std::string fullexpr = joinExpression( rootexpr, expression);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define resolve type\n");
-#endif	
 	if (!papuga_SchemaDescription_set_resolve( descr, fullexpr.c_str(), resolvetype))
 	{
 		papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( descr);
@@ -253,9 +219,6 @@ RequestAutomaton_Node::~RequestAutomaton_Node()
 		case ResolveDef:
 			delete value.resolvedef;
 			break;
-		case AssignmentDef:
-			delete value.assignmentdef;
-			break;
 	}
 }
 
@@ -295,10 +258,14 @@ RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, char resol
 {
 	value.resolvedef = new RequestAutomaton_ResolveDef( expression, resolvechr);
 }
-RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, const char* variable, int itemid, char resolvechr)
-	:type(AssignmentDef),rootexpr(),thisid(getClassId())
+RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, const char* variable, int itemid, char resolvechr, int max_tag_diff)
+	:type(Function),rootexpr(),thisid(getClassId())
 {
-	value.assignmentdef = new RequestAutomaton_AssignmentDef( expression, variable, itemid, resolvechr);
+	// Assignment implemented as function
+	papuga_RequestMethodId methodid = {0,0};
+	std::vector<RequestAutomaton_FunctionDef::Arg> args;
+	args.push_back( RequestAutomaton_FunctionDef::Arg( itemid, resolvechr, max_tag_diff));
+	value.functiondef = new RequestAutomaton_FunctionDef( expression, variable?variable:"", 0/*selfvar*/, methodid, args);
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const RequestAutomaton_NodeList& nodelist_)
 	:type(NodeList),rootexpr(),thisid(getClassId())
@@ -330,9 +297,6 @@ static void copyNodeValueUnion( RequestAutomaton_Node::Type type, RequestAutomat
 			break;
 		case RequestAutomaton_Node::ResolveDef:
 			dest.resolvedef = new RequestAutomaton_ResolveDef( *src.resolvedef);
-			break;
-		case RequestAutomaton_Node::AssignmentDef:
-			dest.assignmentdef = new RequestAutomaton_AssignmentDef( *src.assignmentdef);
 			break;
 	}
 }
@@ -418,9 +382,6 @@ void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga
 			break;
 		case ResolveDef:
 			value.resolvedef->addToAutomaton( rootpath, atm, descr);
-			break;
-		case AssignmentDef:
-			value.assignmentdef->addToAutomaton( rootpath, atm, descr);
 			break;
 	}
 }
@@ -531,18 +492,18 @@ void RequestAutomaton::addFunction( const char* expression, const char* resultva
 	func.addToAutomaton( m_rootexpr, m_atm, m_descr);
 }
 
-void RequestAutomaton::addAssignment( const char* expression, const char* varname, int itemid, char resolvechr)
+void RequestAutomaton::addAssignment( const char* expression, const char* varname, int itemid, char resolvechr, int max_tag_diff)
 {
-	RequestAutomaton_AssignmentDef assignment( expression, varname, itemid, resolvechr);
+	// Assignment implemented as function
+	papuga_RequestMethodId methodid = {0,0};
+	std::vector<RequestAutomaton_FunctionDef::Arg> args;
+	args.push_back( RequestAutomaton_FunctionDef::Arg( itemid, resolvechr, max_tag_diff));
+	RequestAutomaton_FunctionDef assignment( expression, varname?varname:"", 0/*selfvar*/, methodid, args);
 	assignment.addToAutomaton( m_rootexpr, m_atm, m_descr);
 }
 
 void RequestAutomaton::addInheritContext( const char* typenam, const char* expression, bool required)
 {
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-	fprintf( stderr, "ATM define inherit context type=%s, expression='%s', required=%s\n",
-		 typenam, expression, required ? "yes":"no");
-#endif	
 	if (!papuga_RequestAutomaton_inherit_from( m_atm, typenam, expression, required))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);

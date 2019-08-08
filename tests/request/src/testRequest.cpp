@@ -357,9 +357,9 @@ static TestData* createTestData_1()
 		"EV collect 1 'Hugo'",
 		"EV close tag -1 ''",
 		"EV close tag -1 ''",
-		"C1 0  <HostObject>",
+		"C1 0  obj <HostObject>",
 		"EV resolved required 1 'Hugo'",
-		"C1 M1 1 Hugo HUGO",
+		"C1 M1 1 Hugo var HUGO",
 		0};
 	data->calls = expected_calls;
 	data->expected = new papuga::test::Document(
@@ -460,19 +460,19 @@ static TestData* createTestData_3()
 		"EV collect 3 'Biel'",
 		"EV close tag -1 ''",
 		"EV close tag -1 ''",
-		"C1 0  <HostObject>",
+		"C1 0  obj <HostObject>",
 		"EV resolved required 3 'Bern'",
-		"C1 M2 1 Bern bern",
+		"C1 M2 1 Bern lo bern",
 		"EV resolved required 3 'Luzern'",
-		"C1 M2 1 Luzern luzern",
+		"C1 M2 1 Luzern lo luzern",
 		"EV resolved required 3 'Biel'",
-		"C1 M2 1 Biel biel",
+		"C1 M2 1 Biel lo biel",
 		"EV resolved required 3 'Bern'",
-		"C1 M1 1 Bern BERN",
+		"C1 M1 1 Bern hi BERN",
 		"EV resolved required 3 'Luzern'",
-		"C1 M1 1 Luzern LUZERN",
+		"C1 M1 1 Luzern hi LUZERN",
 		"EV resolved required 3 'Biel'",
-		"C1 M1 1 Biel BIEL",
+		"C1 M1 1 Biel hi BIEL",
 		0};
 	data->calls = expected_calls;
 	data->expected = new papuga::test::Document(
@@ -540,19 +540,19 @@ static TestData* createTestData_4()
 		"EV collect 3 'Biel'",
 		"EV close tag -1 ''",
 		"EV close tag -1 ''",
-		"C1 0  <HostObject>",
+		"C1 0  obj <HostObject>",
 		"EV resolved required 3 'Bern'",
-		"C1 M2 1 Bern bern",
+		"C1 M2 1 Bern lo bern",
 		"EV resolved required 3 'Bern'",
-		"C1 M1 1 Bern BERN",
+		"C1 M1 1 Bern hi BERN",
 		"EV resolved required 3 'Luzern'",
-		"C1 M2 1 Luzern luzern",
+		"C1 M2 1 Luzern lo luzern",
 		"EV resolved required 3 'Luzern'",
-		"C1 M1 1 Luzern LUZERN",
+		"C1 M1 1 Luzern hi LUZERN",
 		"EV resolved required 3 'Biel'",
-		"C1 M2 1 Biel biel",
+		"C1 M2 1 Biel lo biel",
 		"EV resolved required 3 'Biel'",
-		"C1 M1 1 Biel BIEL",
+		"C1 M1 1 Biel hi BIEL",
 		0
 	};
 	data->calls = expected_calls;
@@ -617,11 +617,11 @@ static TestData* createTestData_5()
 		"EV collect 3 'Biel'",
 		"EV close tag -1 ''",
 		"EV close tag -1 ''",
-		"C1 0  <HostObject>",
+		"C1 0  obj <HostObject>",
 		"EV resolved first of array 3 'Bern'",
-		"C1 M2 1 <Serialization> <Serialization>",
+		"C1 M2 1 <Serialization> lo <Serialization>",
 		"EV resolved first of array 3 'Bern'",
-		"C1 M1 1 <Serialization> <Serialization>",
+		"C1 M1 1 <Serialization> hi <Serialization>",
 		0
 	};
 	data->calls = expected_calls;
@@ -723,7 +723,7 @@ static TestData* createTestData_6()
 		"EV close tag -1 ''",
 		"EV struct 5 ''",
 		"EV close tag -1 ''",
-		"C1 0  <HostObject>",
+		"C1 0  obj <HostObject>",
 		"EV resolved required 5 '{4}'",
 		"EV resolved required 6 'C'",
 		"EV resolved required 7 '{2}'",
@@ -733,7 +733,7 @@ static TestData* createTestData_6()
 		"EV resolved required 6 'L.R'",
 		"EV resolved required 8 '{3}'",
 		"EV resolved required 6 'R'",
-		"C1 M2 1 <Serialization> <Serialization>",
+		"C1 M2 1 <Serialization> lo <Serialization>",
 		"EV resolved required 5 '{4}'",
 		"EV resolved required 6 'C'",
 		"EV resolved required 7 '{2}'",
@@ -743,7 +743,7 @@ static TestData* createTestData_6()
 		"EV resolved required 6 'L.R'",
 		"EV resolved required 8 '{3}'",
 		"EV resolved required 6 'R'",
-		"C1 M1 1 <Serialization> <Serialization>",
+		"C1 M1 1 <Serialization> hi <Serialization>",
 		0
 	};
 	data->calls = expected_calls;

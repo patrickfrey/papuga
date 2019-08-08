@@ -204,23 +204,6 @@ bool papuga_RequestAutomaton_add_value(
 		int itemid);
 
 /*
- * @brief Add an assignment of input content elements to a variable
- * @param[in,out] self automaton changed
- * @param[in] expression xpath expression (abbreviated syntax of xpath) bound to the assignment
- * @param[in] varname name of the variable referencing the destination of the assignment (where to assign to)
- * @param[in] itemid identifier given to the item to make it addressable in the context of its scope
- * @param[in] resolvetype defines the way an addressed item is resolved and constructed
- * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or -1 if not limited (always >= 0 also for inherited values)
- */
-bool papuga_RequestAutomaton_add_assignment(
-		papuga_RequestAutomaton* self,
-		const char* expression,
-		const char* varname,
-		int itemid,
-		papuga_ResolveType resolvetype,
-		int max_tag_diff);
-
-/*
  * @brief Add a description of a result
  * @param[in,out] self automaton changed
  * @param[in] descr description of how to build the result (passed with ownership)
@@ -379,21 +362,14 @@ typedef struct papuga_RequestMethodCall
 {
 	const char* selfvarname;			/*< variable referencing the object for the method call */
 	const char* resultvarname;			/*< variable where to write the result to */
-	papuga_RequestMethodId methodid;		/*< method identifier */
+	papuga_RequestMethodId methodid;		/*< method identifier if defined */
 	papuga_CallArgs args;				/*< arguments of the call */
 	char membuf[ 4096];				/*< local memory buffer for allocator */
 } papuga_RequestMethodCall;
 
 /*
- * @brief Describes one a variable assignment provided by the request
+ * @brief Handle for an iterator on the request
  */
-typedef struct papuga_RequestVariableAssignment
-{
-	const char* varname;				/*< variable where to write the result to */
-	papuga_ValueVariant value;			/*< value assigned */
-} papuga_RequestVariableAssignment;
-
-
 typedef struct papuga_RequestIterator papuga_RequestIterator;
 
 /*
@@ -411,13 +387,6 @@ papuga_RequestIterator* papuga_create_RequestIterator( papuga_Allocator* allocat
 void papuga_destroy_RequestIterator( papuga_RequestIterator* self);
 
 /*
- * @brief Get the next variable assignment of a request
- * @param[in] self request iterator to get the next method call from
- * @return pointer to the variable assignment description (temporary, only valid until the next one is fetched)
- */
-const papuga_RequestVariableAssignment* papuga_RequestIterator_next_assignment( papuga_RequestIterator* self);
-
-/*
  * @brief Get the next method call of a request
  * @param[in] self request iterator to get the next method call from
  * @param[in] context request context
@@ -429,7 +398,7 @@ const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_Request
  * @brief Declare the value of the last call fetched
  * @note This method counteracts the idea of an iterator. It indicates a flaw in the organization of this API. Every result of a call has to be notified so that the request results can be built in the request module. In a future redesign this has to be fixed.
  */
-bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, papuga_ValueVariant* result);
+bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, const papuga_ValueVariant* result);
 
 /*
  * @brief Get the number of results stored in the context when handling the request

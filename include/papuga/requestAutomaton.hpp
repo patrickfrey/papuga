@@ -34,7 +34,7 @@ static inline papuga_ResolveType getResolveType( char resolvechr)
 	}
 }
 
-/// \brief Request method call (function) definition
+/// \brief Request method call (function) definition or assignment of a variable if no method defined
 struct RequestAutomaton_FunctionDef
 {
 	/// \brief Request function argument
@@ -58,13 +58,12 @@ struct RequestAutomaton_FunctionDef
 	const char* expression;			///< selecting expression addressing the scope of the request
 	const char* resultvar;			///< variable where the result of the call is stored to, empty if the result is void or dropped
 	const char* selfvar;			///< variable addressing the object of the method call
-	bool appendresult;			///< true, if the result is a list where we append to, false if a previous result is replaced the call
 	papuga_RequestMethodId methodid;	///< identifier of the method to call
 	std::vector<Arg> args;			///< list of references addressing the arguments of the method call
 
 	/// \brief Copy constructor
 	RequestAutomaton_FunctionDef( const RequestAutomaton_FunctionDef& o)
-		:expression(o.expression),resultvar(o.resultvar),selfvar(o.selfvar),appendresult(o.appendresult),args(o.args)
+		:expression(o.expression),resultvar(o.resultvar),selfvar(o.selfvar),args(o.args)
 	{
 		methodid.classid = o.methodid.classid;
 		methodid.functionid = o.methodid.functionid;
@@ -77,19 +76,10 @@ struct RequestAutomaton_FunctionDef
 	/// \param[in] args_ list of references addressing the arguments of the method call
 	RequestAutomaton_FunctionDef( const char* expression_, const char* resultvar_, const char* selfvar_, const papuga_RequestMethodId& methodid_, const std::vector<Arg>& args_)
 		:expression(expression_)
+		,resultvar(resultvar_)
 		,selfvar(selfvar_)
 		,args(args_)
 	{
-		if (resultvar_&& resultvar_[0]=='+')
-		{
-			resultvar = resultvar_+1;
-			appendresult = true;
-		}
-		else
-		{
-			resultvar = resultvar_;
-			appendresult = false;
-		}
 		methodid.classid = methodid_.classid;
 		methodid.functionid = methodid_.functionid;
 	}
@@ -219,28 +209,6 @@ struct RequestAutomaton_ResolveDef
 	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
 };
 
-/// \brief Definition of an assignment of input to a variable (append)
-struct RequestAutomaton_AssignmentDef
-{
-	const char* expression;		///< selecting expression addressing the assignment
-	const char* varname;		///< name of the variable referencing the destination of the assignment (where to append to)
-	int itemid;			///< identifier given to the item to make it addressable in the context of its scope
-	papuga_ResolveType resolvetype;	///< describes the occurrence of the element addressed
-
-	/// \brief Copy constructor
-	RequestAutomaton_AssignmentDef( const RequestAutomaton_AssignmentDef& o)
-		:expression(o.expression),varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype){}
-	/// \brief Constructor
-	/// \param[in] expression_ selecting expression of the element
-	/// \param[in] varname_	name of the variable referencing the destination of the assignment (where to append to)
-	/// \param[in] itemid_	identifier given to the item to make it addressable in the context of its scope
-	/// \param[in] resolvechr_ describes the occurrence of the element
-	RequestAutomaton_AssignmentDef( const char* expression_, const char* varname_, int itemid_, char resolvechr_)
-		:expression(expression_),varname(varname_),itemid(itemid_),resolvetype(getResolveType(resolvechr_)){}
-
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
-};
-
 /// \class RequestAutomaton_ResultElementDef
 /// \brief Result element declaration for using in C++ initializer lists
 struct RequestAutomaton_ResultElementDef
@@ -290,8 +258,7 @@ struct RequestAutomaton_Node
 		Struct,
 		Value,
 		NodeList,
-		ResolveDef,
-		AssignmentDef
+		ResolveDef
 	};
 	Type type;
 	typedef union
@@ -302,7 +269,6 @@ struct RequestAutomaton_Node
 		RequestAutomaton_ValueDef* valuedef;
 		RequestAutomaton_NodeList* nodelist;
 		RequestAutomaton_ResolveDef* resolvedef;
-		RequestAutomaton_AssignmentDef* assignmentdef;
 	} ValueUnion;
 	ValueUnion value;
 	std::string rootexpr;
@@ -322,12 +288,13 @@ struct RequestAutomaton_Node
 	/// \param[in] methodid identifier of the method to call
 	/// \param[in] args list of references addressing the arguments of the method call
 	RequestAutomaton_Node( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args);
-	///\brief Contructor as RequestAutomaton_AssignmentDef
+	/// \brief Contructor as RequestAutomaton_FunctionDef (assignment defined as function without call)
 	/// \param[in] expression select expression addressing the scope of this method call definition
 	/// \param[in] resultvar variable where the result of the call is stored to, empty or NULL if the result is void or dropped
 	/// \param[in] itemid identifier given to the item to make it addressable in the context of its scope
 	/// \param[in] resolvechr describes the occurrence of the element addressed
-	RequestAutomaton_Node( const char* expression, const char* resultvar, int itemid, char resolvechr);
+	/// \param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
+	RequestAutomaton_Node( const char* expression, const char* resultvar, int itemid, char resolvechr, int max_tag_diff=1);
 	///\brief Contructor as RequestAutomaton_StructDef
 	/// \param[in] expression select expression addressing the scope of this structure definition
 	/// \param[in] itemid item identifier unique in its scope (referencing a value or a structure)
@@ -507,11 +474,13 @@ public:
 	void addFunction( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const RequestAutomaton_FunctionDef::Arg* args);
 
 	/// \brief Add a variable assignment of a content element
+	/// \note Implemented as function without method call specified
 	/// \param[in] expression selecting expression of the element
-	/// \param[in] varname	name of the variable referencing the destination of the assignment (where to append to)
+	/// \param[in] varname	name of the variable referencing the destination of the assignment
 	/// \param[in] itemid	identifier given to the item to make it addressable in the context of its scope
 	/// \param[in] resolvechr describes the occurrence of the element
-	void addAssignment( const char* expression, const char* varname, int itemid, char resolvechr);
+	/// \param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
+	void addAssignment( const char* expression, const char* varname, int itemid, char resolvechr, int max_tag_diff=1);
 
 	/// \brief Add a structure definition
 	/// \remark Only available if this automaton has been constructed as empty

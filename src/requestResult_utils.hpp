@@ -119,7 +119,7 @@ public:
 		return rt;
 	}
 
-	bool pushResult( const char* varname, const Scope& scope_, papuga_ValueVariant& value, papuga_ErrorCode& errcode)
+	bool pushResult( const char* varname, const Scope& scope_, const papuga_ValueVariant& value, papuga_ErrorCode& errcode)
 	{
 		std::vector<ResultRef>::iterator ri = m_resultrefs.begin(), re = m_resultrefs.end();
 		int matches = 0;
@@ -128,8 +128,11 @@ public:
 			if (scope_.inside( ri->scope) && 0==std::strcmp( varname, ri->varname))
 			{
 				++matches;
+				//PF:HACK: The const cast has no influence, as movehostobj parameter is false and the contents of the
+				//	source value remain untouched, but it is still ugly and a bad hack:
+				papuga_ValueVariant* source = const_cast<papuga_ValueVariant*>(&value);
 				papuga_ValueVariant valuecopy;
-				if (!papuga_Allocator_deepcopy_value( &m_allocator, &valuecopy, &value, false/*movehostobj*/, &errcode)) return false;
+				if (!papuga_Allocator_deepcopy_value( &m_allocator, &valuecopy, source, false/*movehostobj*/, &errcode)) return false;
 
 				switch (ri->resolvetype)
 				{

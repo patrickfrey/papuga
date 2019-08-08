@@ -20,6 +20,7 @@ extern "C" {
 typedef enum {
 	papuga_LogItemClassName,		/*< [char*] name of the class called */
 	papuga_LogItemMethodName,		/*< [char*] name of the method called */
+	papuga_LogItemResultVariable,		/*< [char*] name of the class called */
 	papuga_LogItemResult,			/*< [papuga_ValueVariant*] the result of the method call */
 	papuga_LogItemArgc,			/*< [size_t] number of arguments of the method called */
 	papuga_LogItemArgv,			/*< [papuga_ValueVariant*] array of arguments of the method called */

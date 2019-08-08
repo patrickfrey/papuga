@@ -147,30 +147,8 @@ struct CallDef
 	}
 };
 
-struct AssignmentDef
-{
-	const char* varname;
-	int itemid;
-	papuga_ResolveType resolvetype;
-	int max_tag_diff;
-
-	AssignmentDef()
-		:varname(0),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
-	AssignmentDef( const char* varname_, int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
-		:varname(varname_),itemid(itemid_),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
-	void assign( const AssignmentDef& o)
-		{varname=o.varname;itemid=o.itemid;resolvetype=o.resolvetype;max_tag_diff=o.max_tag_diff;}
-
-	std::string tostring() const
-	{
-		std::ostringstream out;
-		out << varname << " = " << itemid << " " << papuga_ResolveTypeName( resolvetype);
-		return out.str();
-	}
-};
-
 typedef int AtmRef;
-enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom,AssignVariable,ResultInstruction};
+enum AtmRefType {InstantiateValue,CollectValue,CloseStruct,MethodCall,InheritFrom,ResultInstruction};
 enum {MaxAtmRefType=ResultInstruction};
 
 static AtmRef AtmRef_get( AtmRefType type, int idx)	{return (AtmRef)(((int)type<<28) | (idx+1));}
@@ -211,7 +189,7 @@ public:
 	explicit AutomatonDescription( const papuga_ClassDef* classdefs_)
 		:m_classdefs(classdefs_)
 		,m_nof_classdefs(nofClassDefs(classdefs_))
-		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs(),m_assignments()
+		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs()
 		,m_atm(),m_maxitemid(0)
 		,m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
 	{
@@ -278,16 +256,20 @@ public:
 				m_errcode = papuga_NofArgsError;
 				return false;
 			}
-			if (method_->classid == 0 || method_->classid > m_nof_classdefs)
+			if (method_->classid < 0 || method_->classid > m_nof_classdefs)
 			{
 				m_errcode = papuga_AddressedItemNotFound;
 				return false;
 			}
-			const papuga_ClassDef* cdef = &m_classdefs[ method_->classid-1];
-			if (method_->functionid > cdef->methodtablesize)
+			const papuga_ClassDef* cdef = 0;
+			if (method_->classid)
 			{
-				m_errcode = papuga_AddressedItemNotFound;
-				return false;
+				cdef = &m_classdefs[ method_->classid-1];
+				if (method_->functionid < 0 || method_->functionid > cdef->methodtablesize)
+				{
+					m_errcode = papuga_AddressedItemNotFound;
+					return false;
+				}
 			}
 			std::string open_expression( cut_trailing_slashes( expression));
 			std::string close_expression( open_expression + "~");
@@ -595,34 +577,6 @@ public:
 		return true;
 	}
 
-	bool addAssignment( const char* expression, const char* varname, int itemid, papuga_ResolveType resolvetype, int max_tag_diff)
-	{
-		try
-		{
-			if (!checkItemId( itemid))
-			{
-				return false;
-			}
-			if (m_done)
-			{
-				m_errcode = papuga_ExecutionOrder;
-				return false;
-			}
-			std::string open_expression( cut_trailing_slashes( expression));
-			std::string close_expression( open_expression + "~");
-
-			int evid = AtmRef_get( AssignVariable, m_assignments.size());
-			if (0!=m_atm.addExpression( evid, close_expression.c_str(), close_expression.size()))
-			{
-				m_errcode = papuga_SyntaxError;
-				return false;
-			}
-			m_assignments.push_back( AssignmentDef( varname, itemid, resolvetype, max_tag_diff));
-		}
-		CATCH_LOCAL_EXCEPTION(m_errcode,false)
-		return true;
-	}
-
 	bool addResultDescription( papuga_RequestResultDescription* descr)
 	{
 		try
@@ -695,7 +649,6 @@ public:
 	const std::vector<StructDef>& structdefs() const			{return m_structdefs;}
 	const std::vector<ValueDef>& valuedefs() const				{return m_valuedefs;}
 	const std::vector<InheritFromDef>& inheritdefs() const			{return m_inheritdefs;}
-	const std::vector<AssignmentDef>& assignments() const			{return m_assignments;}
 	const std::vector<papuga_RequestResultDescription*>& resultdefs() const	{return m_resultdefs;}
 	const XMLPathSelectAutomaton& atm() const				{return m_atm;}
 	std::size_t maxitemid() const						{return m_maxitemid;}
@@ -754,7 +707,6 @@ private:
 	std::vector<StructDef> m_structdefs;
 	std::vector<ValueDef> m_valuedefs;
 	std::vector<InheritFromDef> m_inheritdefs;
-	std::vector<AssignmentDef> m_assignments;
 	std::vector<papuga_RequestResultDescription*> m_resultdefs;
 	std::set<CString> m_resultVariables;
 	papuga_Allocator m_allocator;
@@ -929,18 +881,6 @@ struct MethodCallNode
 		:MethodCallKey(o),def(o.def),scope(o.scope),taglevel(o.taglevel){}
 };
 
-struct AssignmentNode
-{
-	const AssignmentDef* def;
-	Scope scope;
-	int taglevel;
-
-	AssignmentNode( const AssignmentDef* def_, const Scope& scope_, int taglevel_)
-		:def(def_),scope(scope_),taglevel(taglevel_){}
-	AssignmentNode( const AssignmentNode& o)
-		:def(o.def),scope(o.scope),taglevel(o.taglevel){}
-};
-
 static void papuga_init_RequestMethodCall( papuga_RequestMethodCall* self)
 {
 	self->selfvarname = 0;
@@ -1084,7 +1024,7 @@ public:
 		:m_atm(atm_),m_logContentEvent(0),m_loggerSelf(0)
 		,m_atmstate(&atm_->atm()),m_scopecnt(0),m_scopestack()
 		,m_valuenodes(),m_values(),m_structs(),m_scopeobjmap( atm_->maxitemid()+1, ScopeObjMap()),m_methodcalls()
-		,m_assignments(),m_results( new RequestResultTemplate[ atm_->resultdefs().size()])
+		,m_results( new RequestResultTemplate[ atm_->resultdefs().size()])
 		,m_maskOfRequiredInheritedContexts(getRequiredInheritedContextsMask(atm_)),m_nofInheritedContexts(0)
 		,m_done(false),m_errcode(papuga_Ok),m_erritemid(-1)
 	{
@@ -1244,10 +1184,6 @@ public:
 	{
 		return (idx >= (int)m_methodcalls.size()) ? NULL : &m_methodcalls[ idx];
 	}
-	const AssignmentNode* assignmentNode( int idx) const
-	{
-		return (idx >= (int)m_assignments.size()) ? NULL : &m_assignments[ idx];
-	}
 	const std::vector<Value>& values() const
 	{
 		return m_values;
@@ -1326,7 +1262,6 @@ public:
 			,m_loggerSelf(0)
 			,m_resolvers()
 			,m_curr_methodidx(0)
-			,m_curr_assignmentidx(0)
 			,m_structpath()
 			,m_errstruct()
 		{
@@ -1340,7 +1275,6 @@ public:
 			,m_loggerSelf(ctx_->loggerSelf())
 			,m_resolvers(ctx_->scopeobjmap().size(),ScopeObjItr())
 			,m_curr_methodidx(0)
-			,m_curr_assignmentidx(0)
 			,m_structpath()
 		{
 			papuga_init_RequestError( &m_errstruct);
@@ -1448,7 +1382,7 @@ public:
 			}
 		}
 
-		bool pushCallResult( papuga_ValueVariant& result)
+		bool pushCallResult( const papuga_ValueVariant& result)
 		{
 			if (!m_curr_methodcall.resultvarname)
 			{
@@ -1488,49 +1422,6 @@ public:
 			return used;
 		}
 
-		papuga_RequestVariableAssignment* nextAssignment()
-		{
-			try
-			{
-				if (!m_ctx) return NULL;
-				const AssignmentNode* asnode = m_ctx->assignmentNode( m_curr_assignmentidx);
-				if (!asnode)
-				{
-					std::memset( &m_curr_assignment, 0, sizeof(m_curr_assignment));
-					return NULL;
-				}
-				m_curr_assignment.varname = asnode->def->varname;
-				papuga_init_ValueVariant( &m_curr_assignment.value);
-
-				m_errstruct.scopestart = asnode->scope.from;
-	
-				const AssignmentDef* asdef = asnode->def;
-
-				TagLevelRange tagLevelRange = getTagLevelRange( asdef->resolvetype, asnode->taglevel, asdef->max_tag_diff);
-				ValueSink sink( &m_curr_assignment.value, &m_allocator);
-				if (!resolveItem( sink, asdef->itemid, asdef->resolvetype, asnode->scope, tagLevelRange, false/*embedded*/))
-				{
-					if (m_errstruct.scopestart < asnode->scope.from)
-					{
-						m_errstruct.scopestart = asnode->scope.from;
-					}
-					return NULL;
-				}
-				++m_curr_assignmentidx;
-				return &m_curr_assignment;
-			}
-			catch (const std::bad_alloc&)
-			{
-				m_errstruct.errcode = papuga_NoMemError;
-				return NULL;
-			}
-			catch (...)
-			{
-				m_errstruct.errcode = papuga_UncaughtException;
-				return NULL;
-			}
-		}
-
 		int nofResults() const
 		{
 			return m_ctx->nofResults();
@@ -1540,6 +1431,7 @@ public:
 		{
 			try
 			{
+				bool rt = true;
 				if (idx >= (int)m_ctx->nofResults())
 				{
 					m_errstruct.errcode = papuga_OutOfRangeError;
@@ -1584,12 +1476,12 @@ public:
 						switch (ri->nodetype)
 						{
 							case papuga_ResultNodeConstant:
-								if (ri->tagname && !papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)) throw std::bad_alloc();
-								if (!papuga_Serialization_pushValue( &result->serialization, &ri->value)) throw std::bad_alloc();
+								if (ri->tagname) rt &= papuga_Serialization_pushName_charp( &result->serialization, ri->tagname);
+								rt &= papuga_Serialization_pushValue( &result->serialization, &ri->value);
 								break;
 							case papuga_ResultNodeOpenStructure:
-								if (!papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)
-								||  !papuga_Serialization_pushOpen( &result->serialization)) throw std::bad_alloc();
+								rt &= papuga_Serialization_pushName_charp( &result->serialization, ri->tagname);
+								rt &= papuga_Serialization_pushOpen( &result->serialization);
 								break;
 							case papuga_ResultNodeOpenArray:
 							{
@@ -1597,8 +1489,8 @@ public:
 								++next;
 								bool valuelist = next != re && next->tagname == NULL;
 
-								if (!papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)
-								||  !papuga_Serialization_pushOpen( &result->serialization)) throw std::bad_alloc();
+								rt &= papuga_Serialization_pushName_charp( &result->serialization, ri->tagname);
+								rt &= papuga_Serialization_pushOpen( &result->serialization);
 								if (valuelist)
 								{
 									structStack.push_back( false);
@@ -1606,12 +1498,12 @@ public:
 								else
 								{
 									structStack.push_back( true);
-									if (!papuga_Serialization_pushOpen( &result->serialization)) throw std::bad_alloc();
+									rt &= papuga_Serialization_pushOpen( &result->serialization);
 								}
 								break;
 							}
 							case papuga_ResultNodeCloseStructure:
-								if (!papuga_Serialization_pushClose( &result->serialization)) throw std::bad_alloc();
+								rt &= papuga_Serialization_pushClose( &result->serialization);
 								break;
 							case papuga_ResultNodeCloseArray:
 							{
@@ -1623,43 +1515,44 @@ public:
 									++ri;
 									if (structStack.back())
 									{
-										if (!papuga_Serialization_pushClose( &result->serialization)
-										||  !papuga_Serialization_pushOpen( &result->serialization)) throw std::bad_alloc();
+										rt &= papuga_Serialization_pushClose( &result->serialization);
+										rt &= papuga_Serialization_pushOpen( &result->serialization);
 									}
 								}
 								else
 								{
-									if (!papuga_Serialization_pushClose( &result->serialization)) throw std::bad_alloc();
+									rt &= papuga_Serialization_pushClose( &result->serialization);
 									if (structStack.back())
 									{
-										if (!papuga_Serialization_pushClose( &result->serialization)) throw std::bad_alloc();
+										rt &= papuga_Serialization_pushClose( &result->serialization);
 									}
 									structStack.pop_back();
 								}
 								break;
 							}
 							case papuga_ResultNodeInputReference:
-							{
-								if (papuga_ValueVariant_defined( &ri->value))
-								{
-									if (ri->tagname && !papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)) throw std::bad_alloc();
-									if (!papuga_Serialization_pushValue( &result->serialization, &ri->value)) throw std::bad_alloc();
-								}
-								break;
-							}
 							case papuga_ResultNodeResultReference:
 							{
 								if (papuga_ValueVariant_defined( &ri->value))
 								{
-									if (ri->tagname && !papuga_Serialization_pushName_charp( &result->serialization, ri->tagname)) throw std::bad_alloc();
-									if (!papuga_Serialization_push( &result->serialization, papuga_TagValue, &ri->value)) throw std::bad_alloc();
+									if (ri->tagname) rt &= papuga_Serialization_pushName_charp( &result->serialization, ri->tagname);
+									papuga_ValueVariant valuecopy;
+									//PF:HACK: The const cast has no influence, as movehostobj parameter is false and the contents of the
+									//	source value remain untouched, but it is still ugly and a bad hack:
+									papuga_ValueVariant* source = const_cast<papuga_ValueVariant*>(&ri->value);
+									rt &= papuga_Allocator_deepcopy_value( allocator, &valuecopy, source, false/*movehostobj*/, &m_errstruct.errcode);
+									rt &= papuga_Serialization_pushValue( &result->serialization, &valuecopy);
 								}
 								break;
 							}
 						}
 					}
 				}
-				return true;
+				if (!rt && m_errstruct.errcode == papuga_Ok)
+				{
+					m_errstruct.errcode = papuga_NoMemError;
+				}
+				return rt;
 			}
 			catch (const std::bad_alloc&)
 			{
@@ -2196,13 +2089,11 @@ public:
 
 	private:
 		papuga_RequestMethodCall m_curr_methodcall;
-		papuga_RequestVariableAssignment m_curr_assignment;
 		const AutomatonContext* m_ctx;
 		papuga_RequestEventLoggerProcedure m_logContentEvent;
 		void* m_loggerSelf;
 		std::vector<ScopeObjItr> m_resolvers;
 		int m_curr_methodidx;
-		int m_curr_assignmentidx;
 		papuga_Allocator m_allocator;
 		char m_allocator_membuf[ 4096];
 		std::vector<std::string> m_structpath;
@@ -2288,12 +2179,6 @@ private:
 					m_errcode = papuga_ExecutionOrder;
 					return false;
 				}
-				break;
-			}
-			case AssignVariable:
-			{
-				const AssignmentDef* adef = &m_atm->assignments()[ evidx];
-				m_assignments.push_back( AssignmentNode( adef, curscope(), taglevel()));
 				break;
 			}
 			case ResultInstruction:
@@ -2426,7 +2311,6 @@ private:
 	std::vector<const StructDef*> m_structs;
 	std::vector<ScopeObjMap> m_scopeobjmap;
 	std::vector<MethodCallNode> m_methodcalls;
-	std::vector<AssignmentNode> m_assignments;
 	RequestResultTemplate* m_results;
 	enum {MaxNofInheritedContexts=31};
 	int m_maskOfRequiredInheritedContexts;
@@ -2566,17 +2450,6 @@ extern "C" bool papuga_RequestAutomaton_add_value(
 	return self->atm.addValue( scope_expression, select_expression, itemid);
 }
 
-extern "C" bool papuga_RequestAutomaton_add_assignment(
-		papuga_RequestAutomaton* self,
-		const char* expression,
-		const char* varname,
-		int itemid,
-		papuga_ResolveType resolvetype,
-		int max_tag_diff)
-{
-	return self->atm.addAssignment( expression, varname, itemid, resolvetype, max_tag_diff);
-}
-
 extern "C" bool papuga_RequestAutomation_add_result(
 		papuga_RequestAutomaton* self,
 		papuga_RequestResultDescription* descr)
@@ -2705,17 +2578,12 @@ extern "C" void papuga_destroy_RequestIterator( papuga_RequestIterator* self)
 	self->itr.~Iterator();
 }
 
-extern "C" const papuga_RequestVariableAssignment* papuga_RequestIterator_next_assignment( papuga_RequestIterator* self)
-{
-	return self->itr.nextAssignment();
-}
-
 extern "C" const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_RequestIterator* self, const papuga_RequestContext* context)
 {
 	return self->itr.nextCall( context);
 }
 
-extern "C" bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, papuga_ValueVariant* result)
+extern "C" bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, const papuga_ValueVariant* result)
 {
 	return self->itr.pushCallResult( *result);
 }
