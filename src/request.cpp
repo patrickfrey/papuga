@@ -2207,16 +2207,30 @@ private:
 				const CallDef* calldef = &m_atm->calldefs()[ evidx];
 				std::size_t mi = m_methodcalls.size();
 				Scope cscope = curscope();
+				bool havePrioritizedItem = false;
 				for (; mi > 0 && m_methodcalls[mi-1].scope.from >= cscope.from; --mi)
 				{
 					const MethodCallNode& mc = m_methodcalls[mi-1];
-					if (mc.scope.inside( cscope)
-						&& calldef != mc.def
-						&& mc.def->resultvarname
-						&& calldef->resultvarname
-						&& 0==std::strcmp(mc.def->resultvarname,calldef->resultvarname))
+					if (mc.scope.inside( cscope) && calldef == mc.def)
 					{
-						m_methodcalls.erase( m_methodcalls.begin()+(mi-1));
+						havePrioritizedItem = true;
+						break;
+					}
+				}
+				if (havePrioritizedItem)
+				{
+					mi = m_methodcalls.size();
+					for (; mi > 0 && m_methodcalls[mi-1].scope.from >= cscope.from; --mi)
+					{
+						const MethodCallNode& mc = m_methodcalls[mi-1];
+						if (mc.scope.inside( cscope)
+							&& calldef != mc.def
+							&& mc.def->resultvarname
+							&& calldef->resultvarname
+							&& 0==std::strcmp(mc.def->resultvarname,calldef->resultvarname))
+						{
+							m_methodcalls.erase( m_methodcalls.begin()+(mi-1));
+						}
 					}
 				}
 				break;
