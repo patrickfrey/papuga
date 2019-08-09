@@ -122,29 +122,6 @@ struct CallDef
 		methodid.classid = o.methodid.classid;
 		methodid.functionid = o.methodid.functionid;
 	}
-
-	std::string tostring() const
-	{
-		std::ostringstream out;
-		if (resultvarname) out << resultvarname << " = ";
-		if (selfvarname) out << selfvarname << "->";
-		out << "[" << methodid.classid << "," << methodid.functionid << "] (";
-		int ai = 0, ae = nofargs;
-		for (; ai != ae; ++ai)
-		{
-			out << (ai ? ", " : " ");
-			if (args[ai].varname)
-			{
-				out << "?" << args[ai].varname;
-			}
-			else
-			{
-				out << args[ai].itemid << " " << papuga_ResolveTypeName( args[ai].resolvetype);
-			}
-		}
-		out << ");";
-		return out.str();
-	}
 };
 
 typedef int AtmRef;
@@ -1249,6 +1226,23 @@ public:
 	{
 		return m_atm->classdefs();
 	}
+	std::string methodName( const papuga_RequestMethodId& mid) const
+	{
+		const papuga_ClassDef* cd = m_atm->classdefs();
+		if (!mid.classid) return std::string();
+		const char* classname = cd[ mid.classid-1].name;
+		char buf[ 128];
+		if (mid.functionid)
+		{
+			std::snprintf( buf, sizeof(buf), "%s::%s", classname, cd[ mid.classid-1].methodnames[ mid.functionid-1]);
+		}
+		else
+		{
+			std::snprintf( buf, sizeof(buf), "constructor %s", classname);
+		}
+		buf[ sizeof(buf)-1] = 0;
+		return std::string( buf);
+	}
 	const papuga_RequestInheritedContextDef* getRequiredInheritedContextsDefs( papuga_ErrorCode& errcode) const
 	{
 		if (m_maskOfRequiredInheritedContexts)
@@ -2229,6 +2223,22 @@ private:
 							&& calldef->resultvarname
 							&& 0==std::strcmp(mc.def->resultvarname,calldef->resultvarname))
 						{
+							if (m_logContentEvent)
+							{
+								std::string methodname = methodName( mc.def->methodid);
+								if (methodname.empty())
+								{
+									papuga_ValueVariant vv;
+									papuga_init_ValueVariant_charp( &vv, mc.def->resultvarname);
+									m_logContentEvent( m_loggerSelf, "suppress assignment", -1/*/no itemid*/, &vv);
+								}
+								else
+								{
+									papuga_ValueVariant vv;
+									papuga_init_ValueVariant_string( &vv, methodname.c_str(), methodname.size());
+									m_logContentEvent( m_loggerSelf, "suppress call", -1/*/no itemid*/, &vv);
+								}
+							}
 							m_methodcalls.erase( m_methodcalls.begin()+(mi-1));
 						}
 					}
