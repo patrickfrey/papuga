@@ -160,7 +160,7 @@ static void reportRequestError( papuga_ErrorBuffer& errorbuf, const papuga_Reque
 	{
 		papuga_ErrorBuffer_appendMessage( &errorbuf, " accessing variable '%s'", errstruct.variable);
 	}
-	if (errstruct.itemid >= 0)
+	if (errstruct.itemid > 0)
 	{
 		if (errstruct.structpath[0])
 		{
