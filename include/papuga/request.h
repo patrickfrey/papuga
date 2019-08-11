@@ -386,9 +386,10 @@ typedef struct papuga_RequestIterator papuga_RequestIterator;
  * @brief Create an iterator on the method calls of a closed request
  * @param[in] allocator for memory allocation for the iterator
  * @param[in] request request object to get the iterator on the request method calls
+ * @param[out] errcode error code in case NULL is returned
  * @return the iterator in case of success, or NULL in case of a memory allocation error
  */
-papuga_RequestIterator* papuga_create_RequestIterator( papuga_Allocator* allocator, const papuga_Request* request);
+papuga_RequestIterator* papuga_create_RequestIterator( papuga_Allocator* allocator, const papuga_Request* request, papuga_ErrorCode* errcode);
 
 /*
  * @brief Destructor of an iterator on the method calls of a closed request
@@ -411,25 +412,14 @@ const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_Request
 bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, const papuga_ValueVariant* result);
 
 /*
- * @brief Get the number of results stored in the context when handling the request
- * @param[in] self this context pointer
- * @return the number of results
- */
-int papuga_RequestIterator_nof_results( const papuga_RequestIterator* self);
-
-/*
- * @brief Serialize the content of a results result
- * @param[out] result result structure to initialize
+ * @brief Get the list of all non empty results of a request
+ * @note Empty result means that it was not created at all, not an empty content returned with the result)
  * @param[in,out] self this context pointer
- * @param[in] idx index of the result to serialize
- * @param[out] name identifier of the result, root element
- * @param[out] schema identifier identifying the schema handling the result in case of a delegate request to another server
- * @param[out] requestmethod request method in case of a delegate request to another server
- * @param[out] addressvar server to call in case of a delegate request to another server
- * @param[in,out] serialization where to write the serialization of the result to
- * @return true on success, false on out of memory
+ * @param[in] allocator allocator to use for the result array and its contents
+ * @param[out] nofResults the number of results constructed, the size of the array of result pointers returned
+ * @return a pointer to the array of results
  */
-bool papuga_init_RequestResult( papuga_RequestResult* result, papuga_Allocator* allocator, papuga_RequestIterator* self, int idx);
+papuga_RequestResult* papuga_get_RequestResult_array( papuga_RequestIterator* self, papuga_Allocator* allocator, int* nofResults);
 
 /*
  * @brief Get the last error of the iterator with a pointer to the method call that failed, if available

@@ -728,12 +728,9 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 		papuga_ErrorBuffer errorbuf_call;
 
 		const papuga_ClassDef* classdefs = papuga_Request_classdefs( request);
-		itr = papuga_create_RequestIterator( allocator, request);
-		if (!itr)
-		{
-			errstruct->errcode = papuga_NoMemError;
-			return false;
-		}
+		itr = papuga_create_RequestIterator( allocator, request, &errstruct->errcode);
+		if (!itr) return false;
+
 		papuga_init_ErrorBuffer( &errorbuf_call, errstruct->errormsg, sizeof(errstruct->errormsg));
 
 		const papuga_RequestMethodCall* call;
@@ -965,34 +962,15 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			papuga_destroy_RequestIterator( itr);
 			return false;
 		}
-		*nofResults = papuga_RequestIterator_nof_results( itr);
-		if (!*nofResults)
+		*results = papuga_get_RequestResult_array( itr, allocator, nofResults);
+		if (!*results)
 		{
-			*results = 0;
-		}
-		else
-		{
-			*results = (papuga_RequestResult*) papuga_Allocator_alloc( allocator, sizeof(papuga_RequestResult) * (*nofResults), 0);
-			if (!*results)
+			itr_errstruct = papuga_RequestIterator_get_last_error( itr);
+			if (itr_errstruct)
 			{
-				*nofResults = 0;
-				throw std::bad_alloc();
-			}
-		}
-		std::size_t ri = 0, re = *nofResults;
-		for (; ri != re; ++ri)
-		{
-			if (!papuga_init_RequestResult( &(*results)[ ri], allocator, itr, ri))
-			{
-				*nofResults = ri;
-				itr_errstruct = papuga_RequestIterator_get_last_error( itr);
-				if (itr_errstruct)
-				{
-					std::memcpy( errstruct, itr_errstruct, sizeof(papuga_RequestError));
-					papuga_destroy_RequestIterator( itr);
-					return false;
-				}
-				throw std::bad_alloc();
+				std::memcpy( errstruct, itr_errstruct, sizeof(papuga_RequestError));
+				papuga_destroy_RequestIterator( itr);
+				return false;
 			}
 		}
 		papuga_destroy_RequestIterator( itr);

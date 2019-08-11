@@ -102,7 +102,7 @@ static void logMethodCall( void* self, int nofItems, ...)
 	va_end( arguments);
 }
 
-void logContentEvent( void* self, const char* title, int itemid, const papuga_ValueVariant* value)
+static void logContentEvent( void* self, const char* title, int itemid, const papuga_ValueVariant* value)
 {
 	LoggerContext* ctx = (LoggerContext*)self;
 	try
@@ -286,13 +286,13 @@ bool papuga_execute_request(
 			}
 			if (!resstr) goto ERROR;
 			resultblob.append( resstr, reslen);
-			try
-			{
-				logout.append( logctx.out.str());
-			}
-			catch (const std::bad_alloc&)
-			{}
 		}
+		try
+		{
+			logout.append( logctx.out.str());
+		}
+		catch (const std::bad_alloc&)
+		{}
 	}
 	goto RELEASE;
 ERROR:

@@ -383,9 +383,7 @@ static TestData* createTestData_2()
 		);
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs,
-		{
-			{"list", {}}
-		},
+		{},
 		{},
 		{}
 		);
@@ -404,9 +402,7 @@ static TestData* createTestData_2()
 		"EV close tag -1 ''",
 		0};
 	data->calls = expected_calls;
-	data->expected = new papuga::test::Document(
-		"list", {}
-		);
+	data->expected = new papuga::test::Document();
 	return data;
 }
 

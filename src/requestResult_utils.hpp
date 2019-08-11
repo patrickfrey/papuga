@@ -223,7 +223,10 @@ public:
 	{
 		return m_ar;
 	}
-
+	bool empty() const
+	{
+		return m_ar.empty();
+	}
 	void setName( const char* name_)
 	{
 		m_name = name_;
