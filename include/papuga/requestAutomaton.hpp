@@ -352,7 +352,9 @@ struct RequestAutomaton_Node
 	/// \param[in] path prefix for all selection expressions
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
-	void addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, std::set<std::string>& keyset) const;
+	/// \param[in] keyset set of path expression for identifying duplicated definitions that would lead to errors hard to track if not catched.
+	/// \param[in] accepted_root_tags set of accepted requests identified by their root tag name
+	void addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, std::set<std::string>& keyset, std::set<std::string>& accepted_root_tags) const;
 };
 
 class RequestAutomaton_NodeList
@@ -558,10 +560,15 @@ public:
 	/// \return the schema description XSD source
 	const papuga_SchemaDescription* description() const	{return m_descr;}
 
+	/// \brief Test if a request with the given root tag is accepted
+	/// \return true if yes
+	bool is_accepted_root( const std::string& tagname)	{return m_accepted_root_tags.find( tagname) != m_accepted_root_tags.end();}
+
 private:
 	papuga_RequestAutomaton* m_atm;				///< automaton definition
 	papuga_SchemaDescription* m_descr;			///< schema description
 	std::string m_rootexpr;					///< current root expression
+	std::set<std::string> m_accepted_root_tags;		///< set of accepted requests (identified by the root tag)
 	std::vector<int> m_rootstk;				///< stack for open close root expressions
 };
 

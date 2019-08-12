@@ -345,9 +345,18 @@ RequestAutomaton_Node& RequestAutomaton_Node::operator=( const RequestAutomaton_
 	return *this;
 }
 
-void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, std::set<std::string>& keyset) const
+void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, std::set<std::string>& keyset, std::set<std::string>& accepted_root_tags) const
 {
 	std::string rootpath = joinExpression( rootpath_, rootexpr);
+	if (rootpath_.empty() && !rootexpr.size() >= 2)
+	{
+		if (rootexpr[0] == '/' && rootexpr[1] != '/')
+		{
+			char const* ei = std::strchr( rootexpr.c_str()+1, '/');
+			if (!ei) ei = std::strchr( rootexpr.c_str()+1, '\0');
+			accepted_root_tags.insert( std::string( rootexpr.c_str()+1, ei-rootexpr.size()-1));
+		}
+	}
 	switch (type)
 	{
 		case Empty:
@@ -383,7 +392,7 @@ void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga
 		case NodeList:
 			for (auto node: *value.nodelist)
 			{
-				node.addToAutomaton( rootpath, atm, descr, keyset);
+				node.addToAutomaton( rootpath, atm, descr, keyset, accepted_root_tags);
 			}
 			break;
 		case ResolveDef:
@@ -446,7 +455,7 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 		}
 		for (auto ni : nodes)
 		{
-			ni.addToAutomaton( "", m_atm, m_descr, keyset);
+			ni.addToAutomaton( "", m_atm, m_descr, keyset, m_accepted_root_tags);
 		}
 		for (auto ri : resultdefs)
 		{
@@ -576,6 +585,15 @@ void RequestAutomaton::closeGroup()
 
 void RequestAutomaton::openRoot( const char* expr)
 {
+	if (m_rootstk.empty())
+	{
+		if (expr[0] == '/' && expr[1] != '/')
+		{
+			char const* ei = std::strchr( expr+1, '/');
+			if (!ei) ei = std::strchr( expr+1, '\0');
+			m_accepted_root_tags.insert( std::string( expr+1, ei-expr-1));
+		}
+	}
 	m_rootstk.push_back( m_rootexpr.size());
 	m_rootexpr.append( expr);
 }
