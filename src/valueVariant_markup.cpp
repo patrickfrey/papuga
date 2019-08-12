@@ -1005,7 +1005,6 @@ static inline bool SerializationIter_tomarkup_elem_fwd( OutputContext& ctx, papu
 			switch (st.id)
 			{
 				case StructType::Empty:
-					append_null_value( ctx);
 					break;
 				case StructType::Array:
 					rt &= SerializationIter_tomarkup_array_fwd( ctx, seritr);

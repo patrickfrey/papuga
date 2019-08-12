@@ -416,6 +416,8 @@ public:
 		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_elements(elements_){}
 	RequestAutomaton_ResultDef( const char* name_)
 		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_elements(){}
+	RequestAutomaton_ResultDef( const RequestAutomaton_ResultDef& o)
+		:m_name(o.m_name),m_schema(o.m_schema),m_requestmethod(o.m_requestmethod),m_addressvar(o.m_addressvar),m_elements(o.m_elements){}
 	
 	const char* name() const					{return m_name;}
 	const char* schema() const					{return m_schema;}
@@ -425,7 +427,6 @@ public:
 	const RequestAutomaton_ResultElementDefList& elements() const	{return m_elements;}
 
 	/// \brief Add this node definition to the automaton given as argument
-	/// \param[in] path prefix for all selection expressions
 	/// \param[in] atm automaton to add this definition to
 	void addToAutomaton( papuga_RequestAutomaton* atm) const;
 

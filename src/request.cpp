@@ -1792,7 +1792,7 @@ public:
 						{
 							std::vector<RequestResultItem>::const_iterator next = ri;
 							++next;
-							bool valuelist = next != re && next->tagname == NULL;
+							bool valuelist = next != re && next->tagname == NULL && next->nodetype != papuga_ResultNodeCloseArray;
 
 							rt &= papuga_Serialization_pushName_charp( &result->serialization, ri->tagname);
 							rt &= papuga_Serialization_pushOpen( &result->serialization);
