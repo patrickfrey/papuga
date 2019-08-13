@@ -231,12 +231,11 @@ typedef papuga::shared_ptr<RequestVariableMap> RequestVariableMapRef;
  */
 struct papuga_RequestContext
 {
-	std::string classname;
 	papuga_ErrorCode errcode;		//< last error in the request context
 	RequestVariableMap varmap;		//< map of variables defined in this context
 
-	explicit papuga_RequestContext( const char* classname_)
-		:classname(classname_?classname_:""),errcode(papuga_Ok),varmap()
+	explicit papuga_RequestContext()
+		:errcode(papuga_Ok),varmap()
 	{
 	}
 	~papuga_RequestContext()
@@ -245,7 +244,6 @@ struct papuga_RequestContext
 	std::string tostring() const
 	{
 		std::ostringstream out;
-		out << classname << ":\n";
 		RequestVariableMap::const_iterator vi = varmap.begin(), ve = varmap.end();
 		for (; vi != ve; ++vi)
 		{
@@ -418,11 +416,11 @@ struct papuga_RequestHandler
 	}
 };
 
-extern "C" papuga_RequestContext* papuga_create_RequestContext( const char* classname)
+extern "C" papuga_RequestContext* papuga_create_RequestContext()
 {
 	try
 	{
-		return new papuga_RequestContext( classname);
+		return new papuga_RequestContext();
 	}
 	catch (...)
 	{
@@ -434,11 +432,6 @@ extern "C" papuga_RequestContext* papuga_create_RequestContext( const char* clas
 extern "C" void papuga_destroy_RequestContext( papuga_RequestContext* self)
 {
 	delete self;
-}
-
-extern "C" const char* papuga_RequestContext_classname( const papuga_RequestContext* self)
-{
-	return self->classname.empty() ? NULL : self->classname.c_str();
 }
 
 extern "C" papuga_ErrorCode papuga_RequestContext_last_error( papuga_RequestContext* self, bool clear)

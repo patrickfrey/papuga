@@ -221,7 +221,7 @@ bool papuga_execute_request(
 	papuga_init_ErrorBuffer( &errorbuf, errbuf_mem, sizeof(errbuf_mem));
 
 	// Init locals:
-	ctx = papuga_create_RequestContext( 0/*class name*/);
+	ctx = papuga_create_RequestContext();
 	if (!ctx) {errstruct.errcode = papuga_NoMemError; goto ERROR;}
 	parser = papuga_create_RequestParser( &allocator, doctype, encoding, doc.c_str(), doc.size(), &errstruct.errcode);
 	if (!parser) goto ERROR;
