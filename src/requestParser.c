@@ -304,12 +304,12 @@ bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Req
 				break;
 		}
 	}
-	if (!papuga_Request_feed_close_tag( request))
+	if (!papuga_Request_feed_close_tag( request) || !papuga_Request_done( request))
 	{
 		*errcode = papuga_Request_last_error( request);
 		return false;
 	}
-	return papuga_Request_done( request);
+	return true;
 }
 
 papuga_RequestParser* papuga_create_RequestParser( papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode)

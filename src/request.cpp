@@ -1036,7 +1036,8 @@ public:
 	AutomatonContext( const AutomatonDescription* atm_, papuga_RequestLogger* logger)
 		:m_atm(atm_),m_logContentEvent(0),m_loggerSelf(0)
 		,m_atmstate(&atm_->atm()),m_scopecnt(0),m_scopestack()
-		,m_valuenodes(),m_values(),m_structs(),m_scopeobjmap( atm_->maxitemid()+1, ScopeObjMap()),m_methodcalls()
+		,m_valuenodes(),m_values(),m_structs(),m_scopeobjmap( atm_->maxitemid()+1, ScopeObjMap())
+		,m_methodcalls(),m_rootelements(),m_rootelements_ptr(0)
 		,m_results( new RequestResultTemplate[ atm_->resultdefs().size()])
 		,m_maskOfRequiredInheritedContexts(getRequiredInheritedContextsMask(atm_)),m_nofInheritedContexts(0)
 		,m_done(false),m_errcode(papuga_Ok),m_erritemid(-1)
@@ -1121,13 +1122,23 @@ public:
 		{
 			++m_scopecnt;
 			if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "open tag", -1/*itemid*/, tagname);
+			if (m_scopestack.empty() && papuga_ValueVariant_isstring(tagname))
+			{
+				std::string elem = papuga::ValueVariant_tostring( *tagname, m_errcode);
+				if (elem.empty())
+				{
+					if (m_errcode == papuga_Ok) m_errcode = papuga_SyntaxError;
+					return false;
+				}
+				m_rootelements.insert( elem);
+			}
 			m_scopestack.push_back( m_scopecnt);
 			if (!pushValueAndProcessEvents( textwolf::XMLScannerBase::OpenTag, tagname)) return false;
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 	}
-	
+
 	bool processAttributeName( const papuga_ValueVariant* attrname)
 	{
 		try
@@ -1180,9 +1191,25 @@ public:
 	{
 		try
 		{
-			++m_scopecnt;
 			if (m_done) return true;
+			++m_scopecnt;
+			// Order method calls according grouping and order of occurrence:
 			std::sort( m_methodcalls.begin(), m_methodcalls.end());
+			// Initialize list of all root elements:
+			std::size_t bi = 0, be = m_rootelements.size();
+			m_rootelements_ptr = (const char**) papuga_Allocator_alloc( &m_allocator, (be+1)*sizeof(char*), sizeof(char*));
+			if (!m_rootelements_ptr)
+			{
+				m_errcode = papuga_NoMemError;
+				return false;
+			}
+			std::set<std::string>::const_iterator ri = m_rootelements.begin(), re = m_rootelements.end();
+			for (; ri != re; ++ri,++bi)
+			{
+				m_rootelements_ptr[ bi] = ri->c_str();
+			}
+			m_rootelements_ptr[ bi] = NULL;
+			// End finalize:
 			return m_done = true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -1271,6 +1298,11 @@ public:
 	void* loggerSelf() const
 	{
 		return m_loggerSelf;
+	}
+
+	const char** rootTags() const
+	{
+		return m_rootelements_ptr;
 	}
 
 private:
@@ -1533,6 +1565,8 @@ private:
 	std::vector<const StructDef*> m_structs;
 	std::vector<ScopeObjMap> m_scopeobjmap;
 	std::vector<MethodCallNode> m_methodcalls;
+	std::set<std::string> m_rootelements;
+	const char** m_rootelements_ptr;
 	RequestResultTemplate* m_results;
 	enum {MaxNofInheritedContexts=31};
 	int m_maskOfRequiredInheritedContexts;
@@ -2633,6 +2667,11 @@ extern "C" int papuga_Request_last_error_itemid( const papuga_Request* self)
 extern "C" bool papuga_Request_is_result_variable( const papuga_Request* self, const char* varname)
 {
 	return self->ctx.isResultVariable( varname);
+}
+
+extern "C" const char** papuga_Request_root_tags( const papuga_Request* self)
+{
+	return self->ctx.rootTags();
 }
 
 struct papuga_RequestIterator

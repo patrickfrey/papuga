@@ -320,6 +320,14 @@ int papuga_Request_last_error_itemid( const papuga_Request* self);
 bool papuga_Request_is_result_variable( const papuga_Request* self, const char* varname);
 
 /*
+ * @brief Get the NULL terminated list of all root tag names of the request
+ * @param[in] self request to get the root tags from
+ * @note The root tags can be used to validate a request in an early stage to give reasonable error messages
+ * @return a pointer to the NULL terminated list of all root tag names
+ */
+const char** papuga_Request_root_tags( const papuga_Request* self);
+
+/*
  * @brief Describes a context inherited by name
  */
 typedef struct papuga_RequestInheritedContextDef
