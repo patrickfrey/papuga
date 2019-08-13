@@ -410,21 +410,22 @@ class RequestAutomaton_ResultDef
 public:
 #if __cplusplus >= 201103L
 	RequestAutomaton_ResultDef( const char* name_, const std::initializer_list<RequestAutomaton_ResultElementDef>& elements_)
-		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_elements(elements_){}
-	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const std::initializer_list<RequestAutomaton_ResultElementDef>& elements_)
-		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_elements(elements_){}
+		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_elements(elements_){}
+	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const char* path_, const std::initializer_list<RequestAutomaton_ResultElementDef>& elements_)
+		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_path(path_),m_elements(elements_){}
 #endif
-	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const std::vector<RequestAutomaton_ResultElementDef>& elements_)
-		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_elements(elements_){}
+	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const char* path_, const std::vector<RequestAutomaton_ResultElementDef>& elements_)
+		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_path(path_),m_elements(elements_){}
 	RequestAutomaton_ResultDef( const char* name_)
-		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_elements(){}
+		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_elements() {}
 	RequestAutomaton_ResultDef( const RequestAutomaton_ResultDef& o)
-		:m_name(o.m_name),m_schema(o.m_schema),m_requestmethod(o.m_requestmethod),m_addressvar(o.m_addressvar),m_elements(o.m_elements){}
+		:m_name(o.m_name),m_schema(o.m_schema),m_requestmethod(o.m_requestmethod),m_addressvar(o.m_addressvar),m_path(o.m_path),m_elements(o.m_elements){}
 	
 	const char* name() const					{return m_name;}
 	const char* schema() const					{return m_schema;}
 	const char* requestmethod() const				{return m_requestmethod;}
 	const char* addressvar() const					{return m_addressvar;}
+	const char* path() const					{return m_path;}
 
 	const RequestAutomaton_ResultElementDefList& elements() const	{return m_elements;}
 
@@ -437,6 +438,7 @@ private:
 	const char* m_schema;
 	const char* m_requestmethod;
 	const char* m_addressvar;
+	const char* m_path;
 	RequestAutomaton_ResultElementDefList m_elements;
 };
 

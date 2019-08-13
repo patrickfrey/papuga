@@ -47,7 +47,7 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)
 		case papuga_AmbiguousReference: return _TXT("ambiguous reference");
 		case papuga_MaxRecursionDepthReached: return _TXT("maximum recursion depth reached");
 		case papuga_ComplexityOfProblem: return _TXT("refused processing because of its complexity");
-		case papuga_InvalidRequest: return _TXT("valid syntax but unable to interprete request in the addressed context");
+		case papuga_InvalidRequest: return _TXT("unable to interprete request in the addressed context");
 		default: return _TXT("unknown error");
 	}
 }

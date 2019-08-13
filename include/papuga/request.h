@@ -43,6 +43,7 @@ typedef struct papuga_RequestResult
 	const char* schema;
 	const char* requestmethod;
 	const char* addressvar;
+	const char* path;
 	papuga_Serialization serialization;
 } papuga_RequestResult;
 

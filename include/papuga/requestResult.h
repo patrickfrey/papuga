@@ -58,6 +58,7 @@ typedef struct papuga_RequestResultDescription
 	const char* schema;
 	const char* requestmethod;
 	const char* addressvar;
+	const char* path;
 	papuga_RequestResultNodeDescription* nodear;
 	int nodearallocsize;
 	int nodearsize;
@@ -69,9 +70,10 @@ typedef struct papuga_RequestResultDescription
 * @param[in] schema_ name of the schema that handles the request if the result forms a request to other servers
 * @param[in] requestmethod_ request method if the result forms a request to other servers
 * @param[in] addressvar_ name of the variable with the urls if the result forms a request to other servers
+* @param[in] path_ additional path added to urls referenced in address variables if the result forms a request to other servers
 * @return structure to free with papuga_destroy_RequestResultDescription
 */
-papuga_RequestResultDescription* papuga_create_RequestResultDescription( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_);
+papuga_RequestResultDescription* papuga_create_RequestResultDescription( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const char* path_);
 
 /*
  * @brief Destructor function
