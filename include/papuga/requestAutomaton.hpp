@@ -452,9 +452,11 @@ private:
 
 public:
 	/// \brief Constructor defining an empty automaton to be filled with further method calls
+	/// \param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
 	RequestAutomaton(
 		const papuga_ClassDef* classdefs,
-		const papuga_StructInterfaceDescription* structdefs);
+		const papuga_StructInterfaceDescription* structdefs,
+		bool strict);
 
 #if __cplusplus >= 201103L
 	struct InheritedDef
@@ -469,7 +471,8 @@ public:
 			:type(o.type),name_expression(o.name_expression),required(o.required){}
 	};
 	/// \brief Constructor defining the whole automaton from an initializer list
-	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs,
+	/// \param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
+	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, bool strict,
 				const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs,
 				const std::initializer_list<InheritedDef>& inherited,
 				const std::initializer_list<RequestAutomaton_Node>& nodes);
@@ -560,15 +563,10 @@ public:
 	/// \return the schema description XSD source
 	const papuga_SchemaDescription* description() const	{return m_descr;}
 
-	/// \brief Test if a request with the given root tag is accepted
-	/// \return true if yes
-	bool is_accepted_root( const std::string& tagname)	{return m_accepted_root_tags.find( tagname) != m_accepted_root_tags.end();}
-
 private:
 	papuga_RequestAutomaton* m_atm;				///< automaton definition
 	papuga_SchemaDescription* m_descr;			///< schema description
 	std::string m_rootexpr;					///< current root expression
-	std::set<std::string> m_accepted_root_tags;		///< set of accepted requests (identified by the root tag)
 	std::vector<int> m_rootstk;				///< stack for open close root expressions
 };
 

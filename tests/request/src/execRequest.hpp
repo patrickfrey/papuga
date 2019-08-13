@@ -24,7 +24,6 @@ bool papuga_execute_request(
 		papuga_StringEncoding encoding,
 		const std::string& doc,
 		const RequestVariable* variables,
-		papuga_ErrorCode& errcode,
 		std::string& resultblob,
 		std::string& logout);
 

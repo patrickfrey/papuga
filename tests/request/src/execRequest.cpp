@@ -196,7 +196,6 @@ bool papuga_execute_request(
 			papuga_StringEncoding encoding,
 			const std::string& doc,
 			const RequestVariable* variables,
-			papuga_ErrorCode& errcode,
 			std::string& resultblob,
 			std::string& logout)
 {
@@ -279,8 +278,8 @@ bool papuga_execute_request(
 			// Map the result:
 			switch (doctype)
 			{
-				case papuga_ContentType_XML:  resstr = (char*)papuga_ValueVariant_toxml( &resultval, &allocator, structdefs, encoding, rootname, "element", &reslen, &errcode); break;
-				case papuga_ContentType_JSON: resstr = (char*)papuga_ValueVariant_tojson( &resultval, &allocator, structdefs, encoding, rootname, "element", &reslen, &errcode); break;
+				case papuga_ContentType_XML:  resstr = (char*)papuga_ValueVariant_toxml( &resultval, &allocator, structdefs, encoding, rootname, "element", &reslen, &errstruct.errcode); break;
+				case papuga_ContentType_JSON: resstr = (char*)papuga_ValueVariant_tojson( &resultval, &allocator, structdefs, encoding, rootname, "element", &reslen, &errstruct.errcode); break;
 				case papuga_ContentType_Unknown:
 				default: break;
 			}

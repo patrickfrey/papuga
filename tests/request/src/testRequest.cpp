@@ -330,7 +330,7 @@ static TestData* createTestData_1()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, 
+		g_classdefs, g_structdefs, true/*strict*/,
 		{
 			{"person", {{"/doc", "var", "var", '!'}}}
 		},
@@ -382,12 +382,16 @@ static TestData* createTestData_2()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs,
+		g_classdefs, g_structdefs, true/*strict*/,
 		{},
 		{},
-		{}
+		{
+			{"/doc", "obj", 0, C1::constructor(), {} }
+		}
 		);
 	static const char* expected_calls[] = {
+		"executing method C1::new();",
+		"executing method C1::delete();",
 		"EV open tag -1 'doc'",
 		"EV open tag -1 'city'",
 		"EV content value -1 'Bern'",
@@ -400,6 +404,7 @@ static TestData* createTestData_2()
 		"EV close tag -1 ''",
 		"EV close tag -1 ''",
 		"EV close tag -1 ''",
+		"C1 0  obj <HostObject>",
 		0};
 	data->calls = expected_calls;
 	data->expected = new papuga::test::Document();
@@ -418,7 +423,7 @@ static TestData* createTestData_3()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs,
+		g_classdefs, g_structdefs, true/*strict*/,
 		{
 			{"list", { {"/doc", "lo", "lo", '+'},{"/doc", "hi", "hi", '*'} }}
 		},
@@ -496,7 +501,7 @@ static TestData* createTestData_4()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs,
+		g_classdefs, g_structdefs, true/*strict*/,
 		{
 			{"list", { {"/doc", "lo", "lo", '*'},{"/doc", "hi", "hi", '+'} }}
 		},
@@ -577,7 +582,7 @@ static TestData* createTestData_5()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs,
+		g_classdefs, g_structdefs, true/*strict*/,
 		{
 			{"list", { {"/doc", "lo", "lo", '!'},{"/doc", "hi", "hi", '!'} }}
 		},
@@ -658,7 +663,7 @@ static TestData* createTestData_6()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs,
+		g_classdefs, g_structdefs, true/*strict*/,
 		{
 			{"result", { {"/tree", "lo", "lo", '!'},{"/tree", "hi", "hi", '!'} }}
 		},
@@ -823,7 +828,6 @@ static void executeTest( int tidx, const TestData& test)
 	for (; ei != ee && testsets[ei].doctype != papuga_ContentType_Unknown; ++ei)
 	{
 		g_call_dump.clear();
-		papuga_ErrorCode errcode = papuga_Ok;
 		std::string resout;
 		std::string logout;
 		papuga_StringEncoding enc = testsets[ ei].encoding;
@@ -834,11 +838,11 @@ static void executeTest( int tidx, const TestData& test)
 		std::string content = mapDocument( *test.doc, enc, doctype);
 		LOG_TEST_CONTENT( "DUMP", papuga::test::dumpRequest( doctype, enc, content));
 
-		if (!papuga_execute_request( test.atm->impl(), doctype, enc, content, test.var, errcode, resout, logout))
+		if (!papuga_execute_request( test.atm->impl(), doctype, enc, content, test.var, resout, logout))
 		{
 			LOG_TEST_CONTENT( "ERROR", resout);
 			std::string errmsg( std::string("executing test request: ") + resout);
-			throw papuga::error_exception( errcode, errmsg.c_str());
+			throw std::runtime_error( errmsg);
 		}
 		else
 		{

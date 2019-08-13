@@ -163,10 +163,11 @@ class AutomatonDescription
 public:
 	typedef textwolf::XMLPathSelectAutomatonParser<> XMLPathSelectAutomaton;
 
-	explicit AutomatonDescription( const papuga_ClassDef* classdefs_)
+	AutomatonDescription( const papuga_ClassDef* classdefs_, bool strict_)
 		:m_classdefs(classdefs_)
 		,m_nof_classdefs(nofClassDefs(classdefs_))
-		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs()
+		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs(),m_resultdefs(),m_resultVariables()
+		,m_acceptedRootTags(),m_strict(strict_)
 		,m_atm(),m_maxitemid(0)
 		,m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
 	{
@@ -207,11 +208,7 @@ public:
 		{
 			int evid = AtmRef_get( InheritFrom, m_inheritdefs.size());
 			m_inheritdefs.push_back( InheritFromDef( type, required));
-			if (0!=m_atm.addExpression( evid, name_expression, std::strlen(name_expression)))
-			{
-				m_errcode = papuga_SyntaxError;
-				return false;
-			}
+			return addExpression( evid, name_expression);
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 		return true;
@@ -231,12 +228,7 @@ public:
 			std::string close_expression( open_expression + "~");
 
 			int evid = AtmRef_get( MethodCallPrioritize, m_calldefs.size()-1);
-			if (0!=m_atm.addExpression( evid, close_expression.c_str(), close_expression.size()))
-			{
-				m_errcode = papuga_SyntaxError;
-				return false;
-			}
-			return true;
+			return addExpression( evid, close_expression);
 		}
 		catch (...)
 		{
@@ -300,12 +292,8 @@ public:
 			if (m_errcode != papuga_Ok) return false;
 
 			int evid = AtmRef_get( MethodCall, m_calldefs.size());
-			if (0!=m_atm.addExpression( evid, close_expression.c_str(), close_expression.size()))
-			{
-				m_errcode = papuga_SyntaxError;
-				return false;
-			}
 			m_calldefs.push_back( CallDef( method_, selfvarname, resultvarname, car, nofargs, m_groupid < 0 ? m_calldefs.size():m_groupid));
+			return addExpression( evid, close_expression);
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 		return true;
@@ -423,12 +411,8 @@ public:
 			}
 			StructMemberDef* mar = new (marmem) StructMemberDef[ nofmembers];
 			int evid = AtmRef_get( CloseStruct, m_structdefs.size());
-			if (0!=m_atm.addExpression( evid, close_expression.c_str(), close_expression.size()))
-			{
-				m_errcode = papuga_SyntaxError;
-				return false;
-			}
 			m_structdefs.push_back( StructDef( itemid, mar, nofmembers));
+			return addExpression( evid, close_expression);
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 		return true;
@@ -549,17 +533,8 @@ public:
 			}
 			int evid_inst = AtmRef_get( InstantiateValue, m_valuedefs.size());
 			int evid_coll = AtmRef_get( CollectValue, m_valuedefs.size());
-			if (0!=m_atm.addExpression( evid_inst, value_expression.c_str(), value_expression.size()))
-			{
-				m_errcode = papuga_SyntaxError;
-				return false;
-			}
-			if (0!=m_atm.addExpression( evid_coll, close_expression.c_str(), close_expression.size()))
-			{
-				m_errcode = papuga_SyntaxError;
-				return false;
-			}
 			m_valuedefs.push_back( ValueDef( itemid));
+			return addExpression( evid_inst, value_expression) && addExpression( evid_coll, close_expression);
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
 		return true;
@@ -600,7 +575,7 @@ public:
 					case papuga_ResultNodeConstant:
 					case papuga_ResultNodeOpenStructure:
 					case papuga_ResultNodeOpenArray:
-						if (!addResultInstructionTrigger( ni->inputselect, std::strlen( ni->inputselect), m_resultdefs.size(), nidx))
+						if (!addResultInstructionTrigger( ni->inputselect, m_resultdefs.size(), nidx))
 						{
 							return false;
 						}
@@ -614,7 +589,7 @@ public:
 					{
 						std::string closeexpr = cut_trailing_slashes( ni->inputselect);
 						closeexpr.push_back( '~');
-						if (!addResultInstructionTrigger( closeexpr.c_str(), closeexpr.size(), m_resultdefs.size(), nidx))
+						if (!addResultInstructionTrigger( closeexpr, m_resultdefs.size(), nidx))
 						{
 							return false;
 						}
@@ -631,6 +606,18 @@ public:
 	bool isResultVariable( const char* name) const
 	{
 		return m_resultVariables.find( name) != m_resultVariables.end();
+	}
+
+	bool isValidRootTagSet( const std::set<std::string>& rootTagSet) const
+	{
+		if (!m_strict) return true;
+		if (rootTagSet.empty() && !m_acceptedRootTags.empty()) return false;
+		std::set<std::string>::const_iterator ri = rootTagSet.begin(), re = rootTagSet.end();
+		for (; ri != re; ++ri)
+		{
+			if (m_acceptedRootTags.find( *ri) == m_acceptedRootTags.end()) return false;
+		}
+		return true;
 	}
 
 	bool done()
@@ -664,7 +651,41 @@ public:
 	std::size_t maxitemid() const						{return m_maxitemid;}
 
 private:
-	bool addResultInstructionTrigger( const char* expression, std::size_t expressionsize, std::size_t resultidx, std::size_t instridx)
+	bool addExpression( int eventid, const char* expression)
+	{
+		std::size_t expressionsize = std::strlen(expression);
+		extractRootTagName( expression);
+		if (0!=m_atm.addExpression( eventid, expression, expressionsize))
+		{
+			m_errcode = papuga_SyntaxError;
+			return false;
+		}
+		return true;
+	}
+
+	bool addExpression( int eventid, const std::string& expression)
+	{
+		extractRootTagName( expression.c_str());
+		if (0!=m_atm.addExpression( eventid, expression.c_str(), expression.size()))
+		{
+			m_errcode = papuga_SyntaxError;
+			return false;
+		}
+		return true;
+	}
+
+	void extractRootTagName( const char* expression)
+	{
+		if (expression[0] == '/' && expression[1] != '/')
+		{
+			char const* ei = std::strchr( expression+1, '/');
+			if (!ei) ei = std::strchr( expression+1, '\0');
+			if (*(ei-1) == '~') --ei;
+			m_acceptedRootTags.insert( std::string( expression+1, ei-expression-1));
+		}
+	}
+
+	bool addResultInstructionTrigger( const char* expression, std::size_t resultidx, std::size_t instridx)
 	{
 		if (!ResRef_check( resultidx, instridx)) 
 		{
@@ -673,12 +694,21 @@ private:
 		}
 		int idx = ResRef_get( resultidx, instridx);
 		int evid = AtmRef_get( ResultInstruction, idx);
-		if (0!=m_atm.addExpression( evid, expression, expressionsize))
+
+		return addExpression( evid, expression);
+	}
+
+	bool addResultInstructionTrigger( const std::string& expression, std::size_t resultidx, std::size_t instridx)
+	{
+		if (!ResRef_check( resultidx, instridx)) 
 		{
-			m_errcode = papuga_SyntaxError;
+			m_errcode = papuga_BufferOverflowError;
 			return false;
 		}
-		return true;
+		int idx = ResRef_get( resultidx, instridx);
+		int evid = AtmRef_get( ResultInstruction, idx);
+
+		return addExpression( evid, expression);
 	}
 
 	static bool isSelectAttributeExpression( const std::string& expr)
@@ -719,6 +749,8 @@ private:
 	std::vector<InheritFromDef> m_inheritdefs;
 	std::vector<papuga_RequestResultDescription*> m_resultdefs;
 	std::set<CString> m_resultVariables;
+	std::set<std::string> m_acceptedRootTags;		//< set of accepted requests (identified by the root tag)
+	bool m_strict;						//< false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
 	papuga_Allocator m_allocator;
 	XMLPathSelectAutomaton m_atm;
 	std::size_t m_maxitemid;
@@ -1037,7 +1069,7 @@ public:
 		:m_atm(atm_),m_logContentEvent(0),m_loggerSelf(0)
 		,m_atmstate(&atm_->atm()),m_scopecnt(0),m_scopestack()
 		,m_valuenodes(),m_values(),m_structs(),m_scopeobjmap( atm_->maxitemid()+1, ScopeObjMap())
-		,m_methodcalls(),m_rootelements(),m_rootelements_ptr(0)
+		,m_methodcalls(),m_rootelements()
 		,m_results( new RequestResultTemplate[ atm_->resultdefs().size()])
 		,m_maskOfRequiredInheritedContexts(getRequiredInheritedContextsMask(atm_)),m_nofInheritedContexts(0)
 		,m_done(false),m_errcode(papuga_Ok),m_erritemid(-1)
@@ -1122,7 +1154,7 @@ public:
 		{
 			++m_scopecnt;
 			if (m_logContentEvent) m_logContentEvent( m_loggerSelf, "open tag", -1/*itemid*/, tagname);
-			if (m_scopestack.empty() && papuga_ValueVariant_isstring(tagname))
+			if (m_scopestack.size() <= 1 && papuga_ValueVariant_isstring(tagname))
 			{
 				std::string elem = papuga::ValueVariant_tostring( *tagname, m_errcode);
 				if (elem.empty())
@@ -1196,19 +1228,11 @@ public:
 			// Order method calls according grouping and order of occurrence:
 			std::sort( m_methodcalls.begin(), m_methodcalls.end());
 			// Initialize list of all root elements:
-			std::size_t bi = 0, be = m_rootelements.size();
-			m_rootelements_ptr = (const char**) papuga_Allocator_alloc( &m_allocator, (be+1)*sizeof(char*), sizeof(char*));
-			if (!m_rootelements_ptr)
+			if (!m_atm->isValidRootTagSet( m_rootelements))
 			{
-				m_errcode = papuga_NoMemError;
+				m_errcode = papuga_InvalidRequest;
 				return false;
 			}
-			std::set<std::string>::const_iterator ri = m_rootelements.begin(), re = m_rootelements.end();
-			for (; ri != re; ++ri,++bi)
-			{
-				m_rootelements_ptr[ bi] = ri->c_str();
-			}
-			m_rootelements_ptr[ bi] = NULL;
 			// End finalize:
 			return m_done = true;
 		}
@@ -1298,11 +1322,6 @@ public:
 	void* loggerSelf() const
 	{
 		return m_loggerSelf;
-	}
-
-	const char** rootTags() const
-	{
-		return m_rootelements_ptr;
 	}
 
 private:
@@ -1566,7 +1585,6 @@ private:
 	std::vector<ScopeObjMap> m_scopeobjmap;
 	std::vector<MethodCallNode> m_methodcalls;
 	std::set<std::string> m_rootelements;
-	const char** m_rootelements_ptr;
 	RequestResultTemplate* m_results;
 	enum {MaxNofInheritedContexts=31};
 	int m_maskOfRequiredInheritedContexts;
@@ -2468,13 +2486,14 @@ struct papuga_RequestAutomaton
 
 extern "C" papuga_RequestAutomaton* papuga_create_RequestAutomaton(
 		const papuga_ClassDef* classdefs,
-		const papuga_StructInterfaceDescription* structdefs)
+		const papuga_StructInterfaceDescription* structdefs,
+		bool strict)
 {
 	papuga_RequestAutomaton* rt = (papuga_RequestAutomaton*)std::calloc( 1, sizeof(*rt));
 	if (!rt) return NULL;
 	try
 	{
-		new (&rt->atm) AutomatonDescription( classdefs);
+		new (&rt->atm) AutomatonDescription( classdefs, strict);
 		rt->structdefs = structdefs;
 		return rt;
 	}
@@ -2669,10 +2688,6 @@ extern "C" bool papuga_Request_is_result_variable( const papuga_Request* self, c
 	return self->ctx.isResultVariable( varname);
 }
 
-extern "C" const char** papuga_Request_root_tags( const papuga_Request* self)
-{
-	return self->ctx.rootTags();
-}
 
 struct papuga_RequestIterator
 {

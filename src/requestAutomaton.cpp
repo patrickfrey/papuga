@@ -404,8 +404,9 @@ void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga
 
 RequestAutomaton::RequestAutomaton(
 		const papuga_ClassDef* classdefs,
-		const papuga_StructInterfaceDescription* structdefs)
-	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs))
+		const papuga_StructInterfaceDescription* structdefs,
+		bool strict)
+	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,strict))
 	,m_descr(papuga_create_SchemaDescription())
 {
 	if (!m_atm || !m_descr)
@@ -419,10 +420,11 @@ RequestAutomaton::RequestAutomaton(
 #if __cplusplus >= 201103L
 RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 					const papuga_StructInterfaceDescription* structdefs,
+					bool strict,
 					const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs,
 					const std::initializer_list<InheritedDef>& inherited,
 					const std::initializer_list<RequestAutomaton_Node>& nodes)
-	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs))
+	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,strict))
 	,m_descr(papuga_create_SchemaDescription())
 	,m_rootexpr(),m_rootstk()
 {
@@ -435,6 +437,8 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 	}
 	try
 	{
+		std::set<std::string> accepted_root_tags; //< set of accepted requests (identified by the root tag)
+		
 		for (auto hi : inherited)
 		{
 			if (!papuga_RequestAutomaton_inherit_from( m_atm, hi.type.c_str(), hi.name_expression.c_str(), hi.required))
@@ -455,7 +459,7 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 		}
 		for (auto ni : nodes)
 		{
-			ni.addToAutomaton( "", m_atm, m_descr, keyset, m_accepted_root_tags);
+			ni.addToAutomaton( "", m_atm, m_descr, keyset, accepted_root_tags);
 		}
 		for (auto ri : resultdefs)
 		{
@@ -585,15 +589,6 @@ void RequestAutomaton::closeGroup()
 
 void RequestAutomaton::openRoot( const char* expr)
 {
-	if (m_rootstk.empty())
-	{
-		if (expr[0] == '/' && expr[1] != '/')
-		{
-			char const* ei = std::strchr( expr+1, '/');
-			if (!ei) ei = std::strchr( expr+1, '\0');
-			m_accepted_root_tags.insert( std::string( expr+1, ei-expr-1));
-		}
-	}
 	m_rootstk.push_back( m_rootexpr.size());
 	m_rootexpr.append( expr);
 }

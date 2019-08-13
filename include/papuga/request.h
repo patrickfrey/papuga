@@ -48,13 +48,15 @@ typedef struct papuga_RequestResult
 
 /*
  * @brief Create an automaton to configure
-* \param[in] classdefs class definitions referred to in host object references
-* \param[in] structdefs structure definitions
+ * @param[in] classdefs class definitions referred to in host object references
+ * @param[in] structdefs structure definitions
+ * @param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
  * @return The automaton structure
  */
 papuga_RequestAutomaton* papuga_create_RequestAutomaton(
 		const papuga_ClassDef* classdefs,
-		const papuga_StructInterfaceDescription* structdefs);
+		const papuga_StructInterfaceDescription* structdefs,
+		bool strict);
 
 /*
  * @brief Destroy an automaton
@@ -234,6 +236,7 @@ bool papuga_RequestAutomaton_done( papuga_RequestAutomaton* self);
 /*
  * @brief Create a request structure to feed with content to get a translated request
  * @param[in] atm the automaton structure (done must be called before)
+ * @param[in] logger logging facility to use for the request
  * @return the request structure
  */
 papuga_Request* papuga_create_Request( const papuga_RequestAutomaton* atm, papuga_RequestLogger* logger);
@@ -318,14 +321,6 @@ int papuga_Request_last_error_itemid( const papuga_Request* self);
  * @return true, if yes, false if no
  */
 bool papuga_Request_is_result_variable( const papuga_Request* self, const char* varname);
-
-/*
- * @brief Get the NULL terminated list of all root tag names of the request
- * @param[in] self request to get the root tags from
- * @note The root tags can be used to validate a request in an early stage to give reasonable error messages
- * @return a pointer to the NULL terminated list of all root tag names
- */
-const char** papuga_Request_root_tags( const papuga_Request* self);
 
 /*
  * @brief Describes a context inherited by name
