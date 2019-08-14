@@ -354,7 +354,7 @@ void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga
 		{
 			char const* ei = std::strchr( rootexpr.c_str()+1, '/');
 			if (!ei) ei = std::strchr( rootexpr.c_str()+1, '\0');
-			accepted_root_tags.insert( std::string( rootexpr.c_str()+1, ei-rootexpr.size()-1));
+			accepted_root_tags.insert( std::string( rootexpr.c_str()+1, ei-rootexpr.c_str()-1));
 		}
 	}
 	switch (type)
