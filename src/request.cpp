@@ -1778,7 +1778,7 @@ public:
 		{
 			if (!m_ctx->results()[ ri].empty())
 			{
-				if (!initResult( rt+ridx, allocator, ridx)) return false;
+				if (!initResult( rt+ridx, allocator, ridx)) return NULL;
 				++ridx;
 			}
 		}
