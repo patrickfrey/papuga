@@ -348,7 +348,7 @@ RequestAutomaton_Node& RequestAutomaton_Node::operator=( const RequestAutomaton_
 void RequestAutomaton_Node::addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, std::set<std::string>& keyset, std::set<std::string>& accepted_root_tags) const
 {
 	std::string rootpath = joinExpression( rootpath_, rootexpr);
-	if (rootpath_.empty() && !rootexpr.size() >= 2)
+	if (rootpath_.empty() && rootexpr.size() >= 2)
 	{
 		if (rootexpr[0] == '/' && rootexpr[1] != '/')
 		{

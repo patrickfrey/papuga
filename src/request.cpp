@@ -1770,7 +1770,7 @@ public:
 		if (rt == NULL)
 		{
 			m_errstruct.errcode = papuga_NoMemError;
-			return false;
+			return NULL;
 		}
 		ri = 0;
 		int ridx = 0;
