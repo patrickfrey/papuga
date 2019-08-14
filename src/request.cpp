@@ -2735,7 +2735,7 @@ extern "C" bool papuga_RequestIterator_push_call_result( papuga_RequestIterator*
 	return self->itr.pushCallResult( *result);
 }
 
-extern "C" papuga_RequestResult* papuga_get_RequestResult_array( papuga_RequestIterator* self, papuga_Allocator* allocator, int* nofResults)
+extern "C" papuga_RequestResult* papuga_RequestIterator_get_result_array( papuga_RequestIterator* self, papuga_Allocator* allocator, int* nofResults)
 {
 	return self->itr.getResultArray( allocator, *nofResults);
 }

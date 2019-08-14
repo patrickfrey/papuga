@@ -423,7 +423,7 @@ bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, cons
  * @param[out] nofResults the number of results constructed, the size of the array of result pointers returned
  * @return a pointer to the array of results
  */
-papuga_RequestResult* papuga_get_RequestResult_array( papuga_RequestIterator* self, papuga_Allocator* allocator, int* nofResults);
+papuga_RequestResult* papuga_RequestIterator_get_result_array( papuga_RequestIterator* self, papuga_Allocator* allocator, int* nofResults);
 
 /*
  * @brief Get the last error of the iterator with a pointer to the method call that failed, if available
