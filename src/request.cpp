@@ -1095,6 +1095,7 @@ public:
 			const papuga_RequestResultDescription* rd = atm_->resultdefs()[ ri];
 			m_results[ ri].setName( rd->name);
 			m_results[ ri].setTarget( rd->schema, rd->requestmethod, rd->addressvar, rd->path);
+			m_results[ ri].setEmptyRequest( rd->nodearsize == 0);
 		}
 	}
 	~AutomatonContext()
@@ -1763,7 +1764,7 @@ public:
 		nofResults = 0;
 		for (; ri < re; ++ri)
 		{
-			if (!m_ctx->results()[ ri].empty()) ++nofResults;
+			if (m_ctx->results()[ ri].valid()) ++nofResults;
 		}
 		if (nofResults == 0) return NULL;
 		papuga_RequestResult* rt = (papuga_RequestResult*)papuga_Allocator_alloc( allocator, nofResults * sizeof(papuga_RequestResult), 0/*sizeof(non empty struct)*/);
@@ -1776,7 +1777,7 @@ public:
 		int ridx = 0;
 		for (; ri < re; ++ri)
 		{
-			if (!m_ctx->results()[ ri].empty())
+			if (m_ctx->results()[ ri].valid())
 			{
 				if (!initResult( rt+ridx, allocator, ridx)) return NULL;
 				++ridx;

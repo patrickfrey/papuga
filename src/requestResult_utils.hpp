@@ -64,8 +64,8 @@ struct RequestResultInputElementRef
 class RequestResultTemplate
 {
 public:
-	RequestResultTemplate()
-		:m_name(0),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0)
+	explicit RequestResultTemplate()
+		:m_name(0),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_emptyRequest(false)
 	{
 		papuga_init_Allocator( &m_allocator, m_allocatormem, sizeof(m_allocatormem));
 	}
@@ -223,9 +223,9 @@ public:
 	{
 		return m_ar;
 	}
-	bool empty() const
+	bool valid() const
 	{
-		return m_ar.empty();
+		return m_emptyRequest || !m_ar.empty();
 	}
 	void setName( const char* name_)
 	{
@@ -237,6 +237,10 @@ public:
 		m_requestmethod = requestmethod_;
 		m_addressvar = addressvar_;
 		m_path = path_;
+	}
+	void setEmptyRequest( bool isEmptyRequest_)
+	{
+		m_emptyRequest = isEmptyRequest_;
 	}
 	const char* name() const
 	{
@@ -296,6 +300,7 @@ private:
 	const char* m_requestmethod;
 	const char* m_addressvar;
 	const char* m_path;
+	bool m_emptyRequest;
 	std::vector<RequestResultItem> m_ar;
 	std::vector<ResultRef> m_resultrefs;
 	std::vector<InputRef> m_inputrefs;
