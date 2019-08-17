@@ -28,7 +28,6 @@ std::string ValueVariant_tostring( const papuga_ValueVariant& value, papuga_Erro
 /// \param[out] error code returned in case of error
 /// \return result string of empty string in case of error
 /// \note does not throw
-/// \remark only converting atomic values, not handling structures
 std::string ValueVariant_todump( const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structdefs, papuga_ErrorCode& errcode);
 
 /// \brief Append value variant to a string, if possible
