@@ -659,11 +659,6 @@ static bool CallResult_tomarkup_fwd( OutputContext& ctx, const papuga_CallResult
 	return true;
 }
 
-struct CallResultMapper
-{
-	
-};
-
 static bool Iterator_tomarkup( OutputContext& ctx, const char* name, papuga_Iterator* iterator)
 {
 	int itercnt = 0;
