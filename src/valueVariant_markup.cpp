@@ -107,7 +107,7 @@ struct OutputContext
 	}
 	void setNextTagInvisible()
 	{
-		invisibleDepth = maxDepth-2;
+		invisibleDepth = maxDepth-1;
 	}
 	bool titleVisible() const
 	{
