@@ -1332,7 +1332,7 @@ static void* ValueVariant_tomarkup(
 	{
 		append_tag_open_root( ctx, rootname);
 	}
-	if ((styleType == StyleTEXT || styleType == StyleHTML) && ValueVariant_isArray( *self))
+	if ((styleType == StyleTEXT || styleType == StyleHTML) && (ValueVariant_isArray( *self) || papuga_ValueVariant_isatomic( self)))
 	{
 		ctx.setNextTagInvisible();
 	}
