@@ -23,7 +23,7 @@ case $OS in
 	Darwin)
 		brew update
 		brew upgrade cmake
-		brew install boost@1.68
+		brew install boost@1.70
 		if test "x$PAPUGA_WITH_PHP" = "xYES"; then
 			brew install openssl php71 || true
 		fi
