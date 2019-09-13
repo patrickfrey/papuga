@@ -2,9 +2,11 @@ language: cpp
 matrix:
   include:
     - os: osx
+      osx_image: xcode10.2
       compiler: clang
       env: PAPUGA_WITH_PYTHON=YES PAPUGA_WITH_PHP=NO PAPUGA_WITH_LUA=NO
     - os: osx
+      osx_image: xcode9.3
       compiler: clang
       env: PAPUGA_WITH_PYTHON=NO PAPUGA_WITH_PHP=NO PAPUGA_WITH_LUA=YES
     - os: linux
