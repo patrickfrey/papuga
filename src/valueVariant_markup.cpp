@@ -109,6 +109,10 @@ struct OutputContext
 	{
 		invisibleDepth = maxDepth-1;
 	}
+	void setFollowTagInvisible()
+	{
+		invisibleDepth = maxDepth-2;
+	}
 	bool titleVisible() const
 	{
 		return maxDepth <= invisibleDepth;
@@ -1332,9 +1336,16 @@ static void* ValueVariant_tomarkup(
 	{
 		append_tag_open_root( ctx, rootname);
 	}
-	if ((styleType == StyleTEXT || styleType == StyleHTML) && (ValueVariant_isArray( *self) || papuga_ValueVariant_isatomic( self)))
+	if (styleType == StyleTEXT || styleType == StyleHTML)
 	{
-		ctx.setNextTagInvisible();
+		if (ValueVariant_isArray( *self))
+		{
+			ctx.setFollowTagInvisible();
+		}
+		else if (papuga_ValueVariant_isatomic( self))
+		{
+			ctx.setNextTagInvisible();
+		}
 	}
 	if (!ValueVariant_tomarkup_node( ctx, elemname, *self))
 	{
