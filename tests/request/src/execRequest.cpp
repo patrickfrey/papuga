@@ -182,7 +182,8 @@ static void reportRequestError( papuga_ErrorBuffer& errorbuf, const papuga_Reque
 		papuga_ErrorCode errcode;
 
 		papuga_init_Allocator( &allocator, allocator_mem, sizeof(allocator_mem));
-		const char* locinfo = papuga_request_content_tostring( &allocator, doctype, encoding, doc.c_str(), doc.size(), errstruct.scopestart, 3/*max depth*/, &errcode);
+		int locinfolen = 0;
+		const char* locinfo = papuga_request_content_tostring( &allocator, doctype, encoding, doc.c_str(), doc.size(), errstruct.scopestart, 3/*max depth*/, &locinfolen, &errcode);
 		if (locinfo)
 		{
 			papuga_ErrorBuffer_appendMessage( &errorbuf, " error scope: %s", locinfo);

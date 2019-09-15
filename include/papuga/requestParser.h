@@ -174,10 +174,11 @@ bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Req
  * @param[in] doclen size of docstr in bytes
  * @param[in] scopestart the ordinal position of the start of the scope to print (ordinal position means the count of request parser events, calls of papuga_RequestParser_next)
  * @param[in] maxdepth maximum depth of substructures to print (deeper structures are represented with "...")
+ * @param[out] reslength length of the returned string in bytes
  * @param[out] errcode the error code in case of an error
  * @return the content structure or NULL in case of failure
  */
-const char* papuga_request_content_tostring( papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int scopestart, int maxdepth, papuga_ErrorCode* errcode);
+const char* papuga_request_content_tostring( papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int scopestart, int maxdepth, int* reslength, papuga_ErrorCode* errcode);
 
 /*
  * @brief Initialize value variant from a JSON string

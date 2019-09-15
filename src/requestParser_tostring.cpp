@@ -19,7 +19,7 @@
 
 #define LOCATION_INFO_VALUE_MAX_LENGTH 48
 
-extern "C" const char* papuga_request_content_tostring( papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int scopestart, int maxdepth, papuga_ErrorCode* errcode)
+extern "C" const char* papuga_request_content_tostring( papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int scopestart, int maxdepth, int* reslength, papuga_ErrorCode* errcode)
 {
 	char* rt = NULL;
 	papuga_RequestParser* parser = 0;
@@ -32,8 +32,11 @@ extern "C" const char* papuga_request_content_tostring( papuga_Allocator* alloca
 	try
 	{
 		parser = papuga_create_RequestParser( allocator, doctype, encoding, docstr, doclen, errcode);
-		if (!parser) return NULL;
-
+		if (!parser)
+		{
+			if (reslength) *reslength = 0;
+			return NULL;
+		}
 		while (papuga_RequestElementType_None != (elemtype = papuga_RequestParser_next( parser, &elemval)) && pi < scopestart) ++pi;
 		// .... skip to the start position
 
@@ -128,21 +131,25 @@ extern "C" const char* papuga_request_content_tostring( papuga_Allocator* alloca
 	}
 	catch (const std::bad_alloc&)
 	{
+		if (reslength) *reslength = 0;
 		*errcode = papuga_NoMemError;
 		goto EXIT;
 	}
 	catch (...)
 	{
+		if (reslength) *reslength = 0;
 		*errcode = papuga_TypeError;
 		goto EXIT;
 	}
 	rt = (char*)papuga_Allocator_alloc( allocator, locinfo.size()+1, 1);
 	if (!rt)
 	{
+		if (reslength) *reslength = 0;
 		*errcode = papuga_NoMemError;
 		goto EXIT;
 	}
 	std::memcpy( rt, locinfo.c_str(), locinfo.size());
+	if (reslength) *reslength = locinfo.size();
 	rt[ locinfo.size()] = 0;
 EXIT:
 	if (parser) papuga_destroy_RequestParser( parser);
