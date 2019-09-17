@@ -14,8 +14,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#undef PAPUGA_LOWLEVEL_DEBUG
-
 papuga_ContentType papuga_contentTypeFromName( const char* name)
 {
 	if (NULL!=strstr( name, "xml") || NULL!=strstr( name, "XML"))
@@ -250,16 +248,6 @@ bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Req
 	while (!done)
 	{
 		papuga_RequestElementType elemtype = papuga_RequestParser_next( parser, &value);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-		{
-			char buf[ 1024];
-			size_t len;
-			papuga_ErrorCode err2 = papuga_Ok;
-			papuga_ValueVariant_tostring_enc( value, papuga_UTF8, buf, sizeof(buf), &len, &err2);
-			if (err2 != papuga_Ok) snprintf( buf, sizeof(buf), "...");
-			fprintf( stderr, "parser feed %s '%s'\n", papuga_requestElementTypeName( elemtype), buf);
-		}
-#endif
 		switch (elemtype)
 		{
 			case papuga_RequestElementType_None:
