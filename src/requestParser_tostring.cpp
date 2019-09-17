@@ -120,7 +120,7 @@ extern "C" const char* papuga_request_content_tostring( papuga_Allocator* alloca
 								}
 								else
 								{
-									locinfo.append( "...");
+									locinfo.append( " ...");
 								}
 							}
 							else if (!papuga::ValueVariant_append_string( locinfo, elemval, *errcode))
