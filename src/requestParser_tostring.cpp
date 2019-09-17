@@ -19,6 +19,14 @@
 
 #define LOCATION_INFO_VALUE_MAX_LENGTH 48
 
+#define B10000000 0x80
+#define B11000000 0xC0
+
+static bool isUTF8MidChar( unsigned char ch)
+{
+	return (ch >= B10000000 && (ch & B11000000) == B10000000);
+}
+
 extern "C" const char* papuga_request_content_tostring( papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* docstr, size_t doclen, int scopestart, int maxdepth, int* reslength, papuga_ErrorCode* errcode)
 {
 	char* rt = NULL;
@@ -99,6 +107,13 @@ extern "C" const char* papuga_request_content_tostring( papuga_Allocator* alloca
 							if (elemval.length > LOCATION_INFO_VALUE_MAX_LENGTH)
 							{
 								elemval.length = LOCATION_INFO_VALUE_MAX_LENGTH;
+								if (elemval.encoding == papuga_UTF8)
+								{
+									while (elemval.length > 0 && isUTF8MidChar( elemval.value.string[elemval.length-1]))
+									{
+										--elemval.length;
+									}
+								}
 								if (!papuga::ValueVariant_append_string( locinfo, elemval, *errcode))
 								{
 									locinfo.append( "??");
