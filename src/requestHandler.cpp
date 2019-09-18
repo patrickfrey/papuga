@@ -224,8 +224,6 @@ private:
 	std::vector<RequestVariableRef> m_impl;
 };
 
-typedef papuga::shared_ptr<RequestVariableMap> RequestVariableMapRef;
-
 /*
  * @brief Defines the context of a request
  */
