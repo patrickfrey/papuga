@@ -566,9 +566,11 @@ public:
 	{
 		try
 		{
+			// Add Constant,OpenStructure,OpenArray,ResultReference,InputReference (with first priority):
 			papuga_RequestResultNodeDescription* ni = descr->nodear;
 			papuga_RequestResultNodeDescription* ne = descr->nodear + descr->nodearsize;
-			for (std::size_t nidx=0; ni != ne; ++ni,++nidx)
+			std::size_t nidx = 0;
+			for (; ni != ne; ++ni,++nidx)
 			{
 				switch (ni->type)
 				{
@@ -584,6 +586,36 @@ public:
 						m_resultVariables.insert( ni->value.str);
 						/* no break here! */
 					case papuga_ResultNodeInputReference:
+					{
+						std::string closeexpr = cut_trailing_slashes( ni->inputselect);
+						closeexpr.push_back( '~');
+						if (!addResultInstructionTrigger( closeexpr, m_resultdefs.size(), nidx))
+						{
+							return false;
+						}
+						break;
+					}
+					case papuga_ResultNodeCloseStructure:
+					case papuga_ResultNodeCloseArray:
+						/* ignore */
+						break;
+				}
+			}
+			ni = descr->nodear;
+			ne = descr->nodear + descr->nodearsize;
+			nidx = 0;
+			// Add Constant,OpenStructure,OpenArray,ResultReference,InputReference (with second priority):
+			for (; ni != ne; ++ni,++nidx)
+			{
+				switch (ni->type)
+				{
+					case papuga_ResultNodeConstant:
+					case papuga_ResultNodeOpenStructure:
+					case papuga_ResultNodeOpenArray:
+					case papuga_ResultNodeResultReference:
+					case papuga_ResultNodeInputReference:
+						/* ignore */
+						break;
 					case papuga_ResultNodeCloseStructure:
 					case papuga_ResultNodeCloseArray:
 					{
