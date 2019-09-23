@@ -454,7 +454,7 @@ private:
 
 public:
 	/// \brief Constructor defining an empty automaton to be filled with further method calls
-	/// \param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
+	/// \param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request (e.g. the main configuration)
 	RequestAutomaton(
 		const papuga_ClassDef* classdefs,
 		const papuga_StructInterfaceDescription* structdefs,

@@ -258,7 +258,6 @@ int main( int argc, const char* argv[])
 	try
 	{
 		unsigned int nodes = atoi( argv[1]);
-		unsigned int arraysize = argv[2] ? atoi( argv[2]):3;
 		{
 			std::vector<RandomValue> ar = createRandomSerialization( nodes);
 			papuga_Allocator allocator;
@@ -299,72 +298,6 @@ int main( int argc, const char* argv[])
 #endif
 			papuga_destroy_Allocator( &allocator);
 			std::cerr << "1) random fill test" << std::endl;
-		}{
-			std::vector<RandomValue> ar = createRandomSerializationArray( arraysize, nodes);
-			papuga_ErrorCode errcode = papuga_Ok;
-			papuga_Allocator allocator;
-			papuga_Serialization ser;
-			papuga_SerializationIter seritr;
-
-			papuga_init_Allocator( &allocator, 0, 0);
-			papuga_init_Serialization( &ser, &allocator);
-			std::vector<RandomValue>::const_iterator ai = ar.begin(), ae = ar.end();
-			for (; ai != ae; ++ai)
-			{
-				ai->push2ser( &ser);
-			}
-			papuga_init_SerializationIter( &seritr, &ser);
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			std::cout << "enumerated array serialization:" << std::endl;
-			std::cout << papuga::Serialization_tostring( ser, errcode) << std::endl;
-			if (errcode != papuga_Ok) throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
-#endif
-			papuga_Serialization_convert_array_assoc( &ser, &seritr, 0, &errcode);
-
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			std::cout << "associative array serialization:" << std::endl;
-			std::cout << papuga::Serialization_tostring( ser, errcode) << std::endl;
-			if (errcode != papuga_Ok) throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
-#endif
-			int bcnt = 0, acnt = 0;
-			papuga_init_SerializationIter( &seritr, &ser);
-			int aidx = 1;
-			for (ai = ar.begin(); ai != ae; ++ai,papuga_SerializationIter_skip(&seritr),++aidx)
-			{
-				if (bcnt == 0)
-				{
-					if (papuga_SerializationIter_tag(&seritr) != papuga_TagName) throw std::runtime_error( "missing array element name");
-					const papuga_ValueVariant* nameval = papuga_SerializationIter_value( &seritr);
-					if (nameval->valuetype != papuga_TypeInt) throw std::runtime_error( "array element name expected to of type INT");
-					if ((int)nameval->value.Int != acnt) throw std::runtime_error( "array element name not strictly ascending from 0");
-					papuga_SerializationIter_skip(&seritr);
-					++acnt;
-				}
-				if (papuga_SerializationIter_tag(&seritr) == papuga_TagOpen)
-				{
-					bcnt++;
-				}
-				if (papuga_SerializationIter_tag(&seritr) == papuga_TagClose)
-				{
-					bcnt--;
-				}
-				if (papuga_SerializationIter_eof(&seritr))
-				{
-					throw std::runtime_error( std::string( "unexpected end of random serialization array"));
-				}
-				if (!ai->cmp( seritr))
-				{
-					char buf[ 64];
-					std::snprintf( buf, sizeof( buf), "%d", aidx);
-					throw std::runtime_error( std::string("diff in random serialization compared to source at index ") + buf);
-				}
-			}
-			if (!papuga_SerializationIter_eof(&seritr))
-			{
-				throw std::runtime_error( std::string("unexpected elements in random serialization at end of source"));
-			}
-			papuga_destroy_Allocator( &allocator);
-			std::cerr << "2) enumerated to associative array transformation test" << std::endl;
 		}
 		std::cerr << "OK" << std::endl;
 		return 0;

@@ -412,13 +412,48 @@ static bool serialize_value( papuga_CallArgs* as, papuga_Serialization* result, 
 	return true;
 }
 
+static bool serialize_map( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
+{
+	STACKTRACE( ls, "loop before serialize table as map");
+	lua_pushvalue( ls, li);
+	lua_pushnil( ls);
+
+	while (lua_next( ls, -2))
+	{
+		STACKTRACE( ls, "loop next serialize table as map");
+		if (!serialize_key( as, result, ls, -2)) goto ERROR;
+		if (!serialize_value( as, result, ls, -1)) goto ERROR;
+		lua_pop( ls, 1);
+	}
+	lua_pop( ls, 1);
+	STACKTRACE( ls, "loop after serialize table as map");
+	return true;
+ERROR:
+	lua_pop( ls, 3);
+	STACKTRACE( ls, "loop after serialize table as map (error)");
+	return false;
+}
+
+static bool is_array_index( lua_State* ls, int li, int idx)
+{
+	if (lua_isnumber( ls, li))
+	{
+		double idxval = lua_tonumber( ls, li);
+		if (IS_CONVERTIBLE_TOUINT( idxval))
+		{
+			int curidx = (int)(idxval + NUM_EPSILON);
+			return (curidx == idx);
+		}
+	}
+	return false;
+}
+
 static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
 {
 	int idx = 0;
-	papuga_SerializationIter start;
-	papuga_init_SerializationIter_last( &start, result);
-	bool start_at_eof = papuga_SerializationIter_eof( &start);
-	/*... we mark the end of the result as start of conversion to an associative array (map), if assumption of array fails */
+	papuga_SerializationIter arrayStart;
+	papuga_init_SerializationIter_end( &arrayStart, result);
+	/*... assume array first */
 
 	if (!lua_checkstack( ls, 8))
 	{
@@ -431,39 +466,20 @@ static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, l
 	while (lua_next( ls, -2))
 	{
 		STACKTRACE( ls, "loop next serialize table as map or array");
-		if (lua_isnumber( ls, -2))
+		if (is_array_index( ls, -2, idx+1))
 		{
-			double idxval = lua_tonumber( ls, -2);
-			if (IS_CONVERTIBLE_TOUINT( idxval))
-			{
-				int curidx = (int)(idxval + NUM_EPSILON);
-				if (curidx == ++idx)
-				{
-					/* ... still an array, push sequence of values */
-					serialize_value( as, result, ls, -1);
-					lua_pop(ls, 1);
-					continue;
-				}
-			}
+			/* ... still an array, push sequence of values */
+			++idx;
+			serialize_value( as, result, ls, -1);
+			lua_pop(ls, 1);
 		}
-		/*... not an array, convert to map and continue to build rest of map */
-		if (!start_at_eof)
+		else
 		{
-			papuga_SerializationIter_skip( &start);
-			if (!papuga_Serialization_convert_array_assoc( result, &start, 1, &as->errcode)) goto ERROR;
+			/*... not an array, but still assumed as one, restart converting assuming a map as result */
+			if (idx) papuga_Serialization_release_tail( result, &arrayStart);
+			lua_pop( ls, 3);
+			return serialize_map( as, result, ls, li);
 		}
-		if (!serialize_key( as, result, ls, -2)) goto ERROR;
-		if (!serialize_value( as, result, ls, -1)) goto ERROR;
-		lua_pop(ls, 1);
-
-		while (lua_next( ls, -2))
-		{
-			STACKTRACE( ls, "loop next serialize table as map");
-			if (!serialize_key( as, result, ls, -2)) goto ERROR;
-			if (!serialize_value( as, result, ls, -1)) goto ERROR;
-			lua_pop( ls, 1);
-		}
-		break;
 	}
 	lua_pop( ls, 1);
 	STACKTRACE( ls, "loop after serialize array");

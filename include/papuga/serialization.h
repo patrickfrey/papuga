@@ -23,7 +23,7 @@ extern "C" {
 * @param[out] self pointer to structure 
 * @param[in] allocator_ pointer to allocator to use
 */
-#define papuga_init_Serialization(self_,allocator_)		{papuga_Serialization* s = (self_); s->head.next=NULL; s->head.size=0; s->allocator=(allocator_); s->current=&s->head; s->structid=0;}
+#define papuga_init_Serialization(self_,allocator_)		{papuga_Serialization* s = (self_); s->head.next=NULL; s->head.size=0; s->allocator=(allocator_); s->current=&s->head; s->freelist=0; s->structid=0;}
 
 /*
 * @brief Define the structure to be used for serialization (default 0 for dictionary)
@@ -271,14 +271,11 @@ bool papuga_Serialization_append_json( papuga_Serialization* self, const char* c
 bool papuga_Serialization_append_xml( papuga_Serialization* self, const char* content, size_t contentlen, papuga_StringEncoding enc, bool withRoot, bool ignoreEmptyContent, papuga_ErrorCode* errcode);
 
 /*
-* @brief Converting a tail sequence from an array to an associative array
+* @brief Release the part of the serialization starting on a defined iterator position
 * @param[in,out] self pointer to structure
-* @param[in] seriter iterator pointing to start of the serialization of the array to convert
-* @param[in] countfrom start counting of the inserted indices
-* @return true on success, false on error
+* @param[in] seriter iterator pointing to start of the part of the serialization tail to release
 */
-bool papuga_Serialization_convert_array_assoc( papuga_Serialization* self, const papuga_SerializationIter* seriter, unsigned int countfrom, papuga_ErrorCode* errcode);
-
+void papuga_Serialization_release_tail( papuga_Serialization* self, papuga_SerializationIter* seriter);
 
 /*
 * @brief Print serialization in readable form as null terminated string, 
@@ -317,6 +314,15 @@ void papuga_init_SerializationIter( papuga_SerializationIter* self, const papuga
 * @param[in] ser serialization to iterate on
 */
 void papuga_init_SerializationIter_last( papuga_SerializationIter* self, const papuga_Serialization* ser);
+
+/*
+* @brief Serialization iterator constructor skipping to the end of serialization
+* @note As the future value and tag are not known yet, they are set to NULL and Close
+* @note The end is only useful for marking an iterator position, rather than refering to its value
+* @param[out] self pointer to structure 
+* @param[in] ser serialization to iterate on
+*/
+void papuga_init_SerializationIter_end( papuga_SerializationIter* self, const papuga_Serialization* ser);
 
 /*
 * @brief Serialization iterator copy constructor

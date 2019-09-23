@@ -201,31 +201,7 @@ DLL_PUBLIC void papuga_php_init()
 static bool serializeValue( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 static bool serializeMemberValue( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
-static bool serializeRestAssocArray( papuga_Serialization* ser, HashTable *hash, HashPosition* ptr, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
-{
-	bool rt = true;
-	zval *data;
-	zend_string *str_index;
-	zend_ulong num_index;
-
-	for( data = zend_hash_get_current_data_ex( hash, ptr);
-		data != NULL;
-		zend_hash_move_forward_ex( hash, ptr), data = zend_hash_get_current_data_ex( hash, ptr))
-	{
-		if (zend_hash_get_current_key_ex( hash, &str_index, &num_index, ptr) == HASH_KEY_IS_STRING)
-		{
-			rt &= papuga_Serialization_pushName_string( ser, ZSTR_VAL(str_index), ZSTR_LEN(str_index));
-		}
-		else
-		{
-			rt &= papuga_Serialization_pushName_int( ser, num_index);
-		}
-		rt &= serializeMemberValue( ser, data, cemap, errcode);
-	}
-	return rt;
-}
-
-static bool serializeHashTable( papuga_Serialization* ser, HashTable *hash, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+static bool serializeHashTableAsArray( papuga_Serialization* ser, HashTable *hash, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	bool rt = true;
 	zval *data;
@@ -233,8 +209,8 @@ static bool serializeHashTable( papuga_Serialization* ser, HashTable *hash, cons
 	zend_string *str_index;
 	zend_ulong num_index;
 	zend_ulong indexcount = 0;
-	papuga_SerializationIter resultstart;
-	papuga_init_SerializationIter_last( &resultstart, ser);
+	papuga_SerializationIter arrayStart;
+	papuga_init_SerializationIter_end( &arrayStart, ser);
 
 	for(
 		zend_hash_internal_pointer_reset_ex( hash, &ptr), data = zend_hash_get_current_data_ex(hash,&ptr);
@@ -243,22 +219,8 @@ static bool serializeHashTable( papuga_Serialization* ser, HashTable *hash, cons
 	{
 		if (zend_hash_get_current_key_ex( hash, &str_index, &num_index, &ptr) == HASH_KEY_IS_STRING)
 		{
-			if (indexcount)
-			{
-				papuga_SerializationIter_skip( &resultstart);
-				if (!papuga_Serialization_convert_array_assoc( ser, &resultstart, 0/*start count*/, errcode))
-				{
-					return false;
-				}
-			}
-			rt &= papuga_Serialization_pushName_string( ser, ZSTR_VAL(str_index), ZSTR_LEN(str_index));
-			rt &= serializeMemberValue( ser, data, cemap, errcode);
-
-			zend_hash_move_forward_ex( hash, &ptr);
-			if (!serializeRestAssocArray( ser, hash, &ptr, cemap, errcode))
-			{
-				return false;
-			}
+			if (indexcount) papuga_Serialization_release_tail( ser, &arrayStart);
+			return false;
 		}
 		else if (num_index == indexcount)
 		{
@@ -267,30 +229,53 @@ static bool serializeHashTable( papuga_Serialization* ser, HashTable *hash, cons
 		}
 		else
 		{
-			if (indexcount)
-			{
-				papuga_SerializationIter_skip( &resultstart);
-				if (!papuga_Serialization_convert_array_assoc( ser, &resultstart, 0/*start count*/, errcode))
-				{
-					return false;
-				}
-			}
-			rt &= papuga_Serialization_pushName_int( ser, num_index);
-			rt &= serializeMemberValue( ser, data, cemap, errcode);
-
-			zend_hash_move_forward_ex(hash,&ptr);
-			if (!serializeRestAssocArray( ser, hash, &ptr, cemap, errcode))
-			{
-				return false;
-			}
+			if (indexcount) papuga_Serialization_release_tail( ser, &arrayStart);
+			return false;
 		}
 	}
 	return rt;
 }
 
+static bool serializeHashTableAsMap( papuga_Serialization* ser, HashTable *hash, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+{
+	bool rt = true;
+	zval *data;
+	HashPosition ptr;
+	zend_string *str_index;
+	zend_ulong num_index;
+
+	for(
+		zend_hash_internal_pointer_reset_ex( hash, &ptr), data = zend_hash_get_current_data_ex(hash,&ptr);
+		data != NULL;
+		zend_hash_move_forward_ex(hash,&ptr), data = zend_hash_get_current_data_ex(hash,&ptr))
+	{
+		if (zend_hash_get_current_key_ex( hash, &str_index, &num_index, &ptr) == HASH_KEY_IS_STRING)
+		{
+			rt &= papuga_Serialization_pushName_string( ser, ZSTR_VAL(str_index), ZSTR_LEN(str_index));
+			rt &= serializeMemberValue( ser, data, cemap, errcode);
+
+			zend_hash_move_forward_ex( hash, &ptr);
+		}
+		else
+		{
+			rt &= papuga_Serialization_pushName_int( ser, num_index);
+			rt &= serializeMemberValue( ser, data, cemap, errcode);
+
+			zend_hash_move_forward_ex(hash,&ptr);
+		}
+	}
+	return rt;
+}
+
+static bool serializeHashTable( papuga_Serialization* ser, HashTable *hash, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+{
+	if (serializeHashTableAsArray( ser, hash, cemap, errcode)) return true;
+	return serializeHashTableAsMap( ser, hash, cemap, errcode);
+}
+
 static bool serializeArray( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
-	return serializeHashTable( ser, Z_ARRVAL_P( langval), cemap, errcode);
+	return serializeHashTableAsArray( ser, Z_ARRVAL_P( langval), cemap, errcode);
 }
 
 static bool serializeObject( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
