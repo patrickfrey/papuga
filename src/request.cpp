@@ -1124,10 +1124,7 @@ public:
 		std::size_t ri = 0, re = atm_->resultdefs().size();
 		for (; ri != re; ++ri)
 		{
-			const papuga_RequestResultDescription* rd = atm_->resultdefs()[ ri];
-			m_results[ ri].setName( rd->name);
-			m_results[ ri].setTarget( rd->schema, rd->requestmethod, rd->addressvar, rd->path);
-			m_results[ ri].setEmptyRequest( rd->nodearsize == 0);
+			m_results[ ri].setDescription( atm_->resultdefs()[ ri]);
 		}
 	}
 	~AutomatonContext()
@@ -1833,6 +1830,7 @@ public:
 			result->requestmethod = m_ctx->results()[ idx].requestmethod();
 			result->addressvar = m_ctx->results()[ idx].addressvar();
 			result->path = m_ctx->results()[ idx].path();
+			result->contentvar = m_ctx->results()[ idx].contentvar();
 			papuga_init_Serialization( &result->serialization, allocator);
 
 			const char* unresolvedVar = m_ctx->results()[ idx].findUnresolvedResultVariable();

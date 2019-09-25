@@ -168,6 +168,15 @@ void RequestAutomaton_ResolveDef::addToAutomaton( const std::string& rootexpr, p
 	}
 }
 
+void RequestAutomaton_ResultElementDefList::defineRoot( const char* rootexpr)
+{
+	std::vector<RequestAutomaton_ResultElementDef>::iterator ri = begin(), re = end();
+	for (; ri != re; ++ri)
+	{
+		ri->inputselect = joinExpression( rootexpr, ri->inputselect);
+	}
+}
+
 void RequestAutomaton_ResultDef::addToAutomaton( papuga_RequestAutomaton* atm) const
 {
 	papuga_RequestResultDescription* descr = papuga_create_RequestResultDescription( m_name, m_schema, m_requestmethod, m_addressvar, m_path);
@@ -181,21 +190,30 @@ void RequestAutomaton_ResultDef::addToAutomaton( papuga_RequestAutomaton* atm) c
 				throw std::runtime_error(_TXT("empty element in result definition structure"));
 				break;
 			case RequestAutomaton_ResultElementDef::Structure:
-				if (!papuga_RequestResultDescription_push_structure( descr, ei->inputselect, ei->tagname, false)) throw std::bad_alloc();
+				if (!papuga_RequestResultDescription_push_structure( descr, ei->inputselect.c_str(), ei->tagname, false)) throw std::bad_alloc();
 				break;
 			case RequestAutomaton_ResultElementDef::Array:
-				if (!papuga_RequestResultDescription_push_structure( descr, ei->inputselect, ei->tagname, true)) throw std::bad_alloc();
+				if (!papuga_RequestResultDescription_push_structure( descr, ei->inputselect.c_str(), ei->tagname, true)) throw std::bad_alloc();
 				break;
 			case RequestAutomaton_ResultElementDef::Constant:
-				if (!papuga_RequestResultDescription_push_constant( descr, ei->inputselect, ei->tagname, ei->str)) throw std::bad_alloc();
+				if (!papuga_RequestResultDescription_push_constant( descr, ei->inputselect.c_str(), ei->tagname, ei->str)) throw std::bad_alloc();
 				break;
 			case RequestAutomaton_ResultElementDef::InputReference:
-				if (!papuga_RequestResultDescription_push_input( descr, ei->inputselect, ei->tagname, ei->itemid, ei->resolvetype)) throw std::bad_alloc();
+				if (!papuga_RequestResultDescription_push_input( descr, ei->inputselect.c_str(), ei->tagname, ei->itemid, ei->resolvetype)) throw std::bad_alloc();
 				break;
 			case RequestAutomaton_ResultElementDef::ResultReference:
-				if (!papuga_RequestResultDescription_push_callresult( descr, ei->inputselect, ei->tagname, ei->str, ei->resolvetype)) throw std::bad_alloc();
+				if (!papuga_RequestResultDescription_push_callresult( descr, ei->inputselect.c_str(), ei->tagname, ei->str, ei->resolvetype)) throw std::bad_alloc();
 				break;
 		}
+	}
+	if (m_contentvars.size() > papuga_RequestResultDescription_MaxNofContentVars)
+	{
+		throw std::runtime_error( papuga_ErrorCode_tostring( papuga_BufferOverflowError));
+	}
+	std::vector<const char*>::const_iterator ci = m_contentvars.begin(), ce = m_contentvars.end();
+	for (; ci != ce; ++ci)
+	{
+		if (!papuga_RequestResultDescription_push_content_variable( descr, *ci)) throw std::bad_alloc();
 	}
 	if (!papuga_RequestAutomation_add_result( atm, descr)) throw std::bad_alloc();
 }

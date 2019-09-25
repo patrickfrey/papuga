@@ -65,7 +65,7 @@ class RequestResultTemplate
 {
 public:
 	explicit RequestResultTemplate()
-		:m_name(0),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_emptyRequest(false)
+		:m_descr(0)
 	{
 		papuga_init_Allocator( &m_allocator, m_allocatormem, sizeof(m_allocatormem));
 	}
@@ -219,48 +219,47 @@ public:
 		}
 		return rt;
 	}
+
 	const std::vector<RequestResultItem>& items() const
 	{
 		return m_ar;
 	}
+	bool emptyResultRequest() const
+	{
+		return m_descr->nodearsize == 0;
+	}
 	bool valid() const
 	{
-		return m_emptyRequest || !m_ar.empty();
+		return emptyResultRequest() || !m_ar.empty() || !!m_descr->contentvarsize;
 	}
-	void setName( const char* name_)
+
+	void setDescription( const papuga_RequestResultDescription* descr_)
 	{
-		m_name = name_;
-	}
-	void setTarget( const char* schema_, const char* requestmethod_, const char* addressvar_, const char* path_)
-	{
-		m_schema = schema_;
-		m_requestmethod = requestmethod_;
-		m_addressvar = addressvar_;
-		m_path = path_;
-	}
-	void setEmptyRequest( bool isEmptyRequest_)
-	{
-		m_emptyRequest = isEmptyRequest_;
+		m_descr = descr_;
 	}
 	const char* name() const
 	{
-		return m_name;
+		return m_descr->name;
 	}
 	const char* schema() const
 	{
-		return m_schema;
+		return m_descr->schema;
 	}
 	const char* requestmethod() const
 	{
-		return m_requestmethod;
+		return m_descr->requestmethod;
 	}
 	const char* addressvar() const
 	{
-		return m_addressvar;
+		return m_descr->addressvar;
 	}
 	const char* path() const
 	{
-		return m_path;
+		return m_descr->path;
+	}
+	const char* const* contentvar() const
+	{
+		return m_descr->contentvar;
 	}
 
 private:
@@ -295,12 +294,7 @@ private:
 	};
 
 private:
-	const char* m_name;
-	const char* m_schema;
-	const char* m_requestmethod;
-	const char* m_addressvar;
-	const char* m_path;
-	bool m_emptyRequest;
+	const papuga_RequestResultDescription* m_descr;
 	std::vector<RequestResultItem> m_ar;
 	std::vector<ResultRef> m_resultrefs;
 	std::vector<InputRef> m_inputrefs;

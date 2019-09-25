@@ -253,15 +253,11 @@ static bool serializeHashTableAsMap( papuga_Serialization* ser, HashTable *hash,
 		{
 			rt &= papuga_Serialization_pushName_string( ser, ZSTR_VAL(str_index), ZSTR_LEN(str_index));
 			rt &= serializeMemberValue( ser, data, cemap, errcode);
-
-			zend_hash_move_forward_ex( hash, &ptr);
 		}
 		else
 		{
 			rt &= papuga_Serialization_pushName_int( ser, num_index);
 			rt &= serializeMemberValue( ser, data, cemap, errcode);
-
-			zend_hash_move_forward_ex(hash,&ptr);
 		}
 	}
 	return rt;
@@ -275,7 +271,7 @@ static bool serializeHashTable( papuga_Serialization* ser, HashTable *hash, cons
 
 static bool serializeArray( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
-	return serializeHashTableAsArray( ser, Z_ARRVAL_P( langval), cemap, errcode);
+	return serializeHashTable( ser, Z_ARRVAL_P( langval), cemap, errcode);
 }
 
 static bool serializeObject( papuga_Serialization* ser, zval* langval, const papuga_php_ClassEntryMap* cemap, papuga_ErrorCode* errcode)

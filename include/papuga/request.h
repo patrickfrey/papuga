@@ -35,8 +35,15 @@ typedef struct papuga_RequestMethodId
 } papuga_RequestMethodId;
 
 /*
- * @brief Describes a result of a request
- */
+ * @brief Structure holding the result of a request
+* @member name name of the result, root element (constant, string not copied)
+* @member schema name of the schema that handles the request if the result forms a request to other servers
+* @member requestmethod request method if the result forms a request to other servers
+* @member addressvar name of the variable with the urls if the result forms a request to other servers
+* @member path additional path added to urls referenced in address variables if the result forms a request to other servers
+* @member contentvar list of variable names addressing content to attach to the result (NULL terminated)
+* @member serialization serialization of the result
+*/
 typedef struct papuga_RequestResult
 {
 	const char* name;
@@ -44,6 +51,7 @@ typedef struct papuga_RequestResult
 	const char* requestmethod;
 	const char* addressvar;
 	const char* path;
+	const char* const* contentvar;
 	papuga_Serialization serialization;
 } papuga_RequestResult;
 
@@ -416,7 +424,7 @@ const papuga_RequestMethodCall* papuga_RequestIterator_next_call( papuga_Request
 bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, const papuga_ValueVariant* result);
 
 /*
- * @brief Get the list of all non empty results of a request
+ * @brief Get the list of all non empty results of a request, without content of variables (contentvar) attached to the result serialization yet
  * @note Empty result means that it was not created at all, not an empty content returned with the result)
  * @param[in,out] self this context pointer
  * @param[in] allocator allocator to use for the result array and its contents

@@ -49,6 +49,8 @@ extern "C" papuga_RequestResultDescription* papuga_create_RequestResultDescripti
 	rt->nodear = 0;
 	rt->nodearallocsize = 0;
 	rt->nodearsize = 0;
+	std::memset( rt->contentvar, 0, sizeof(rt->contentvar));
+	rt->contentvarsize = 0;
 	return rt;
 }
 
@@ -133,5 +135,11 @@ extern "C" bool papuga_RequestResultDescription_push_callresult( papuga_RequestR
 	return true;
 }
 
-
+extern "C" bool papuga_RequestResultDescription_push_content_variable( papuga_RequestResultDescription* descr, const char* variable)
+{
+	if (descr->contentvarsize >= papuga_RequestResultDescription_MaxNofContentVars) return false;
+	descr->contentvar[ descr->contentvarsize++] = variable;
+	descr->contentvar[ descr->contentvarsize] = 0;
+	return true;
+}
 

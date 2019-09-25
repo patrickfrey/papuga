@@ -245,7 +245,7 @@ struct RequestAutomaton_ResultElementDef
 	};
 	Type type;
 	papuga_ResolveType resolvetype;
-	const char* inputselect;
+	std::string inputselect;
 	const char* tagname;
 	int itemid;
 	const char* str;
@@ -253,7 +253,7 @@ struct RequestAutomaton_ResultElementDef
 	RequestAutomaton_ResultElementDef( const RequestAutomaton_ResultElementDef& o)
 		:type(o.type),resolvetype(o.resolvetype),inputselect(o.inputselect),tagname(o.tagname),itemid(o.itemid),str(o.str){}
 	RequestAutomaton_ResultElementDef()
-		:type(Empty),resolvetype(papuga_ResolveTypeRequired),inputselect(0),tagname(0),itemid(-1),str(0){}
+		:type(Empty),resolvetype(papuga_ResolveTypeRequired),inputselect(),tagname(0),itemid(-1),str(0){}
 	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, bool array_=false)
 		:type(array_?Array:Structure),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
 	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char* constant_)
@@ -388,13 +388,19 @@ class RequestAutomaton_ResultElementDefList
 {
 public:
 #if __cplusplus >= 201103L
+	RequestAutomaton_ResultElementDefList( const std::initializer_list<RequestAutomaton_ResultElementDefList>& groups)
+		:std::vector<RequestAutomaton_ResultElementDef>(){for (auto& gi: groups) append(gi);}
 	RequestAutomaton_ResultElementDefList( const std::initializer_list<RequestAutomaton_ResultElementDef>& nodes)
 		:std::vector<RequestAutomaton_ResultElementDef>( nodes.begin(), nodes.end()){}
+	RequestAutomaton_ResultElementDefList( const char* rootexpr, const std::initializer_list<RequestAutomaton_ResultElementDef>& nodes)
+		:std::vector<RequestAutomaton_ResultElementDef>( nodes.begin(), nodes.end()){defineRoot(rootexpr);}
 #endif
 	RequestAutomaton_ResultElementDefList()
 		:std::vector<RequestAutomaton_ResultElementDef>(){}
 	RequestAutomaton_ResultElementDefList( const std::vector<RequestAutomaton_ResultElementDef>& nodes)
 		:std::vector<RequestAutomaton_ResultElementDef>( nodes.begin(), nodes.end()){}
+	RequestAutomaton_ResultElementDefList( const char* rootexpr, const std::vector<RequestAutomaton_ResultElementDef>& nodes)
+		:std::vector<RequestAutomaton_ResultElementDef>( nodes.begin(), nodes.end()){defineRoot(rootexpr);}
 	RequestAutomaton_ResultElementDefList( const RequestAutomaton_ResultElementDefList& o)
 		:std::vector<RequestAutomaton_ResultElementDef>( o){}
 
@@ -403,23 +409,35 @@ public:
 	{
 		insert( end(), o.begin(), o.end());
 	}
+private:
+	void defineRoot( const char* rootexpr);
 };
 
 class RequestAutomaton_ResultDef
 {
 public:
 #if __cplusplus >= 201103L
-	RequestAutomaton_ResultDef( const char* name_, const std::initializer_list<RequestAutomaton_ResultElementDef>& elements_)
-		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_elements(elements_){}
-	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const char* path_, const std::initializer_list<RequestAutomaton_ResultElementDef>& elements_)
-		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_path(path_),m_elements(elements_){}
+	RequestAutomaton_ResultDef( const char* name_, const std::initializer_list<const char*>& contentvars_, const std::initializer_list<RequestAutomaton_ResultElementDef>& elements_)
+		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_elements(elements_),m_contentvars(contentvars_){}
+	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const char* path_, const std::initializer_list<const char*>& contentvars_, const std::initializer_list<RequestAutomaton_ResultElementDef>& elements_)
+		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_path(path_),m_elements(elements_),m_contentvars(contentvars_){}
 #endif
-	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const char* path_, const std::vector<RequestAutomaton_ResultElementDef>& elements_)
-		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_path(path_),m_elements(elements_){}
+	RequestAutomaton_ResultDef( const char* name_, const RequestAutomaton_ResultElementDefList& elements_)
+		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_elements(elements_),m_contentvars(){}
+	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const char* path_, const RequestAutomaton_ResultElementDefList& elements_)
+		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_path(path_),m_elements(elements_),m_contentvars(){}
 	RequestAutomaton_ResultDef( const char* name_)
-		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_elements() {}
+		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_elements(),m_contentvars() {}
+
+	RequestAutomaton_ResultDef( const char* name_, const std::vector<const char*>& contentvars_, const RequestAutomaton_ResultElementDefList& elements_)
+		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_elements(elements_),m_contentvars(contentvars_){}
+	RequestAutomaton_ResultDef( const char* name_, const char* schema_, const char* requestmethod_, const char* addressvar_, const char* path_, const std::vector<const char*>& contentvars_, const RequestAutomaton_ResultElementDefList& elements_)
+		:m_name(name_),m_schema(schema_),m_requestmethod(requestmethod_),m_addressvar(addressvar_),m_path(path_),m_elements(elements_),m_contentvars(contentvars_){}
+	RequestAutomaton_ResultDef( const char* name_, const std::vector<const char*>& contentvars_)
+		:m_name(name_),m_schema(0),m_requestmethod(0),m_addressvar(0),m_path(0),m_elements(),m_contentvars(contentvars_) {}
+
 	RequestAutomaton_ResultDef( const RequestAutomaton_ResultDef& o)
-		:m_name(o.m_name),m_schema(o.m_schema),m_requestmethod(o.m_requestmethod),m_addressvar(o.m_addressvar),m_path(o.m_path),m_elements(o.m_elements){}
+		:m_name(o.m_name),m_schema(o.m_schema),m_requestmethod(o.m_requestmethod),m_addressvar(o.m_addressvar),m_path(o.m_path),m_elements(o.m_elements),m_contentvars(o.m_contentvars){}
 	
 	const char* name() const					{return m_name;}
 	const char* schema() const					{return m_schema;}
@@ -440,6 +458,7 @@ private:
 	const char* m_addressvar;
 	const char* m_path;
 	RequestAutomaton_ResultElementDefList m_elements;
+	std::vector<const char*> m_contentvars;
 };
 
 

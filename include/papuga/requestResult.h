@@ -52,6 +52,21 @@ typedef struct papuga_RequestResultNodeDescription
 	} value;
 } papuga_RequestResultNodeDescription;
 
+#define papuga_RequestResultDescription_MaxNofContentVars 7
+
+/*
+* @brief Request result description structure
+* @member name name of the result, root element (constant, string not copied)
+* @member schema name of the schema that handles the request if the result forms a request to other servers
+* @member requestmethod request method if the result forms a request to other servers
+* @member addressvar name of the variable with the urls if the result forms a request to other servers
+* @member path additional path added to urls referenced in address variables if the result forms a request to other servers
+* @member nodear nodes of the result description that trigger the creation of result elements
+* @member nodearallocsize allocation size of nodear
+* @member nodearsize fill size of nodear
+* @member contentvar list of variable names addressing content to attach to the result (NULL terminated)
+* @member contentvarsize number of elements in contentvar
+*/
 typedef struct papuga_RequestResultDescription
 {
 	const char* name;
@@ -62,6 +77,8 @@ typedef struct papuga_RequestResultDescription
 	papuga_RequestResultNodeDescription* nodear;
 	int nodearallocsize;
 	int nodearsize;
+	const char* contentvar[ papuga_RequestResultDescription_MaxNofContentVars+1];
+	int contentvarsize;
 } papuga_RequestResultDescription;
 
 /*
@@ -83,6 +100,7 @@ void papuga_destroy_RequestResultDescription( papuga_RequestResultDescription* s
 
 /*
  * @brief Add a constant node to this output description
+ * @param[in,out] descr result description to modify
  * @param[in] inputselect tag select expression that triggers the output of this result node
  * @param[in] tagname name of the output tag of this node or NULL if no tag is printed for this result node
  * @param[in] constant value of this result node printed
@@ -92,6 +110,7 @@ bool papuga_RequestResultDescription_push_constant( papuga_RequestResultDescript
 
 /*
  * @brief Add a structure node to this output description
+ * @param[in,out] descr result description to modify
  * @param[in] inputselect tag select expression that triggers the output of this result node
  * @param[in] tagname name of the output tag of this node or NULL for an open array element
  * @param[in] array true if the structure is an array
@@ -101,6 +120,7 @@ bool papuga_RequestResultDescription_push_structure( papuga_RequestResultDescrip
 
 /*
  * @brief Add a node referring to an item of the input to this output description
+ * @param[in,out] descr result description to modify
  * @param[in] inputselect tag select expression that triggers the output of this result node
  * @param[in] tagname name of the output tag of this node or NULL for an open array element
  * @param[in] itemid identifier of the node taken from input
@@ -111,6 +131,7 @@ bool papuga_RequestResultDescription_push_input( papuga_RequestResultDescription
 
 /*
  * @brief Add a node referring to a result of a call to this output description
+ * @param[in,out] descr result description to modify
  * @param[in] inputselect tag select expression that triggers the output of this result node
  * @param[in] tagname name of the output tag of this node or NULL for an open array element
  * @param[in] variable name of the variable the result is assigned to
@@ -118,6 +139,14 @@ bool papuga_RequestResultDescription_push_input( papuga_RequestResultDescription
  * @return true in case of success, false in case of a memory allocation error
  */
 bool papuga_RequestResultDescription_push_callresult( papuga_RequestResultDescription* descr, const char* inputselect, const char* tagname, const char* variable, papuga_ResolveType resolvetype);
+
+/*
+ * @brief Add a variable to add the content of to the result
+ * @param[in,out] descr result description to modify
+ * @param[in] variable name of the variable the result is extended with
+ * @return true in case of success, false in case of a memory allocation error or if too many variables defined
+ */
+bool papuga_RequestResultDescription_push_content_variable( papuga_RequestResultDescription* descr, const char* variable);
 
 #ifdef __cplusplus
 }
