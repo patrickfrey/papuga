@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <iostream>
+#include <vector>
 
 #define LOCATION_INFO_VALUE_MAX_LENGTH 48
 
@@ -36,6 +37,8 @@ extern "C" const char* papuga_request_content_tostring( papuga_Allocator* alloca
 	papuga_RequestElementType elemtype;
 	int pi = 1;
 	papuga_ValueVariant elemval;
+	bool separator = false;
+	bool done = false;
 
 	try
 	{
@@ -49,61 +52,60 @@ extern "C" const char* papuga_request_content_tostring( papuga_Allocator* alloca
 		// .... skip to the start position
 
 		// Report location scope until end of next Element
-		while (elemtype != papuga_RequestElementType_None)
+		for (; !done && elemtype != papuga_RequestElementType_None; elemtype = papuga_RequestParser_next( parser, &elemval))
 		{
 			switch (elemtype)
 			{
 				case papuga_RequestElementType_None:
 					break;
 				case papuga_RequestElementType_Open:
-					++taglevel;
 					if (taglevel <= maxdepth)
 					{
-						locinfo.append( " ");
+						if (separator) locinfo.push_back(',');
 						if (!papuga::ValueVariant_append_string( locinfo, elemval, *errcode))
 						{
 							locinfo.append( "??");
 						}
-						locinfo.append( ": {");
+						locinfo.push_back( ':');
+						locinfo.push_back( '{');
 					}
-					elemtype = papuga_RequestParser_next( parser, &elemval);
+					++taglevel;
+					separator = false;
 					break;
 				case papuga_RequestElementType_Close:
 					--taglevel;
 					if (taglevel == maxdepth)
 					{
-						locinfo.append( " ... }");
+						locinfo.append("...");
 					}
-					else
+					if (taglevel <= maxdepth)
 					{
-						locinfo.append( " }");
+						locinfo.push_back( '}');
 					}
-					if (taglevel == 0)
-					{
-						elemtype = papuga_RequestElementType_None;
-						break;
-					}
-					elemtype = papuga_RequestParser_next( parser, &elemval);
+					done = (taglevel == 0);
+					separator = true;
 					break;
 				case papuga_RequestElementType_AttributeName:
 					if (taglevel <= maxdepth)
 					{
-						locinfo.append( " -");
+						if (separator) locinfo.push_back(',');
+						locinfo.push_back( '-');
 						if (!papuga::ValueVariant_append_string( locinfo, elemval, *errcode))
 						{
 							locinfo.append( "??");
 						}
-						locinfo.append( ":");
+						locinfo.push_back( ':');
+						separator = false;
 					}
-					elemtype = papuga_RequestParser_next( parser, &elemval);
 					break;
-				case papuga_RequestElementType_AttributeValue:
 				case papuga_RequestElementType_Value:
+				case papuga_RequestElementType_AttributeValue:
 					if (taglevel <= maxdepth)
 					{
+						if (separator) locinfo.push_back(',');
 						if (elemval.valuetype == papuga_TypeString)
 						{
-							locinfo.append( elemtype == papuga_RequestElementType_Value ? " \"":"\"");
+							locinfo.push_back( '\"');
 							if (elemval.length > LOCATION_INFO_VALUE_MAX_LENGTH)
 							{
 								elemval.length = LOCATION_INFO_VALUE_MAX_LENGTH;
@@ -127,19 +129,15 @@ extern "C" const char* papuga_request_content_tostring( papuga_Allocator* alloca
 							{
 								locinfo.append( "??");
 							}
-							locinfo.append( "\"");
+							locinfo.push_back( '\"');
 						}
 						else if (!papuga::ValueVariant_append_string( locinfo, elemval, *errcode))
 						{
 							locinfo.append( elemtype == papuga_RequestElementType_Value ? " ??":"??");
 						}
 					}
-					if (taglevel == 0)
-					{
-						elemtype = papuga_RequestElementType_None;
-						break;
-					}
-					elemtype = papuga_RequestParser_next( parser, &elemval);
+					separator = true;
+					done = (taglevel == 0);
 					break;
 			}
 		}
