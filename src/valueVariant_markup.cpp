@@ -1358,7 +1358,7 @@ static void* ValueVariant_tomarkup(
 	}
 	ctx.out.append( tail);
 	void* rt = encodeRequestResultString( ctx.out, enc, len, &ctx.errcode);
-	if (rt) papuga_Allocator_add_free_mem( allocator, rt);
+	if (rt && allocator) papuga_Allocator_add_free_mem( allocator, rt);
 	*err = ctx.errcode;
 	return rt;
 }
@@ -1489,6 +1489,36 @@ extern "C" void* papuga_ValueVariant_tojson(
 	}
 }
 
+std::string papuga::ValueVariant_todump( const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structdefs, papuga_ErrorCode& errcode)
+{
+	try
+	{
+		std::ostringstream dump;
+		if (!papuga_ValueVariant_defined( &value))
+		{
+			dump << "\tNULL\n";
+		}
+		else if (papuga_ValueVariant_isatomic( &value))
+		{
+			dump << "\t" << papuga::ValueVariant_tostring( value, errcode);
+		}
+		else if (value.valuetype == papuga_TypeSerialization)
+		{
+			dump << papuga::Serialization_tostring( *value.value.serialization, false/*linemode*/, PAPUGA_MAX_RECURSION_DEPTH, errcode);
+		}
+		else
+		{
+			dump << "\t<" << papuga_Type_name( value.valuetype) << ">\n";
+		}
+		return dump.str();
+	}
+	catch (const std::bad_alloc&)
+	{
+		errcode = papuga_NoMemError;
+		return std::string();
+	}
+}
+
 extern "C" char* papuga_ValueVariant_todump(
 		const papuga_ValueVariant* self,
 		papuga_Allocator* allocator,
@@ -1498,27 +1528,11 @@ extern "C" char* papuga_ValueVariant_todump(
 	papuga_ErrorCode errcode = papuga_Ok;
 	try
 	{
-		std::ostringstream dump;
-		if (!papuga_ValueVariant_defined( self))
-		{
-			dump << "\tNULL\n";
-		}
-		else if (papuga_ValueVariant_isatomic( self))
-		{
-			dump << "\t" << papuga::ValueVariant_tostring( *self, errcode);
-		}
-		else if (self->valuetype == papuga_TypeSerialization)
-		{
-			dump << papuga::Serialization_tostring( *self->value.serialization, false/*linemode*/, PAPUGA_MAX_RECURSION_DEPTH, errcode);
-		}
-		else
-		{
-			dump << "\t<" << papuga_Type_name(self->valuetype) << ">\n";
-		}
-		std::string res( dump.str());
+		std::string res = papuga::ValueVariant_todump( *self, structdefs, errcode);
+		if (errcode) return NULL;
 		char* rt = (char*)std::malloc( res.size() +1);
 		if (!rt) return NULL;
-		papuga_Allocator_add_free_mem( allocator, rt);
+		if (allocator) papuga_Allocator_add_free_mem( allocator, rt);
 		std::memcpy( rt, res.c_str(), res.size() +1);
 		*len = res.size();
 		return rt;
@@ -1527,7 +1541,6 @@ extern "C" char* papuga_ValueVariant_todump(
 	{
 		return NULL;
 	}
-	
 }
 
 

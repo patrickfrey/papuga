@@ -1021,15 +1021,4 @@ extern "C" papuga_ValueVariant* papuga_ValueVariant_tonumeric( const papuga_Valu
 	}
 }
 
-std::string papuga::ValueVariant_todump( const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structdefs, papuga_ErrorCode& errcode)
-{
-	papuga_Allocator allocator;
-	int allocator_mem[ 1024];
-	size_t rtlen;
-	papuga_init_Allocator( &allocator, allocator_mem, sizeof(allocator_mem));
-	char* rtstr = papuga_ValueVariant_todump( &value, &allocator, structdefs, &rtlen);
-	std::string rt( rtstr, rtlen);
-	papuga_destroy_Allocator( &allocator);
-	return rt;
-}
 

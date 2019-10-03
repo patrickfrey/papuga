@@ -271,7 +271,7 @@ bool papuga_ValueVariant_print( FILE* out, const papuga_ValueVariant* val);
 /*
 * @brief Dump the value variant in readable form
 * @param[in] self pointer to structure
-* @param[in] allocator allocator to use
+* @param[in] allocator allocator to use or NULL if the result string is allocated with std::malloc
 * @param[in] structdefs structure descriptions
 * @param[out] len length of the output (UTF-8) in bytes
 * @return the dumped request allocated with malloc on success, NULL on memory allocation error
@@ -285,7 +285,7 @@ char* papuga_ValueVariant_todump(
 /*
 * @brief Map a value variant to XML in a defined encoding
 * @param[in] self pointer to structure
-* @param[in] allocator allocator to use
+* @param[in] allocator allocator to use or NULL if the result string is allocated with std::malloc
 * @param[in] structdefs structure descriptions
 * @param[in] enc encoding of the output
 * @param[in] rootname name of root element
@@ -307,7 +307,7 @@ void* papuga_ValueVariant_toxml(
 /*
 * @brief Map a value variant to HTML5 div style in a defined encoding with some injected meta data
 * @param[in] self pointer to structure
-* @param[in] allocator allocator to use
+* @param[in] allocator allocator to use or NULL if the result string is allocated with std::malloc
 * @param[in] structdefs structure descriptions
 * @param[in] enc encoding of the output
 * @param[in] rootname name of root element
@@ -333,7 +333,7 @@ void* papuga_ValueVariant_tohtml5(
 /*
 * @brief Map a value variant to JSON in a defined encoding
 * @param[in] self pointer to structure
-* @param[in] allocator allocator to use
+* @param[in] allocator allocator to use or NULL if the result string is allocated with std::malloc
 * @param[in] structdefs structure descriptions
 * @param[in] enc encoding of the output
 * @param[in] rootname name of root element
@@ -355,7 +355,11 @@ void* papuga_ValueVariant_tojson(
 /*
 * @brief Dump a value variant as text/plain
 * @param[in] self pointer to structure
+* @param[in] allocator allocator to use or NULL if the result string is allocated with std::malloc
+* @param[in] structdefs structure descriptions
 * @param[in] enc encoding of the output text
+* @param[in] rootname name of root element
+* @param[in] elemname optional name of element in case of an array
 * @param[out] len length of the output in bytes
 * @param[out] err error code in case of error (untouched if call succeeds)
 * @return the dumped text allocated with malloc on success, NULL on memory allocation error
