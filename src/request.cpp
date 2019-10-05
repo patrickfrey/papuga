@@ -604,7 +604,7 @@ public:
 			ni = descr->nodear;
 			ne = descr->nodear + descr->nodearsize;
 			nidx = 0;
-			// Add Constant,OpenStructure,OpenArray,ResultReference,InputReference (with second priority):
+			// Add CloseStructure,CloseArray (with second priority):
 			for (; ni != ne; ++ni,++nidx)
 			{
 				switch (ni->type)

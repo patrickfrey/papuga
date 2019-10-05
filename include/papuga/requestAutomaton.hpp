@@ -256,12 +256,10 @@ struct RequestAutomaton_ResultElementDef
 		:type(Empty),resolvetype(papuga_ResolveTypeRequired),inputselect(),tagname(0),itemid(-1),str(0){}
 	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, bool array_=false)
 		:type(array_?Array:Structure),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
-	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char* constant_)
-		:type(Constant),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(constant_){}
 	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, int itemid_, char resolvechr='!')
 		:type(InputReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(itemid_),str(0){}
-	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char* varname_, char resolvechr='!')
-		:type(ResultReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(-1),str(varname_){}
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char* value_, char resolvechr='!')
+		:type(resolvechr=='#'?Constant:ResultReference),resolvetype(resolvechr=='#'?papuga_ResolveTypeRequired:getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(-1),str(value_){}
 };
 
 
@@ -403,6 +401,8 @@ public:
 		:std::vector<RequestAutomaton_ResultElementDef>( nodes.begin(), nodes.end()){defineRoot(rootexpr);}
 	RequestAutomaton_ResultElementDefList( const RequestAutomaton_ResultElementDefList& o)
 		:std::vector<RequestAutomaton_ResultElementDef>( o){}
+	RequestAutomaton_ResultElementDefList( const RequestAutomaton_ResultElementDef& o)
+		:std::vector<RequestAutomaton_ResultElementDef>(){push_back(o);}
 
 	/// \brief Append an other node list (join lists)
 	void append( const RequestAutomaton_ResultElementDefList& o)
