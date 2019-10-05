@@ -765,10 +765,15 @@ private:
 		return true;
 	}
 
+	static bool containsChar( const char* chars, char needle)
+	{
+		return 0!=std::strchr( chars, needle);
+	}
+
 	static std::string cut_trailing_slashes( const char* expression)
 	{
 		std::size_t size = std::strlen( expression);
-		while (size && (expression[size-1] == '/' || expression[size-1] == '~')) --size;
+		while (size && containsChar( "/()~", expression[size-1])) --size;
 		return std::string( expression, size);
 	}
 
