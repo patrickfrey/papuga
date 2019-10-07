@@ -71,7 +71,8 @@ struct RequestAutomaton_FunctionDef
 		methodid.functionid = o.methodid.functionid;
 	}
 	/// \brief Constructor
-	/// \param[in] expression_ select expression addressing the scope of this method call definition
+	/// \param[in] scope_expression_ select expression addressing the scope of this method call definition
+	/// \param[in] select_expression_ sub expression of scope addressing the activation of the method call
 	/// \param[in] resultvar_ variable where the result of the call is stored to, empty if the result is void or dropped
 	/// \param[in] selfvar_ variable where the result of the call is stored to, empty if the result is void or dropped
 	/// \param[in] methodid_ identifier of the method to call

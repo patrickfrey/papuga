@@ -122,6 +122,11 @@ struct CallDef
 		methodid.classid = o.methodid.classid;
 		methodid.functionid = o.methodid.functionid;
 	}
+
+	bool isVariableAssignment() const
+	{
+		return !methodid.classid;
+	}
 };
 
 typedef int AtmRef;
@@ -1362,6 +1367,13 @@ public:
 	}
 
 private:
+	static bool isequalVarname( const char* v1, const char* v2)
+	{
+		if (v1 == v2) return true;
+		if (!v1) return false;
+		return (0==std::strcmp( v1, v1));
+	}
+
 	bool processEvent( int ev, const papuga_ValueVariant* evalue)
 	{
 		// Process event depending on type:
@@ -1447,20 +1459,18 @@ private:
 				}
 				if (havePrioritizedItem)
 				{
+					// Suppress other elements with same result inside the scope:
 					mi = m_methodcalls.size();
 					for (; mi > 0 && m_methodcalls[mi-1].scope.from >= cscope.from; --mi)
 					{
 						const MethodCallNode& mc = m_methodcalls[mi-1];
 						if (mc.scope.inside( cscope)
 							&& calldef != mc.def
-							&& mc.def->resultvarname
-							&& calldef->resultvarname
-							&& 0==std::strcmp(mc.def->resultvarname,calldef->resultvarname))
+							&& isequalVarname( mc.def->resultvarname, calldef->resultvarname))
 						{
 							if (m_logContentEvent)
 							{
-								std::string methodname = methodName( mc.def->methodid);
-								if (methodname.empty())
+								if (mc.def->isVariableAssignment())
 								{
 									papuga_ValueVariant vv;
 									papuga_init_ValueVariant_charp( &vv, mc.def->resultvarname);
@@ -1468,12 +1478,34 @@ private:
 								}
 								else
 								{
+									std::string methodname = methodName( mc.def->methodid);
 									papuga_ValueVariant vv;
 									papuga_init_ValueVariant_string( &vv, methodname.c_str(), methodname.size());
 									m_logContentEvent( m_loggerSelf, "suppress call", -1/*/no itemid*/, &vv);
 								}
 							}
 							m_methodcalls.erase( m_methodcalls.begin()+(mi-1));
+						}
+					}
+					// Group assignments with the same definition (and therefore same result) inside the scope together (result is an array):
+					if (calldef->isVariableAssignment())
+					{
+						int group = -1;
+						mi = m_methodcalls.size();
+						for (; mi > 0 && m_methodcalls[mi-1].scope.from >= cscope.from; --mi)
+						{
+							MethodCallNode& mc = m_methodcalls[mi-1];
+							if (mc.scope.inside( cscope) && calldef == mc.def)
+							{
+								if (group < 0)
+								{
+									group = mc.group;
+								}
+								else
+								{
+									mc.group = group;
+								}
+							}
 						}
 					}
 				}
@@ -1720,25 +1752,75 @@ public:
 			m_errstruct.scopestart = mcnode->scope.from;
 			papuga_init_CallArgs( &m_curr_methodcall.args, m_curr_methodcall.membuf, sizeof(m_curr_methodcall.membuf));
 
-			const CallDef* mcdef = mcnode->def;
 			papuga_CallArgs* args = &m_curr_methodcall.args;
-			int ai = 0, ae = mcdef->nofargs;
-			for (; ai != ae; ++ai)
+
+			if (mcnode->def->isVariableAssignment())
 			{
-				papuga_init_ValueVariant( args->argv + ai);
-				if (!setCallArgValue( args->argv[ai], mcdef->args[ai], mcnode->scope, mcnode->taglevel, context))
+				if (mcnode->def->nofargs != 1 || m_curr_methodcall.selfvarname)
 				{
-					assignErrPath();
-					m_errstruct.argcnt = ai;
-					assignErrMethod( mcdef->methodid);
+					m_errstruct.errcode = papuga_LogicError;
 					return NULL;
 				}
-			}
-			for (; ai && !papuga_ValueVariant_defined( args->argv+(ai-1)); --ai){}
-			/// ... remove optional arguments at the end of the argument list, to make them replaceable by default values
+				args->argc = 1;
 
-			args->argc = ai;
-			++m_curr_methodidx;
+				const MethodCallNode* mcnode_itr = m_ctx->methodCallNode( m_curr_methodidx+1);
+				if (mcnode_itr && mcnode_itr->group == mcnode->group)
+				{
+					// ... more than one variable assignments of the same group are bound to an array
+					papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( &m_allocator);
+					if (!ser) throw std::bad_alloc();
+					papuga_init_ValueVariant_serialization( args->argv + 0, ser);
+
+					for (mcnode_itr=mcnode; 
+						mcnode_itr && mcnode_itr->group == mcnode->group; 
+						mcnode_itr = m_ctx->methodCallNode( ++m_curr_methodidx))
+					{
+						papuga_ValueVariant val;
+						papuga_init_ValueVariant( &val);
+						if (!setCallArgValue( val, mcnode_itr->def->args[ 0], mcnode_itr->scope, mcnode_itr->taglevel, context))
+						{
+							assignErrPath();
+							m_errstruct.argcnt = 0;
+							assignErrMethod( mcnode_itr->def->methodid);
+							return NULL;
+						}
+						papuga_Serialization_pushValue( ser, &val);
+					}
+				}
+				else
+				{
+					papuga_init_ValueVariant( args->argv + 0);
+					if (!setCallArgValue( args->argv[ 0], mcnode->def->args[ 0], mcnode->scope, mcnode->taglevel, context))
+					{
+						assignErrPath();
+						m_errstruct.argcnt = 0;
+						assignErrMethod( mcnode->def->methodid);
+						return NULL;
+					}
+					++m_curr_methodidx;
+				}
+			}
+			else
+			{
+				const CallDef* mcdef = mcnode->def;
+				int ai = 0, ae = mcdef->nofargs;
+				for (; ai != ae; ++ai)
+				{
+					papuga_init_ValueVariant( args->argv + ai);
+					if (!setCallArgValue( args->argv[ai], mcdef->args[ai], mcnode->scope, mcnode->taglevel, context))
+					{
+						assignErrPath();
+						m_errstruct.argcnt = ai;
+						assignErrMethod( mcdef->methodid);
+						return NULL;
+					}
+				}
+				for (; ai && !papuga_ValueVariant_defined( args->argv+(ai-1)); --ai){}
+				/// ... remove optional arguments at the end of the argument list, to make them replaceable by default values
+
+				args->argc = ai;
+				++m_curr_methodidx;
+			}
 			return &m_curr_methodcall;
 		}
 		catch (const std::bad_alloc&)
