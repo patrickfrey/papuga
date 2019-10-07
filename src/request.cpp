@@ -807,6 +807,7 @@ static int ObjectRef_value_id( ObjectRef objref)	{return objref > 0 ? objref-1 :
 static ObjectRef ObjectRef_value( int idx)		{return (ObjectRef)(idx+1);}
 static ObjectRef ObjectRef_struct( int idx)		{return (ObjectRef)-(idx+1);}
 
+/// \brief Scope key type used implicitely to prioritize by order of this enumeration
 enum ScopeKeyType {SearchScope,ValueScope,ObjectScope};
 
 struct ScopeKey

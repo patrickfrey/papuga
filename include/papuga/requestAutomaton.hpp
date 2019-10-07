@@ -34,6 +34,8 @@ static inline papuga_ResolveType getResolveType( char resolvechr)
 	}
 }
 
+typedef const char* (*MapItemIdToName)( int itemid);
+
 /// \brief Request method call (function) definition or assignment of a variable if no method defined
 struct RequestAutomaton_FunctionDef
 {
@@ -88,7 +90,7 @@ struct RequestAutomaton_FunctionDef
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, MapItemIdToName itemName) const;
 
 	/// \brief True if this function is prioritized among others in the given scope expression
 	/// \note Prioritized means that other function calls in the given scope with the same target variable are suppressed
@@ -96,6 +98,7 @@ struct RequestAutomaton_FunctionDef
 	bool prioritize() const
 	{
 		return methodid.classid ? false : true;
+		//... true if this definition represents a variable assignment from content without a method call involved
 	}
 };
 
@@ -142,7 +145,7 @@ struct RequestAutomaton_StructDef
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, MapItemIdToName itemName) const;
 
 	/// \brief Get a unique key of this definition for detecting duplicate definitions
 	/// \param[in] rootexpr path prefix for selection expressions
@@ -172,7 +175,7 @@ struct RequestAutomaton_ValueDef
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, MapItemIdToName itemName) const;
 
 	/// \brief Get a unique key of this definition for detecting duplicate definitions
 	/// \param[in] rootexpr path prefix for selection expressions
@@ -209,7 +212,7 @@ struct RequestAutomaton_GroupDef
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, MapItemIdToName itemName) const;
 };
 
 /// \brief Definition of the resolve type for the schema description if not defined by other structures
@@ -228,7 +231,7 @@ struct RequestAutomaton_ResolveDef
 	/// \param[in] rootexpr path prefix for selection expressions
 	/// \param[in] atm automaton to add this definition to
 	/// \param[in] descr schema description to add this definition to
-	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr) const;
+	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, MapItemIdToName itemName) const;
 };
 
 /// \class RequestAutomaton_ResultElementDef
@@ -352,7 +355,7 @@ struct RequestAutomaton_Node
 	/// \param[in] descr schema description to add this definition to
 	/// \param[in] keyset set of path expression for identifying duplicated definitions that would lead to errors hard to track if not catched.
 	/// \param[in] accepted_root_tags set of accepted requests identified by their root tag name
-	void addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, std::set<std::string>& keyset, std::set<std::string>& accepted_root_tags) const;
+	void addToAutomaton( const std::string& rootpath_, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, MapItemIdToName itemName, std::set<std::string>& keyset, std::set<std::string>& accepted_root_tags) const;
 };
 
 class RequestAutomaton_NodeList
@@ -449,7 +452,7 @@ public:
 
 	/// \brief Add this node definition to the automaton given as argument
 	/// \param[in] atm automaton to add this definition to
-	void addToAutomaton( papuga_RequestAutomaton* atm) const;
+	void addToAutomaton( papuga_RequestAutomaton* atm, MapItemIdToName itemName) const;
 
 private:
 	const char* m_name;
@@ -477,6 +480,7 @@ public:
 	RequestAutomaton(
 		const papuga_ClassDef* classdefs,
 		const papuga_StructInterfaceDescription* structdefs,
+		MapItemIdToName mapItemIdToName,
 		bool strict);
 
 #if __cplusplus >= 201103L
@@ -493,7 +497,7 @@ public:
 	};
 	/// \brief Constructor defining the whole automaton from an initializer list
 	/// \param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
-	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, bool strict,
+	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, MapItemIdToName mapItemIdToName, bool strict,
 				const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs,
 				const std::initializer_list<InheritedDef>& inherited,
 				const std::initializer_list<RequestAutomaton_Node>& nodes);
@@ -587,6 +591,7 @@ public:
 private:
 	papuga_RequestAutomaton* m_atm;				///< automaton definition
 	papuga_SchemaDescription* m_descr;			///< schema description
+	MapItemIdToName m_mapItemIdToName;			///< function mapping item identifiers to a string, their name
 	std::string m_rootexpr;					///< current root expression
 	std::vector<int> m_rootstk;				///< stack for open close root expressions
 };
