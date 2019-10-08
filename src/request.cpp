@@ -2371,7 +2371,7 @@ private:
 				// We try to get a valid node candidate preferring value nodes if defined
 				while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded))
 				{
-					if (!m_errstruct.itemid)
+					if (m_errstruct.itemid < 0)
 					{
 						m_errstruct.itemid = itemid;
 					}
@@ -2382,7 +2382,7 @@ private:
 				{
 					if (resolvetype == papuga_ResolveTypeRequired)
 					{
-						if (!m_errstruct.itemid)
+						if (m_errstruct.itemid < 0)
 						{
 							m_errstruct.itemid = itemid;
 						}
@@ -2395,7 +2395,7 @@ private:
 						{
 							return false;
 						}
-						if (!m_errstruct.itemid)
+						if (m_errstruct.itemid < 0)
 						{
 							m_errstruct.itemid = itemid;
 						}
@@ -2406,7 +2406,7 @@ private:
 				ResolvedObject resolvedObjNext = resolveNextInsideItem( scope, taglevelRange, itemid);
 				if (resolvedObjNext.valid())
 				{
-					if (!m_errstruct.itemid)
+					if (m_errstruct.itemid < 0)
 					{
 						m_errstruct.itemid = itemid;
 					}
@@ -2439,7 +2439,7 @@ private:
 					}
 					if (hasNextCoveringItem( scope, taglevelRange, itemid))
 					{
-						if (!m_errstruct.itemid)
+						if (m_errstruct.itemid < 0)
 						{
 							m_errstruct.itemid = itemid;
 						}
@@ -2449,7 +2449,7 @@ private:
 				}
 				else if (ObjectRef_is_struct( resolvedObj.objref))
 				{
-					if (!m_errstruct.itemid)
+					if (m_errstruct.itemid < 0)
 					{
 						m_errstruct.itemid = itemid;
 					}
@@ -2458,7 +2458,7 @@ private:
 				}
 				else
 				{
-					if (!m_errstruct.itemid)
+					if (m_errstruct.itemid < 0)
 					{
 						m_errstruct.itemid = itemid;
 					}
@@ -2500,7 +2500,7 @@ private:
 					{
 						if (m_errstruct.errcode != papuga_Ok)
 						{
-							if (!m_errstruct.itemid)
+							if (m_errstruct.itemid < 0)
 							{
 								m_errstruct.itemid = itemid;
 							}
@@ -2514,7 +2514,7 @@ private:
 				}
 				if (arrayElementCount == 0 && resolvetype == papuga_ResolveTypeArrayNonEmpty)
 				{
-					if (!m_errstruct.itemid)
+					if (m_errstruct.itemid < 0)
 					{
 						m_errstruct.itemid = itemid;
 					}
@@ -2523,7 +2523,7 @@ private:
 				}
 				if (!sink.closeSerialization())
 				{
-					if (!m_errstruct.itemid)
+					if (m_errstruct.itemid < 0)
 					{
 						m_errstruct.itemid = itemid;
 					}
