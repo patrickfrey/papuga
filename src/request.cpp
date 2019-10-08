@@ -1371,7 +1371,7 @@ private:
 	{
 		if (v1 == v2) return true;
 		if (!v1) return false;
-		return (0==std::strcmp( v1, v1));
+		return (0==std::strcmp( v1, v2));
 	}
 
 	bool processEvent( int ev, const papuga_ValueVariant* evalue)
