@@ -486,7 +486,6 @@ static void append_linkid_elem( OutputContext& ctx, const papuga_ValueVariant& v
 static bool jsonValueNeedQuoted( const papuga_ValueVariant& value)
 {
 	if (value.valuetype == papuga_TypeInt && value.value.Int >= 0) return false;
-	if (value.valuetype == papuga_TypeDouble && value.value.Double >= 0) return false;
 	return true;
 }
 
