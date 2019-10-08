@@ -65,7 +65,7 @@ struct StructMemberDef
 	int max_tag_diff;
 
 	StructMemberDef()
-		:name(0),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
+		:name(0),itemid(-1),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
 	StructMemberDef( const char* name_, int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
 		:name(name_),itemid(itemid_),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
 	void assign( const StructMemberDef& o)
@@ -92,7 +92,7 @@ struct CallArgDef
 	int max_tag_diff;
 
 	CallArgDef()
-		:varname(0),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
+		:varname(0),itemid(-1),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
 	CallArgDef( const char* varname_)
 		:varname(varname_),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
 	CallArgDef( int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
@@ -324,7 +324,7 @@ public:
 				return false;
 			}
 			CallArgDef& adef = m_calldefs.back().args[ idx];
-			if (adef.varname || adef.itemid)
+			if (adef.varname || adef.itemid >= 0)
 			{
 				m_errcode = papuga_DuplicateDefinition;
 				return false;
@@ -377,7 +377,7 @@ public:
 	{
 		try
 		{
-			if (itemid <= 0)
+			if (itemid < 0)
 			{
 				m_errcode = papuga_TypeError;
 				return false;
@@ -441,7 +441,7 @@ public:
 				m_errcode = papuga_InvalidAccess;
 				return false;
 			}
-			if (itemid <= 0)
+			if (itemid < 0)
 			{
 				m_errcode = papuga_TypeError;
 				return false;
@@ -452,7 +452,7 @@ public:
 				return false;
 			}
 			StructMemberDef& mdef = m_structdefs.back().members[ idx];
-			if (mdef.itemid)
+			if (mdef.itemid >= 0)
 			{
 				m_errcode = papuga_DuplicateDefinition;
 				return false;
@@ -758,7 +758,7 @@ private:
 
 	bool checkItemId( int itemid)
 	{
-		if (itemid <= 0 || itemid >= (1<<28))
+		if (itemid < 0 || itemid >= (1<<28))
 		{
 			m_errcode = papuga_OutOfRangeError;
 			return false;
@@ -2347,6 +2347,15 @@ private:
 		}
 	}
 
+	void setItemError( papuga_ErrorCode errcode, int itemid)
+	{
+		if (m_errstruct.itemid < 0)
+		{
+			m_errstruct.itemid = itemid;
+		}
+		m_errstruct.errcode = errcode;
+	}
+
 	/* \brief Build the data requested by an item id and a scope in a manner defined by a class of resolving a reference */
 	bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange, bool embedded)
 	{
@@ -2371,33 +2380,32 @@ private:
 				// We try to get a valid node candidate preferring value nodes if defined
 				while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded))
 				{
-					if (m_errstruct.itemid < 0)
+					if (m_errstruct.errcode != papuga_Ok)
 					{
-						m_errstruct.itemid = itemid;
+						if (m_errstruct.itemid < 0)
+						{
+							m_errstruct.itemid = itemid;
+						}
+						return false;
 					}
-					if (m_errstruct.errcode != papuga_Ok) return false;
 					resolvedObj = resolveNextSameScopeItem( itemid);
 				}
 				if (!resolvedObj.valid())
 				{
 					if (resolvetype == papuga_ResolveTypeRequired)
 					{
-						if (m_errstruct.itemid < 0)
-						{
-							m_errstruct.itemid = itemid;
-						}
-						m_errstruct.errcode = papuga_ValueUndefined;
+						setItemError( papuga_ValueUndefined, itemid);
 						return false;
 					}
 					else
 					{
 						if (m_errstruct.errcode != papuga_Ok)
 						{
+							if (m_errstruct.itemid < 0)
+							{
+								m_errstruct.itemid = itemid;
+							}
 							return false;
-						}
-						if (m_errstruct.itemid < 0)
-						{
-							m_errstruct.itemid = itemid;
 						}
 						sink.pushVoid();
 						// ... we get here only if we found a value that matches, but was undefined
@@ -2406,11 +2414,7 @@ private:
 				ResolvedObject resolvedObjNext = resolveNextInsideItem( scope, taglevelRange, itemid);
 				if (resolvedObjNext.valid())
 				{
-					if (m_errstruct.itemid < 0)
-					{
-						m_errstruct.itemid = itemid;
-					}
-					m_errstruct.errcode = papuga_AmbiguousReference;
+					setItemError( papuga_AmbiguousReference, itemid);
 					return false;
 				}
 			}
@@ -2439,30 +2443,18 @@ private:
 					}
 					if (hasNextCoveringItem( scope, taglevelRange, itemid))
 					{
-						if (m_errstruct.itemid < 0)
-						{
-							m_errstruct.itemid = itemid;
-						}
-						m_errstruct.errcode = papuga_AmbiguousReference;
+						setItemError( papuga_AmbiguousReference, itemid);
 						return false;
 					}
 				}
 				else if (ObjectRef_is_struct( resolvedObj.objref))
 				{
-					if (m_errstruct.itemid < 0)
-					{
-						m_errstruct.itemid = itemid;
-					}
-					m_errstruct.errcode = papuga_InvalidAccess;
+					setItemError( papuga_InvalidAccess, itemid);
 					return false;
 				}
 				else
 				{
-					if (m_errstruct.itemid < 0)
-					{
-						m_errstruct.itemid = itemid;
-					}
-					m_errstruct.errcode = papuga_ValueUndefined;
+					setItemError( papuga_ValueUndefined, itemid);
 					return false;
 				}
 			}
@@ -2514,20 +2506,12 @@ private:
 				}
 				if (arrayElementCount == 0 && resolvetype == papuga_ResolveTypeArrayNonEmpty)
 				{
-					if (m_errstruct.itemid < 0)
-					{
-						m_errstruct.itemid = itemid;
-					}
-					m_errstruct.errcode = papuga_ValueUndefined;
+					setItemError( papuga_ValueUndefined, itemid);
 					return false;
 				}
 				if (!sink.closeSerialization())
 				{
-					if (m_errstruct.itemid < 0)
-					{
-						m_errstruct.itemid = itemid;
-					}
-					m_errstruct.errcode = papuga_NoMemError;
+					setItemError( papuga_NoMemError, itemid);
 					return false;
 				}
 			}
