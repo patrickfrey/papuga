@@ -2331,7 +2331,7 @@ private:
 		{
 			int structidx = ObjectRef_struct_id( objref);
 			char buf[ 64];
-			std::snprintf( buf, sizeof(buf), "{%d}", structidx);
+			std::snprintf( buf, sizeof(buf), "#%d", structidx);
 			papuga_ValueVariant ov;
 			papuga_init_ValueVariant_charp( &ov, buf);
 			m_logContentEvent( m_loggerSelf, title, itemid, &ov);
