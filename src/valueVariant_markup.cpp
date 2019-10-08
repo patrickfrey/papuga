@@ -483,6 +483,13 @@ static void append_linkid_elem( OutputContext& ctx, const papuga_ValueVariant& v
 	}
 }
 
+static bool jsonValueNeedQuoted( const papuga_ValueVariant& value)
+{
+	if (value.valuetype == papuga_TypeInt && value.value.Int > 0) return false;
+	if (value.valuetype == papuga_TypeDouble && value.value.Double >= 0) return false;
+	return true;
+}
+
 static bool append_key_value( OutputContext& ctx, const char* name, const papuga_ValueVariant& value)
 {
 	switch (ctx.styleType)
@@ -561,7 +568,7 @@ static bool append_key_value( OutputContext& ctx, const char* name, const papuga
 				if (!append_linkid( ctx, value)) return false;
 				ctx.out.push_back( '\"');
 			}
-			else if (papuga_ValueVariant_isstring( &value))
+			else if (jsonValueNeedQuoted( value))
 			{
 				
 				ctx.out.push_back( '\"');
