@@ -36,7 +36,7 @@ typedef struct papuga_RequestMethodId
 
 /*
  * @brief Structure holding the result of a request
-* @member name name of the result, root element (constant, string not copied)
+* @member name name of the result, root element (constant, string not copied), NULL if not content defined (delegate request without content)
 * @member schema name of the schema that handles the request if the result forms a request to other servers
 * @member requestmethod request method if the result forms a request to other servers
 * @member addressvar name of the variable with the urls if the result forms a request to other servers

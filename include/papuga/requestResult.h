@@ -56,7 +56,7 @@ typedef struct papuga_RequestResultNodeDescription
 
 /*
 * @brief Request result description structure
-* @member name name of the result, root element (constant, string not copied)
+* @member name name of the result, root element (constant, string not copied), NULL if not content defined (delegate request without content)
 * @member schema name of the schema that handles the request if the result forms a request to other servers
 * @member requestmethod request method if the result forms a request to other servers
 * @member addressvar name of the variable with the urls if the result forms a request to other servers
@@ -83,7 +83,7 @@ typedef struct papuga_RequestResultDescription
 
 /*
 * @brief RequestResultDescription constructor function
-* @param[in] name_ name of the result, root element (constant, string not copied)
+* @param[in] name_ name of the result, root element (constant, string not copied), NULL if not content defined (delegate request without content)
 * @param[in] schema_ name of the schema that handles the request if the result forms a request to other servers
 * @param[in] requestmethod_ request method if the result forms a request to other servers
 * @param[in] addressvar_ name of the variable with the urls if the result forms a request to other servers
