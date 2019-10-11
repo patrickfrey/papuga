@@ -7,24 +7,10 @@
  */
 /// \brief Expand a request result as XML
 /// \file valueVariant_markup.cpp
-#include "papuga/serialization.h"
-#include "papuga/serialization.hpp"
-#include "papuga/valueVariant.hpp"
-#include "papuga/valueVariant.h"
-#include "papuga/allocator.h"
-#include "papuga/typedefs.h"
-#include "papuga/constants.h"
-#include "papuga/callResult.h"
-#include "papuga/interfaceDescription.h"
-#include "papuga/stack.h"
-#include "papuga/uriEncode.h"
-#include <string>
-#include <cstring>
-#include <cstdlib>
-#include <stdexcept>
-#include <cstdio>
-#include <iostream>
-#include <sstream>
+#include "valueVariant_markup_json.hpp"
+#include "valueVariant_markup_text.hpp"
+#include "valueVariant_markup_xml.hpp"
+#include "valueVariant_markup_html.hpp"
 
 static bool isEqual( const char* name, const char* oth)
 {

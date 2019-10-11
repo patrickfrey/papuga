@@ -19,6 +19,7 @@ set( source_files
 	errors.cpp
 	valueVariant.cpp
 	valueVariant.c
+	valueVariant_markup_base.cpp
 	valueVariant_markup.cpp
 	serialization.cpp
 )

@@ -1021,4 +1021,61 @@ extern "C" papuga_ValueVariant* papuga_ValueVariant_tonumeric( const papuga_Valu
 	}
 }
 
+class CharIterator
+{
+public:
+	CharIterator( const char* ptr_)
+		:m_orig(ptr_),m_ptr(ptr_){}
+	void operator++() {++m_ptr;}
+	char operator*() const {return *m_ptr;}
+	int position_increment() const {return m_ptr-m_orig;}
+
+private:
+	char const* m_orig;
+	char const* m_ptr;
+};
+
+extern "C" int papuga_ValueVariant_nextchar( const papuga_ValueVariant* self, int* pos, papuga_ErrorCode* err)
+{
+	int rt = 0;
+	if (!papuga_ValueVariant_isstring( self))
+	{
+		*err = papuga_NotImplemented;
+		return 0;
+	}
+	if (*pos >= (int)self->length)
+	{
+		return 0;
+	}
+	CharIterator itr( self->value.string + *pos);
+	char buf[ 32];
+	unsigned int bufpos;
+
+	switch (self->encoding)
+	{
+		case papuga_UTF8:
+			{textwolf::charset::UTF8 chs; rt = chs.value<CharIterator>( buf, bufpos, itr); break;}
+		case papuga_UTF16BE:
+			{textwolf::charset::UTF16BE chs; rt = chs.value( buf, bufpos, itr); break;}
+		case papuga_UTF16LE:
+			{textwolf::charset::UTF16LE chs; rt = chs.value( buf, bufpos, itr); break;}
+		case papuga_UTF16:
+			{textwolf::charset::UTF16<> chs; rt = chs.value( buf, bufpos, itr); break;}
+		case papuga_UTF32BE:
+			{textwolf::charset::UCS4BE chs; rt = chs.value( buf, bufpos, itr); break;}
+		case papuga_UTF32LE:
+			{textwolf::charset::UCS4LE chs; rt = chs.value( buf, bufpos, itr); break;}
+		case papuga_UTF32:
+			{textwolf::charset::UCS4BE chs; rt = chs.value( buf, bufpos, itr); break;}
+		case papuga_Binary:
+			*err = papuga_NotImplemented;
+			return 0;
+		default:
+			*err = papuga_TypeError;
+			return 0;
+	}
+	*pos += itr.position_increment();
+	return rt;
+}
+
 

@@ -239,6 +239,15 @@ papuga_ValueVariant* papuga_ValueVariant_tonumeric( const papuga_ValueVariant* s
 const char* papuga_ValueVariant_toascii( char* destbuf, size_t destbufsize, const papuga_ValueVariant* self, char nonAsciiSubstChar);
 
 /*
+* @brief Get the next character in a string
+* @note Can be used to iterate on a string
+* @param[in] self pointer to structure
+* @param[in,out] pos pointer to position, initialized with 0 before the first call, points to the next character after return
+* @return Unicode character code of the next character
+*/
+int papuga_ValueVariant_nextchar( const papuga_ValueVariant* self, int* pos, papuga_ErrorCode* err);
+
+/*
 * @brief Get the value of a type enum as string
 * @param[in] type the type enum value
 * @return the corresponding string
