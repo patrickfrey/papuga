@@ -19,10 +19,10 @@ class OutputContextJSON
 	:public KeyDeclOutputContext<OutputContextJSON>
 {
 public:	
-	OutputContextJSON( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding enc_, bool beautyfied_)
-		:KeyDeclOutputContext<OutputContextJSON>(structs_,maxDepth_,enc_),indent(),beautyfied(beautyfied_)
+	OutputContextJSON( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding enc_, bool beautified_)
+		:KeyDeclOutputContext<OutputContextJSON>(structs_,maxDepth_,enc_),indent(),beautified(beautified_)
 	{
-		if (beautyfied) indent.push_back( '\n');
+		if (beautified) indent.push_back( '\n');
 	}
 
 	static bool isUnquotedValue( const papuga_ValueVariant& value)
@@ -44,14 +44,14 @@ public:
 	void defOpen()
 	{
 		out.append( indent);
-		if (beautyfied) indent.push_back( '\t');
+		if (beautified) indent.push_back( '\t');
 		++depth;
 	}
 
 	void defClose()
 	{
 		if (depth <= 0) throw ErrorException( papuga_SyntaxError);
-		if (beautyfied) indent.resize( indent.size()-1);
+		if (beautified) indent.resize( indent.size()-1);
 		--depth;
 	}
 
@@ -164,7 +164,7 @@ public:
 
 protected:
 	std::string indent;
-	bool beautyfied;
+	bool beautified;
 };
 
 }}//namespace

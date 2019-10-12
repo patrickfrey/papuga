@@ -198,7 +198,7 @@ public:
 		const char* head = HTML_HEAD();
 		char* resptr = 0;
 		size_t reslen = 0;
-		bool beautyfied = true;
+		bool beautified = true;
 		papuga_ErrorCode errcode = papuga_Ok;
 		papuga_StructInterfaceDescription structdefs = {NULL,NULL,NULL};
 		//... structures not needed here as we have the serialization in plain without external definitions
@@ -206,26 +206,26 @@ public:
 		{
 			case JSON:
 				resptr = (char*)papuga_ValueVariant_tojson(
-						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautyfied, 
+						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautified, 
 						m_root.c_str(), m_elem.empty() ? 0 : m_elem.c_str(),
 						&reslen, &errcode);
 				
 				break;
 			case XML:
 				resptr = (char*)papuga_ValueVariant_toxml(
-						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautyfied,
+						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautified,
 						m_root.c_str(), m_elem.empty() ? 0 : m_elem.c_str(),
 						&reslen, &errcode);
 				break;
 			case TEXT:
 				resptr = (char*)papuga_ValueVariant_totext(
-						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautyfied, 
+						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautified, 
 						m_root.c_str(), m_elem.empty() ? 0 : m_elem.c_str(),
 						&reslen, &errcode);
 				break;
 			case HTML:
 				resptr = (char*)papuga_ValueVariant_tohtml5(
-						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautyfied,
+						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautified,
 						m_root.c_str(), m_elem.empty() ? 0 : m_elem.c_str(),
 						head, m_href_base.c_str(), &reslen,
 						&errcode);

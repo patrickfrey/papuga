@@ -279,8 +279,8 @@ bool papuga_execute_request(
 			// Map the result:
 			switch (doctype)
 			{
-				case papuga_ContentType_XML:  resstr = (char*)papuga_ValueVariant_toxml( &resultval, &allocator, structdefs, encoding, true/*beautyfied*/, rootname, 0, &reslen, &errstruct.errcode); break;
-				case papuga_ContentType_JSON: resstr = (char*)papuga_ValueVariant_tojson( &resultval, &allocator, structdefs, encoding, true/*beautyfied*/, rootname, 0, &reslen, &errstruct.errcode); break;
+				case papuga_ContentType_XML:  resstr = (char*)papuga_ValueVariant_toxml( &resultval, &allocator, structdefs, encoding, true/*beautified*/, rootname, 0, &reslen, &errstruct.errcode); break;
+				case papuga_ContentType_JSON: resstr = (char*)papuga_ValueVariant_tojson( &resultval, &allocator, structdefs, encoding, true/*beautified*/, rootname, 0, &reslen, &errstruct.errcode); break;
 				case papuga_ContentType_Unknown:
 				default: break;
 			}

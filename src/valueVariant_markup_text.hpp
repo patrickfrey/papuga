@@ -19,8 +19,8 @@ class OutputContextTEXT
 	:public KeyDeclOutputContext<OutputContextTEXT>
 {
 public:
-	OutputContextTEXT( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding enc_, bool beautyfied_)
-		:KeyDeclOutputContext<OutputContextTEXT>(structs_,maxDepth_,enc_),indent(),beautyfied(beautyfied_)
+	OutputContextTEXT( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding enc_, bool beautified_)
+		:KeyDeclOutputContext<OutputContextTEXT>(structs_,maxDepth_,enc_),indent(),beautified(beautified_)
 	{
 		indent.push_back( '\n');
 	}
@@ -28,7 +28,7 @@ public:
 	void defHead( papuga_StringEncoding enc, const char* name)
 	{
 		defName( name);
-		if (beautyfied) indent.append( "  ");
+		if (beautified) indent.append( "  ");
 		++depth;
 	}
 
@@ -41,14 +41,14 @@ public:
 	void defOpen()
 	{
 		out.append( indent);
-		if (beautyfied) indent.append( "  ");
+		if (beautified) indent.append( "  ");
 		++depth;
 	}
 
 	void defClose()
 	{
 		if (depth <= 0) throw ErrorException( papuga_SyntaxError);
-		if (beautyfied) indent.resize( indent.size()-2);
+		if (beautified) indent.resize( indent.size()-2);
 		--depth;
 	}
 
@@ -142,7 +142,7 @@ public:
 
 protected:
 	std::string indent;
-	bool beautyfied;
+	bool beautified;
 };
 
 }}//namespace

@@ -40,7 +40,7 @@ extern "C" void* papuga_ValueVariant_toxml(
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
 		papuga_StringEncoding enc,
-		bool beautyfied,
+		bool beautified,
 		const char* rootname,
 		const char* elemname,
 		size_t* len,
@@ -49,7 +49,7 @@ extern "C" void* papuga_ValueVariant_toxml(
 	try
 	{
 		int maxDepth = std::numeric_limits<int>::max();
-		OutputContextXML xml( structdefs, maxDepth, enc, beautyfied);
+		OutputContextXML xml( structdefs, maxDepth, enc, beautified);
 		std::string output = xml.build( rootname, elemname, *self);
 		return OutputContextBase::encodeRequestResultString( output, allocator, enc, len);
 	}
@@ -61,7 +61,7 @@ extern "C" void* papuga_ValueVariant_tohtml5(
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
 		papuga_StringEncoding enc,
-		bool beautyfied,
+		bool beautified,
 		const char* rootname,
 		const char* elemname,
 		const char* head,
@@ -72,7 +72,7 @@ extern "C" void* papuga_ValueVariant_tohtml5(
 	try
 	{
 		int maxDepth = std::numeric_limits<int>::max();
-		OutputContextHTML html( structdefs, maxDepth, enc, beautyfied, head, href_base);
+		OutputContextHTML html( structdefs, maxDepth, enc, beautified, head, href_base);
 		std::string output = html.build( rootname, elemname, *self);
 		return OutputContextBase::encodeRequestResultString( output, allocator, enc, len);
 	}
@@ -84,7 +84,7 @@ extern "C" void* papuga_ValueVariant_totext(
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
 		papuga_StringEncoding enc,
-		bool beautyfied,
+		bool beautified,
 		const char* rootname,
 		const char* elemname,
 		size_t* len,
@@ -93,7 +93,7 @@ extern "C" void* papuga_ValueVariant_totext(
 	try
 	{
 		int maxDepth = std::numeric_limits<int>::max();
-		OutputContextTEXT text( structdefs, maxDepth, enc, beautyfied);
+		OutputContextTEXT text( structdefs, maxDepth, enc, beautified);
 		std::string output = text.build( rootname, elemname, *self);
 		return OutputContextBase::encodeRequestResultString( output, allocator, enc, len);
 	}
@@ -105,7 +105,7 @@ extern "C" void* papuga_ValueVariant_tojson(
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
 		papuga_StringEncoding enc,
-		bool beautyfied,
+		bool beautified,
 		const char* rootname,
 		const char* elemname,
 		size_t* len,
@@ -114,7 +114,7 @@ extern "C" void* papuga_ValueVariant_tojson(
 	try
 	{
 		int maxDepth = std::numeric_limits<int>::max();
-		OutputContextJSON json( structdefs, maxDepth, enc, beautyfied);
+		OutputContextJSON json( structdefs, maxDepth, enc, beautified);
 		std::string output = json.build( rootname, elemname, *self);
 		return OutputContextBase::encodeRequestResultString( output, allocator, enc, len);
 	}
