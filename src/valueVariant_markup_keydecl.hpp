@@ -254,21 +254,28 @@ public:
 	{
 		std::string rt;
 		((OutputContextClass*)this)->reset();
-		((OutputContextClass*)this)->defHead( encoding, root);
-		if (elem)
+		if (root)
 		{
-			((OutputContextClass*)this)->openStruct();
-			((OutputContextClass*)this)->defOpen();
-			((OutputContextClass*)this)->defName( elem);
-			((OutputContextClass*)this)->defValue( val, isEqual( elem, PAPUGA_HTML_LINK_ELEMENT), true/*tabulator*/);
-			((OutputContextClass*)this)->defClose();
-			((OutputContextClass*)this)->closeStruct();
+			((OutputContextClass*)this)->defHead( encoding, root);
+			if (elem)
+			{
+				((OutputContextClass*)this)->openStruct();
+				((OutputContextClass*)this)->defOpen();
+				((OutputContextClass*)this)->defName( elem);
+				((OutputContextClass*)this)->defValue( val, isEqual( elem, PAPUGA_HTML_LINK_ELEMENT), true/*tabulator*/);
+				((OutputContextClass*)this)->defClose();
+				((OutputContextClass*)this)->closeStruct();
+			}
+			else
+			{
+				((OutputContextClass*)this)->defValue( val, isEqual( root, PAPUGA_HTML_LINK_ELEMENT), false/*tabulator*/);
+			}
+			((OutputContextClass*)this)->defTail();
 		}
 		else
 		{
 			((OutputContextClass*)this)->defValue( val, isEqual( root, PAPUGA_HTML_LINK_ELEMENT), false/*tabulator*/);
 		}
-		((OutputContextClass*)this)->defTail();
 		((OutputContextClass*)this)->defDone();
 		std::swap( out, rt);
 		return rt;
