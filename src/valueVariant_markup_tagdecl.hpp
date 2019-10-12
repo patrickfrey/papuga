@@ -98,7 +98,23 @@ public:
 	{
 		if (papuga_SerializationIter_tag( &iter) == papuga_TagValue)
 		{
-			defValue( *papuga_SerializationIter_value( &iter), name);
+			if (!papuga_ValueVariant_isvalid( papuga_SerializationIter_value(&iter)))
+			{}
+			else if (isAttributeName( name))
+			{
+				if (papuga_ValueVariant_isatomic( papuga_SerializationIter_value(&iter)))
+				{
+					((OutputContextClass*)this)->appendAttribute( name, *papuga_SerializationIter_value(&iter));
+				}
+				else
+				{
+					throw ErrorException( papuga_SyntaxError);
+				}
+			}
+			else
+			{
+				defValue( *papuga_SerializationIter_value( &iter), name);
+			}
 			papuga_SerializationIter_skip( &iter);
 		}
 		else if (papuga_SerializationIter_tag( &iter) == papuga_TagOpen)
@@ -168,34 +184,12 @@ public:
 			else
 			{
 				int ecnt = 0;
-				for (; papuga_SerializationIter_tag(&iter) != papuga_TagClose; papuga_SerializationIter_skip(&iter),++ecnt)
+				for (; papuga_SerializationIter_tag(&iter) != papuga_TagClose; ++ecnt)
 				{
 					const char* membname = structs[ structid-1].members[ ecnt].name;
 					if (!membname) throw ErrorException( papuga_SyntaxError);
 
-					if (papuga_SerializationIter_tag(&iter) == papuga_TagValue
-					&& !papuga_ValueVariant_isvalid( papuga_SerializationIter_value(&iter)))
-					{
-						// ... skip NULL value definition
-						papuga_SerializationIter_skip(&iter);
-					}
-					else if (isAttributeName( membname))
-					{
-						if (papuga_SerializationIter_tag(&iter) == papuga_TagValue
-						&&  papuga_ValueVariant_isatomic( papuga_SerializationIter_value(&iter)))
-						{
-							((OutputContextClass*)this)->appendAttribute( membname, *papuga_SerializationIter_value(&iter));
-							papuga_SerializationIter_skip(&iter);
-						}
-						else
-						{
-							throw ErrorException( papuga_SyntaxError);
-						}
-					}
-					else
-					{
-						appendSerializationIterElement( iter, membname);
-					}
+					appendSerializationIterElement( iter, membname);
 				}
 			}
 			if (name) ((OutputContextClass*)this)->closeTag( name);
@@ -215,16 +209,7 @@ public:
 					const papuga_ValueVariant* nameval = papuga_SerializationIter_value( &iter);
 					papuga_SerializationIter_skip( &iter);
 
-					if (papuga_SerializationIter_tag(&iter) == papuga_TagValue
-					&& !papuga_ValueVariant_isvalid( papuga_SerializationIter_value(&iter)))
-					{
-						// ... skip NULL value definition
-						papuga_SerializationIter_skip( &iter);
-					}
-					else
-					{
-						appendSerializationIterElement( iter, *nameval);
-					}
+					appendSerializationIterElement( iter, *nameval);
 				}
 			}
 			if (name) ((OutputContextClass*)this)->closeTag( name);
