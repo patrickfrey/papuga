@@ -252,7 +252,7 @@ private:
 		std::cerr << "\tExpect file: " << m_expectfilename << std::endl;
 		std::cerr << "\tRoot: " << m_root << std::endl;
 		std::cerr << "\tElem: " << m_elem << std::endl;
-		if (m_doctype == HTML) std::cerr << "\tHref: " << m_href_base << std::endl;
+		if (m_doctype == HTML && m_verbosity >= 2) std::cerr << "\tHref: " << m_href_base << std::endl;
 	}
 
 	void printTestDump( const char* title, const papuga_ValueVariant& dump)
