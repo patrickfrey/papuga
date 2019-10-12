@@ -18,16 +18,17 @@ namespace markup {
 class OutputContextXML
 	:public TagDeclOutputContext<OutputContextXML>
 {
-	OutputContextXML( const papuga_StructInterfaceDescription* structs_, int maxDepth_, bool beaufified_, papuga_StringEncoding enc_)
-		:TagDeclOutputContext<OutputContextXML>(structs_,maxDepth_),indent(),beaufified(beaufified_),enc(enc_)
+public:
+	OutputContextXML( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding enc_, bool beautified_)
+		:TagDeclOutputContext<OutputContextXML>(structs_,maxDepth_,enc_),indent(),beautified(beautified_)
 	{
-		if (beaufified) indent.push_back( '\n');
+		if (beautified) indent.push_back( '\n');
 	}
 
 	void defHead( const char* name)
 	{
 		char hdrbuf[ 1024];
-		std::snprintf( hdrbuf, sizeof(hdrbuf), "<?xml version=\"1.0\" encoding=\"%s\" standalone=\"yes\"?>\n<%s>", papuga_StringEncoding_name( enc), name);
+		std::snprintf( hdrbuf, sizeof(hdrbuf), "<?xml version=\"1.0\" encoding=\"%s\" standalone=\"yes\"?>\n<%s>", papuga_StringEncoding_name( encoding), name);
 		out.append( hdrbuf);
 	}
 
@@ -45,7 +46,7 @@ class OutputContextXML
 
 	void defOpen()
 	{
-		if (beaufified)
+		if (beautified)
 		{
 			out.append( indent);
 			indent.append( "  ");
@@ -56,10 +57,7 @@ class OutputContextXML
 	void defClose()
 	{
 		if (depth <= 0) throw ErrorException( papuga_SyntaxError);
-		if (beaufified)
-		{
-			indent.resize( indent.size()-2);
-		}
+		if (beautified) indent.resize( indent.size()-2);
 		--depth;
 	}
 
@@ -93,9 +91,8 @@ class OutputContextXML
 		appendTagName( name+1);
 	}
 
-	void appendLinkDeclaration( const papuga_ValueVariant& value)
+	void appendLinkId( const papuga_ValueVariant& value)
 	{
-		openTag( PAPUGA_HTML_LINK_ELEMENT);
 		if (hasProtocolPrefix( value))
 		{
 			appendAtomicValue( value);
@@ -104,6 +101,12 @@ class OutputContextXML
 		{
 			appendAtomicValue_withEncoder( value, &OutputContextBase::appendEncoded_Rfc3986);
 		}
+	}
+
+	void appendLinkDeclaration( const papuga_ValueVariant& value)
+	{
+		openTag( PAPUGA_HTML_LINK_ELEMENT);
+		appendLinkId( value);
 		closeTag( PAPUGA_HTML_LINK_ELEMENT);
 	}
 
@@ -114,6 +117,13 @@ class OutputContextXML
 		closeTag( name);
 	}
 
+	void appendNullValueDeclaration( const char* name, const papuga_ValueVariant& value)
+	{
+		out.push_back( '<');
+		appendTagName( name);
+		out.append( " xsi:nil=\"true\"/>");
+	}
+
 	void appendUnspecifiedStructure()
 	{
 		out.append( "...");
@@ -121,12 +131,12 @@ class OutputContextXML
 
 	void openTag( const papuga_ValueVariant& name)
 	{
-		defOpen(); out.append(indent); out.push_back( '<'); appendTagName( name); out.push_back( '>');
+		defOpen(); out.push_back( '<'); appendTagName( name); out.push_back( '>');
 	}
 
 	void openTag( const char* name)
 	{
-		defOpen(); out.append(indent); out.push_back( '<'); appendTagName( name); out.push_back( '>');
+		defOpen(); out.push_back( '<'); appendTagName( name); out.push_back( '>');
 	}
 
 	void closeTag( const papuga_ValueVariant& name)
@@ -176,8 +186,7 @@ class OutputContextXML
 
 protected:
 	std::string indent;
-	bool beaufified;
-	papuga_StringEncoding enc;
+	bool beautified;
 };
 
 }}//namespace

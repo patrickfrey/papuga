@@ -15,8 +15,6 @@
 #include <vector>
 #include <string>
 
-#undef PAPUGA_LOWLEVEL_DEBUG
-
 /// \brief Pseudo random generator 
 enum {KnuthIntegerHashFactor=2654435761U};
 
@@ -291,11 +289,6 @@ int main( int argc, const char* argv[])
 			{
 				throw std::runtime_error( std::string("unexpected elements in random serialization at end of source"));
 			}
-#ifdef PAPUGA_LOWLEVEL_DEBUG
-			papuga_ErrorCode errcode = papuga_Ok;
-			std::cout << papuga::Serialization_tostring( ser, errcode) << std::endl;
-			if (errcode != papuga_Ok) throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
-#endif
 			papuga_destroy_Allocator( &allocator);
 			std::cerr << "1) random fill test" << std::endl;
 		}

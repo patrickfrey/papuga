@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<music>
+<bands>
+  <id>23874</id>
+  <name>Brithday Party</name>
+  <releases>
+    <studio>
+      <name>Door, Door</name>
+      <release>
+        <date>1979</date>
+        <country>AUS</country></release>
+      <label>Mushroom</label>
+      <format>LP</format>
+      <format>CD</format></studio>
+    <studio>
+      <name>The Birthday Party</name>
+      <release>
+        <date>November 1980</date>
+        <country>AUS</country></release>
+      <label>Missing Link</label>
+      <format>LP</format></studio>
+    <studio>
+      <name>Prayers on Fire</name>
+      <release>
+        <date>6 April 1981</date>
+        <country>UK</country></release>
+      <label>Missing Link</label>
+      <label>4AD</label>
+      <format>LP</format>
+      <format>CD</format></studio>
+    <studio>
+      <name>Junkyard</name>
+      <release>
+        <date>10 May 1982</date>
+        <country>UK</country></release>
+      <label>Missing Link</label>
+      <label>4AD</label>
+      <format>LP</format>
+      <format>CD</format></studio>
+    <live>
+      <name>It&apos;s Still Living</name>
+      <release>
+        <date>May 1985</date>
+        <country>AUS</country></release>
+      <label>Missing Link</label>
+      <label>Virgin</label>
+      <format>LP</format>
+      <format>CD</format></live>
+    <live>
+      <name>Live 1981–82</name>
+      <release>
+        <date>10 August 1999</date>
+        <country>UK</country></release>
+      <label>4AD</label>
+      <format>LP</format>
+      <format>CD</format></live></releases></bands>
+<notes>Example</notes></music>

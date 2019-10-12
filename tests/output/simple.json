@@ -1,0 +1,16 @@
+{
+    "person": {
+        "name": "John",
+        "surname": "Doe",
+        "address": {
+            "street": "Elm street",
+            "city": "New York",
+            "zip": 10013
+        },
+        "hobbies": [
+            "ask silly questions",
+            "hanging around",
+            "inventing jokes"
+        ]
+    }
+}

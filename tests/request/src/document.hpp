@@ -47,17 +47,19 @@ public:
 	std::string totext() const;
 
 private:
-	static inline const char* indentTab() {return "\t";}
+	static inline const char* indentTabJson() {return "\t";}
+	static inline const char* indentTabText() {return "\t";}
+	static inline const char* indentTabXml() {return "  ";}
 
 	void printNodeText( std::ostream& out, const std::string& indent) const;
 
+	void printRootNodeValueXml( std::ostream& out, const std::string& indent) const;
+	void printRootNodeXml( std::ostream& out, const std::string& indent) const;
 	void printNodeValueXml( std::ostream& out, const std::string& indent) const;
-
 	void printNodeXml( std::ostream& out, const std::string& indent) const;
 
-	void printNodeValueJson( std::ostream& out, const std::string& indent) const;
-
-	void printNodeListJson( std::ostream& out, const std::string& indent, int cnt) const;
+	void printNodeValueJson( std::ostream& out, const std::string& indent, int depth, bool tab) const;
+	void printNodeListJson( std::ostream& out, const std::string& indent, int cnt, int depth) const;
 
 	static const DocumentNode* getNodeNextDiffName( const DocumentNode* ci);
 

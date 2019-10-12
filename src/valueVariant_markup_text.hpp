@@ -18,8 +18,9 @@ namespace markup {
 class OutputContextTEXT
 	:public KeyDeclOutputContext<OutputContextTEXT>
 {
-	OutputContextTEXT( const papuga_StructInterfaceDescription* structs_, int maxDepth_)
-		:KeyDeclOutputContext<OutputContextTEXT>(structs_,maxDepth_),indent()
+public:
+	OutputContextTEXT( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding enc_, bool beautyfied_)
+		:KeyDeclOutputContext<OutputContextTEXT>(structs_,maxDepth_,enc_),indent(),beautyfied(beautyfied_)
 	{
 		indent.push_back( '\n');
 	}
@@ -27,26 +28,27 @@ class OutputContextTEXT
 	void defHead( papuga_StringEncoding enc, const char* name)
 	{
 		defName( name);
+		if (beautyfied) indent.append( "  ");
+		++depth;
 	}
 
 	void defTail()
 	{
+		defClose();
+		out.push_back( '\n');
 	}
 
 	void defOpen()
 	{
 		out.append( indent);
-		indent.append( "  ");
+		if (beautyfied) indent.append( "  ");
 		++depth;
 	}
 
 	void defClose()
 	{
 		if (depth <= 0) throw ErrorException( papuga_SyntaxError);
-		if (indent.size() >= 2)
-		{
-			indent.resize( indent.size()-2);
-		}
+		if (beautyfied) indent.resize( indent.size()-2);
 		--depth;
 	}
 
@@ -58,13 +60,13 @@ class OutputContextTEXT
 	void defName( const papuga_ValueVariant& name)
 	{
 		appendAtomicValueEncoded( name);
-		out.append( ": ");
+		out.append( ":");
 	}
 
 	void defName( const char* name)
 	{
 		appendStringEncoded( name, std::strlen(name));
-		out.append( ": ");
+		out.append( ":");
 	}
 
 	void openArray()
@@ -83,8 +85,17 @@ class OutputContextTEXT
 	{
 	}
 
+	void openCloseStructImm()
+	{
+	}
+
 	void appendSeparator()
 	{
+	}
+
+	void appendTab()
+	{
+		out.push_back( ' ');
 	}
 
 	void appendStringEncoded( const char* str, std::size_t len)
@@ -131,6 +142,7 @@ class OutputContextTEXT
 
 protected:
 	std::string indent;
+	bool beautyfied;
 };
 
 }}//namespace

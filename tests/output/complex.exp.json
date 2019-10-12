@@ -1,0 +1,72 @@
+{
+"music":{
+"bands":[
+	{
+		"id": "23874",
+		"name": "Brithday Party",
+		"releases":{
+			"studio":[
+				{
+					"name": "Door, Door",
+					"release":{
+						"date": "1979",
+						"country": "AUS"},
+					"label":[
+						"Mushroom"],
+					"format":[
+						"LP",
+						"CD"]},
+				{
+					"name": "The Birthday Party",
+					"release":{
+						"date": "November 1980",
+						"country": "AUS"},
+					"label":[
+						"Missing Link"],
+					"format":[
+						"LP"]},
+				{
+					"name": "Prayers on Fire",
+					"release":{
+						"date": "6 April 1981",
+						"country": "UK"},
+					"label":[
+						"Missing Link",
+						"4AD"],
+					"format":[
+						"LP",
+						"CD"]},
+				{
+					"name": "Junkyard",
+					"release":{
+						"date": "10 May 1982",
+						"country": "UK"},
+					"label":[
+						"Missing Link",
+						"4AD"],
+					"format":[
+						"LP",
+						"CD"]}],
+			"live":[
+				{
+					"name": "It's Still Living",
+					"release":{
+						"date": "May 1985",
+						"country": "AUS"},
+					"label":[
+						"Missing Link",
+						"Virgin"],
+					"format":[
+						"LP",
+						"CD"]},
+				{
+					"name": "Live 1981–82",
+					"release":{
+						"date": "10 August 1999",
+						"country": "UK"},
+					"label":[
+						"4AD"],
+					"format":[
+						"LP",
+						"CD"]}]}}],
+"notes": "Example"}}

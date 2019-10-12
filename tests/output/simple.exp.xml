@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<person>
+<name>John</name>
+<surname>Doe</surname>
+<address>
+  <street>Elm street</street>
+  <city>New York</city>
+  <zip>10013</zip></address>
+<hobbies>ask silly questions</hobbies>
+<hobbies>hanging around</hobbies>
+<hobbies>inventing jokes</hobbies></person>

@@ -297,6 +297,7 @@ char* papuga_ValueVariant_todump(
 * @param[in] allocator allocator to use or NULL if the result string is allocated with std::malloc
 * @param[in] structdefs structure descriptions
 * @param[in] enc encoding of the output
+* @param[in] beautyfied true if the text output is made more readable for humans
 * @param[in] rootname name of root element
 * @param[in] elemname optional name of element in case of an array
 * @param[out] len length of the output in bytes
@@ -308,6 +309,7 @@ void* papuga_ValueVariant_toxml(
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
 		papuga_StringEncoding enc,
+		bool beautyfied,
 		const char* rootname,
 		const char* elemname,
 		size_t* len,
@@ -319,6 +321,7 @@ void* papuga_ValueVariant_toxml(
 * @param[in] allocator allocator to use or NULL if the result string is allocated with std::malloc
 * @param[in] structdefs structure descriptions
 * @param[in] enc encoding of the output
+* @param[in] beautyfied true if the text output is made more readable for humans
 * @param[in] rootname name of root element
 * @param[in] elemname optional name of element in case of an array
 * @param[in] head additionl elements in the HTML head, e.g. style, or NULL if not defined
@@ -332,6 +335,7 @@ void* papuga_ValueVariant_tohtml5(
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
 		papuga_StringEncoding enc,
+		bool beautyfied,
 		const char* rootname,
 		const char* elemname,
 		const char* head,
@@ -345,6 +349,7 @@ void* papuga_ValueVariant_tohtml5(
 * @param[in] allocator allocator to use or NULL if the result string is allocated with std::malloc
 * @param[in] structdefs structure descriptions
 * @param[in] enc encoding of the output
+* @param[in] beautyfied true if the text output is made more readable for humans
 * @param[in] rootname name of root element
 * @param[in] elemname optional name of element in case of an array
 * @param[out] len length of the output in bytes
@@ -356,6 +361,7 @@ void* papuga_ValueVariant_tojson(
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
 		papuga_StringEncoding enc,
+		bool beautyfied,
 		const char* rootname,
 		const char* elemname,
 		size_t* len,
@@ -367,6 +373,7 @@ void* papuga_ValueVariant_tojson(
 * @param[in] allocator allocator to use or NULL if the result string is allocated with std::malloc
 * @param[in] structdefs structure descriptions
 * @param[in] enc encoding of the output text
+* @param[in] beautyfied true if the text output is made more readable for humans
 * @param[in] rootname name of root element
 * @param[in] elemname optional name of element in case of an array
 * @param[out] len length of the output in bytes
@@ -378,6 +385,7 @@ void* papuga_ValueVariant_totext(
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
 		papuga_StringEncoding enc,
+		bool beautyfied,
 		const char* rootname,
 		const char* elemname,
 		size_t* len,

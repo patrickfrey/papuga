@@ -12,8 +12,8 @@
 using namespace papuga;
 using namespace papuga::markup;
 
-OutputContextBase::OutputContextBase( const papuga_StructInterfaceDescription* structs_, int maxDepth_)
-		:out(),structs(structs_),depth(0),maxDepth(maxDepth_)
+OutputContextBase::OutputContextBase( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding encoding_)
+		:out(),structs(structs_),depth(0),maxDepth(maxDepth_),encoding(encoding_)
 {
 	out.reserve( 4096);
 }
@@ -46,7 +46,7 @@ bool OutputContextBase::hasProtocolPrefix( const papuga_ValueVariant& val)
 	for (; pos<7 && chr < 127 && isAlpha( chr); chr = papuga_ValueVariant_nextchar( &val, &pos, &errcode)){}
 	if (errcode == papuga_Ok && pos >= 3)
 	{
-		if (':' == papuga_ValueVariant_nextchar( &val, &pos, &errcode)
+		if (':' == chr
 		&&  '/' == papuga_ValueVariant_nextchar( &val, &pos, &errcode)
 		&&  '/' == papuga_ValueVariant_nextchar( &val, &pos, &errcode)) return true;
 	}
@@ -237,41 +237,42 @@ void OutputContextBase::consumeClose( papuga_SerializationIter& iter)
 	}
 }
 
-void* OutputContextBase::encodeRequestResultString( const std::string& out, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err)
+void* OutputContextBase::encodeRequestResultString( const std::string& out, papuga_Allocator* allocator, papuga_StringEncoding enc, size_t* len)
 {
+	void* rt;
 	if (enc == papuga_UTF8)
 	{
-		void* rt = (void*)std::malloc( out.size()+1);
-		if (!rt)
-		{
-			*err = papuga_NoMemError;
-			return NULL;
-		}
+		rt = (void*)std::malloc( out.size()+1);
+		if (!rt) throw std::bad_alloc();
 		*len = out.size();
 		std::memcpy( (char*)rt, out.c_str(), (*len)+1);
-		return rt;
 	}
 	else
 	{
+		papuga_ErrorCode errcode;
 		papuga_ValueVariant outvalue;
 		papuga_init_ValueVariant_string( &outvalue, out.c_str(), out.size());
 		size_t usize = papuga_StringEncoding_unit_size( enc);
 		size_t rtbufsize = (out.size()*6) + usize;
 		void* rtbuf = std::malloc( rtbufsize);
-		if (!rtbuf)
-		{
-			*err = papuga_NoMemError;
-			return NULL;
-		}
-		const void* rtstr = papuga_ValueVariant_tostring_enc( &outvalue, enc, rtbuf, rtbufsize, len, err);
+		if (!rtbuf) throw std::bad_alloc();
+		const void* rtstr = papuga_ValueVariant_tostring_enc( &outvalue, enc, rtbuf, rtbufsize, len, &errcode);
 		if (!rtstr)
 		{
 			std::free( rtbuf);
-			return NULL;
+			throw ErrorException( errcode);
 		}
-		void* rt = (void*)std::realloc( rtbuf, *len + usize);
+		rt = (void*)std::realloc( rtbuf, *len + usize);
 		if (!rt) rt = rtbuf;
-		return rt;
 	}
+	if (rt && allocator)
+	{
+		if (!papuga_Allocator_add_free_mem( allocator, rt))
+		{
+			std::free( rt);
+			throw std::bad_alloc();
+		}
+	}
+	return rt;
 }
 

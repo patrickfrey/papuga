@@ -66,13 +66,13 @@ static std::string mapCallList( const char** calllist)
 	return rt;
 }
 
-static std::string mapDocument( const papuga::test::Document& doc, papuga_StringEncoding encoding, papuga_ContentType doctype)
+static std::string mapDocument( const papuga::test::Document& doc, papuga_StringEncoding encoding, papuga_ContentType doctype, bool with_indent)
 {
 	std::string rt;
 	switch (doctype)
 	{
 		case papuga_ContentType_XML:
-			rt = doc.toxml( encoding, false);
+			rt = doc.toxml( encoding, with_indent);
 			LOG_TEST_CONTENT( "DOC", doc.toxml( encoding, true));
 			break;
 		case papuga_ContentType_JSON:
@@ -840,7 +840,7 @@ static void executeTest( int tidx, const TestData& test)
 
 		std::cerr << ei << ". doctype=" << papuga_ContentType_name( doctype) << ", encoding=" << papuga_StringEncoding_name( enc) << std::endl;
 
-		std::string content = mapDocument( *test.doc, enc, doctype);
+		std::string content = mapDocument( *test.doc, enc, doctype, false/*no indent*/);
 		LOG_TEST_CONTENT( "DUMP", papuga::test::dumpRequest( doctype, enc, content));
 
 		if (!papuga_execute_request( test.atm->impl(), doctype, enc, content, test.var, resout, logout))
@@ -851,7 +851,7 @@ static void executeTest( int tidx, const TestData& test)
 		}
 		else
 		{
-			std::string expected = mapCallList( test.calls) + "---\n" + mapDocument( *test.expected, enc, doctype);
+			std::string expected = mapCallList( test.calls) + "---\n" + mapDocument( *test.expected, enc, doctype, true/*with indent*/);
 			std::string result = g_call_dump + logout + "---\n" + resout;
 			if (expected != result)
 			{

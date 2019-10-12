@@ -18,15 +18,11 @@
 #include "papuga/constants.h"
 #include "papuga/callResult.h"
 #include "papuga/interfaceDescription.h"
-#include "papuga/stack.h"
 #include "papuga/uriEncode.h"
 #include <string>
 #include <cstring>
 #include <cstdlib>
 #include <stdexcept>
-#include <cstdio>
-#include <iostream>
-#include <sstream>
 
 namespace papuga {
 namespace markup {
@@ -51,7 +47,7 @@ private:
 class OutputContextBase
 {
 public:
-	OutputContextBase( const papuga_StructInterfaceDescription* structs_, int maxDepth_);
+	OutputContextBase( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding encoding_);
 
 	static bool isEqual( const char* val, const char* oth)
 	{
@@ -96,13 +92,14 @@ public:
 
 	void consumeClose( papuga_SerializationIter& iter);
 
-	static void* encodeRequestResultString( const std::string& out, papuga_StringEncoding enc, size_t* len, papuga_ErrorCode* err);
+	static void* encodeRequestResultString( const std::string& out, papuga_Allocator* allocator, papuga_StringEncoding enc, size_t* len);
 
 protected:
 	std::string out;
 	const papuga_StructInterfaceDescription* structs;
 	int depth;
 	int maxDepth;
+	papuga_StringEncoding encoding;
 };
 
 }}//namespace

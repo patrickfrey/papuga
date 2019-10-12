@@ -18,10 +18,11 @@ namespace markup {
 class OutputContextJSON
 	:public KeyDeclOutputContext<OutputContextJSON>
 {
-	OutputContextJSON( const papuga_StructInterfaceDescription* structs_, int maxDepth_)
-		:KeyDeclOutputContext<OutputContextJSON>(structs_,maxDepth_),indent()
+public:	
+	OutputContextJSON( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding enc_, bool beautyfied_)
+		:KeyDeclOutputContext<OutputContextJSON>(structs_,maxDepth_,enc_),indent(),beautyfied(beautyfied_)
 	{
-		indent.push_back( '\n');
+		if (beautyfied) indent.push_back( '\n');
 	}
 
 	static bool isUnquotedValue( const papuga_ValueVariant& value)
@@ -43,14 +44,14 @@ class OutputContextJSON
 	void defOpen()
 	{
 		out.append( indent);
-		indent.push_back( '\t');
+		if (beautyfied) indent.push_back( '\t');
 		++depth;
 	}
 
 	void defClose()
 	{
 		if (depth <= 0) throw ErrorException( papuga_SyntaxError);
-		indent.resize( indent.size()-1);
+		if (beautyfied) indent.resize( indent.size()-1);
 		--depth;
 	}
 
@@ -63,14 +64,14 @@ class OutputContextJSON
 	{
 		out.push_back( '\"');
 		appendAtomicValueEncoded( name);
-		out.append( "\": ");
+		out.append( "\":");
 	}
 
 	void defName( const char* name)
 	{
 		out.push_back( '\"');
 		appendStringEncoded( name, std::strlen(name));
-		out.append( "\": ");
+		out.append( "\":");
 	}
 
 	void openArray()
@@ -91,6 +92,16 @@ class OutputContextJSON
 	void closeStruct()
 	{
 		out.push_back( '}');
+	}
+
+	void openCloseStructImm()
+	{
+		out.append( "{}");
+	}
+
+	void appendTab()
+	{
+		out.push_back( ' ');
 	}
 
 	void appendSeparator()
@@ -153,6 +164,7 @@ class OutputContextJSON
 
 protected:
 	std::string indent;
+	bool beautyfied;
 };
 
 }}//namespace

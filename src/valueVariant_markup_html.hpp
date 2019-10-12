@@ -17,10 +17,11 @@ namespace markup {
 class OutputContextHTML
 	:public TagDeclOutputContext<OutputContextHTML>
 {
-	OutputContextHTML( const papuga_StructInterfaceDescription* structs_, int maxDepth_, bool beaufified_, papuga_StringEncoding enc_, const char* head_, const char* href_base_)
-		:TagDeclOutputContext<OutputContextHTML>(structs_,maxDepth_),indent(),beaufified(beaufified_),enc(enc_),head(head_),href_base(href_base_)
+public:
+	OutputContextHTML( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding enc_, bool beautified_, const char* head_, const char* href_base_)
+		:TagDeclOutputContext<OutputContextHTML>(structs_,maxDepth_,enc_),indent(),beautified(beautified_),head(head_),href_base(href_base_)
 	{
-		if (beaufified) indent.push_back( '\n');
+		if (beautified) indent.push_back( '\n');
 	}
 
 	void defHead( const char* name)
@@ -28,11 +29,11 @@ class OutputContextHTML
 		char hdrbuf[ 1024];
 		if (href_base)
 		{
-			std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"%s\"/>\n<base href=\"%s\"/>\n", papuga_StringEncoding_name( enc), href_base);
+			std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"%s\"></meta>\n<base href=\"%s\"></base>\n", papuga_StringEncoding_name( encoding), href_base);
 		}
 		else
 		{
-			std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"%s\"/>\n", papuga_StringEncoding_name( enc));
+			std::snprintf( hdrbuf, sizeof(hdrbuf), "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"%s\"></meta>\n", papuga_StringEncoding_name( encoding));
 		}
 		out.append( hdrbuf);
 		if (head)
@@ -57,7 +58,7 @@ class OutputContextHTML
 
 	void defOpen()
 	{
-		if (beaufified)
+		if (beautified)
 		{
 			out.append( indent);
 			indent.append( "  ");
@@ -68,10 +69,7 @@ class OutputContextHTML
 	void defClose()
 	{
 		if (depth <= 0) throw ErrorException( papuga_SyntaxError);
-		if (beaufified)
-		{
-			indent.resize( indent.size()-2);
-		}
+		if (beautified) indent.resize( indent.size()-2);
 		--depth;
 	}
 
@@ -105,9 +103,8 @@ class OutputContextHTML
 		appendTagName( name+1);
 	}
 
-	void appendLinkDeclaration( const papuga_ValueVariant& value)
+	void appendLinkId( const papuga_ValueVariant& value)
 	{
-		out.append( "<div class=\"link\"><a href=\"");
 		if (hasProtocolPrefix( value))
 		{
 			appendAtomicValue_withEncoder( value, &OutputContextBase::appendEncoded_Xml);
@@ -116,31 +113,46 @@ class OutputContextHTML
 		{
 			appendAtomicValue_withEncoder( value, &OutputContextBase::appendEncoded_Rfc3986);
 		}
+	}
+
+	void appendLinkDeclaration( const papuga_ValueVariant& value)
+	{
+		if (beautified) out.append( indent);
+		out.append( "<div class=\"link\"><a href=\"");
+		appendLinkId( value);
 		out.append( "\"><span class=\"value\">");
-		appendAtomicValue_withEncoder( value, &OutputContextBase::appendEncoded_Html5);
+		appendAtomicValue_withEncoder( value, &OutputContextBase::appendEncoded_Xml);
 		out.append( "</span></a></div>");
 	}
 
 	void appendAtomicValueDeclaration( const char* name, const papuga_ValueVariant& value)
 	{
+		if (beautified) out.append( indent);
 		out.append( "<span class=\"name\">"); appendTagName( name); out.append( "</span>");
 		out.append( "<span class=\"value\">"); appendAtomicValueEncoded( value); out.append( "</span>");
 	}
 
+	void appendNullValueDeclaration( const char* name, const papuga_ValueVariant& value)
+	{
+		if (beautified) out.append( indent);
+		out.append( "<span class=\"null\"></span>");
+	}
+
 	void appendUnspecifiedStructure()
 	{
+		if (beautified) out.append( indent);
 		out.append( "<div class=\"folded\"></div>");
 	}
 
 	void openTag( const papuga_ValueVariant& name)
 	{
-		defOpen(); out.append(indent); out.append( "<div class=\""); appendTagName( name); out.append( "\">");
+		defOpen(); out.append( "<div class=\""); appendTagName( name); out.append( "\">");
 		out.append( "<span class=\"title\">"); appendTagName( name); out.append( "</span>"); 
 	}
 
 	void openTag( const char* name)
 	{
-		defOpen(); out.append(indent); out.append( "<div class=\""); appendTagName( name); out.append( "\">");
+		defOpen(); out.append( "<div class=\""); appendTagName( name); out.append( "\">");
 		out.append( "<span class=\"title\">"); appendTagName( name); out.append( "</span>"); 
 	}
 
@@ -182,8 +194,7 @@ class OutputContextHTML
 
 protected:
 	std::string indent;
-	bool beaufified;
-	papuga_StringEncoding enc;
+	bool beautified;
 	const char* head;
 	const char* href_base;
 };

@@ -140,12 +140,12 @@ std::string DocumentNode::toxml( const papuga_StringEncoding& encoding, bool wit
 	}
 	else if (with_indent)
 	{
-		printNodeXml( out, "\n");
+		printRootNodeXml( out, "\n");
 	}
 	else
 	{
 		out << "\n";
-		printNodeXml( out, "");
+		printRootNodeXml( out, "");
 	}
 	out << "\n";
 	return encodeString( encoding, out.str());
@@ -155,8 +155,8 @@ std::string DocumentNode::tojson( const papuga_StringEncoding& encoding) const
 {
 	std::ostringstream out;
 	out << "{";
-	printNodeListJson( out, std::string("\n"), 0);
-	out << "\n}";
+	printNodeListJson( out, std::string("\n"), 0/*cnt*/, 0/*depth*/);
+	out << "}";
 	out << std::endl;
 	return encodeString( encoding, out.str());
 }
@@ -175,7 +175,7 @@ void DocumentNode::printNodeText( std::ostream& out, const std::string& indent) 
 	if (m_attr)
 	{
 		out << indent << "ATTR [";
-		m_attr->printNodeText( out, indent + indentTab());
+		m_attr->printNodeText( out, indent + indentTabText());
 		out << "]";
 	}
 	if (!m_value.empty())
@@ -185,7 +185,7 @@ void DocumentNode::printNodeText( std::ostream& out, const std::string& indent) 
 	if (m_child)
 	{
 		out << indent << "CHILD [";
-		m_child->printNodeText( out, indent + indentTab());
+		m_child->printNodeText( out, indent + indentTabText());
 		out << "]";
 	}
 	if (m_next)
@@ -200,7 +200,7 @@ void DocumentNode::printNodeValueXml( std::ostream& out, const std::string& inde
 	DocumentNode const* ci = m_child;
 	for (; ci; ci = ci->m_next)
 	{
-		ci->printNodeXml( out, indent.empty() ? indent: (indent + indentTab()));
+		ci->printNodeXml( out, indent.empty() ? indent: (indent + indentTabXml()));
 	}
 }
 
@@ -224,6 +224,36 @@ void DocumentNode::printNodeXml( std::ostream& out, const std::string& indent) c
 	}
 }
 
+void DocumentNode::printRootNodeValueXml( std::ostream& out, const std::string& indent) const
+{
+	out << m_value;
+	DocumentNode const* ci = m_child;
+	for (; ci; ci = ci->m_next)
+	{
+		ci->printNodeXml( out, indent);
+	}
+}
+
+void DocumentNode::printRootNodeXml( std::ostream& out, const std::string& indent) const
+{
+	if (!m_name.empty())
+	{
+		out << indent << "<" << m_name;
+		DocumentNode const* ai = m_attr;
+		for (; ai; ai = ai->m_next)
+		{
+			out << " " << ai->m_name << "=\"" << ai->m_value << "\"";
+		}
+		out << ">";
+		printRootNodeValueXml( out, indent);
+		out << "</" << m_name << ">";
+	}
+	else
+	{
+		printRootNodeValueXml( out, indent);
+	}
+}
+
 const DocumentNode* DocumentNode::getNodeNextDiffName( const DocumentNode* ci)
 {
 	DocumentNode const* cn = ci->m_next;
@@ -231,7 +261,7 @@ const DocumentNode* DocumentNode::getNodeNextDiffName( const DocumentNode* ci)
 	return cn;
 }
 
-void DocumentNode::printNodeValueJson( std::ostream& out, const std::string& indent) const
+void DocumentNode::printNodeValueJson( std::ostream& out, const std::string& indent, int depth, bool tab) const
 {
 	if (!m_attr && !m_child)
 	{
@@ -239,6 +269,10 @@ void DocumentNode::printNodeValueJson( std::ostream& out, const std::string& ind
 		{
 			out << "{}";
 			//... in general we cannot assume that a NULL node is equivalent to an empty string node, but for tests we do this
+		}
+		else if (tab)
+		{
+			out << " \"" << m_value << "\"";
 		}
 		else
 		{
@@ -253,22 +287,22 @@ void DocumentNode::printNodeValueJson( std::ostream& out, const std::string& ind
 		for (; ai; ai = ai->m_next,++cnt)
 		{
 			if (cnt) out << ",";
-			out << indent << indentTab() << "\"-" << ai->m_name << "\":\"" << ai->m_value << "\"";
+			out << indent << "\"-" << ai->m_name << "\": \"" << ai->m_value << "\"";
 		}
 		if (m_child)
 		{
-			m_child->printNodeListJson( out, indent + indentTab(), cnt++);
+			m_child->printNodeListJson( out, indent, cnt++, depth+1);
 		}
 		if (!m_value.empty())
 		{
 			if (cnt) out << ",";
-			out << indent << indentTab() << "\"#text\":\"" << m_value << "\"";
+			out << indent << "\"#text\":\"" << m_value << "\"";
 		}
 		out << "}";
 	}
 }
 
-void DocumentNode::printNodeListJson( std::ostream& out, const std::string& indent, int cnt) const
+void DocumentNode::printNodeListJson( std::ostream& out, const std::string& indent, int cnt, int depth) const
 {
 	DocumentNode const* ci = this;
 	while (ci)
@@ -277,32 +311,36 @@ void DocumentNode::printNodeListJson( std::ostream& out, const std::string& inde
 		const DocumentNode* cn = getNodeNextDiffName( ci);
 		if (cn == ci->m_next)
 		{
+			std::string next_indent = depth <= 2 ? indent : (indent + indentTabJson());
 			if (!ci->m_name.empty())
 			{
-				out << indent << "\"" << ci->m_name << "\": ";
-				ci->printNodeValueJson( out, indent);
+				out << next_indent << "\"" << ci->m_name << "\":";
+				ci->printNodeValueJson( out, next_indent, depth+1, true/*tag*/);
 			}
 			else
 			{
-				ci->printNodeValueJson( out, indent);
+				out << next_indent;
+				ci->printNodeValueJson( out, next_indent, depth+1, false/*no tab*/);
 			}
 			++cnt;
 			ci = ci->m_next;
 		}
 		else
 		{
+			std::string next_indent = depth <= 1 ? indent : (indent + indentTabJson());
 			if (ci->m_name.empty())
 			{
 				out << indent << "[";
 			}
 			else
 			{
-				out << indent << "\"" << ci->m_name << "\": [";
+				out << indent << "\"" << ci->m_name << "\":[";
 			}
 			for (int acnt=0; ci != cn; ci = ci->m_next,++acnt)
 			{
 				if (acnt) out << ",";
-				ci->printNodeValueJson( out, indent);
+				out << next_indent;
+				ci->printNodeValueJson( out, next_indent, depth+1, false/*no tab*/);
 			}
 			out << "]";
 			++cnt;

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"></meta>
+<base href="file:///home/patrick/Projects/github/papuga/tests/output"></base>
+<style>div,span {
+	font-family: verdana,arial,courier;
+}
+div {
+	padding:5px 15px;
+	position:relative;
+}
+div.title {
+	color: #09092a; font-size: larger; text-transform: capitalize;
+}
+.info {
+	color: green;
+}
+.error {
+	color: #e60000;
+}
+.table {
+	display: table;
+}
+.row {
+	display: table-row;
+}
+.col {
+	display: table-cell;
+}
+.list {
+	display: list;
+}
+.title {
+	display: block; text-transform: capitalize;
+}
+.elem {
+	display: list-item;
+	list-style: none;
+}
+span.title {
+	color: #222299;
+text-decoration: underline; text-transform: capitalize;
+}
+span.title:after {
+	content: '\A'
+}
+span.name {
+	padding:5px 15px; display: inline;
+	color: #669999; text-transform: capitalize;
+}
+span.name:after {
+	content: ": ";
+}
+span.value {
+	display: inline;
+}
+span.value:after {
+	content: '\A';
+	white-space: pre
+}
+</style>
+</head>
+<body>
+<div class="title">person</div>
+<span class="name">name</span><span class="value">John</span>
+<span class="name">surname</span><span class="value">Doe</span>
+<div class="address"><span class="title">address</span>
+  <span class="name">street</span><span class="value">Elm street</span>
+  <span class="name">city</span><span class="value">New York</span>
+  <span class="name">zip</span><span class="value">10013</span></div>
+<span class="name">hobbies</span><span class="value">ask silly questions</span>
+<span class="name">hobbies</span><span class="value">hanging around</span>
+<span class="name">hobbies</span><span class="value">inventing jokes</span>
+</body>
+</html>

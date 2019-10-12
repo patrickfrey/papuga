@@ -14,10 +14,10 @@
 #include "papuga/valueVariant.hpp"
 #include <map>
 #include <stdexcept>
-#include <sstream>
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <inttypes.h>
 
 using namespace papuga;
 
@@ -38,7 +38,7 @@ enum PrintMode {
 struct PrintStruct
 {
 	PrintMode mode;
-	std::ostringstream out;
+	std::string out;
 	std::string indent;
 	papuga_ErrorCode errcode;
 	int printlevel;
@@ -47,6 +47,13 @@ struct PrintStruct
 
 	PrintStruct( PrintMode mode_, const std::string& indent_, int printlevel_, bool deterministic_)
 		:mode(mode_),out(),indent(indent_),errcode(papuga_Ok),printlevel(printlevel_),itemcnt(0),deterministic(deterministic_){}
+
+	void appendInt( int64_t value)
+	{
+		char valuebuf[ 64];
+		std::snprintf( valuebuf, sizeof(valuebuf), "%" PRIu64, value);
+		out.append( valuebuf);
+	}
 
 	void printOpen( int structid)
 	{
@@ -58,21 +65,24 @@ struct PrintStruct
 				case LineMode:
 					if (structid)
 					{
-						out << indent << "open #" << structid;
+						out.append( indent);
+						out.append( "open #");
+						appendInt( structid);
 					}
 					else
 					{
-						out << indent << "open";
+						out.append( indent);
+						out.append( "open");
 					}
 					indent.append( "  ");
 					break;
 				case BracketMode:
 					if (itemcnt)
 					{
-						out << ", ";
+						out.append( ", ");
 						itemcnt = 0;
 					}
-					out << "{";
+					out.append( "{");
 					break;
 			}
 			if (printlevel == 0)
@@ -80,10 +90,11 @@ struct PrintStruct
 				switch (mode)
 				{
 					case LineMode:
-						out << indent << "...";
+						out.append( indent);
+						out.append( "...");
 						break;
 					case BracketMode:
-						out << "...";
+						out.append( "...");
 						break;
 				}
 			}
@@ -99,10 +110,11 @@ struct PrintStruct
 			{
 				case LineMode:
 					indent.resize( indent.size()-2);
-					out << indent << "close";
+					out.append( indent);
+					out.append( "close");
 					break;
 				case BracketMode:
-					out << "}";
+					out.append( "}");
 					itemcnt++;
 					break;
 			}
@@ -117,15 +129,18 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "name " << value;
+					out.append( indent);
+					out.append( "name ");
+					out.append( value);
 					break;
 				case BracketMode:
 					if (itemcnt)
 					{
-						out << ", ";
+						out.append( ", ");
 						itemcnt = 0;
 					}
-					out << value << ":";
+					out.append( value);
+					out.append( ":");
 					break;
 			}
 		}
@@ -138,14 +153,15 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "value NULL";
+					out.append( indent);
+					out.append( "value NULL");
 					break;
 				case BracketMode:
 					if (itemcnt++)
 					{
-						out << ", ";
+						out.append( ", ");
 					}
-					out << "NULL";
+					out.append( "NULL");
 					break;
 			}
 		}
@@ -158,14 +174,19 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "value <" << typenam << ">";
+					out.append( indent);
+					out.append( "value <");
+					out.append( typenam);
+					out.append( ">");
 					break;
 				case BracketMode:
 					if (itemcnt++)
 					{
-						out << ", ";
+						out.append( ", ");
 					}
-					out << "<" << typenam << ">";
+					out.append( "<");
+					out.append( typenam);
+					out.append( ">");
 					break;
 			}
 		}
@@ -178,14 +199,16 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "value " << value;
+					out.append( indent);
+					out.append( "value ");
+					out.append( value);
 					break;
 				case BracketMode:
 					if (itemcnt++)
 					{
-						out << ", ";
+						out.append( ", ");
 					}
-					out << value;
+					out.append( value);
 					break;
 			}
 		}
@@ -198,14 +221,19 @@ struct PrintStruct
 			switch (mode)
 			{
 				case LineMode:
-					out << indent << "value \"" << value << "\"";
+					out.append( indent);
+					out.append( "value \"");
+					out.append( value);
+					out.append( "\"");
 					break;
 				case BracketMode:
 					if (itemcnt++)
 					{
-						out << ", ";
+						out.append( ", ");
 					}
-					out << "\"" << value << "\"";
+					out.append( "\"");
+					out.append( value);
+					out.append( "\"");
 					break;
 			}
 		}
@@ -257,13 +285,13 @@ struct PrintStruct
 			{
 				if (mode == BracketMode && midx)
 				{
-					out << ", ";
+					out.append( ", ");
 				}
 				if (!mi->first.empty())
 				{
 					printName( mi->first);
 				}
-				out << mi->second;
+				out.append( mi->second);
 			}
 		}
 	}
@@ -345,7 +373,7 @@ static bool SerializationIter_print_det( PrintStruct& ctx, papuga_SerializationI
 					ctx.errcode = papuga_UnexpectedEof;
 					return false;
 				}
-				map.insert( std::pair<std::string,std::string>( name, subctx.out.str()));
+				map.insert( std::pair<std::string,std::string>( name, subctx.out));
 				name.clear();
 				break;
 			}
@@ -363,7 +391,7 @@ static bool SerializationIter_print_det( PrintStruct& ctx, papuga_SerializationI
 					ctx.errcode = subctx.errcode;
 					return false;
 				}
-				map.insert( std::pair<std::string,std::string>( name, subctx.out.str()));
+				map.insert( std::pair<std::string,std::string>( name, subctx.out));
 				name.clear();
 				break;
 			}
@@ -418,7 +446,7 @@ extern "C" const char* papuga_Serialization_tostring( const papuga_Serialization
 			*errcode = ctx.errcode;
 			return NULL;
 		}
-		return stringCopyAsCString( ctx.out.str(), allocator);
+		return stringCopyAsCString( ctx.out, allocator);
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -437,7 +465,7 @@ std::string papuga::Serialization_tostring( const papuga_Serialization& value, b
 			errcode = ctx.errcode;
 			return std::string();
 		}
-		return ctx.out.str();
+		return ctx.out;
 	}
 	catch (const std::bad_alloc&)
 	{
@@ -456,7 +484,7 @@ std::string papuga::Serialization_tostring_deterministic( const papuga_Serializa
 			errcode = ctx.errcode;
 			return std::string();
 		}
-		return ctx.out.str();
+		return ctx.out;
 	}
 	catch (const std::bad_alloc&)
 	{

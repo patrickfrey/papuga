@@ -1049,7 +1049,7 @@ extern "C" int papuga_ValueVariant_nextchar( const papuga_ValueVariant* self, in
 	}
 	CharIterator itr( self->value.string + *pos);
 	char buf[ 32];
-	unsigned int bufpos;
+	unsigned int bufpos = 0;
 
 	switch (self->encoding)
 	{
