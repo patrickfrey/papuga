@@ -8,6 +8,7 @@
 #ifndef _PAPUGA_REQUEST_VALUE_VARIANT_MARKUP_KEYDECL_HPP_INCLUDED
 #define _PAPUGA_REQUEST_VALUE_VARIANT_MARKUP_KEYDECL_HPP_INCLUDED
 #include "valueVariant_markup_base.hpp"
+#include <algorithm>
 
 namespace papuga {
 namespace markup {
@@ -21,6 +22,11 @@ class KeyDeclOutputContext
 public:
 	KeyDeclOutputContext( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding enc_)
 		:OutputContextBase(structs_,maxDepth_,enc_){}
+
+	void reset()
+	{
+		OutputContextBase::reset();
+	}
 
 	void defValue( const papuga_ValueVariant& value, bool valueIsLink, bool tabulator)
 	{
@@ -246,6 +252,8 @@ public:
 
 	std::string build( const char* root, const char* elem, const papuga_ValueVariant& val)
 	{
+		std::string rt;
+		((OutputContextClass*)this)->reset();
 		((OutputContextClass*)this)->defHead( encoding, root);
 		if (elem)
 		{
@@ -260,7 +268,8 @@ public:
 		}
 		((OutputContextClass*)this)->defTail();
 		((OutputContextClass*)this)->defDone();
-		return out;
+		std::swap( out, rt);
+		return rt;
 	}
 };
 

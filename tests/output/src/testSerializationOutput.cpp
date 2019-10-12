@@ -85,11 +85,17 @@ static DocType docTypeFromName( const char* dt)
 	throw std::runtime_error( "unknown document type");
 }
 
+static std::string normalizeDir( const char* dirName)
+{
+	char const* ie = std::strchr( dirName, '\0');
+	while (ie != dirName && *(ie-1) == '/') {--ie;}
+	return std::string( dirName, ie-dirName);
+}
+
 static std::string getTestHrefBase( const char* inputFileName)
 {
 	std::string rt;
 	char const* ie = std::strchr( inputFileName, '\0');
-	while (ie != inputFileName && *(ie-1) != '/') {--ie;}
 	while (ie != inputFileName && *(ie-1) == '/') {--ie;}
 	char const* ii = inputFileName;
 	while (ii != ie && *ii == '/') ++ii;
@@ -118,6 +124,23 @@ static void writeFile( const char* filename, const std::string& content)
 	bool success = ci==ce;
 	if (fp) ::fclose( fp);
 	if (!success) throw papuga::runtime_error( "failed to write to file '%s': %s", filename, ::strerror( errno));
+}
+
+static void removeStringFromString( char* str, std::size_t* len, const char* pt)
+{
+	std::size_t ptlen = std::strlen( pt);
+	if (!ptlen) return;
+	char* si = std::strstr( str, pt);
+	for (; si; si = std::strstr( si, pt))
+	{
+		std::size_t startmatchpos = si-str;
+		std::size_t endmatchpos = startmatchpos + ptlen;
+		if (endmatchpos > *len) return;
+		std::size_t restlen = *len - endmatchpos;
+		std::memmove( si, si+ptlen, restlen);
+		*len -= ptlen;
+		str[ *len] = 0;
+	}
 }
 
 static void initValue_serialization_range( papuga_ValueVariant& dest, papuga_Allocator* allocator, const papuga_SerializationIter& start, const papuga_SerializationIter& end, bool withLast)
@@ -172,12 +195,13 @@ static bool checkExpected( const std::string& output, const std::string& expecte
 class Test
 {
 public:
-	Test( const char* inputfilename_, const char* doctypestr, const char* outputdir, int verbosity)
+	Test( const char* inputfilename_, const char* doctypestr, const char* outputdir_, int verbosity, bool with_href_base_)
 		:m_doctype( docTypeFromName( doctypestr))
 		,m_inputfilename(inputfilename_)
-		,m_outputfilename(getTestFileName( inputfilename_, "out", doctypestr, outputdir))
+		,m_outputfilename(getTestFileName( inputfilename_, "out", doctypestr, outputdir_))
 		,m_expectfilename(getTestFileName( inputfilename_, "exp", doctypestr))
-		,m_root(),m_elem(),m_href_base(getTestHrefBase(inputfilename_)),m_verbosity(verbosity)
+		,m_root(),m_elem(),m_href_base(getTestHrefBase(outputdir_)),m_outputdir(normalizeDir(outputdir_))
+		,m_verbosity(verbosity),m_with_href_base(with_href_base_)
 
 	{
 		papuga_init_Allocator( &m_allocator, m_allocator_mem, sizeof(m_allocator_mem));
@@ -229,6 +253,10 @@ public:
 						m_root.c_str(), m_elem.empty() ? 0 : m_elem.c_str(),
 						head, m_href_base.c_str(), &reslen,
 						&errcode);
+				if (resptr && !m_with_href_base)
+				{
+					removeStringFromString( resptr, &reslen, m_outputdir.c_str());
+				}
 				break;
 
 		}
@@ -363,10 +391,12 @@ private:
 	std::string m_root;
 	std::string m_elem;
 	std::string m_href_base;
+	std::string m_outputdir;
 	papuga_ValueVariant m_content;
 	papuga_Allocator m_allocator;
 	int m_allocator_mem[ 4096];
 	int m_verbosity;
+	bool m_with_href_base;
 };
 
 
@@ -404,7 +434,7 @@ int main( int argc, const char* argv[])
 		const char* doctype = argv[argi+1];
 		const char* outputdir = argv[argi+2];
 
-		Test test( inputfile, doctype, outputdir, verbosity);
+		Test test( inputfile, doctype, outputdir, verbosity, false/*not with_href_base*/);
 		test.run();
 
 		std::cerr << "OK" << std::endl;

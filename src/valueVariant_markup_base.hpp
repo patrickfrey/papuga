@@ -49,6 +49,8 @@ class OutputContextBase
 public:
 	OutputContextBase( const papuga_StructInterfaceDescription* structs_, int maxDepth_, papuga_StringEncoding encoding_);
 
+	void reset();
+
 	static bool isEqual( const char* val, const char* oth)
 	{
 		if (val == oth) return true;

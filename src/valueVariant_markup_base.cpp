@@ -18,6 +18,12 @@ OutputContextBase::OutputContextBase( const papuga_StructInterfaceDescription* s
 	out.reserve( 4096);
 }
 
+void OutputContextBase::reset()
+{
+	depth = 0;
+	out.clear();
+}
+
 bool OutputContextBase::isEqualAscii( const papuga_ValueVariant& val, const char* oth)
 {
 	papuga_ErrorCode errcode = papuga_Ok;

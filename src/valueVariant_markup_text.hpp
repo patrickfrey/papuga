@@ -25,6 +25,13 @@ public:
 		indent.push_back( '\n');
 	}
 
+	void reset()
+	{
+		KeyDeclOutputContext<OutputContextTEXT>::reset();
+		indent.clear();
+		indent.push_back( '\n');
+	}
+
 	void defHead( papuga_StringEncoding enc, const char* name)
 	{
 		defName( name);

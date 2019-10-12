@@ -25,6 +25,13 @@ public:
 		if (beautified) indent.push_back( '\n');
 	}
 
+	void reset()
+	{
+		KeyDeclOutputContext<OutputContextJSON>::reset();
+		indent.clear();
+		if (beautified) indent.push_back( '\n');
+	}
+
 	static bool isUnquotedValue( const papuga_ValueVariant& value)
 	{
 		return (value.valuetype == papuga_TypeInt && value.value.Int >= 0);

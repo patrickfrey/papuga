@@ -25,6 +25,13 @@ public:
 		if (beautified) indent.push_back( '\n');
 	}
 
+	void reset()
+	{
+		TagDeclOutputContext<OutputContextXML>::reset();
+		indent.clear();
+		if (beautified) indent.push_back( '\n');
+	}
+
 	void defHead( const char* name)
 	{
 		char hdrbuf[ 1024];
