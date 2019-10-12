@@ -274,7 +274,7 @@ public:
 		}
 		else
 		{
-			((OutputContextClass*)this)->defValue( val, isEqual( root, PAPUGA_HTML_LINK_ELEMENT), false/*tabulator*/);
+			((OutputContextClass*)this)->defValue( val, false/*is link element*/, false/*tabulator*/);
 		}
 		((OutputContextClass*)this)->defDone();
 		std::swap( out, rt);
