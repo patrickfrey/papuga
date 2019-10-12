@@ -132,11 +132,11 @@ void OutputContextBase::appendEncoded_AnsiC( const char* str, std::size_t len)
 		{
 			switch (*si)
 			{
-				case '\n': entity = "n"; break;
-				case '\r': entity = "r"; break;
-				case '\b': entity = "b"; break;
-				case '\f': entity = "f"; break;
-				case '\t': entity = "t"; break;
+				case '\n': entity = "\\n"; break;
+				case '\r': entity = "\\r"; break;
+				case '\b': entity = "\\b"; break;
+				case '\f': entity = "\\f"; break;
+				case '\t': entity = "\\t"; break;
 				case '"': entity = "\\\""; break;
 				case '\\': entity = "\\\\"; break;
 				default: continue;

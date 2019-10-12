@@ -104,7 +104,7 @@ public:
 			else
 			{
 				int ecnt = 0;
-				for (; papuga_SerializationIter_tag(&iter) != papuga_TagClose; papuga_SerializationIter_skip(&iter),++ecnt)
+				for (;papuga_SerializationIter_tag(&iter) != papuga_TagClose; ++ecnt)
 				{
 					if (ecnt) ((OutputContextClass*)this)->appendSeparator();
 					const char* name = structs[ structid-1].members[ ecnt].name;
