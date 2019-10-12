@@ -168,7 +168,7 @@ public:
 			else
 			{
 				int ecnt = 0;
-				for (; papuga_SerializationIter_tag(&iter) != papuga_TagClose; papuga_SerializationIter_skip(&iter))
+				for (; papuga_SerializationIter_tag(&iter) != papuga_TagClose; papuga_SerializationIter_skip(&iter),++ecnt)
 				{
 					const char* membname = structs[ structid-1].members[ ecnt].name;
 					if (!membname) throw ErrorException( papuga_SyntaxError);

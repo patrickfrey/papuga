@@ -104,9 +104,9 @@ public:
 			else
 			{
 				int ecnt = 0;
-				for (; papuga_SerializationIter_tag(&iter) != papuga_TagClose; papuga_SerializationIter_skip(&iter))
+				for (; papuga_SerializationIter_tag(&iter) != papuga_TagClose; papuga_SerializationIter_skip(&iter),++ecnt)
 				{
-					if (++ecnt) ((OutputContextClass*)this)->appendSeparator();
+					if (ecnt) ((OutputContextClass*)this)->appendSeparator();
 					const char* name = structs[ structid-1].members[ ecnt].name;
 					if (!name) throw ErrorException( papuga_SyntaxError);
 					valueIsLink = isEqual( name, PAPUGA_HTML_LINK_ELEMENT);
@@ -129,9 +129,9 @@ public:
 			else
 			{
 				int ecnt = 0;
-				while (papuga_SerializationIter_tag( &iter) == papuga_TagName)
+				for (;papuga_SerializationIter_tag( &iter) == papuga_TagName; ++ecnt)
 				{
-					if (ecnt++) ((OutputContextClass*)this)->appendSeparator();
+					if (ecnt) ((OutputContextClass*)this)->appendSeparator();
 					const papuga_ValueVariant* nameval = papuga_SerializationIter_value( &iter);
 					valueIsLink = isEqualAscii( *nameval, PAPUGA_HTML_LINK_ELEMENT);
 					((OutputContextClass*)this)->defOpen();
@@ -158,9 +158,9 @@ public:
 			else
 			{
 				int ecnt = 0;
-				while (papuga_SerializationIter_tag( &iter) != papuga_TagClose)
+				for (; papuga_SerializationIter_tag( &iter) != papuga_TagClose; ++ecnt)
 				{
-					if (ecnt++) ((OutputContextClass*)this)->appendSeparator();
+					if (ecnt) ((OutputContextClass*)this)->appendSeparator();
 					((OutputContextClass*)this)->defOpen();
 					appendSerializationIterElement( iter, valueIsLink, false/*tabulator*/);
 					((OutputContextClass*)this)->defClose();
