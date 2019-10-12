@@ -257,10 +257,12 @@ public:
 		((OutputContextClass*)this)->defHead( encoding, root);
 		if (elem)
 		{
+			((OutputContextClass*)this)->openStruct();
 			((OutputContextClass*)this)->defOpen();
 			((OutputContextClass*)this)->defName( elem);
 			((OutputContextClass*)this)->defValue( val, isEqual( elem, PAPUGA_HTML_LINK_ELEMENT), true/*tabulator*/);
 			((OutputContextClass*)this)->defClose();
+			((OutputContextClass*)this)->closeStruct();
 		}
 		else
 		{

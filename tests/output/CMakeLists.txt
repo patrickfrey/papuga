@@ -19,6 +19,7 @@ endfunction( DeclareSerializationOutputTest )
 DeclareSerializationOutputTest( Simple simple.json )
 DeclareSerializationOutputTest( Empty1 empty1.json )
 DeclareSerializationOutputTest( Empty2 empty2.json )
+DeclareSerializationOutputTest( Single single.json )
 DeclareSerializationOutputTest( LinkList linklist.json )
 DeclareSerializationOutputTest( Complex complex.json )
 
