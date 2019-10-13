@@ -27,18 +27,25 @@ public:
 	{
 		OutputContextBase::reset();
 	}
+	inline OutputContextClass* THIS()
+	{
+		return (OutputContextClass*)this;
+	}
 
 	void defTopValue( const papuga_ValueVariant& value, bool isLink)
 	{
-		if (isLink)
-		{
-			((OutputContextClass*)this)->appendLinkId( value);
-		}
-		else if (!papuga_ValueVariant_isvalid(&value))
+		if (!papuga_ValueVariant_isvalid(&value))
 		{}
 		else if (papuga_ValueVariant_isatomic(&value))
 		{
-			((OutputContextClass*)this)->appendAtomicValueEncoded( value);
+			if (isLink)
+			{
+				THIS()->appendLinkId( value);
+			}
+			else
+			{
+				THIS()->appendAtomicValueEncoded( value);
+			}
 		}
 		else if (value.valuetype == papuga_TypeSerialization)
 		{
@@ -56,17 +63,20 @@ public:
 
 	void defValue( const papuga_ValueVariant& value, const char* name)
 	{
-		if (isEqual( name, PAPUGA_HTML_LINK_ELEMENT))
+		if (!papuga_ValueVariant_isvalid(&value))
 		{
-			((OutputContextClass*)this)->appendLinkDeclaration( value);
-		}
-		else if (!papuga_ValueVariant_isvalid(&value))
-		{
-			((OutputContextClass*)this)->appendNullValueDeclaration( name, value);
+			THIS()->appendNullValueDeclaration( name, value);
 		}
 		else if (papuga_ValueVariant_isatomic(&value))
 		{
-			((OutputContextClass*)this)->appendAtomicValueDeclaration( name, value);
+			if (isEqual( name, PAPUGA_HTML_LINK_ELEMENT))
+			{
+				THIS()->appendLinkDeclaration( value);
+			}
+			else
+			{
+				THIS()->appendAtomicValueDeclaration( name, value);
+			}
 		}
 		else if (value.valuetype == papuga_TypeSerialization)
 		{
@@ -104,7 +114,7 @@ public:
 			{
 				if (papuga_ValueVariant_isatomic( papuga_SerializationIter_value(&iter)))
 				{
-					((OutputContextClass*)this)->appendAttribute( name, *papuga_SerializationIter_value(&iter));
+					THIS()->appendAttribute( name, *papuga_SerializationIter_value(&iter));
 				}
 				else
 				{
@@ -175,11 +185,11 @@ public:
 	{
 		if (structid)
 		{
-			if (name) ((OutputContextClass*)this)->openTag( name);
+			if (name) THIS()->openTag( name);
 			if (depth >= maxDepth)
 			{
 				if (!papuga_SerializationIter_skip_structure( &iter)) throw ErrorException( papuga_SyntaxError);
-				((OutputContextClass*)this)->appendUnspecifiedStructure();
+				THIS()->appendUnspecifiedStructure();
 			}
 			else
 			{
@@ -192,15 +202,15 @@ public:
 					appendSerializationIterElement( iter, membname);
 				}
 			}
-			if (name) ((OutputContextClass*)this)->closeTag( name);
+			if (name) THIS()->closeTag( name);
 		}
 		else if (papuga_SerializationIter_tag( &iter) == papuga_TagName)
 		{
-			if (name) ((OutputContextClass*)this)->openTag( name);
+			if (name) THIS()->openTag( name);
 			if (depth >= maxDepth)
 			{
 				if (!papuga_SerializationIter_skip_structure( &iter)) throw ErrorException( papuga_SyntaxError);
-				((OutputContextClass*)this)->appendUnspecifiedStructure();
+				THIS()->appendUnspecifiedStructure();
 			}
 			else
 			{
@@ -212,11 +222,11 @@ public:
 					appendSerializationIterElement( iter, *nameval);
 				}
 			}
-			if (name) ((OutputContextClass*)this)->closeTag( name);
+			if (name) THIS()->closeTag( name);
 		}
 		else if (papuga_SerializationIter_tag( &iter) == papuga_TagClose)
 		{
-			if (name) ((OutputContextClass*)this)->openCloseTagImm( name);
+			if (name) THIS()->openCloseTagImm( name);
 		}
 		else
 		{
@@ -224,7 +234,7 @@ public:
 			if (depth >= maxDepth)
 			{
 				if (!papuga_SerializationIter_skip_structure( &iter)) throw ErrorException( papuga_SyntaxError);
-				((OutputContextClass*)this)->appendUnspecifiedStructure();
+				THIS()->appendUnspecifiedStructure();
 			}
 			else
 			{
@@ -240,7 +250,7 @@ public:
 	{
 		if (result.nofvalues > 1)
 		{
-			((OutputContextClass*)this)->openTag( name);
+			THIS()->openTag( name);
 			int ri = 0, re = result.nofvalues;
 			for (; ri != re; ++ri)
 			{
@@ -248,7 +258,7 @@ public:
 				std::snprintf( buf, sizeof(buf), "%d", ri+1);
 				defValue( result.valuear[ri], buf);
 			}
-			((OutputContextClass*)this)->closeTag( name);
+			THIS()->closeTag( name);
 		}
 		else if (result.nofvalues == 1)
 		{
@@ -310,20 +320,20 @@ public:
 	std::string build( const char* root, const char* elem, const papuga_ValueVariant& val)
 	{
 		std::string rt;
-		((OutputContextClass*)this)->reset();
+		THIS()->reset();
 		if (elem)
 		{
-			((OutputContextClass*)this)->defHead( root);
-			((OutputContextClass*)this)->defValue( val, elem);
-			((OutputContextClass*)this)->defTail( root);
-			((OutputContextClass*)this)->defDone();
+			THIS()->defHead( root);
+			THIS()->defValue( val, elem);
+			THIS()->defTail( root);
+			THIS()->defDone();
 		}
 		else
 		{
-			((OutputContextClass*)this)->defHead( root);
-			((OutputContextClass*)this)->defTopValue( val, isEqual( root, PAPUGA_HTML_LINK_ELEMENT));
-			((OutputContextClass*)this)->defTail( root);
-			((OutputContextClass*)this)->defDone();
+			THIS()->defHead( root);
+			THIS()->defTopValue( val, isEqual( root, PAPUGA_HTML_LINK_ELEMENT));
+			THIS()->defTail( root);
+			THIS()->defDone();
 		}
 		std::swap( out, rt);
 		return rt;

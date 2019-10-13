@@ -27,23 +27,29 @@ public:
 	{
 		OutputContextBase::reset();
 	}
+	inline OutputContextClass* THIS()
+	{
+		return (OutputContextClass*)this;
+	}
 
 	void defValue( const papuga_ValueVariant& value, bool valueIsLink, bool tabulator)
 	{
-		if (valueIsLink)
+		if (!papuga_ValueVariant_defined(&value))
 		{
-			if (tabulator) ((OutputContextClass*)this)->appendTab();
-			((OutputContextClass*)this)->appendLinkIdElem( value);
-		}
-		else if (!papuga_ValueVariant_defined(&value))
-		{
-			if (tabulator) ((OutputContextClass*)this)->appendTab();
-			((OutputContextClass*)this)->appendNull();
+			if (tabulator) THIS()->appendTab();
+			THIS()->appendNull();
 		}
 		else if (papuga_ValueVariant_isatomic(&value))
 		{
-			if (tabulator) ((OutputContextClass*)this)->appendTab();
-			((OutputContextClass*)this)->appendAtomicValueElem( value);
+			if (tabulator) THIS()->appendTab();
+			if (valueIsLink)
+			{
+				THIS()->appendLinkIdElem( value);
+			}
+			else
+			{
+				THIS()->appendAtomicValueElem( value);
+			}
 		}
 		else if (value.valuetype == papuga_TypeSerialization)
 		{
@@ -95,78 +101,78 @@ public:
 	{
 		if (structid)
 		{
-			((OutputContextClass*)this)->openStruct();
+			THIS()->openStruct();
 			if (depth >= maxDepth)
 			{
 				if (!papuga_SerializationIter_skip_structure( &iter)) throw ErrorException( papuga_SyntaxError);
-				((OutputContextClass*)this)->appendUnspecifiedStructure();
+				THIS()->appendUnspecifiedStructure();
 			}
 			else
 			{
 				int ecnt = 0;
 				for (;papuga_SerializationIter_tag(&iter) != papuga_TagClose; ++ecnt)
 				{
-					if (ecnt) ((OutputContextClass*)this)->appendSeparator();
+					if (ecnt) THIS()->appendSeparator();
 					const char* name = structs[ structid-1].members[ ecnt].name;
 					if (!name) throw ErrorException( papuga_SyntaxError);
 					valueIsLink = isEqual( name, PAPUGA_HTML_LINK_ELEMENT);
-					((OutputContextClass*)this)->defOpen();
-					((OutputContextClass*)this)->defName( name);
+					THIS()->defOpen();
+					THIS()->defName( name);
 					appendSerializationIterElement( iter, valueIsLink, true/*tabulator*/);
-					((OutputContextClass*)this)->defClose();
+					THIS()->defClose();
 				}
 			}
-			((OutputContextClass*)this)->closeStruct();
+			THIS()->closeStruct();
 		}
 		else if (papuga_SerializationIter_tag( &iter) == papuga_TagName)
 		{
-			((OutputContextClass*)this)->openStruct();
+			THIS()->openStruct();
 			if (depth >= maxDepth)
 			{
 				if (!papuga_SerializationIter_skip_structure( &iter)) throw ErrorException( papuga_SyntaxError);
-				((OutputContextClass*)this)->appendUnspecifiedStructure();
+				THIS()->appendUnspecifiedStructure();
 			}
 			else
 			{
 				int ecnt = 0;
 				for (;papuga_SerializationIter_tag( &iter) == papuga_TagName; ++ecnt)
 				{
-					if (ecnt) ((OutputContextClass*)this)->appendSeparator();
+					if (ecnt) THIS()->appendSeparator();
 					const papuga_ValueVariant* nameval = papuga_SerializationIter_value( &iter);
 					valueIsLink = isEqualAscii( *nameval, PAPUGA_HTML_LINK_ELEMENT);
-					((OutputContextClass*)this)->defOpen();
-					((OutputContextClass*)this)->defName( *nameval);
+					THIS()->defOpen();
+					THIS()->defName( *nameval);
 					papuga_SerializationIter_skip( &iter);
 					appendSerializationIterElement( iter, valueIsLink, true/*tabulator*/);
-					((OutputContextClass*)this)->defClose();
+					THIS()->defClose();
 				}
 			}
-			((OutputContextClass*)this)->closeStruct();
+			THIS()->closeStruct();
 		}
 		else if (papuga_SerializationIter_tag( &iter) == papuga_TagClose)
 		{
-			((OutputContextClass*)this)->openCloseStructImm();
+			THIS()->openCloseStructImm();
 		}
 		else
 		{
-			((OutputContextClass*)this)->openArray();
+			THIS()->openArray();
 			if (depth >= maxDepth)
 			{
 				if (!papuga_SerializationIter_skip_structure( &iter)) throw ErrorException( papuga_SyntaxError);
-				((OutputContextClass*)this)->appendUnspecifiedStructure();
+				THIS()->appendUnspecifiedStructure();
 			}
 			else
 			{
 				int ecnt = 0;
 				for (; papuga_SerializationIter_tag( &iter) != papuga_TagClose; ++ecnt)
 				{
-					if (ecnt) ((OutputContextClass*)this)->appendSeparator();
-					((OutputContextClass*)this)->defOpen();
+					if (ecnt) THIS()->appendSeparator();
+					THIS()->defOpen();
 					appendSerializationIterElement( iter, valueIsLink, false/*tabulator*/);
-					((OutputContextClass*)this)->defClose();
+					THIS()->defClose();
 				}
 			}
-			((OutputContextClass*)this)->closeArray();
+			THIS()->closeArray();
 		}
 	}
 
@@ -174,16 +180,16 @@ public:
 	{
 		if (result.nofvalues > 1)
 		{
-			((OutputContextClass*)this)->openArray();
+			THIS()->openArray();
 			int ri = 0, re = result.nofvalues;
 			for (; ri != re; ++ri)
 			{
-				if (ri) ((OutputContextClass*)this)->appendSeparator();
-				((OutputContextClass*)this)->defOpen();
+				if (ri) THIS()->appendSeparator();
+				THIS()->defOpen();
 				defValue( result.valuear[ri], valueIsLink, false/*tabulator*/);
-				((OutputContextClass*)this)->defClose();
+				THIS()->defClose();
 			}
-			((OutputContextClass*)this)->closeArray();
+			THIS()->closeArray();
 		}
 		else if (result.nofvalues == 1)
 		{
@@ -192,7 +198,7 @@ public:
 		else
 		{
 			
-			((OutputContextClass*)this)->appendNull();
+			THIS()->appendNull();
 		}
 	}
 
@@ -210,10 +216,10 @@ public:
 			papuga_init_Allocator( &allocator, result_mem, sizeof(result_mem));
 			papuga_init_CallResult( &result, &allocator, false/*allocator ownership*/, error_mem, sizeof(error_mem));
 	
-			((OutputContextClass*)this)->openArray();
+			THIS()->openArray();
 			for (; itercnt < PAPUGA_MAX_ITERATOR_EXPANSION_LENGTH && rt && iterator.getNext( iterator.data, &result); ++itercnt)
 			{
-				if (itercnt) ((OutputContextClass*)this)->appendSeparator();
+				if (itercnt) THIS()->appendSeparator();
 				appendCallResult( result, valueIsLink);
 
 				papuga_destroy_CallResult( &result);
@@ -225,7 +231,7 @@ public:
 			{
 				throw ErrorException( papuga_IteratorFailed);
 			}
-			((OutputContextClass*)this)->closeArray();
+			THIS()->closeArray();
 			papuga_destroy_Allocator( &allocator);
 		}
 		catch (const ErrorException& err)
@@ -253,30 +259,27 @@ public:
 	std::string build( const char* root, const char* elem, const papuga_ValueVariant& val)
 	{
 		std::string rt;
-		((OutputContextClass*)this)->reset();
+		THIS()->reset();
 		if (root)
 		{
-			((OutputContextClass*)this)->defHead( encoding, root);
+			THIS()->defHead( encoding, root);
 			if (elem)
 			{
-				((OutputContextClass*)this)->openStruct();
-				((OutputContextClass*)this)->defOpen();
-				((OutputContextClass*)this)->defName( elem);
-				((OutputContextClass*)this)->defValue( val, isEqual( elem, PAPUGA_HTML_LINK_ELEMENT), true/*tabulator*/);
-				((OutputContextClass*)this)->defClose();
-				((OutputContextClass*)this)->closeStruct();
+				THIS()->openFirstElem( elem);
+				defValue( val, isEqual( elem, PAPUGA_HTML_LINK_ELEMENT), THIS()->firstElemTabulator());
+				THIS()->closeFirstElem();
 			}
 			else
 			{
-				((OutputContextClass*)this)->defValue( val, isEqual( root, PAPUGA_HTML_LINK_ELEMENT), false/*tabulator*/);
+				THIS()->defValue( val, isEqual( root, PAPUGA_HTML_LINK_ELEMENT), false/*tabulator*/);
 			}
-			((OutputContextClass*)this)->defTail();
+			THIS()->defTail();
 		}
 		else
 		{
-			((OutputContextClass*)this)->defValue( val, false/*is link element*/, false/*tabulator*/);
+			THIS()->defValue( val, false/*is link element*/, false/*tabulator*/);
 		}
-		((OutputContextClass*)this)->defDone();
+		THIS()->defDone();
 		std::swap( out, rt);
 		return rt;
 	}

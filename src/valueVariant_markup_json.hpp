@@ -43,6 +43,22 @@ public:
 		defName( name);
 	}
 
+	void openFirstElem( const char* name)
+	{
+		openStruct();
+		defOpen();
+		defName( name);
+	}
+	void closeFirstElem()
+	{
+		defClose();
+		closeStruct();
+	}
+	bool firstElemTabulator()
+	{
+		return true;
+	}
+
 	void defTail()
 	{
 		out.append( "}\n");

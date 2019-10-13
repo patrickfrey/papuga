@@ -34,20 +34,28 @@ public:
 
 	void defHead( papuga_StringEncoding enc, const char* name)
 	{
-		defName( name);
-		if (beautified) indent.append( "  ");
-		++depth;
+		// ... no root element printed for text
+	}
+
+	void openFirstElem( const char* name)
+	{
+		// ... no tag for first element after header printed for text
+	}
+	void closeFirstElem()
+	{}
+	bool firstElemTabulator()
+	{
+		return false;
 	}
 
 	void defTail()
 	{
-		defClose();
 		out.push_back( '\n');
 	}
 
 	void defOpen()
 	{
-		out.append( indent);
+		if (!out.empty()) out.append( indent);
 		if (beautified) indent.append( "  ");
 		++depth;
 	}

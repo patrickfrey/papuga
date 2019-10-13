@@ -265,6 +265,10 @@ public:
 		writeFile( m_outputfilename.c_str(), output);
 		std::string expected = readFile( m_expectfilename.c_str());
 
+		if (m_verbosity >= 2)
+		{
+			std::cerr << "Output:" << std::endl << output << std::endl;
+		}
 		if (!checkExpected( output, expected))
 		{
 			std::cerr << "comparing output " << m_outputfilename << " with expected " << m_expectfilename << " failed" << std::endl;
@@ -297,6 +301,7 @@ private:
 		while (nofClose > 0 && !papuga_SerializationIter_eof( &iter) && papuga_SerializationIter_tag( &iter) == papuga_TagClose)
 		{
 			papuga_SerializationIter_skip( &iter);
+			--nofClose;
 		}
 		return nofClose == 0 && papuga_SerializationIter_eof( &iter);
 	}
@@ -427,8 +432,8 @@ int main( int argc, const char* argv[])
 			if (!verbosity) verbosity = 2;
 		}
 
-		if (argi + 3 > argc) throw std::runtime_error( "too many arguments");
-		if (argi + 3 < argc) throw std::runtime_error( "too few arguments");
+		if (argi + 3 < argc) throw std::runtime_error( "too many arguments");
+		if (argi + 3 > argc) throw std::runtime_error( "too few arguments");
 
 		const char* inputfile = argv[argi+0];
 		const char* doctype = argv[argi+1];
