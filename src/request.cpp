@@ -60,16 +60,19 @@ struct ValueDef
 struct StructMemberDef
 {
 	const char* name;
+	const char* varname;
 	int itemid;
 	papuga_ResolveType resolvetype;
 	int max_tag_diff;
 
 	StructMemberDef()
-		:name(0),itemid(-1),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
+		:name(0),varname(0),itemid(-1),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(0){}
 	StructMemberDef( const char* name_, int itemid_, papuga_ResolveType resolvetype_, int max_tag_diff_)
-		:name(name_),itemid(itemid_),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
+		:name(name_),varname(0),itemid(itemid_),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
+	StructMemberDef( const char* name_, const char* varname_, papuga_ResolveType resolvetype_, int max_tag_diff_)
+		:name(name_),varname(varname_),itemid(-1),resolvetype(resolvetype_),max_tag_diff(max_tag_diff_){}
 	void assign( const StructMemberDef& o)
-		{name=o.name;itemid=o.itemid;resolvetype=o.resolvetype;max_tag_diff=o.max_tag_diff;}
+		{name=o.name;varname=o.varname;itemid=o.itemid;resolvetype=o.resolvetype;max_tag_diff=o.max_tag_diff;}
 };
 
 struct StructDef
@@ -172,10 +175,13 @@ public:
 		:m_classdefs(classdefs_)
 		,m_nof_classdefs(nofClassDefs(classdefs_))
 		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs(),m_resultdefs(),m_resultVariables()
-		,m_acceptedRootTags(),m_strict(strict_)
+		,m_acceptedRootTags()
+		,m_nofEnvAssignments(0)
+		,m_strict(strict_)
 		,m_atm(),m_maxitemid(0)
 		,m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
 	{
+		std::memset( m_envAssignmentAr, 0, sizeof(m_envAssignmentAr));
 		papuga_init_Allocator( &m_allocator, m_allocatorbuf, sizeof(m_allocatorbuf));
 	}
 	~AutomatonDescription()
@@ -361,12 +367,7 @@ public:
 				m_errcode = papuga_TypeError;
 				return false;
 			}
-			CallArgDef adef( papuga_Allocator_copy_charp( &m_allocator, argvar));
-			if (!adef.varname)
-			{
-				m_errcode = papuga_NoMemError;
-				return false;
-			}
+			CallArgDef adef( copyIfDefined( argvar));
 			return setCallArg( idx, adef);
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -423,7 +424,7 @@ public:
 		return true;
 	}
 
-	bool setMember( int idx, const char* name, int itemid, papuga_ResolveType resolvetype, int max_tag_diff)
+	bool setMemberItem( int idx, const char* name, int itemid, papuga_ResolveType resolvetype, int max_tag_diff)
 	{
 		try
 		{
@@ -458,21 +459,46 @@ public:
 				return false;
 			}
 			mdef.itemid = itemid;
+			mdef.varname = 0;
 			mdef.resolvetype = resolvetype;
 			mdef.max_tag_diff = max_tag_diff;
-			if (name && name[0])
+			mdef.name = copyIfDefined( name);
+			return true;
+		}
+		CATCH_LOCAL_EXCEPTION(m_errcode,false)
+		return true;
+	}
+
+	bool setMemberVar( int idx, const char* name, const char* varname)
+	{
+		try
+		{
+			if (m_done)
 			{
-				mdef.name = papuga_Allocator_copy_charp( &m_allocator, name);
-				if (!mdef.name)
-				{
-					m_errcode = papuga_NoMemError;
-					return false;
-				}
+				m_errcode = papuga_ExecutionOrder;
+				return false;
 			}
-			else
+			if (m_structdefs.empty() || idx < 0 || idx >= m_structdefs.back().nofmembers)
 			{
-				mdef.name = 0;
+				m_errcode = papuga_InvalidAccess;
+				return false;
 			}
+			if (!varname)
+			{
+				m_errcode = papuga_TypeError;
+				return false;
+			}
+			StructMemberDef& mdef = m_structdefs.back().members[ idx];
+			if (mdef.itemid >= 0)
+			{
+				m_errcode = papuga_DuplicateDefinition;
+				return false;
+			}
+			mdef.itemid = -1;
+			mdef.varname = copyIfDefined( varname);
+			mdef.resolvetype = papuga_ResolveTypeRequired;
+			mdef.max_tag_diff = 0;
+			mdef.name = copyIfDefined( name);
 			return true;
 		}
 		CATCH_LOCAL_EXCEPTION(m_errcode,false)
@@ -668,6 +694,20 @@ public:
 		return true;
 	}
 
+	bool addEnvAssignment( const char* variable, int envid, const char* argument)
+	{
+		if (m_nofEnvAssignments > MaxNofEnvAssignments)
+		{
+			m_errcode = papuga_BufferOverflowError;
+			return false;
+		}
+		m_envAssignmentAr[ m_nofEnvAssignments].variable = variable;
+		m_envAssignmentAr[ m_nofEnvAssignments].envid = envid;
+		m_envAssignmentAr[ m_nofEnvAssignments].argument = argument;
+		++m_nofEnvAssignments;
+		return true;
+	}
+
 	struct InheritFromDef
 	{
 		std::string type;
@@ -686,6 +726,7 @@ public:
 	const std::vector<papuga_RequestResultDescription*>& resultdefs() const	{return m_resultdefs;}
 	const XMLPathSelectAutomaton& atm() const				{return m_atm;}
 	std::size_t maxitemid() const						{return m_maxitemid;}
+	const papuga_RequestEnvAssignment* envAssignments() const		{return m_envAssignmentAr;}
 
 private:
 	bool addExpression( int eventid, const char* expression)
@@ -792,6 +833,9 @@ private:
 	std::vector<papuga_RequestResultDescription*> m_resultdefs;
 	std::set<CString> m_resultVariables;
 	std::set<std::string> m_acceptedRootTags;		//< set of accepted requests (identified by the root tag)
+	enum {MaxNofEnvAssignments=7};
+	papuga_RequestEnvAssignment m_envAssignmentAr[ MaxNofEnvAssignments+1];
+	int m_nofEnvAssignments;
 	bool m_strict;						//< false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
 	papuga_Allocator m_allocator;
 	XMLPathSelectAutomaton m_atm;
@@ -1875,7 +1919,7 @@ public:
 		return used;
 	}
 
-	papuga_RequestResult* getResultArray( papuga_Allocator* allocator, int& nofResults)
+	papuga_RequestResult* getResultArray( const papuga_RequestContext* context, papuga_Allocator* allocator, int& nofResults)
 	{
 		int ri = 0, re = m_ctx->nofResults();
 		nofResults = 0;
@@ -1896,14 +1940,14 @@ public:
 		{
 			if (m_ctx->results()[ ri].valid())
 			{
-				if (!initResult( rt+ridx, allocator, ridx)) return NULL;
+				if (!initResult( rt+ridx, allocator, ridx, context)) return NULL;
 				++ridx;
 			}
 		}
 		return rt;
 	}
 
-	bool initResult( papuga_RequestResult* result, papuga_Allocator* allocator, int idx)
+	bool initResult( papuga_RequestResult* result, papuga_Allocator* allocator, int idx, const papuga_RequestContext* context)
 	{
 		try
 		{
@@ -1935,7 +1979,7 @@ public:
 				{
 					TagLevelRange tagLevelRange = getTagLevelRange( ri->resolvetype, ri->taglevel, 1/*max_tag_diff*/);
 					ValueSink sink( ri->value, allocator);
-					if (!resolveItem( sink, ri->itemid, ri->resolvetype, ri->scope, tagLevelRange, false/*embedded*/))
+					if (!resolveItem( sink, ri->itemid, ri->resolvetype, ri->scope, tagLevelRange, false/*embedded*/, context))
 					{
 						if (m_errstruct.scopestart < ri->scope.from)
 						{
@@ -2240,43 +2284,59 @@ private:
 		}
 	}
 
-	bool build_structure( ValueSink& sink, const Scope& scope, int taglevel, int structidx)
+	bool build_structure( ValueSink& sink, const Scope& scope, int taglevel, int structidx, const papuga_RequestContext* context)
 	{
 		const StructDef* stdef = m_ctx->structs()[ structidx];
 		int mi = 0, me = stdef->nofmembers;
 		for (; mi != me; ++mi)
 		{
-			TagLevelRange taglevelRange = getTagLevelRange( stdef->members[ mi].resolvetype, taglevel, stdef->members[ mi].max_tag_diff);
-			if (stdef->members[ mi].name == 0)
+			if (stdef->members[ mi].varname)
 			{
-				if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, true/*embedded*/))
+				const char* varname = stdef->members[ mi].varname;
+				const papuga_ValueVariant* value = papuga_RequestContext_get_variable( context, varname);
+				if (!value)
 				{
-					m_structpath.insert( m_structpath.begin(), stdef->members[ mi].name);
-					if (m_errstruct.scopestart < scope.from)
-					{
-						m_errstruct.scopestart = scope.from;
-					}
+					m_errstruct.variable = varname;
+					m_errstruct.errcode = papuga_ValueUndefined;
 					return false;
 				}
+				sink.pushName( varname);
+				sink.pushValue( value);
 			}
 			else
 			{
-				sink.pushName( stdef->members[ mi].name);
-				if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, false/*embedded*/))
+				TagLevelRange taglevelRange = getTagLevelRange( stdef->members[ mi].resolvetype, taglevel, stdef->members[ mi].max_tag_diff);
+				if (stdef->members[ mi].name == 0)
 				{
-					m_structpath.insert( m_structpath.begin(), stdef->members[ mi].name);
-					if (m_errstruct.scopestart < scope.from)
+					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, true/*embedded*/, context))
 					{
-						m_errstruct.scopestart = scope.from;
+						m_structpath.insert( m_structpath.begin(), stdef->members[ mi].name);
+						if (m_errstruct.scopestart < scope.from)
+						{
+							m_errstruct.scopestart = scope.from;
+						}
+						return false;
 					}
-					return false;
+				}
+				else
+				{
+					sink.pushName( stdef->members[ mi].name);
+					if (!resolveItem( sink, stdef->members[ mi].itemid, stdef->members[ mi].resolvetype, scope.inner(), taglevelRange, false/*embedded*/, context))
+					{
+						m_structpath.insert( m_structpath.begin(), stdef->members[ mi].name);
+						if (m_errstruct.scopestart < scope.from)
+						{
+							m_errstruct.scopestart = scope.from;
+						}
+						return false;
+					}
 				}
 			}
 		}
 		return true;
 	}
 
-	bool addResolvedItemValue( ValueSink& sink, const ResolvedObject& resolvedObj, bool embedded)
+	bool addResolvedItemValue( ValueSink& sink, const ResolvedObject& resolvedObj, bool embedded, const papuga_RequestContext* context)
 	{
 		if (ObjectRef_is_value( resolvedObj.objref))
 		{
@@ -2297,7 +2357,7 @@ private:
 			int structidx = ObjectRef_struct_id( resolvedObj.objref);
 			if (embedded)
 			{
-				if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx)) return false;
+				if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx, context)) return false;
 			}
 			else
 			{
@@ -2306,7 +2366,7 @@ private:
 					m_errstruct.errcode = papuga_NoMemError;
 					return false;
 				}
-				if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx)) return false;
+				if (!build_structure( sink, resolvedObj.scope, resolvedObj.taglevel, structidx, context)) return false;
 				if (!sink.closeSerialization())
 				{
 					m_errstruct.errcode = papuga_NoMemError;
@@ -2357,7 +2417,7 @@ private:
 	}
 
 	/* \brief Build the data requested by an item id and a scope in a manner defined by a class of resolving a reference */
-	bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange, bool embedded)
+	bool resolveItem( ValueSink& sink, int itemid, papuga_ResolveType resolvetype, const Scope& scope, const TagLevelRange& taglevelRange, bool embedded, const papuga_RequestContext* context)
 	{
 		setResolverUpperBound( scope, itemid);
 		switch (resolvetype)
@@ -2378,7 +2438,7 @@ private:
 					}
 				}
 				// We try to get a valid node candidate preferring value nodes if defined
-				while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded))
+				while (resolvedObj.valid() && !addResolvedItemValue( sink, resolvedObj, embedded, context))
 				{
 					if (m_errstruct.errcode != papuga_Ok)
 					{
@@ -2483,7 +2543,7 @@ private:
 				while (resolvedObj.valid())
 				{
 					// We try to get a valid node candidate preferring value nodes if defined
-					while (!addResolvedItemValue( sink, resolvedObj, false/*embedded*/))
+					while (!addResolvedItemValue( sink, resolvedObj, false/*embedded*/, context))
 					{
 						resolvedObj = resolveNextSameScopeItem( itemid);
 						if (!resolvedObj.valid()) break;
@@ -2537,7 +2597,7 @@ private:
 		{
 			TagLevelRange tagLevelRange = getTagLevelRange( argdef.resolvetype, taglevel, argdef.max_tag_diff);
 			ValueSink sink( &arg, &m_allocator);
-			if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, scope, tagLevelRange, false/*embedded*/))
+			if (!resolveItem( sink, argdef.itemid, argdef.resolvetype, scope, tagLevelRange, false/*embedded*/, context))
 			{
 				if (m_errstruct.scopestart < scope.from)
 				{
@@ -2677,7 +2737,7 @@ extern "C" bool papuga_RequestAutomaton_add_structure(
 	return self->atm.addStructure( expression, itemid, nofmembers);
 }
 
-extern "C" bool papuga_RequestAutomaton_set_structure_element(
+extern "C" bool papuga_RequestAutomaton_set_structure_element_item(
 		papuga_RequestAutomaton* self,
 		int idx,
 		const char* name,
@@ -2685,7 +2745,16 @@ extern "C" bool papuga_RequestAutomaton_set_structure_element(
 		papuga_ResolveType resolvetype,
 		int max_tag_diff)
 {
-	return self->atm.setMember( idx, name, itemid, resolvetype, max_tag_diff);
+	return self->atm.setMemberItem( idx, name, itemid, resolvetype, max_tag_diff);
+}
+
+extern "C" bool papuga_RequestAutomaton_set_structure_element_var(
+		papuga_RequestAutomaton* self,
+		int idx,
+		const char* name,
+		const char* varname)
+{
+	return self->atm.setMemberVar( idx, name, varname);
 }
 
 extern "C" bool papuga_RequestAutomaton_add_value(
@@ -2702,6 +2771,20 @@ extern "C" bool papuga_RequestAutomation_add_result(
 		papuga_RequestResultDescription* descr)
 {
 	return self->atm.addResultDescription( descr);
+}
+
+extern "C" bool papuga_RequestAutomation_add_env_assignment(
+		papuga_RequestAutomaton* self,
+		const char* variable,
+		int envid,
+		const char* argument)
+{
+	return self->atm.addEnvAssignment( variable, envid, argument);
+}
+
+extern "C" const papuga_RequestEnvAssignment* papuga_RequestAutomation_get_env_assignments( const papuga_RequestAutomaton* self)
+{
+	return self->atm.envAssignments();
 }
 
 extern "C" bool papuga_RequestAutomaton_done( papuga_RequestAutomaton* self)
@@ -2838,9 +2921,9 @@ extern "C" bool papuga_RequestIterator_push_call_result( papuga_RequestIterator*
 	return self->itr.pushCallResult( *result);
 }
 
-extern "C" papuga_RequestResult* papuga_RequestIterator_get_result_array( papuga_RequestIterator* self, papuga_Allocator* allocator, int* nofResults)
+extern "C" papuga_RequestResult* papuga_RequestIterator_get_result_array( papuga_RequestIterator* self, const papuga_RequestContext* context, papuga_Allocator* allocator, int* nofResults)
 {
-	return self->itr.getResultArray( allocator, *nofResults);
+	return self->itr.getResultArray( context, allocator, *nofResults);
 }
 
 extern "C" const papuga_RequestError* papuga_RequestIterator_get_last_error( papuga_RequestIterator* self)

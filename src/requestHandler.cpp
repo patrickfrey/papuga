@@ -953,7 +953,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 			papuga_destroy_RequestIterator( itr);
 			return false;
 		}
-		*results = papuga_RequestIterator_get_result_array( itr, allocator, nofResults);
+		*results = papuga_RequestIterator_get_result_array( itr, context, allocator, nofResults);
 		if (!*results)
 		{
 			itr_errstruct = papuga_RequestIterator_get_last_error( itr);

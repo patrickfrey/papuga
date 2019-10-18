@@ -113,7 +113,7 @@ bool papuga_RequestAutomaton_add_call(
  * @brief Define a variable reference as argument to the last method call added
  * @param[in,out] self automaton changed
  * @param[in] idx index of the argument to set, starting with 0
- * @param[in] varname identifier of the variable to use as argument
+ * @param[in] varname name of the variable to use as argument
  * @return true on success, false on failure (index out of range or memory allocation error)
  */
 bool papuga_RequestAutomaton_set_call_arg_var(
@@ -194,22 +194,36 @@ bool papuga_RequestAutomaton_add_structure(
 		int nofmembers);
 
 /*
- * @brief Define an element of the last structure added
+ * @brief Define an item in the document processed to be an element of the last structure added
  * @param[in,out] self automaton changed
  * @param[in] idx index of the element to set, starting with 0
- * @param[in] name identifier naming the structure element added or NULL if the element does not get a name (for arrays)
+ * @param[in] name identifier naming the structure element added or NULL if the element does not get a name (array element)
  * @param[in] itemid identifier of the structure or value associated with the element added
  * @param[in] resolvetype defines the way an addressed item is resolved and constructed
  * @param[in] max_tag_diff maximum reach of search in number of tag hierarchy levels or -1 if not limited (always >= 0 also for inherited values)
  * @return true on success, false on failure (index out of range or memory allocation error)
  */
-bool papuga_RequestAutomaton_set_structure_element(
+bool papuga_RequestAutomaton_set_structure_element_item(
 		papuga_RequestAutomaton* self,
 		int idx,
 		const char* name,
 		int itemid,
 		papuga_ResolveType resolvetype,
 		int max_tag_diff);
+
+/*
+ * @brief Define a value referenced by a variable to be an element of the last structure added
+ * @param[in,out] self automaton changed
+ * @param[in] idx index of the element to set, starting with 0
+ * @param[in] name identifier naming the structure element added or NULL if the element does not get a name (array element)
+ * @param[in] varname name of the variable referencing the value of the structure element
+ * @return true on success, false on failure (index out of range or memory allocation error)
+ */
+bool papuga_RequestAutomaton_set_structure_element_var(
+		papuga_RequestAutomaton* self,
+		int idx,
+		const char* name,
+		const char* varname);
 
 /*
  * @brief Define an atomic value in the document processed
@@ -232,6 +246,39 @@ bool papuga_RequestAutomaton_add_value(
 bool papuga_RequestAutomation_add_result(
 		papuga_RequestAutomaton* self,
 		papuga_RequestResultDescription* descr);
+
+/*
+ * @brief Structure holding an instruction for an assigment of a variable by a value depending on the environment
+ * @note Environment assignment instructions are executed before any other operation of the request automaton
+ * @member name name of the variable created with the result of the environment function as value
+ * @member envid identifier of the function executed
+ * @member argument constant argument for the function
+*/
+typedef struct papuga_RequestEnvAssignment
+{
+	const char* variable;
+	int envid;
+	const char* argument;
+} papuga_RequestEnvAssignment;
+
+/*
+ * @brief Adding an assigment of a variable by a value depending on the environment to the request
+ * @param[in] name name of the variable created with the result of the environment function as value
+ * @param[in] envid identifier of the function executed
+ * @param[in] argument constant argument for the function
+*/
+bool papuga_RequestAutomation_add_env_assignment(
+		papuga_RequestAutomaton* self,
+		const char* variable,
+		int envid,
+		const char* argument);
+
+/*
+ * @brief Return the environment assigments defined for the automaton
+ * @param[in] self automaton
+ * @return a {NULL,0,NULL) terminated list
+ */
+const papuga_RequestEnvAssignment* papuga_RequestAutomation_get_env_assignments( const papuga_RequestAutomaton* self);
 
 /*
  * @brief Declare building of the automaton terminated
@@ -427,11 +474,12 @@ bool papuga_RequestIterator_push_call_result( papuga_RequestIterator* self, cons
  * @brief Get the list of all non empty results of a request, without content of variables (contentvar) attached to the result serialization yet
  * @note Empty result means that it was not created at all, not an empty content returned with the result)
  * @param[in,out] self this context pointer
+ * @param[in] context request context
  * @param[in] allocator allocator to use for the result array and its contents
  * @param[out] nofResults the number of results constructed, the size of the array of result pointers returned
  * @return a pointer to the array of results
  */
-papuga_RequestResult* papuga_RequestIterator_get_result_array( papuga_RequestIterator* self, papuga_Allocator* allocator, int* nofResults);
+papuga_RequestResult* papuga_RequestIterator_get_result_array( papuga_RequestIterator* self, const papuga_RequestContext* context, papuga_Allocator* allocator, int* nofResults);
 
 /*
  * @brief Get the last error of the iterator with a pointer to the method call that failed, if available

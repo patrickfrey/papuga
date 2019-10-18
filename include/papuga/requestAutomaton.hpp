@@ -110,22 +110,29 @@ struct RequestAutomaton_StructDef
 	struct Element
 	{
 		const char* name;		///< name of the element or NULL in case of an array element
-		int itemid;			///< identifier of the item addressing the element value
+		const char* varname;		///< name of the variable referencing the element value (in case of a variable)
+		int itemid;			///< identifier of the item addressing the element value (in case of a reference of input)
 		papuga_ResolveType resolvetype;	///< describes the occurrence of the element
 		int max_tag_diff;		///< maximum reach of search in number of tag hierarchy levels or 0 if not limited (always >= 0 also for inherited values)
 
 		///\brief Constructor (named dictionary element)
 		Element( const char* name_, int itemid_, char resolvechr, int max_tag_diff_=1)
-			:name(name_),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(max_tag_diff_){}
+			:name(name_),varname(0),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(max_tag_diff_){}
 		Element( const char* name_, int itemid_)
-			:name(name_),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
+			:name(name_),varname(0),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
 		Element( int itemid_, char resolvechr, int max_tag_diff_=1)
-			:name(NULL),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(max_tag_diff_){}
+			:name(NULL),varname(0),itemid(itemid_),resolvetype(getResolveType(resolvechr)),max_tag_diff(max_tag_diff_){}
 		Element( int itemid_)
-			:name(NULL),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
+			:name(NULL),varname(0),itemid(itemid_),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
+
+		Element( const char* name_, const char* varname_)
+			:name(name_),varname(varname_),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
+		Element( const char* varname_)
+			:name(NULL),varname(varname_),itemid(0),resolvetype(papuga_ResolveTypeRequired),max_tag_diff(1){}
+
 		///\brief Copy constructor
 		Element( const Element& o)
-			:name(o.name),itemid(o.itemid),resolvetype(o.resolvetype),max_tag_diff(o.max_tag_diff){}
+			:name(o.name),varname(o.varname),itemid(o.itemid),resolvetype(o.resolvetype),max_tag_diff(o.max_tag_diff){}
 	};
 
 	const char* expression;			///< selecting expression addressing the scope of this structure definition
@@ -234,38 +241,6 @@ struct RequestAutomaton_ResolveDef
 	/// \param[in] descr schema description to add this definition to
 	void addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, MapItemIdToName itemName) const;
 };
-
-/// \class RequestAutomaton_ResultElementDef
-/// \brief Result element declaration for using in C++ initializer lists
-struct RequestAutomaton_ResultElementDef
-{
-	enum Type {
-		Empty,
-		Structure,
-		Array,
-		Constant,
-		InputReference,
-		ResultReference
-	};
-	Type type;
-	papuga_ResolveType resolvetype;
-	std::string inputselect;
-	const char* tagname;
-	int itemid;
-	const char* str;
-
-	RequestAutomaton_ResultElementDef( const RequestAutomaton_ResultElementDef& o)
-		:type(o.type),resolvetype(o.resolvetype),inputselect(o.inputselect),tagname(o.tagname),itemid(o.itemid),str(o.str){}
-	RequestAutomaton_ResultElementDef()
-		:type(Empty),resolvetype(papuga_ResolveTypeRequired),inputselect(),tagname(0),itemid(-1),str(0){}
-	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, bool array_=false)
-		:type(array_?Array:Structure),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
-	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, int itemid_, char resolvechr='!')
-		:type(InputReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(itemid_),str(0){}
-	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char* value_, char resolvechr='!')
-		:type(resolvechr=='#'?Constant:ResultReference),resolvetype(resolvechr=='#'?papuga_ResolveTypeRequired:getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(-1),str(value_){}
-};
-
 
 #if __cplusplus >= 201103L
 /// \brief Forward declaration
@@ -384,6 +359,53 @@ public:
 };
 
 #endif
+
+/// \brief Definition of a system function call performed at the start of the execution with the result assigned to a variable
+struct RequestAutomaton_EnvironmentAssigmentDef
+{
+	const char* variable;	///< name of the variable created with the result of the environment function as value
+	int envid;		///< identifier of the function executed
+	const char* argument;	///< argument of the function executed
+
+	/// \param[in] variable_ name of the variable created with the result of the environment function as value
+	/// \param[in] envid_ identifier of the function executed
+	/// \param[in] argument_ argument of the function executed
+	RequestAutomaton_EnvironmentAssigmentDef( const char* variable_, int envid_, const char* argument_)
+		:variable(variable_),envid(envid_),argument(argument_){}
+	RequestAutomaton_EnvironmentAssigmentDef( const RequestAutomaton_EnvironmentAssigmentDef& o)
+		:variable(o.variable),envid(o.envid),argument(o.argument){}
+};
+
+/// \class RequestAutomaton_ResultElementDef
+/// \brief Result element declaration for using in C++ initializer lists
+struct RequestAutomaton_ResultElementDef
+{
+	enum Type {
+		Empty,
+		Structure,
+		Array,
+		Constant,
+		InputReference,
+		ResultReference
+	};
+	Type type;
+	papuga_ResolveType resolvetype;
+	std::string inputselect;
+	const char* tagname;
+	int itemid;
+	const char* str;
+
+	RequestAutomaton_ResultElementDef( const RequestAutomaton_ResultElementDef& o)
+		:type(o.type),resolvetype(o.resolvetype),inputselect(o.inputselect),tagname(o.tagname),itemid(o.itemid),str(o.str){}
+	RequestAutomaton_ResultElementDef()
+		:type(Empty),resolvetype(papuga_ResolveTypeRequired),inputselect(),tagname(0),itemid(-1),str(0){}
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, bool array_=false)
+		:type(array_?Array:Structure),resolvetype(papuga_ResolveTypeRequired),inputselect(expression_),tagname(tagname_),itemid(-1),str(0){}
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, int itemid_, char resolvechr='!')
+		:type(InputReference),resolvetype(getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(itemid_),str(0){}
+	RequestAutomaton_ResultElementDef( const char* expression_, const char* tagname_, const char* value_, char resolvechr='!')
+		:type(resolvechr=='#'?Constant:ResultReference),resolvetype(resolvechr=='#'?papuga_ResolveTypeRequired:getResolveType(resolvechr)),inputselect(expression_),tagname(tagname_),itemid(-1),str(value_){}
+};
 
 class RequestAutomaton_ResultElementDefList
 	:public std::vector<RequestAutomaton_ResultElementDef>
@@ -505,12 +527,22 @@ public:
 	/// \brief Constructor defining the whole automaton from an initializer list
 	/// \param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
 	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, MapItemIdToName mapItemIdToName, bool strict,
+				const std::initializer_list<RequestAutomaton_EnvironmentAssigmentDef>& envdefs,
 				const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs,
 				const std::initializer_list<InheritedDef>& inherited,
 				const std::initializer_list<RequestAutomaton_Node>& nodes);
 #endif
 	/// \brief Destructor
 	~RequestAutomaton();
+
+	/// \brief Add an environment variable assignment instruction
+	/// \note Environment variable assignment are intended to be made before any other instruction defined by the automaton
+	/// \param[in] variable name of the variable created with the result of the environment function as value
+	/// \param[in] envid identifier of the function executed
+	/// \param[in] argument argument of the function executed
+	/// \remark Only available if this automaton has been constructed as empty
+	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
+	void addEnvAssignment( 	const char* variable, int envid, const char* argument);
 
 	/// \brief Define the declaration of a context this schema is dependent on
 	/// \param[in] type the type name of the context inherited

@@ -46,7 +46,7 @@ void RequestAutomaton_FunctionDef::addToAutomaton( const std::string& rootexpr, 
 			if (!papuga_RequestAutomaton_set_call_arg_var( atm, aidx, ai->varname))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add variable call arg, expression '%s': %s"), select_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add variable as call arg, expression '%s': %s"), select_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 			}
 		}
 		else
@@ -85,15 +85,30 @@ void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, pa
 	std::vector<RequestAutomaton_StructDef::Element>::const_iterator ei = elems.begin(), ee = elems.end();
 	for (int eidx=0; ei != ee; ++ei,++eidx)
 	{
-		if (!papuga_RequestAutomaton_set_structure_element( atm, eidx, ei->name, ei->itemid, ei->resolvetype, ei->max_tag_diff))
+		if (ei->varname)
 		{
-			papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add element '%s' to structure '%s', expression '%s': %s"), itemName(ei->itemid), itemName(itemid), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+			if (!papuga_RequestAutomaton_set_structure_element_var( atm, eidx, ei->name, ei->varname))
+			{
+				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add variable '%s' as element '%s' to structure '%s', expression '%s': %s"), ei->varname, itemName(itemid), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+			}
 		}
-		if (!papuga_SchemaDescription_add_relation( descr, itemid, fullexpr.c_str(), ei->itemid, ei->resolvetype))
+		else if (ei->itemid >= 0)
 		{
-			papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( descr);
-			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("schema description add element '%s' to structure '%s', expression '%s': %s"), itemName(ei->itemid), itemName(itemid), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+			if (!papuga_RequestAutomaton_set_structure_element_item( atm, eidx, ei->name, ei->itemid, ei->resolvetype, ei->max_tag_diff))
+			{
+				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add element '%s' to structure '%s', expression '%s': %s"), itemName(ei->itemid), itemName(itemid), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+			}
+			if (!papuga_SchemaDescription_add_relation( descr, itemid, fullexpr.c_str(), ei->itemid, ei->resolvetype))
+			{
+				papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( descr);
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("schema description add element '%s' to structure '%s', expression '%s': %s"), itemName(ei->itemid), itemName(itemid), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+			}
+		}
+		else
+		{
+			throw papuga::runtime_error( _TXT("request automaton add element to structure, expression '%s': %s"), fullexpr.c_str(), papuga_ErrorCode_tostring(papuga_ValueUndefined));
 		}
 	}
 }
@@ -443,6 +458,7 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 					const papuga_StructInterfaceDescription* structdefs,
 					MapItemIdToName mapItemIdToName,
 					bool strict,
+					const std::initializer_list<RequestAutomaton_EnvironmentAssigmentDef>& envdefs,
 					const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs,
 					const std::initializer_list<InheritedDef>& inherited,
 					const std::initializer_list<RequestAutomaton_Node>& nodes)
@@ -487,6 +503,13 @@ RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 		for (auto ri : resultdefs)
 		{
 			ri.addToAutomaton( m_atm, mapItemIdToName);
+		}
+		for (auto ei : envdefs)
+		{
+			if (!papuga_RequestAutomation_add_env_assignment( m_atm, ei.variable, ei.envid, ei.argument))
+			{
+				throw papuga::runtime_error( _TXT("error in request automaton definition of environment variable assignments: %s"), papuga_ErrorCode_tostring(papuga_RequestAutomaton_last_error(m_atm)));
+			}
 		}
 		if (!papuga_RequestAutomaton_done( m_atm))
 		{
@@ -542,6 +565,14 @@ void RequestAutomaton::addAssignment( const char* scope_expression, const char* 
 	args.push_back( RequestAutomaton_FunctionDef::Arg( itemid, resolvechr, max_tag_diff));
 	RequestAutomaton_FunctionDef assignment( scope_expression, select_expression, varname?varname:"", 0/*selfvar*/, methodid, args);
 	assignment.addToAutomaton( m_rootexpr, m_atm, m_descr, m_mapItemIdToName);
+}
+
+void RequestAutomaton::addEnvAssignment( const char* variable, int envid, const char* argument)
+{
+	if (!papuga_RequestAutomation_add_env_assignment( m_atm, variable, envid, argument))
+	{
+		throw papuga::runtime_error( _TXT("error in request automaton definition of environment variable assignments: %s"), papuga_ErrorCode_tostring(papuga_RequestAutomaton_last_error(m_atm)));
+	}
 }
 
 void RequestAutomaton::addInheritContext( const char* typenam, const char* expression, bool required)

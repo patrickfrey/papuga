@@ -336,11 +336,12 @@ static TestData* createTestData_1()
 		);
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, itemName, true/*strict*/,
-		{
+		{/*env*/},
+		{/*result*/
 			{"person", {{"/doc", "var", "var", '!'}}}
 		},
-		{},
-		{
+		{/*inherit*/},
+		{/*input*/
 			{"/doc/person", "@name", (int)PersonName, papuga_TypeString, "John Doe"},
 			{"/doc/person", "()", (int)PersonContent, papuga_TypeVoid, NULL},
 			{"/doc", "obj", 0, C1::constructor(), {} },
@@ -388,8 +389,9 @@ static TestData* createTestData_2()
 		);
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, itemName, true/*strict*/,
-		{},
-		{},
+		{/*env*/},
+		{/*result*/},
+		{/*inherit*/},
 		{
 			{"/doc", "obj", 0, C1::constructor(), {} }
 		}
@@ -429,10 +431,11 @@ static TestData* createTestData_3()
 		);
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, itemName, true/*strict*/,
-		{
+		{/*env*/},
+		{/*result*/
 			{"list", { {"/doc", "lo", "lo", '+'},{"/doc", "hi", "hi", '*'} }}
 		},
-		{},
+		{/*inherit*/},
 		{
 			{"/doc/city", "()", (int)CityName, papuga_TypeString, "Berlin"},
 			{"/doc", "obj", 0, C1::constructor(), {} },
@@ -507,10 +510,11 @@ static TestData* createTestData_4()
 		);
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, itemName, true/*strict*/,
-		{
+		{/*env*/},
+		{/*result*/
 			{"list", { {"/doc", "lo", "lo", '*'},{"/doc", "hi", "hi", '+'} }}
 		},
-		{},
+		{/*inherit*/},
 		{
 			{"/doc/{city,town}", "()", (int)CityName, papuga_TypeString, "Berlin"},
 			{"/doc", "obj", 0, C1::constructor(), {} },
@@ -588,10 +592,11 @@ static TestData* createTestData_5()
 		);
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, itemName, true/*strict*/,
-		{
+		{/*env*/},
+		{/*result*/
 			{"list", { {"/doc", "lo", "lo", '!'},{"/doc", "hi", "hi", '!'} }}
 		},
-		{},
+		{/*inherit*/},
 		{
 			{"/doc/city", "()", CityName, papuga_TypeString, "Berlin"},
 			{"/doc", "obj", 0, C1::constructor(), {} },
@@ -669,10 +674,11 @@ static TestData* createTestData_6()
 		);
 	data->atm = new papuga::RequestAutomaton(
 		g_classdefs, g_structdefs, itemName, true/*strict*/,
-		{
+		{/*env*/},
+		{/*result*/
 			{"result", { {"/tree", "lo", "lo", '!'},{"/tree", "hi", "hi", '!'} }}
 		},
-		{},
+		{/*inherit*/},
 		{
 			{"/tree/value", "()", TreeNodeValue, papuga_TypeString, "T"},
 			{"//left/value", "()", TreeNodeValue, papuga_TypeString, "L"},
