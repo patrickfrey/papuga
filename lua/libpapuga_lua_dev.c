@@ -484,10 +484,6 @@ static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, l
 	lua_pop( ls, 1);
 	STACKTRACE( ls, "loop after serialize array");
 	return true;
-ERROR:
-	lua_pop( ls, 3);
-	STACKTRACE( ls, "loop after serialize array (error)");
-	return false;
 }
 
 static bool serialize_root( papuga_CallArgs* as, lua_State* ls, int li)
