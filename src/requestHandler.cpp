@@ -130,7 +130,8 @@ public:
 		:m_impl(){}
 	RequestVariableMap( const RequestVariableMap& o)
 		:m_impl(o.m_impl){}
-	~RequestVariableMap(){}
+	~RequestVariableMap()
+	{}
 
 	RequestVariable* create( const char* name)
 	{
@@ -239,14 +240,14 @@ struct papuga_RequestContext
 	~papuga_RequestContext()
 	{}
 
-	std::string tostring() const
+	std::string tostring( const char* indent) const
 	{
 		std::ostringstream out;
 		RequestVariableMap::const_iterator vi = varmap.begin(), ve = varmap.end();
 		for (; vi != ve; ++vi)
 		{
 			papuga_ErrorCode errcode_local = papuga_Ok;
-			out << vi->ptr->name << "=" << papuga::ValueVariant_tostring( vi->ptr->value, errcode_local) << "\n";
+			out << indent << vi->ptr->name << " #" << vi->ptr.use_count() << "=" << papuga::ValueVariant_tostring( vi->ptr->value, errcode_local) << "\n";
 		}
 		return out.str();
 	}
@@ -306,7 +307,8 @@ struct RequestContextMap
 	std::list<std::string> keylist;
 	RequestContextTab tab;
 
-	~RequestContextMap(){}
+	~RequestContextMap()
+	{}
 	RequestContextMap()
 		:keylist(),tab(){}
 	RequestContextMap( const RequestContextMap& o)
@@ -336,7 +338,7 @@ struct RequestContextMap
 		for (; ci != ce; ++ci)
 		{
 			out << std::string(ci->first.str,ci->first.len) << ":" << std::endl;
-			out << ci->second->tostring() << std::endl;
+			out << ci->second->tostring( "\t") << std::endl;
 		}
 		return out.str();
 	}
@@ -982,5 +984,52 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 	}
 }
 
+extern "C" const char* papuga_RequestContext_debug_tostring( const papuga_RequestContext* context, papuga_Allocator* allocator)
+{
+	try
+	{
+		char* rt;
+		std::string dump = context->tostring("");
+		if (allocator)
+		{
+			rt = papuga_Allocator_copy_string( allocator, dump.c_str(), dump.size());
+		}
+		else
+		{
+			rt = (char*)std::malloc( dump.size()+1);
+			if (!rt) return 0;
+			std::memcpy( rt,  dump.c_str(), dump.size()+1);
+		}
+		return rt;
+	}
+	catch (...)
+	{
+		return 0;
+	}
+}
 
+extern "C" const char* papuga_RequestHandler_debug_contextmap_tostring( const papuga_RequestHandler* self, papuga_Allocator* allocator)
+{
+	try
+	{
+		char* rt;
+		RequestContextMapRef contextmap( self->contextmap);
+		std::string dump = contextmap->tostring();
+		if (allocator)
+		{
+			rt = papuga_Allocator_copy_string( allocator, dump.c_str(), dump.size());
+		}
+		else
+		{
+			rt = (char*)std::malloc( dump.size()+1);
+			if (!rt) return 0;
+			std::memcpy( rt,  dump.c_str(), dump.size()+1);
+		}
+		return rt;
+	}
+	catch (...)
+	{
+		return 0;
+	}
+}
 

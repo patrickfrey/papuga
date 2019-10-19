@@ -210,7 +210,7 @@ const char** papuga_RequestHandler_list_methods( const papuga_RequestHandler* se
  * @brief Execute a request
  * @param[in,out] context context of the request
  * @param[in] request content of the request
- * @param[in] allocator
+ * @param[in] allocator allocator to use for the request
  * @param[in] logger logger for logging errors and the calls of the request
  * @param[out] results array of results of the request
  * @param[out] nofResults number of results of the request
@@ -218,6 +218,22 @@ const char** papuga_RequestHandler_list_methods( const papuga_RequestHandler* se
  * @return true on success, false on failure
  */
 bool papuga_RequestContext_execute_request( papuga_RequestContext* context, const papuga_Request* request, papuga_Allocator* allocator, papuga_RequestLogger* logger, papuga_RequestResult** results, int* nofResults, papuga_RequestError* errstruct);
+
+/*
+ * @brief Get the dump of the context as string for debugging purposes
+ * @param[in] self context to dump
+ * @param[in] allocator allocator to use for the result string copy or NULL if std::malloc should be used
+ * @return the contents of the context as readable, null terminated string
+ */
+const char* papuga_RequestContext_debug_tostring( const papuga_RequestContext* self, papuga_Allocator* allocator);
+
+/*
+ * @brief Get the dump of the context map of the request handler as string for debugging purposes
+ * @param[in] self request handler to dump
+ * @param[in] allocator allocator to use for the result string copy or NULL if std::malloc should be used
+ * @return the contents of the context map as readable, null terminated string
+ */
+const char* papuga_RequestHandler_debug_contextmap_tostring( const papuga_RequestHandler* self, papuga_Allocator* allocator);
 
 #ifdef __cplusplus
 }
