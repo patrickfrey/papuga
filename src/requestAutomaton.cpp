@@ -439,8 +439,8 @@ RequestAutomaton::RequestAutomaton(
 		const papuga_ClassDef* classdefs,
 		const papuga_StructInterfaceDescription* structdefs,
 		MapItemIdToName mapItemIdToName,
-		bool strict)
-	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,strict))
+		bool strict, bool exclusiveAccess)
+	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,strict,exclusiveAccess))
 	,m_descr(papuga_create_SchemaDescription())
 	,m_mapItemIdToName(mapItemIdToName)
 	,m_rootexpr(),m_rootstk()
@@ -457,12 +457,12 @@ RequestAutomaton::RequestAutomaton(
 RequestAutomaton::RequestAutomaton( const papuga_ClassDef* classdefs,
 					const papuga_StructInterfaceDescription* structdefs,
 					MapItemIdToName mapItemIdToName,
-					bool strict,
+					bool strict, bool exclusiveAccess,
 					const std::initializer_list<RequestAutomaton_EnvironmentAssigmentDef>& envdefs,
 					const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs,
 					const std::initializer_list<InheritedDef>& inherited,
 					const std::initializer_list<RequestAutomaton_Node>& nodes)
-	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,strict))
+	:m_atm(papuga_create_RequestAutomaton(classdefs,structdefs,strict,exclusiveAccess))
 	,m_descr(papuga_create_SchemaDescription())
 	,m_mapItemIdToName(mapItemIdToName)
 	,m_rootexpr(),m_rootstk()

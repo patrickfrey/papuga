@@ -60,12 +60,14 @@ typedef struct papuga_RequestResult
  * @param[in] classdefs class definitions referred to in host object references
  * @param[in] structdefs structure definitions
  * @param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
+ * @param[in] exclusiveAccess true, if a request needs exclusive access to its underlying data and resources, e.g. the execution of other requests have to be rejected (http status 503) while this request is running
  * @return The automaton structure
  */
 papuga_RequestAutomaton* papuga_create_RequestAutomaton(
 		const papuga_ClassDef* classdefs,
 		const papuga_StructInterfaceDescription* structdefs,
-		bool strict);
+		bool strict,
+		bool exclusiveAccess);
 
 /*
  * @brief Destroy an automaton
@@ -279,6 +281,13 @@ bool papuga_RequestAutomation_add_env_assignment(
  * @return a {NULL,0,NULL) terminated list
  */
 const papuga_RequestEnvAssignment* papuga_RequestAutomation_get_env_assignments( const papuga_RequestAutomaton* self);
+
+/*
+ * @brief Get the exclusiveAccess flag of the automaton
+ * @param[in] self automaton
+ * @return the flag
+ */
+bool papuga_RequestAutomaton_has_exclusive_access( const papuga_RequestAutomaton* self);
 
 /*
  * @brief Declare building of the automaton terminated

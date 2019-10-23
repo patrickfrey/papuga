@@ -335,7 +335,7 @@ static TestData* createTestData_1()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, itemName, true/*strict*/,
+		g_classdefs, g_structdefs, itemName, true/*strict*/, false/*exclusive*/,
 		{/*env*/},
 		{/*result*/
 			{"person", {{"/doc", "var", "var", '!'}}}
@@ -388,7 +388,7 @@ static TestData* createTestData_2()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, itemName, true/*strict*/,
+		g_classdefs, g_structdefs, itemName, true/*strict*/, false/*exclusive*/,
 		{/*env*/},
 		{/*result*/},
 		{/*inherit*/},
@@ -430,7 +430,7 @@ static TestData* createTestData_3()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, itemName, true/*strict*/,
+		g_classdefs, g_structdefs, itemName, true/*strict*/, false/*exclusive*/,
 		{/*env*/},
 		{/*result*/
 			{"list", { {"/doc", "lo", "lo", '+'},{"/doc", "hi", "hi", '*'} }}
@@ -509,7 +509,7 @@ static TestData* createTestData_4()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, itemName, true/*strict*/,
+		g_classdefs, g_structdefs, itemName, true/*strict*/, false/*exclusive*/,
 		{/*env*/},
 		{/*result*/
 			{"list", { {"/doc", "lo", "lo", '*'},{"/doc", "hi", "hi", '+'} }}
@@ -591,7 +591,7 @@ static TestData* createTestData_5()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, itemName, true/*strict*/,
+		g_classdefs, g_structdefs, itemName, true/*strict*/, false/*exclusive*/,
 		{/*env*/},
 		{/*result*/
 			{"list", { {"/doc", "lo", "lo", '!'},{"/doc", "hi", "hi", '!'} }}
@@ -673,7 +673,7 @@ static TestData* createTestData_6()
 			}
 		);
 	data->atm = new papuga::RequestAutomaton(
-		g_classdefs, g_structdefs, itemName, true/*strict*/,
+		g_classdefs, g_structdefs, itemName, true/*strict*/, false/*exclusive*/,
 		{/*env*/},
 		{/*result*/
 			{"result", { {"/tree", "lo", "lo", '!'},{"/tree", "hi", "hi", '!'} }}

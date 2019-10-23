@@ -171,13 +171,14 @@ class AutomatonDescription
 public:
 	typedef textwolf::XMLPathSelectAutomatonParser<> XMLPathSelectAutomaton;
 
-	AutomatonDescription( const papuga_ClassDef* classdefs_, bool strict_)
+	AutomatonDescription( const papuga_ClassDef* classdefs_, bool strict_, bool exclusiveAccess_)
 		:m_classdefs(classdefs_)
 		,m_nof_classdefs(nofClassDefs(classdefs_))
 		,m_calldefs(),m_structdefs(),m_valuedefs(),m_inheritdefs(),m_resultdefs(),m_resultVariables()
 		,m_acceptedRootTags()
 		,m_nofEnvAssignments(0)
 		,m_strict(strict_)
+		,m_exclusiveAccess(exclusiveAccess_)
 		,m_atm(),m_maxitemid(0)
 		,m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
 	{
@@ -727,6 +728,7 @@ public:
 	const XMLPathSelectAutomaton& atm() const				{return m_atm;}
 	std::size_t maxitemid() const						{return m_maxitemid;}
 	const papuga_RequestEnvAssignment* envAssignments() const		{return m_envAssignmentAr;}
+	bool exclusiveAccess() const						{return m_exclusiveAccess;}
 
 private:
 	bool addExpression( int eventid, const char* expression)
@@ -837,6 +839,7 @@ private:
 	papuga_RequestEnvAssignment m_envAssignmentAr[ MaxNofEnvAssignments+1];
 	int m_nofEnvAssignments;
 	bool m_strict;						//< false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
+	bool m_exclusiveAccess;					//< true, if a request needs exclusive access to its underlying data and resources, e.g. the execution of other requests have to be rejected (http status 503) while this request is running
 	papuga_Allocator m_allocator;
 	XMLPathSelectAutomaton m_atm;
 	std::size_t m_maxitemid;
@@ -2652,13 +2655,14 @@ struct papuga_RequestAutomaton
 extern "C" papuga_RequestAutomaton* papuga_create_RequestAutomaton(
 		const papuga_ClassDef* classdefs,
 		const papuga_StructInterfaceDescription* structdefs,
-		bool strict)
+		bool strict,
+		bool exclusiveAccess)
 {
 	papuga_RequestAutomaton* rt = (papuga_RequestAutomaton*)std::calloc( 1, sizeof(*rt));
 	if (!rt) return NULL;
 	try
 	{
-		new (&rt->atm) AutomatonDescription( classdefs, strict);
+		new (&rt->atm) AutomatonDescription( classdefs, strict, exclusiveAccess);
 		rt->structdefs = structdefs;
 		return rt;
 	}
@@ -2785,6 +2789,11 @@ extern "C" bool papuga_RequestAutomation_add_env_assignment(
 extern "C" const papuga_RequestEnvAssignment* papuga_RequestAutomation_get_env_assignments( const papuga_RequestAutomaton* self)
 {
 	return self->atm.envAssignments();
+}
+
+extern "C" bool papuga_RequestAutomaton_has_exclusive_access( const papuga_RequestAutomaton* self)
+{
+	return self->atm.exclusiveAccess();
 }
 
 extern "C" bool papuga_RequestAutomaton_done( papuga_RequestAutomaton* self)

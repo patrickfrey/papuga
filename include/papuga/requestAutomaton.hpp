@@ -505,12 +505,17 @@ private:
 
 public:
 	/// \brief Constructor defining an empty automaton to be filled with further method calls
-	/// \param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request (e.g. the main configuration)
+	/// \note Using this constructor is only recommended if you don't have C++11 or if you hate initializer lists
+	/// \param[in] classdefs pointer to class definition structures of the application
+	/// \param[in] structdefs pointer to structure definitions of the application needed for proper serialization
+	/// \param[in] mapItemIdToName function mapping the integers used for itemid representation to a printable name for logging end error messages
+	/// \param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
+	/// \param[in] exclusive true, if a request needs exclusive access to its underlying data and resources, e.g. the execution of other requests have to be rejected (http status 503) while this request is running
 	RequestAutomaton(
 		const papuga_ClassDef* classdefs,
 		const papuga_StructInterfaceDescription* structdefs,
 		MapItemIdToName mapItemIdToName,
-		bool strict);
+		bool strict, bool exclusive);
 
 #if __cplusplus >= 201103L
 	struct InheritedDef
@@ -525,8 +530,17 @@ public:
 			:type(o.type),name_expression(o.name_expression),required(o.required){}
 	};
 	/// \brief Constructor defining the whole automaton from an initializer list
+	/// \param[in] classdefs pointer to class definition structures of the application
+	/// \param[in] structdefs pointer to structure definitions of the application needed for proper serialization
+	/// \param[in] mapItemIdToName function mapping the integers used for itemid representation to a printable name for logging end error messages
 	/// \param[in] strict true, if strict checking is enabled, false, if the automaton accepts root tags that are not declared, used for parsing a structure embedded into a request
-	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, MapItemIdToName mapItemIdToName, bool strict,
+	/// \param[in] exclusive true, if a request needs exclusive access to its underlying data and resources, e.g. the execution of other requests have to be rejected (http status 503) while this request is running
+	/// \param[in] envdefs definition of variables defined by the environment before execution
+	/// \param[in] resultdefs output or delegate requests built depending from input
+	/// \param[in] inherited expressions in the input referencing contexts inherited before execution
+	/// \param[in] nodes instructions built from the input
+	RequestAutomaton( const papuga_ClassDef* classdefs, const papuga_StructInterfaceDescription* structdefs, MapItemIdToName mapItemIdToName,
+				bool strict, bool exclusive,
 				const std::initializer_list<RequestAutomaton_EnvironmentAssigmentDef>& envdefs,
 				const std::initializer_list<RequestAutomaton_ResultDef>& resultdefs,
 				const std::initializer_list<InheritedDef>& inherited,

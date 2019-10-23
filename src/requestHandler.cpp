@@ -45,11 +45,8 @@ static TYPE* alloc_type( papuga_Allocator* allocator)
 template <typename TYPE>
 static TYPE* add_list( TYPE* lst, TYPE* elem)
 {
-	if (!lst) return elem;
-	TYPE* vv = lst;
-	while (vv->next) vv=vv->next;
-	vv->next = elem;
-	return lst;
+	elem->next = lst;
+	return elem;
 }
 
 struct RequestSchemaList
@@ -57,8 +54,21 @@ struct RequestSchemaList
 	struct RequestSchemaList* next;			/*< pointer next element in the single linked list */
 	const char* type;				/*< type name of the context this schema is valid for */
 	const char* name;				/*< name of the schema */
+	int hs;						/*< hash value on name and type */
 	const papuga_RequestAutomaton* automaton;	/*< automaton of the schema */
 	const papuga_SchemaDescription* description;	/*< description of the schema */
+
+	static int hash( const char* type, const char* name)
+	{
+		int rt = type[0];
+		rt <<= 8;
+		if (type[0]) rt += type[1];
+		rt <<= 8;
+		rt += name[0];
+		rt <<= 8;
+		if (name[0]) rt += name[1];
+		return rt;
+	}
 };
 
 struct RequestMethodList
@@ -559,6 +569,7 @@ extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, c
 	if (!listitem) return false;
 	listitem->type = papuga_Allocator_copy_charp( &self->allocator, type);
 	listitem->name = papuga_Allocator_copy_charp( &self->allocator, name);
+	listitem->hs = RequestSchemaList::hash( listitem->type, listitem->name);
 	if (!listitem->type || !listitem->name) return false;
 	listitem->automaton = automaton;
 	listitem->description = description;
@@ -568,7 +579,8 @@ extern "C" bool papuga_RequestHandler_add_schema( papuga_RequestHandler* self, c
 
 static RequestSchemaList* find_schema( RequestSchemaList* ll, const char* type, const char* name)
 {
-	for (; ll; ll = ll->next){if ((ll->name[0]+ll->type[0]) == (name[0]+type[0]) && 0==std::strcmp( ll->name, name) && 0==std::strcmp( ll->type, type)) break;}
+	int hs = RequestSchemaList::hash( type, name);
+	for (; ll; ll = ll->next){if (ll->hs == hs && 0==std::strcmp( ll->name, name) && 0==std::strcmp( ll->type, type)) break;}
 	return ll;
 }
 
