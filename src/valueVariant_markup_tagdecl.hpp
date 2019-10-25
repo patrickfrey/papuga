@@ -34,7 +34,7 @@ public:
 
 	void defTopValue( const papuga_ValueVariant& value, bool isLink)
 	{
-		if (!papuga_ValueVariant_isvalid(&value))
+		if (!papuga_ValueVariant_defined(&value))
 		{}
 		else if (papuga_ValueVariant_isatomic(&value))
 		{
@@ -63,7 +63,7 @@ public:
 
 	void defValue( const papuga_ValueVariant& value, const char* name)
 	{
-		if (!papuga_ValueVariant_isvalid(&value))
+		if (!papuga_ValueVariant_defined(&value))
 		{
 			THIS()->appendNullValueDeclaration( name, value);
 		}
@@ -108,7 +108,7 @@ public:
 	{
 		if (papuga_SerializationIter_tag( &iter) == papuga_TagValue)
 		{
-			if (!papuga_ValueVariant_isvalid( papuga_SerializationIter_value(&iter)))
+			if (!papuga_ValueVariant_defined( papuga_SerializationIter_value(&iter)))
 			{}
 			else if (isAttributeName( name))
 			{
