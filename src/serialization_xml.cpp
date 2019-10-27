@@ -447,7 +447,7 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 
 	if (enc != papuga_UTF8)
 	{
-		// Convert input to UTF8 as cjson is only capable of parsing UTF8
+		// Convert input to UTF8 to have less code generated for a case rarely used
 		papuga_ValueVariant val;
 		papuga_init_ValueVariant_string_enc( &val, enc, content, contentlen);
 		content = papuga_ValueVariant_tostring( &val, self->allocator, &contentlen, errcode);
@@ -457,7 +457,6 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 	{
 		content = papuga_Allocator_copy_string( self->allocator, content, contentlen);
 	}
-
 	if (!tagStack.init( content, contentlen))
 	{
 		return false;
