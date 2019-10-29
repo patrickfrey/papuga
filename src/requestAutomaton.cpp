@@ -90,7 +90,7 @@ void RequestAutomaton_StructDef::addToAutomaton( const std::string& rootexpr, pa
 			if (!papuga_RequestAutomaton_set_structure_element_var( atm, eidx, ei->name, ei->varname))
 			{
 				papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
-				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add variable '%s' as element '%s' to structure '%s', expression '%s': %s"), ei->varname, itemName(itemid), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
+				if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add variable '%s' to structure '%s', expression '%s': %s"), ei->varname, itemName(itemid), fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
 			}
 		}
 		else if (ei->itemid >= 0)
