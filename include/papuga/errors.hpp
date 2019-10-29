@@ -15,7 +15,11 @@
 namespace papuga {
 
 std::runtime_error error_exception( const papuga_ErrorCode& ec, const char* where);
-std::runtime_error runtime_error( const char* fmt, ...);
+std::runtime_error runtime_error( const char* fmt, ...)
+#ifdef __GNUC__
+	__attribute__ ((format (printf, 1, 2)))
+#endif
+;
 
 }//namespace
 #endif
