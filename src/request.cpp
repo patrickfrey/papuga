@@ -1135,9 +1135,17 @@ public:
 
 	bool pushVoid()
 	{
-		papuga_ValueVariant voidelem;
-		papuga_init_ValueVariant( &voidelem);
-		return pushValue( &voidelem);
+		if (name)
+		{
+			name = NULL;
+			return true;
+		}
+		else
+		{
+			papuga_ValueVariant voidelem;
+			papuga_init_ValueVariant( &voidelem);
+			return pushValue( &voidelem);
+		}
 	}
 
 private:
@@ -2537,45 +2545,54 @@ private:
 						m_logContentEvent( m_loggerSelf, "empty array", itemid, 0);
 					}
 				}
-				if (!sink.openSerialization())
+				if (resolvedObj.valid())
 				{
-					m_errstruct.errcode = papuga_NoMemError;
-					return false;
-				}
-				int arrayElementCount = 0;
-				while (resolvedObj.valid())
-				{
-					// We try to get a valid node candidate preferring value nodes if defined
-					while (!addResolvedItemValue( sink, resolvedObj, false/*embedded*/, context))
+					if (!sink.openSerialization())
 					{
-						resolvedObj = resolveNextSameScopeItem( itemid);
-						if (!resolvedObj.valid()) break;
+						m_errstruct.errcode = papuga_NoMemError;
+						return false;
 					}
-					if (!resolvedObj.valid())
+					while (resolvedObj.valid())
 					{
-						if (m_errstruct.errcode != papuga_Ok)
+						// We try to get a valid node candidate preferring value nodes if defined
+						while (!addResolvedItemValue( sink, resolvedObj, false/*embedded*/, context))
 						{
-							if (m_errstruct.itemid < 0)
-							{
-								m_errstruct.itemid = itemid;
-							}
-							return false;
+							resolvedObj = resolveNextSameScopeItem( itemid);
+							if (!resolvedObj.valid()) break;
 						}
-						sink.pushVoid();
-						// ... we get here only if we found a value that matches, but was undefined
+						if (!resolvedObj.valid())
+						{
+							if (m_errstruct.errcode != papuga_Ok)
+							{
+								if (m_errstruct.itemid < 0)
+								{
+									m_errstruct.itemid = itemid;
+								}
+								return false;
+							}
+							sink.pushVoid();
+							// ... we get here only if we found a value that matches, but was undefined
+						}
+						resolvedObj = resolveNextInsideItem( scope, taglevelRange, itemid);
 					}
-					++arrayElementCount;
-					resolvedObj = resolveNextInsideItem( scope, taglevelRange, itemid);
+					if (!sink.closeSerialization())
+					{
+						setItemError( papuga_NoMemError, itemid);
+						return false;
+					}
 				}
-				if (arrayElementCount == 0 && resolvetype == papuga_ResolveTypeArrayNonEmpty)
+				else
 				{
-					setItemError( papuga_ValueUndefined, itemid);
-					return false;
-				}
-				if (!sink.closeSerialization())
-				{
-					setItemError( papuga_NoMemError, itemid);
-					return false;
+					if (!sink.pushVoid())
+					{
+						m_errstruct.errcode = papuga_NoMemError;
+						return false;
+					}
+					if (resolvetype == papuga_ResolveTypeArrayNonEmpty)
+					{
+						setItemError( papuga_ValueUndefined, itemid);
+						return false;
+					}
 				}
 			}
 			break;
