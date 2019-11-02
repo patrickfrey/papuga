@@ -30,6 +30,7 @@ set( source_files_request
 	requestResult.cpp
 	requestAutomaton.cpp
 	requestParser.c
+	requestParser.cpp
 	requestParser_json.cpp
 	requestParser_xml.cpp
 	requestParser_utils.c

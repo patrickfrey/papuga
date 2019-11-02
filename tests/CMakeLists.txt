@@ -6,5 +6,6 @@ add_subdirectory( output )
 add_subdirectory( serialization )
 add_subdirectory( serialization_doc )
 add_subdirectory( request )
+add_subdirectory( requestParser )
 
 

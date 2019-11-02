@@ -5,8 +5,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-/* \brief Structures and functions for scanning papuga XML and JSON documents for further processing
- * \file requestParser.c
+/* @brief Structures and functions for scanning papuga XML and JSON documents for further processing
+ * @file requestParser.c
  */
 #include "papuga/requestParser.h"
 #include "papuga/request.h"
