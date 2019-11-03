@@ -1870,8 +1870,10 @@ public:
 						return NULL;
 					}
 				}
-				for (; ai && !papuga_ValueVariant_defined( args->argv+(ai-1)); --ai){}
-				/// ... remove optional arguments at the end of the argument list, to make them replaceable by default values
+				for (; ai
+					&& !papuga_ValueVariant_defined( args->argv+(ai-1)) 
+					&& mcdef->args[ai-1].resolvetype == papuga_ResolveTypeOptional; --ai){}
+				/// ... remove optional arguments at the end of the argument list, to make them replaced by default values
 
 				args->argc = ai;
 				++m_curr_methodidx;
