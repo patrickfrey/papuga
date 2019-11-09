@@ -137,7 +137,7 @@ void RequestAutomaton_ValueDef::addToAutomaton( const std::string& rootexpr, pap
 			if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton add value '%s', scope expression '%s' select expression '%s': %s"), itemName(itemid), scope_fullexpr.c_str(), select_expression, papuga_ErrorCode_tostring(errcode));
 		}
 	}
-	if (!papuga_SchemaDescription_add_element( descr, itemid/*id*/, descr_fullexpr.c_str(), valuetype, papuga_ResolveTypeRequired, NULL/*examples*/))
+	if (!papuga_SchemaDescription_add_element( descr, itemid/*id*/, descr_fullexpr.c_str(), valuetype, papuga_ResolveTypeRequired, examples))
 	{
 		papuga_ErrorCode errcode = papuga_SchemaDescription_last_error( descr);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("schema description add value '%s', expression '%s': %s"), itemName(itemid), descr_fullexpr.c_str(), papuga_ErrorCode_tostring(errcode));
