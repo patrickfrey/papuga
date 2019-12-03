@@ -109,7 +109,7 @@ static bool getArrays( int* buf, int bufsize, int* len, const char* content, std
 							if (itr->size() == tagstack.back().name.size()
 								&& 0==std::memcmp( itr->content(), tagstack.back().name.c_str(), itr->size()))
 							{
-								if (*len > 0 &&  buf[*len-1] == tagstack.back().pos)
+								if (*len > 0 && buf[*len-1] == tagstack.back().pos)
 								{
 									++tagstacksize;
 								}
@@ -336,24 +336,26 @@ struct Structure
 
 struct TagStack
 {
-	struct OpenFlags
+	struct Flags
 	{
 		bool isArray;
 		bool isNew;
 		bool isEndOfArray;
 		bool isRoot;
+
+		Flags()
+			:isArray(false),isNew(false),isEndOfArray(false),isRoot(false){}
+		Flags( const Flags& o)
+			:isArray(o.isArray),isNew(o.isNew),isEndOfArray(o.isEndOfArray),isRoot(o.isRoot){}
 	};
-	struct CloseFlags
-	{
-		bool isEndOfArray;
-		bool isRoot;
-	};
+	enum {StringBufSize = PAPUGA_MAX_RECURSION_DEPTH * 32};
 
 	int m_arrays[ PAPUGA_MAX_RECURSION_DEPTH];
 	int m_nofarrays;
 	int m_arrayidx;
 	int m_cnt;
 	int m_depth;
+	Flags m_flags;
 	papuga_ErrorCode* m_errcode;
 
 	struct {
@@ -361,17 +363,19 @@ struct TagStack
 		int namelen;
 		bool isArrayElem;
 	} m_arrayStack[ PAPUGA_MAX_RECURSION_DEPTH]; //stack of last array element names
-	
+
 	explicit TagStack( papuga_ErrorCode* errcode_)
-		:m_errcode(errcode_)
+		:m_nofarrays(0),m_arrayidx(0),m_cnt(0),m_depth(0),m_flags(),m_errcode(errcode_)
 	{
+		std::memset( &m_arrayStack, 0, sizeof(m_arrayStack));
+		std::memset( &m_arrays, 0, sizeof(m_arrays));
+
 		m_arrayStack[ 0].name = 0;
 		m_arrayStack[ 0].namelen = -1;
 		m_arrayStack[ 0].isArrayElem = false;
-		m_nofarrays = 0;
-		m_arrayidx = 0;
-		m_cnt = 0;
-		m_depth = 0;
+		m_arrayStack[ 1].name = 0;
+		m_arrayStack[ 1].namelen = -1;
+		m_arrayStack[ 1].isArrayElem = false;
 	}
 	bool init( const char* content, int contentlen)
 	{
@@ -381,41 +385,50 @@ struct TagStack
 	{
 		++m_cnt;
 	}
-	bool push( const char* tagname, int tagnamelen, OpenFlags& flags)
+	const Flags& flags() const
+	{
+		return m_flags;
+	}
+	Flags& flags()
+	{
+		return m_flags;
+	}
+	bool push( const char* tagname, int tagnamelen)
 	{
 		if (m_depth >= PAPUGA_MAX_RECURSION_DEPTH-1)
 		{
 			*m_errcode = papuga_MaxRecursionDepthReached;
 			return false;
 		}
+		m_flags.isRoot = (m_depth == 0);
 		++m_depth;
-		flags.isRoot = m_depth == 1;
 		if (m_arrayStack[ m_depth].namelen == tagnamelen && 0==std::memcmp( m_arrayStack[ m_depth].name, tagname, tagnamelen))
 		{
-			flags.isNew = false;
-			flags.isArray = true;
-			flags.isEndOfArray = false;
+			m_flags.isNew = false;
+			m_flags.isArray = true;
+			m_flags.isEndOfArray = false;
 		}
 		else
 		{
-			flags.isNew = true;
-			flags.isEndOfArray = m_arrayStack[ m_depth].isArrayElem;
+			m_flags.isNew = true;
+			m_flags.isEndOfArray = m_arrayStack[ m_depth].isArrayElem;
 			while (m_arrayidx < m_nofarrays && m_arrays[ m_arrayidx] < m_cnt) ++m_arrayidx;
-			flags.isArray = m_arrays[ m_arrayidx] == m_cnt;
-			m_arrayStack[ m_depth].namelen = tagnamelen;
+			m_flags.isArray = m_arrays[ m_arrayidx] == m_cnt;
+
 			m_arrayStack[ m_depth].name = tagname;
+			m_arrayStack[ m_depth].namelen = tagnamelen;
 		}
-		m_arrayStack[ m_depth].isArrayElem = flags.isArray;
+		m_arrayStack[ m_depth].isArrayElem = m_flags.isArray;
 
 		m_arrayStack[ m_depth+1].name = 0;
 		m_arrayStack[ m_depth+1].namelen = -1;
 		m_arrayStack[ m_depth+1].isArrayElem = false;
 		return true;
 	}
-	bool pop( CloseFlags& flags)
+	bool pop()
 	{
-		flags.isEndOfArray = m_arrayStack[ m_depth+1].isArrayElem;
-		flags.isRoot = m_depth == 1;
+		m_flags.isEndOfArray = m_arrayStack[ m_depth+1].isArrayElem;
+		m_flags.isRoot = m_depth == 1;
 		if (m_depth == 0)
 		{
 			*m_errcode = papuga_SyntaxError;
@@ -427,9 +440,9 @@ struct TagStack
 			return true;
 		}
 	}
-	bool end( CloseFlags& flags)
+	bool end()
 	{
-		flags.isEndOfArray = m_arrayStack[ m_depth+1].isArrayElem;
+		m_flags.isEndOfArray = m_arrayStack[ m_depth+1].isArrayElem;
 		return true;
 	}
 };
@@ -500,14 +513,13 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 					return false;
 				case tx::Exit:
 				{
-					TagStack::CloseFlags flags;
-					rt &= tagStack.end( flags);
-					if (flags.isEndOfArray)
+					rt &= tagStack.end();
+					if (tagStack.flags().isEndOfArray)
 					{
 						rt &= papuga_Serialization_pushClose( self);
 					}
 					rt &= currentStruct.flushStructure( self);
-					return true;
+					return rt;
 				}
 				case tx::ErrorOccurred:
 					*errcode = papuga_SyntaxError;
@@ -527,18 +539,18 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 					break;
 				case tx::OpenTag:
 				{
-					TagStack::OpenFlags flags;
 					rt &= currentStruct.flushStructure( self);
-					rt &= tagStack.push( valstr, valsize, flags);
-					if (flags.isEndOfArray)
+					rt &= tagStack.push( valstr, valsize);
+					if (!rt) return false;
+					if (tagStack.flags().isEndOfArray)
 					{
 						rt &= papuga_Serialization_pushClose( self);
 					}
-					if (flags.isArray)
+					if (tagStack.flags().isArray)
 					{
-						if (flags.isNew)
+						if (tagStack.flags().isNew)
 						{
-							if (withRoot || !flags.isRoot)
+							if (withRoot || !tagStack.flags().isRoot)
 							{
 								rt &= papuga_Serialization_pushName_string( self, valstr, valsize);
 								rt &= papuga_Serialization_pushOpen( self);
@@ -546,7 +558,7 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 						}
 						rt &= currentStruct.addOpen();
 					}
-					else if (withRoot || !flags.isRoot)
+					else if (withRoot || !tagStack.flags().isRoot)
 					{
 						rt &= currentStruct.addOpen( valstr, valsize);
 					}
@@ -555,13 +567,13 @@ extern "C" bool papuga_Serialization_append_xml( papuga_Serialization* self, con
 				case tx::CloseTag:
 				case tx::CloseTagIm:
 				{
-					TagStack::CloseFlags flags;
-					rt &= tagStack.pop( flags);
-					if (flags.isEndOfArray)
+					rt &= tagStack.pop();
+					if (!rt) return false;
+					if (tagStack.flags().isEndOfArray)
 					{
 						rt &= papuga_Serialization_pushClose( self);
 					}
-					if (withRoot || !flags.isRoot)
+					if (withRoot || !tagStack.flags().isRoot)
 					{
 						rt &= currentStruct.addClose();
 					}
