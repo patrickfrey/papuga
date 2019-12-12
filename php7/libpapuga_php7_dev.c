@@ -23,11 +23,6 @@
 #include <inttypes.h>
 
 /* PHP & Zend includes: */
-#ifdef _MSC_VER
-#include <zend_config.w32.h>
-#else
-#include <zend_config.nw.h>
-#endif
 #define ZEND_SIGNAL_H /* PH:HACK: Exclude compilation of stuff we don't need with system dependencies */
 #include <php.h>
 #include <zend.h>
