@@ -140,8 +140,7 @@ public:
 		:m_impl(){}
 	RequestVariableMap( const RequestVariableMap& o)
 		:m_impl(o.m_impl){}
-	~RequestVariableMap()
-	{}
+	~RequestVariableMap(){}
 
 	RequestVariable* create( const char* name)
 	{
@@ -317,8 +316,7 @@ struct RequestContextMap
 	std::list<std::string> keylist;
 	RequestContextTab tab;
 
-	~RequestContextMap()
-	{}
+	~RequestContextMap(){}
 	RequestContextMap()
 		:keylist(),tab(){}
 	RequestContextMap( const RequestContextMap& o)
@@ -333,7 +331,6 @@ struct RequestContextMap
 	void addOwnership( const SymKey& key, papuga_RequestContext* context)
 	{
 		tab[ allocKey( key)].reset( context);
-		
 	}
 	const papuga_RequestContext* operator[]( const SymKey& key) const
 	{

@@ -25,9 +25,15 @@ class shared_ptr
 	:public std::shared_ptr<X>
 {
 public:
+	typedef void (*Deleter)( X* ptr);
+public:
 	shared_ptr( X* ptr)
 		:std::shared_ptr<X>(ptr){}
+	shared_ptr( X* ptr, Deleter deleter)
+		:std::shared_ptr<X>(ptr,deleter){}
 	shared_ptr( const shared_ptr& o)
+		:std::shared_ptr<X>(o){}
+	shared_ptr( const std::shared_ptr<X>& o)
 		:std::shared_ptr<X>(o){}
 	shared_ptr()
 		:std::shared_ptr<X>(){}
