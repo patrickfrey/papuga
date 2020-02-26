@@ -417,7 +417,7 @@ static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_A
 	else if (PyUnicode_Check( pyobj))
 	{
 		Py_ssize_t utf8bytes;
-		char* utf8str;
+		char const* utf8str;
 
 		if (0>PyUnicode_READY( pyobj))
 		{
