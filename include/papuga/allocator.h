@@ -34,6 +34,12 @@ extern "C" {
 #define papuga_init_Allocator(self_,buf_,bufsize_)	{papuga_Allocator* s = self_; s->root.allocsize=bufsize_;s->root.arsize=0;s->root.allocated=((const void*)(buf_)==NULL);s->root.ar=(char*)buf_;s->root.next=0;s->reflist=0;}
 
 /*
+* @brief Evaluate if an Allocator has any allocations made
+* @param[out] self_ pointer to allocator structure
+*/
+#define papuga_Allocator_empty(self_)			(((papuga_Allocator*)self_)->root.arsize==0 && ((papuga_Allocator*)self_)->reflist==0)
+
+/*
 * @brief Destructor of Allocator
 * @param[in] self_ pointer to structure destroyed
 */
