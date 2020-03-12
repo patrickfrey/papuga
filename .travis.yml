@@ -33,6 +33,8 @@ matrix:
       env: PAPUGA_WITH_PYTHON=NO PAPUGA_WITH_PHP=NO PAPUGA_WITH_LUA=YES
 
 sudo: required
+services:
+  - postgresql
 branches:
   only:
     - master
