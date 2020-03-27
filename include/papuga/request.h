@@ -171,13 +171,16 @@ bool papuga_RequestAutomaton_prioritize_last_call(
  * @brief Define the start of a call group. Calls inside a group are executed in sequential order for appearing in input.
  * @note Calls without grouping are executed in order of their definition.
  * @remark Only one level of grouping allowed (no nesting of group definitions allowed)
+ * @param[in,out] self automaton changed
+ * @param[in] groupid group identifier
  * @return true on success, false if already a group defined
  */
-bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self);
+bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self, int groupid);
 
 /*
  * @brief Define the end of a call group. Calls inside a group are executed in sequential order for their context
  * @remark Only one level of grouping allowed
+ * @param[in,out] self automaton changed
  * @return true on success, false if not in the context of an opened group
  */
 bool papuga_RequestAutomaton_close_group( papuga_RequestAutomaton* self);

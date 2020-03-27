@@ -518,7 +518,7 @@ static TestData* createTestData_4()
 		{
 			{"/doc/{city,town}", "()", (int)CityName, papuga_TypeString, "Berlin"},
 			{"/doc", "obj", 0, C1::constructor(), {} },
-			{{
+			{ 1/*groupid*/, {
 				{"/doc/{city,town}", "lo", "obj", C1::m2(), {{(int)CityName}} },
 				{"/doc/{city,town}", "hi", "obj", C1::m1(), {{(int)CityName}} }
 			}}

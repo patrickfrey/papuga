@@ -180,7 +180,7 @@ public:
 		,m_strict(strict_)
 		,m_exclusiveAccess(exclusiveAccess_)
 		,m_atm(),m_maxitemid(0)
-		,m_errcode(papuga_Ok),m_groupid(-1),m_done(false)
+		,m_errcode(papuga_Ok),m_groupidmap(),m_groupid(-1),m_done(false)
 	{
 		std::memset( m_envAssignmentAr, 0, sizeof(m_envAssignmentAr));
 		papuga_init_Allocator( &m_allocator, m_allocatorbuf, sizeof(m_allocatorbuf));
@@ -273,6 +273,11 @@ public:
 			if (method_->functionid && !selfvarname_)
 			{
 				m_errcode = papuga_MissingSelf;
+				return false;
+			}
+			if (m_calldefs.size() >= (std::size_t)MaxNofCallDefs)
+			{
+				m_errcode = papuga_ComplexityOfProblem;
 				return false;
 			}
 			const papuga_ClassDef* cdef = 0;
@@ -572,14 +577,24 @@ public:
 		return true;
 	}
 
-	bool openGroup()
+	static int virtualGroupId( int groupid)
+	{
+		return groupid + MaxNofCallDefs + 1;
+	}
+	static int isVirtualGroupId( int groupid)
+	{
+		return groupid >= MaxNofCallDefs + 1;
+	}
+
+	bool openGroup( int groupid)
 	{
 		if (m_groupid >= 0)
 		{
 			m_errcode = papuga_LogicError;
 			return false;
 		}
-		m_groupid = m_calldefs.size();
+		m_groupid = virtualGroupId( groupid);
+		m_groupidmap[ m_groupid ] = m_calldefs.size();
 		return true;
 	}
 
@@ -691,6 +706,22 @@ public:
 			m_errcode = papuga_LogicError;
 			return false;
 		}
+		// Rewrite assigned groupid s:
+		std::vector<CallDef>::iterator
+			ci = m_calldefs.begin(), ce = m_calldefs.end();
+		for (; ci != ce; ++ci)
+		{
+			if (isVirtualGroupId( ci->groupid))
+			{
+				std::map<int,int>::const_iterator gi = m_groupidmap.find( ci->groupid);
+				if (gi == m_groupidmap.end())
+				{
+					m_errcode = papuga_LogicError;
+					return false;
+				}
+				ci->groupid = gi->second;
+			}
+		}
 		m_done = true;
 		return true;
 	}
@@ -719,6 +750,8 @@ public:
 		InheritFromDef( const InheritFromDef& o)
 			:type(o.type),required(o.required){}
 	};
+
+	enum {MaxNofCallDefs = 1<<15};
 
 	const std::vector<CallDef>& calldefs() const				{return m_calldefs;}
 	const std::vector<StructDef>& structdefs() const			{return m_structdefs;}
@@ -844,6 +877,7 @@ private:
 	XMLPathSelectAutomaton m_atm;
 	std::size_t m_maxitemid;
 	papuga_ErrorCode m_errcode;
+	std::map<int,int> m_groupidmap;
 	int m_groupid;
 	bool m_done;
 	char m_allocatorbuf[ 4096];
@@ -1819,16 +1853,22 @@ public:
 				args->argc = 1;
 
 				const MethodCallNode* mcnode_itr = m_ctx->methodCallNode( m_curr_methodidx+1);
-				if (mcnode_itr && mcnode_itr->group == mcnode->group)
+				if (mcnode_itr
+					&& mcnode_itr->group == mcnode->group
+					&& mcnode_itr->def->isVariableAssignment()
+					&& 0==std::strcmp( mcnode_itr->def->resultvarname, mcnode->def->resultvarname))
 				{
 					// ... more than one variable assignments of the same group are bound to an array
 					papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( &m_allocator);
 					if (!ser) throw std::bad_alloc();
 					papuga_init_ValueVariant_serialization( args->argv + 0, ser);
 
-					for (mcnode_itr=mcnode; 
-						mcnode_itr && mcnode_itr->group == mcnode->group; 
-						mcnode_itr = m_ctx->methodCallNode( ++m_curr_methodidx))
+					for (mcnode_itr = mcnode; 
+						mcnode_itr
+							&& mcnode_itr->group == mcnode->group
+							&& mcnode_itr->def->isVariableAssignment()
+							&& 0==std::strcmp( mcnode_itr->def->resultvarname, mcnode->def->resultvarname);
+						++m_curr_methodidx, mcnode_itr = m_ctx->methodCallNode( m_curr_methodidx))
 					{
 						papuga_ValueVariant val;
 						papuga_init_ValueVariant( &val);
@@ -2741,9 +2781,9 @@ extern "C" bool papuga_RequestAutomaton_prioritize_last_call(
 	return self->atm.prioritizeLastCallInScope( scope_expression);
 }
 
-extern "C" bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self)
+extern "C" bool papuga_RequestAutomaton_open_group( papuga_RequestAutomaton* self, int groupid)
 {
-	return self->atm.openGroup();
+	return self->atm.openGroup( groupid);
 }
 
 extern "C" bool papuga_RequestAutomaton_close_group( papuga_RequestAutomaton* self)

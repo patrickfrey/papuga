@@ -156,7 +156,7 @@ std::string RequestAutomaton_ValueDef::key( const std::string& rootexpr) const
 
 void RequestAutomaton_GroupDef::addToAutomaton( const std::string& rootexpr, papuga_RequestAutomaton* atm, papuga_SchemaDescription* descr, MapItemIdToName itemName) const
 {
-	if (!papuga_RequestAutomaton_open_group( atm))
+	if (!papuga_RequestAutomaton_open_group( atm, groupid))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( atm);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton open group: %s"), papuga_ErrorCode_tostring(errcode));
@@ -272,10 +272,10 @@ RequestAutomaton_Node::RequestAutomaton_Node()
 {
 	value.functiondef = 0;
 }
-RequestAutomaton_Node::RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_GroupDef::Element>& nodes)
+RequestAutomaton_Node::RequestAutomaton_Node( int groupid, const std::initializer_list<RequestAutomaton_GroupDef::Element>& nodes)
 	:type(Group),rootexpr(),thisid(getClassId())
 {
-	value.groupdef = new RequestAutomaton_GroupDef( std::vector<RequestAutomaton_GroupDef::Element>( nodes.begin(), nodes.end()));
+	value.groupdef = new RequestAutomaton_GroupDef( groupid, std::vector<RequestAutomaton_GroupDef::Element>( nodes.begin(), nodes.end()));
 }
 RequestAutomaton_Node::RequestAutomaton_Node( const char* expression, const char* resultvar, const char* selfvar, const papuga_RequestMethodId& methodid, const std::initializer_list<RequestAutomaton_FunctionDef::Arg>& args)
 	:type(Function),rootexpr(),thisid(getClassId())
@@ -623,9 +623,9 @@ void RequestAutomaton::setResolve( const char* expression, char resolvechr)
 	}
 }
 
-void RequestAutomaton::openGroup()
+void RequestAutomaton::openGroup( int groupid)
 {
-	if (!papuga_RequestAutomaton_open_group( m_atm))
+	if (!papuga_RequestAutomaton_open_group( m_atm, groupid))
 	{
 		papuga_ErrorCode errcode = papuga_RequestAutomaton_last_error( m_atm);
 		if (errcode != papuga_Ok) throw papuga::runtime_error( _TXT("request automaton open group: %s"), papuga_ErrorCode_tostring(errcode));

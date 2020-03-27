@@ -198,19 +198,34 @@ struct RequestAutomaton_GroupDef
 	{
 		Element( const char* expression_, const char* resultvar_, const char* selfvar_, papuga_RequestMethodId methodid_, std::vector<RequestAutomaton_FunctionDef::Arg> args_)
 			:RequestAutomaton_FunctionDef( expression_, "", resultvar_, selfvar_, methodid_, args_){}
+		Element( const char* scope_expression_, const char* select_expression_, const char* variable_, int itemid_, char resolvechr_, int max_tag_diff_=1)
+			:RequestAutomaton_FunctionDef( scope_expression_, select_expression_, variable_?variable_:"", 0/*selfvar*/, assignmentMethodId(), assignmentArgs( itemid_, resolvechr_, max_tag_diff_)){}
 		Element( const Element& o)
 			:RequestAutomaton_FunctionDef( o){}
+
+		static std::vector<RequestAutomaton_FunctionDef::Arg> assignmentArgs( int itemid, char resolvechr, int max_tag_diff)
+		{
+			std::vector<RequestAutomaton_FunctionDef::Arg> args;
+			args.push_back( RequestAutomaton_FunctionDef::Arg( itemid, resolvechr, max_tag_diff));
+			return args;
+		}
+		static papuga_RequestMethodId assignmentMethodId()
+		{
+			papuga_RequestMethodId rt = {0,0};
+			return rt;
+		}
 	};
 
+	int groupid;
 	std::vector<RequestAutomaton_FunctionDef> nodes;	///< list of function definitions belonging to this group
 
 	/// \brief Copy constructor
 	RequestAutomaton_GroupDef( const RequestAutomaton_GroupDef& o)
-		:nodes(o.nodes){}
+		:groupid(o.groupid),nodes(o.nodes){}
 	/// \brief Constructor
 	/// \param[in] nodes_ list of nodes of this group
-	RequestAutomaton_GroupDef( const std::vector<Element>& nodes_)
-		:nodes()
+	RequestAutomaton_GroupDef( int groupid_, const std::vector<Element>& nodes_)
+		:groupid(groupid_),nodes()
 	{
 		std::vector<Element>::const_iterator ni = nodes_.begin(), ne = nodes_.end();
 		for (; ni != ne; ++ni) nodes.push_back( RequestAutomaton_FunctionDef( *ni));
@@ -279,7 +294,7 @@ struct RequestAutomaton_Node
 	RequestAutomaton_Node();
 	///\brief Contructor as RequestAutomaton_GroupDef
 	/// \param[in] nodelist_ list of nodes forming a group of functions
-	RequestAutomaton_Node( const std::initializer_list<RequestAutomaton_GroupDef::Element>& nodes_);
+	RequestAutomaton_Node( int groupid, const std::initializer_list<RequestAutomaton_GroupDef::Element>& nodes_);
 	///\brief Contructor as RequestAutomaton_FunctionDef
 	/// \param[in] expression select expression addressing the scope of this method call definition
 	/// \param[in] resultvar variable where the result of the call is stored to, empty or NULL if the result is void or dropped
@@ -616,7 +631,8 @@ public:
 	/// \brief Open a method call group definition
 	/// \remark Only available if this automaton has been constructed as empty
 	/// \note We suggest to define the automaton with one constructor call with the whole automaton defined as structure if C++>=11 is available
-	void openGroup();
+	/// \param[in] groupid group identifier
+	void openGroup( int groupid);
 
 	/// \brief Close a method call group definition
 	/// \remark Only available if this automaton has been constructed as empty
