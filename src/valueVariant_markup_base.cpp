@@ -282,3 +282,46 @@ void* OutputContextBase::encodeRequestResultString( const std::string& out, papu
 	return rt;
 }
 
+void OutputContextBase::printValueOstream( std::ostream& out, const char* tagname, const papuga_ValueVariant& value)
+{
+	if (value.valuetype == papuga_TypeSerialization)
+	{
+		out << std::endl << "*" << std::endl;
+		papuga_SerializationIter iter;
+		papuga_init_SerializationIter( &iter, value.value.serialization);
+		while (!papuga_SerializationIter_eof( &iter))
+		{
+			const char* elemtagname = papuga_Tag_name( papuga_SerializationIter_tag( &iter));
+			const papuga_ValueVariant* elem = papuga_SerializationIter_value( &iter);
+			papuga_SerializationIter_skip( &iter);
+			printValueOstream( out, elemtagname, *elem);
+			out << std::endl;
+		}
+		out << "*" << std::endl;
+	}
+	else if (!papuga_ValueVariant_defined( &value))
+	{
+		if (tagname)
+		{
+			out << tagname;
+		}
+	}
+	else if (papuga_ValueVariant_isatomic( &value))
+	{
+		papuga_ErrorCode ec = papuga_Ok;
+		papuga_Allocator localAllocator;
+		papuga_init_Allocator( &localAllocator, 0, 0);
+		size_t elemlen = 0;
+		const char* elemstr = papuga_ValueVariant_tostring( &value, &localAllocator, &elemlen, &ec);
+		if (!elemstr) elemstr = "";
+		if (tagname)
+		{
+			out << tagname << " " << elemstr;
+		}
+		else
+		{
+			out << elemstr;
+		}
+	}
+}
+

@@ -8,6 +8,7 @@
 #ifndef _PAPUGA_REQUEST_VALUE_VARIANT_MARKUP_KEYDECL_HPP_INCLUDED
 #define _PAPUGA_REQUEST_VALUE_VARIANT_MARKUP_KEYDECL_HPP_INCLUDED
 #include "valueVariant_markup_base.hpp"
+#include "papuga/serialization.hpp"
 #include <algorithm>
 
 namespace papuga {
@@ -63,6 +64,11 @@ public:
 		{
 			throw ErrorException( papuga_TypeError);
 		}
+	}
+
+	void defValueRoot( const papuga_ValueVariant& value, bool valueIsLink, bool tabulator)
+	{
+		defValue( value, valueIsLink, tabulator);
 	}
 
 	void appendSerialization( const papuga_Serialization& ser, bool valueIsLink)
@@ -266,18 +272,18 @@ public:
 			if (elem)
 			{
 				THIS()->openFirstElem( elem);
-				defValue( val, isEqual( elem, PAPUGA_HTML_LINK_ELEMENT), THIS()->firstElemTabulator());
+				THIS()->defValueRoot( val, isEqual( elem, PAPUGA_HTML_LINK_ELEMENT), THIS()->firstElemTabulator());
 				THIS()->closeFirstElem();
 			}
 			else
 			{
-				THIS()->defValue( val, isEqual( root, PAPUGA_HTML_LINK_ELEMENT), false/*tabulator*/);
+				THIS()->defValueRoot( val, isEqual( root, PAPUGA_HTML_LINK_ELEMENT), false/*tabulator*/);
 			}
 			THIS()->defTail();
 		}
 		else
 		{
-			THIS()->defValue( val, false/*is link element*/, false/*tabulator*/);
+			THIS()->defValueRoot( val, false/*is link element*/, false/*tabulator*/);
 		}
 		THIS()->defDone();
 		std::swap( out, rt);

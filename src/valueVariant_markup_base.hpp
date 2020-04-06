@@ -22,6 +22,7 @@
 #include <string>
 #include <cstring>
 #include <cstdlib>
+#include <ostream>
 #include <stdexcept>
 
 namespace papuga {
@@ -96,6 +97,8 @@ public:
 
 	static void* encodeRequestResultString( const std::string& out, papuga_Allocator* allocator, papuga_StringEncoding enc, size_t* len);
 
+	static void printValueOstream( std::ostream& out, const char* tagname, const papuga_ValueVariant& value);
+	
 protected:
 	std::string out;
 	const papuga_StructInterfaceDescription* structs;
