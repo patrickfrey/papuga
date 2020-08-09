@@ -44,6 +44,10 @@ set_target_properties(
 add_library( papuga_python3_dev SHARED ${python3_dev_source_files} )
 target_link_libraries( papuga_python3_dev papuga_gen_utils papuga_devel ${PYTHON3_LIBRARIES} )
 
+if( APPLE )
+target_link_options( papuga_python3_dev INTERFACE "-framework CoreFoundation" )
+endif( APPLE )
+
 set_target_properties(
     papuga_python3_dev
     PROPERTIES
