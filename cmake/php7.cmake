@@ -133,17 +133,8 @@ message( WARNING "Call '${PHP7_CONFIG_EXECUTABLE} --ldflags' returns '${RET_CFG}
 set( PHP7_LIBRARY_DIRS "" )
 endif( ${RET_CFG} STREQUAL "" OR ${RET_CFG} STREQUAL "0" )
 
-execute_process( COMMAND  ${PHP7_CONFIG_EXECUTABLE} --libs RESULT_VARIABLE  RET_CFG  OUTPUT_VARIABLE PHP7_LIBS )
-if( ${RET_CFG} STREQUAL "" OR ${RET_CFG} STREQUAL "0" )
-string( REGEX MATCHALL "-l[^ ]*" PHP7_LIBS  "${PHP7_LIBS}" )
-string( REPLACE "-l"  " "  PHP7_LIBRARIES  ${PHP7_LIBS}  )
-string( STRIP  ${PHP7_LIBRARIES}  PHP7_LIBRARIES )
-separate_arguments( PHP7_LIBRARIES)
+set( PHP7_LIBRARIES "crypt;resolv;rt;m;dl;ssl;crypto;pcre2-8;z" )
 MESSAGE( STATUS "PHP 7.x libraries: ${PHP7_LIBRARIES}" )
-else( ${RET_CFG} STREQUAL "" OR ${RET_CFG} STREQUAL "0" )
-message( WARNING "Call '${PHP7_CONFIG_EXECUTABLE} --libs' returns '${RET_CFG}' " )
-set( PHP7_LIBS "" )
-endif( ${RET_CFG} STREQUAL "" OR ${RET_CFG} STREQUAL "0" )
 
 execute_process( COMMAND  ${PHP7_CONFIG_EXECUTABLE} --extension-dir  RESULT_VARIABLE  RET_CFG  OUTPUT_VARIABLE  PHP7_EXTENSION_DIR )
 if( ${RET_CFG} STREQUAL "" OR ${RET_CFG} STREQUAL "0" )
