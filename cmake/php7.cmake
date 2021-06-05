@@ -133,7 +133,7 @@ message( WARNING "Call '${PHP7_CONFIG_EXECUTABLE} --ldflags' returns '${RET_CFG}
 set( PHP7_LIBRARY_DIRS "" )
 endif( ${RET_CFG} STREQUAL "" OR ${RET_CFG} STREQUAL "0" )
 
-set( PHP7_LIBRARIES "crypt;resolv;rt;m;dl;ssl;crypto;pcre2-8;z" )
+set( PHP7_LIBRARIES "crypt;resolv;rt;m;dl;ssl;crypto;z" )
 MESSAGE( STATUS "PHP 7.x libraries: ${PHP7_LIBRARIES}" )
 
 execute_process( COMMAND  ${PHP7_CONFIG_EXECUTABLE} --extension-dir  RESULT_VARIABLE  RET_CFG  OUTPUT_VARIABLE  PHP7_EXTENSION_DIR )
