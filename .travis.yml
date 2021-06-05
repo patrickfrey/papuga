@@ -1,12 +1,6 @@
 language: cpp
 matrix:
   include:
-    - os: osx
-      compiler: clang
-      env: PAPUGA_WITH_PYTHON=YES PAPUGA_WITH_PHP=NO PAPUGA_WITH_LUA=NO
-    - os: osx
-      compiler: clang
-      env: PAPUGA_WITH_PYTHON=NO PAPUGA_WITH_PHP=NO PAPUGA_WITH_LUA=YES
     - os: linux
       dist: xenial
       compiler: clang
