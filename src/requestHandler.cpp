@@ -7,7 +7,7 @@
  */
 /*
 * \brief Automaton to describe and build papuga XML and JSON requests
-* \file request.h
+* \file requestHandler.cpp
 */
 #include "papuga/requestHandler.h"
 #include "papuga/request.h"
@@ -491,7 +491,7 @@ extern "C" bool papuga_RequestContext_inherit( papuga_RequestContext* self, cons
 	{
 		char keybuf[ 256];
 		SymKey key = SymKey::create( keybuf, sizeof(keybuf), type, name);
-	
+
 		RequestContextMapRef contextmap( handler->contextmap);	//... keep instance of context map alive until job is done
 		const papuga_RequestContext* context = (*contextmap)[ key];
 
@@ -752,7 +752,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				RequestVariable* var = NULL;
 				if (!papuga_Request_is_result_variable( request, call->resultvarname))
 				{
-					// ... HACK const_cast: We know that the source is only modified by the following deepcopy_value in the case 
+					// ... HACK const_cast: We know that the source is only modified by the following deepcopy_value in the case
 					//	of a host object moved. But we know that a variable assignment is constructed from content and cannot
 					//	contain host object references.
 					papuga_ValueVariant* source = const_cast<papuga_ValueVariant*>( &call->args.argv[0]);
@@ -801,7 +801,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 				// [B.1] Call the constructor
 				const papuga_ClassConstructor func = classdefs[ call->methodid.classid-1].constructor;
 				void* self;
-	
+
 				if (!(self=(*func)( &errorbuf_call, call->args.argc, call->args.argv)))
 				{
 					errstruct->errcode = papuga_HostObjectError;
@@ -942,7 +942,7 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 					}
 					else
 					{
-						(*logger->logMethodCall)( logger->self, 4, 
+						(*logger->logMethodCall)( logger->self, 4,
 								papuga_LogItemClassName, classdefs[ call->methodid.classid-1].name,
 								papuga_LogItemMethodName, classdefs[ call->methodid.classid-1].methodnames[ call->methodid.functionid-1],
 								papuga_LogItemArgc, call->args.argc,

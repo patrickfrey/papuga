@@ -35,6 +35,7 @@ set( source_files_request
 	requestParser_xml.cpp
 	requestParser_utils.c
 	requestParser_tostring.cpp
+	schema.cpp
 	schemaDescription.cpp
 )
 

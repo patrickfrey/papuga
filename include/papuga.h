@@ -27,6 +27,7 @@
 #include "papuga/allocator.h"
 #include "papuga/valueVariant.h"
 #include "papuga/stack.h"
+#include "papuga/schema.h"
 #include "papuga/interfaceDescription.h"
 
 /* Implemented in library papuga_request_devel: */

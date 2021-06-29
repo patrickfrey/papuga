@@ -1,0 +1,27 @@
+term_expression = {
+	variable = string,
+	type = string,
+	value = string,
+	len = int
+},
+
+term_expression = {
+	variable = string,
+	op = string,
+	range = int
+	cardinality = int
+	arg = { term_expression }
+}
+
+query = {
+	set = string,
+	weight = number,
+	feature = {{
+		set = string,
+		weight = number,
+		sentence = string,
+		content = term_expression,
+		analyzed = term_expression
+	}}
+}
+

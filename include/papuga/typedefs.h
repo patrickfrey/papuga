@@ -170,7 +170,7 @@ typedef struct papuga_ValueVariant
 typedef void (*papuga_Deleter)( void* obj);
 
 /*
-* @brief Papuga host object 
+* @brief Papuga host object
 */
 struct papuga_HostObject
 {
@@ -185,7 +185,7 @@ struct papuga_HostObject
 typedef bool (*papuga_GetNext)( void* self, papuga_CallResult* result);
 
 /*
-* @brief Papuga iterator closure 
+* @brief Papuga iterator closure
 */
 struct papuga_Iterator
 {
@@ -274,6 +274,7 @@ typedef struct papuga_SerializationIter
 	int chunkpos;						/*< current position in current chunk */
 	const papuga_ValueVariant* value;			/*< pointer to current value */
 } papuga_SerializationIter;
+
 
 #define papuga_MAX_NOF_RETURNS 8
 /*

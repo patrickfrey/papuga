@@ -1,0 +1,58 @@
+/*
+ * Copyright (c) 2021 Patrick P. Frey
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ */
+#ifndef _PAPUGA_SCHEMA_H_INCLUDED
+#define _PAPUGA_SCHEMA_H_INCLUDED
+/*
+* @brief Schema description and schema parser generator
+* @file typedefs.h
+*/
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "papuga/typedefs.h"
+
+typedef struct papuga_SchemaMap papuga_SchemaMap;
+
+typedef struct papuga_Schema papuga_Schema;
+
+typedef struct papuga_SchemaError
+{
+	papuga_ErrorCode errcode;
+	int line;
+	char item[ 128];
+} papuga_SchemaError;
+
+typedef struct  papuga_SchemaSource
+{
+	const char* name;
+	const char* source;
+	int lines;
+} papuga_SchemaSource;
+
+typedef struct papuga_SchemaList
+{
+	papuga_SchemaSource* ar;
+	int arsize;
+	papuga_Allocator allocator;
+} papuga_SchemaList;
+
+papuga_SchemaList* papuga_parse_schemalist( const char* source, papuga_SchemaError* err);
+void papuga_destroy_schemalist( papuga_SchemaList* list);
+
+papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga_SchemaError* err);
+void papuga_destroy_schemamap( papuga_SchemaMap* map);
+
+papuga_Schema const* papuga_schema_get( const papuga_SchemaMap* map, const char* schemaname);
+
+bool papuga_schema_parse( papuga_Serialization* dest, papuga_Serialization const* src, papuga_Schema const* schema, papuga_SchemaError* err);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
