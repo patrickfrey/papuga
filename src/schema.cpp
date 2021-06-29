@@ -12,6 +12,7 @@
 #include "papuga/schema.h"
 #include "papuga/errors.h"
 #include "papuga/allocator.h"
+#include "papuga/serialization.h"
 #include "textwolf.hpp"
 #include <string>
 #include <map>
@@ -82,8 +83,13 @@ struct SchemaOperation
 		ValueInteger,
 		ValueFloat,
 		ValueString,
-		StructureSet,
+		ArrayInteger,
+		ArrayFloat,
+		ArrayString,
+		OpenSubStructure,
 		OpenStructure,
+		OpenSubStructureArray,
+		OpenStructureArray,
 		CloseStructure
 	};
 	SchemaOperation( Id id_, uint64_t set_, int select_) :id(id_),set(set_),select(select_){}
@@ -304,8 +310,35 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 
 		StackElem( SchemaNode* node_, SchemaNode* tail_) :node(node_),tail(tail_){}
 	};
-	std::vector<StackElem> stack;
+	struct Stack
+	{
+		std::vector<StackElem> ar;
 
+		void push( SchemaNode* node)
+		{
+			ar.push_back( StackElem( node,node));
+		}
+		bool link( SchemaNode* node, SchemaTree& tree)
+		{
+			if (ar.empty())
+			{
+				if (tree.nodearsize >= MaxNofNodes) return false;
+				tree.nodear[ tree.nodearsize++] = node;
+				tree.nodemap[ StringView(node->name)].set( tree.nodearsize);
+			}
+			else
+			{
+				ar.back().tail->next = node;
+				ar.back().tail = node;
+			}
+			return true;
+		}
+		bool empty() const
+		{
+			return ar.empty();
+		}
+	};
+	Stack stack;
 	Lexeme lx = parseNextLexeme( si);
 	for (; lx.type != Lexeme::EndOfSource; lx = parseNextLexeme( si))
 	{
@@ -352,10 +385,14 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 			if (lx.type == Lexeme::Identifier)
 			{
 				node->typnam = papuga_Allocator_copy_string( &tree.allocator, lx.name, lx.namelen);
+				if (!stack.link( node, tree))
+				{
+					return SchemaError( err, papuga_ComplexityOfProblem, errorLine( src, si));
+				}
 			}
 			else if (lx.type == Lexeme::Open)
 			{
-				stack.push_back( StackElem(node,node));
+				stack.push( node);
 			}
 			else
 			{
@@ -368,8 +405,8 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 			{
 				return SchemaError( err, papuga_SyntaxError, errorLine( src, si), "}");
 			}
-			StackElem elem = stack.back();
-			stack.pop_back();
+			StackElem elem = stack.ar.back();
+			stack.ar.pop_back();
 			if (elem.node->array)
 			{
 				lx = parseNextLexeme( si);
@@ -378,19 +415,9 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 					return SchemaError( err, papuga_SyntaxError, errorLine( src, si), "}");
 				}
 			}
-			if (stack.empty())
+			if (!stack.link( elem.node, tree))
 			{
-				if (tree.nodearsize >= MaxNofNodes)
-				{
-					return SchemaError( err, papuga_ComplexityOfProblem, errorLine( src, si));
-				}
-				tree.nodear[ tree.nodearsize++] = elem.node;
-				tree.nodemap[ StringView(elem.node->name)].set( tree.nodearsize);
-			}
-			else
-			{
-				stack.back().tail->next = elem.node;
-				stack.back().tail = elem.node;
+				return SchemaError( err, papuga_ComplexityOfProblem, errorLine( src, si));
 			}
 		}
 		else
@@ -435,7 +462,7 @@ static bool buildAutomaton( PathElement& path, papuga_Schema* schema, papuga_Sch
 				}
 				else
 				{
-					schema->ops.push_back( SchemaOperation( SchemaOperation::StructureSet, itr->second.val, select));
+					schema->ops.push_back( SchemaOperation( SchemaOperation::OpenSubStructure, itr->second.val, select));
 					subpath.assignType( schema->ops.size());
 
 					BitSet::const_iterator bi = itr->second.begin(), be = itr->second.end();
@@ -563,6 +590,9 @@ extern "C" bool papuga_schema_parse( papuga_Serialization* dest, papuga_Serializ
 	bool rt = false;
 	try
 	{
+		papuga_SerializationIter iter;
+		papuga_init_SerializationIter( &iter, src);
+
 		rt = true;
 	}
 	catch (const std::bad_alloc&)
