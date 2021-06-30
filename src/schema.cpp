@@ -101,7 +101,7 @@ struct SchemaOperation
 
 bool SchemaError( papuga_SchemaError* err, papuga_ErrorCode errcode, int line, const char* itm=0)
 {
-	err->errcode = errcode;
+	err->code = errcode;
 	err->line = line;
 	if (itm)
 	{
@@ -179,7 +179,7 @@ struct Lexeme
 {
 	const char* name;
 	int namelen;
-	enum Type {EndOfSource,Error,Open,Close,Equal,Identifier};
+	enum Type {EndOfSource,Error,Open,Close,Equal,Identifier,Comma};
 	Type type;
 
 	Lexeme( const char* name_, int namelen_, Type type_)
@@ -248,10 +248,25 @@ static Lexeme parseNextLexeme( char const*& src)
 	if (*src == '{') {++src; return Lexeme( "{", 1, Lexeme::Open);}
 	if (*src == '}') {++src; return Lexeme( "}", 1, Lexeme::Close);}
 	if (*src == '=') {++src; return Lexeme( "=", 1, Lexeme::Equal);}
+	if (*src == ',') {++src; return Lexeme( ",", 1, Lexeme::Comma);}
 	if (isAlpha( *src)) return parseIdentifier( src);
 	return Lexeme( "", 0, Lexeme::Error);
 }
-
+static bool expectComma( char const*& src)
+{
+	char const* si = src;
+	Lexeme lx = parseNextLexeme( si);
+	if (lx.type == Lexeme::Close)
+	{
+		return true;
+	}
+	else if (lx.type == Lexeme::Comma)
+	{
+		src = si;
+		return true;
+	}
+	return false;
+}
 static bool skipToEndBlock( char const*& src)
 {
 	int cnt = 0;
@@ -389,6 +404,10 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 				{
 					return SchemaError( err, papuga_ComplexityOfProblem, errorLine( src, si));
 				}
+				if (!stack.empty() && !expectComma( si))
+				{
+					return SchemaError( err, papuga_SyntaxError, errorLine( src, si), ",");
+				}
 			}
 			else if (lx.type == Lexeme::Open)
 			{
@@ -418,6 +437,10 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 			if (!stack.link( elem.node, tree))
 			{
 				return SchemaError( err, papuga_ComplexityOfProblem, errorLine( src, si));
+			}
+			if (!stack.empty() && !expectComma( si))
+			{
+				return SchemaError( err, papuga_SyntaxError, errorLine( src, si), ",");
 			}
 		}
 		else

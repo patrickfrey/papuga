@@ -23,7 +23,7 @@ typedef struct papuga_Schema papuga_Schema;
 
 typedef struct papuga_SchemaError
 {
-	papuga_ErrorCode errcode;
+	papuga_ErrorCode code;
 	int line;
 	char item[ 128];
 } papuga_SchemaError;

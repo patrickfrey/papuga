@@ -3,13 +3,13 @@ term_expression = {
 	type = string,
 	value = string,
 	len = int
-},
+}
 
 term_expression = {
 	variable = string,
 	op = string,
-	range = int
-	cardinality = int
+	range = int,
+	cardinality = int,
 	arg = { term_expression }
 }
 

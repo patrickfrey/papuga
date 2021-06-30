@@ -10,6 +10,7 @@
 /// \brief Map of error codes to std::runtime_error exception
 /// \file errors.hpp
 #include "papuga/typedefs.h"
+#include "papuga/errors.h"
 #include <stdexcept>
 
 namespace papuga {

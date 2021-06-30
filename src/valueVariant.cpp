@@ -54,8 +54,8 @@ static const unsigned char* convertEndianess2( const void* ptr, size_t len, papu
 	unsigned char* ri = (unsigned char*)rt;
 	for (; pi != pe; pi += 2, ri += 2)
 	{
-		ri[1] = pi[0]; 
-		ri[0] = pi[1]; 
+		ri[1] = pi[0];
+		ri[0] = pi[1];
 	}
 	return rt;
 }
@@ -73,10 +73,10 @@ static const unsigned char* convertEndianess4( const void* ptr, size_t len, papu
 	unsigned char* ri = (unsigned char*)rt;
 	for (; pi != pe; pi += 4, ri += 4)
 	{
-		ri[3] = pi[0]; 
-		ri[2] = pi[1]; 
-		ri[1] = pi[2]; 
-		ri[0] = pi[3]; 
+		ri[3] = pi[0];
+		ri[2] = pi[1];
+		ri[1] = pi[2];
+		ri[0] = pi[3];
 	}
 	return rt;
 }
@@ -228,7 +228,7 @@ static std::string any_string_enc_to_uft8string_stl( papuga_StringEncoding enc, 
 			break;
 	}
 	return std::string();
-	
+
 }
 
 template <class LANGCHARSET>
@@ -548,9 +548,9 @@ std::string papuga::ValueVariant_tostring( const papuga_ValueVariant& value, pap
 			{
 				errcode = papuga_TypeError;
 				return std::string();
-				
+
 			}
-			else 
+			else
 			{
 				return any_string_enc_to_uft8string_stl( (papuga_StringEncoding)value.encoding, value.value.string, value.length);
 			}
@@ -660,7 +660,7 @@ extern "C" const void* papuga_ValueVariant_tostring_enc( const papuga_ValueVaria
 			{
 				*err = papuga_BufferOverflowError;
 				return NULL;
-			}	
+			}
 		}
 		else
 		{
@@ -807,7 +807,7 @@ extern "C" int64_t papuga_ValueVariant_toint( const papuga_ValueVariant* value, 
 		}
 		else if (value->valuetype == papuga_TypeDouble)
 		{
-			if (value->value.Double > std::numeric_limits<papuga_Int>::max())
+			if (value->value.Double > (double)std::numeric_limits<papuga_Int>::max())
 			{
 				*err = papuga_OutOfRangeError;
 				return 0;
