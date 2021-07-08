@@ -99,12 +99,20 @@ struct SchemaOperation
 	int select;
 };
 
-bool SchemaError( papuga_SchemaError* err, papuga_ErrorCode errcode, int line, const char* itm=0)
+bool SchemaError( papuga_SchemaError* err, papuga_ErrorCode errcode, int line, const char* itm=0, int itmlen=0)
 {
 	err->code = errcode;
 	err->line = line;
 	if (itm)
 	{
+		char itmbuf[ 256];
+		if (itmlen)
+		{
+			if (itmlen >= (int)sizeof(itmbuf)) itmlen = sizeof( itmbuf)-1;
+			std::memcpy( itmbuf, itm, itmlen);
+			itmbuf[ itmlen] = 0;
+			itm = itmbuf;
+		}
 		if ((int)sizeof(err->item) <= std::snprintf( err->item, sizeof(err->item), "%s", itm))
 		{
 			err->item[ sizeof(err->item)-1] = 0;
@@ -120,6 +128,7 @@ struct papuga_Schema
 	std::vector<SchemaOperation> ops;
 
 	papuga_Schema( char const* name_) :name(name_),atm(),ops(){}
+	~papuga_Schema(){}
 };
 
 struct papuga_SchemaMap
@@ -127,6 +136,19 @@ struct papuga_SchemaMap
 	papuga_Schema* ar;
 	int arsize;
 	papuga_Allocator allocator;
+
+	papuga_SchemaMap() :ar(0),arsize(0),allocator(){}
+	~papuga_SchemaMap(){}
+};
+
+struct papuga_SchemaList
+{
+	papuga_SchemaSource* ar;
+	int arsize;
+	papuga_Allocator allocator;
+
+	papuga_SchemaList() :ar(0),arsize(0),allocator(){}
+	~papuga_SchemaList(){}
 };
 
 struct SchemaNode
@@ -282,7 +304,7 @@ static bool skipToEndBlock( char const*& src)
 
 static bool parseSchemaSource( papuga_SchemaSource& res, papuga_Allocator& allocator, char const* src, char const*& si, papuga_SchemaError* err)
 {
-	Lexeme lx = parseNextLexeme( src);
+	Lexeme lx = parseNextLexeme( si);
 	char const* start = si;
 	if (lx.type == Lexeme::Error)
 	{
@@ -290,16 +312,21 @@ static bool parseSchemaSource( papuga_SchemaSource& res, papuga_Allocator& alloc
 	}
 	if (lx.type != Lexeme::Identifier)
 	{
-		return SchemaError( err, papuga_SyntaxError, errorLine( src, si), 0);
+		return SchemaError( err, papuga_SyntaxError, errorLine( src, lx.name), lx.name, lx.namelen);
 	}
 	res.name = papuga_Allocator_copy_string( &allocator, lx.name, lx.namelen);
 	if (!res.name)
 	{
 		return SchemaError( err, papuga_NoMemError, errorLine( src, si), 0);
 	}
-	if (lx.type != Lexeme::Equal)
+	lx = parseNextLexeme( si);
+	if (lx.type == Lexeme::Error)
 	{
 		return SchemaError( err, papuga_SyntaxError, errorLine( src, si), 0);
+	}
+	if (lx.type != Lexeme::Equal)
+	{
+		return SchemaError( err, papuga_SyntaxError, errorLine( src, lx.name), lx.name, lx.namelen);
 	}
 	if (!skipToEndBlock( si))
 	{
@@ -532,6 +559,7 @@ extern "C" void papuga_destroy_schemamap( papuga_SchemaMap* map)
 extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga_SchemaError* err)
 {
 	papuga_Allocator allocator;
+	papuga_init_Allocator( &allocator, 0, 0);
 	papuga_SchemaMap* rt = (papuga_SchemaMap*) papuga_Allocator_alloc( &allocator, sizeof( papuga_SchemaMap), 0);
 	if (!rt)
 	{
@@ -552,7 +580,8 @@ extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga
 		{
 			return rt;
 		}
-		rt->ar = (papuga_Schema*) papuga_Allocator_alloc( &rt->allocator, tree.nodemap.size()*sizeof( papuga_Schema), 0);
+		std::size_t arsize = tree.nodemap.size();
+		rt->ar = (papuga_Schema*) papuga_Allocator_alloc( &rt->allocator, arsize*sizeof( papuga_Schema), 0);
 		if (!rt->ar)
 		{
 			papuga_destroy_Allocator( &rt->allocator);
@@ -595,7 +624,7 @@ extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga
 	return rt;
 }
 
-extern "C" papuga_Schema const* papuga_schema_get( const papuga_SchemaMap* map, const char* schemaname)
+extern "C" papuga_Schema const* papuga_schemamap_get( const papuga_SchemaMap* map, const char* schemaname)
 {
 	int si = 0, se = map->arsize;
 	for (; si != se; ++si)
@@ -630,9 +659,10 @@ extern "C" void papuga_destroy_schemalist( papuga_SchemaList* list)
 	papuga_destroy_Allocator( &list->allocator);
 }
 
-extern "C" papuga_SchemaList* papuga_parse_schemalist( const char* source, papuga_SchemaError* err)
+extern "C" papuga_SchemaList* papuga_create_schemalist( const char* source, papuga_SchemaError* err)
 {
 	papuga_Allocator allocator;
+	papuga_init_Allocator( &allocator, 0, 0);
 	papuga_SchemaList* rt = (papuga_SchemaList*) papuga_Allocator_alloc( &allocator, sizeof( papuga_SchemaList), 0);
 	if (!rt)
 	{
@@ -686,5 +716,20 @@ extern "C" papuga_SchemaList* papuga_parse_schemalist( const char* source, papug
 	}
 	return rt;
 }
+
+papuga_SchemaSource const* papuga_schemalist_get( const papuga_SchemaList* list, const char* schemaname)
+{
+	papuga_SchemaSource const* si = list->ar;
+	papuga_SchemaSource const* se = list->ar + list->arsize;
+	for (; si != se; ++si)
+	{
+		if (si->name[0] == schemaname[0] && 0==std::strcmp(si->name, schemaname))
+		{
+			return si;
+		}
+	}
+	return 0;
+}
+
 
 

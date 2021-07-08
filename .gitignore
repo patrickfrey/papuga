@@ -55,4 +55,7 @@ tests/php7/exec
 3rdParty/lua_cmake/lua
 src/papugaDoc
 
+# KDevelop project
+.kdev4/
+papuga.kdev4
 

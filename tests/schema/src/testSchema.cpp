@@ -67,14 +67,25 @@ public:
 	{
 		papuga_SchemaError err;
 		m_map = papuga_create_schemamap( src, &err);
-		if (!m_map) throw SchemaException( err);
+		if (!m_map)
+		{
+			throw SchemaException( err);
+		}
+		m_list = papuga_create_schemalist( src, &err);
+		if (!m_list)
+		{
+			papuga_destroy_schemamap( m_map);
+			throw SchemaException( err);
+		}
 	}
 	~SchemaMap()
 	{
 		papuga_destroy_schemamap( m_map);
+		papuga_destroy_schemalist( m_list);
 	}
 private:
 	papuga_SchemaMap* m_map;
+	papuga_SchemaList* m_list;
 };
 
 int main( int argc, const char* argv[])

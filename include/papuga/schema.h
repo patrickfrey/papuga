@@ -18,7 +18,7 @@ extern "C" {
 #include "papuga/typedefs.h"
 
 typedef struct papuga_SchemaMap papuga_SchemaMap;
-
+typedef struct papuga_SchemaList papuga_SchemaList;
 typedef struct papuga_Schema papuga_Schema;
 
 typedef struct papuga_SchemaError
@@ -35,20 +35,15 @@ typedef struct  papuga_SchemaSource
 	int lines;
 } papuga_SchemaSource;
 
-typedef struct papuga_SchemaList
-{
-	papuga_SchemaSource* ar;
-	int arsize;
-	papuga_Allocator allocator;
-} papuga_SchemaList;
-
-papuga_SchemaList* papuga_parse_schemalist( const char* source, papuga_SchemaError* err);
+papuga_SchemaList* papuga_create_schemalist( const char* source, papuga_SchemaError* err);
 void papuga_destroy_schemalist( papuga_SchemaList* list);
+
+papuga_SchemaSource const* papuga_schemalist_get( const papuga_SchemaList* list, const char* schemaname);
 
 papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga_SchemaError* err);
 void papuga_destroy_schemamap( papuga_SchemaMap* map);
 
-papuga_Schema const* papuga_schema_get( const papuga_SchemaMap* map, const char* schemaname);
+papuga_Schema const* papuga_schemamap_get( const papuga_SchemaMap* map, const char* schemaname);
 
 bool papuga_schema_parse( papuga_Serialization* dest, papuga_Serialization const* src, papuga_Schema const* schema, papuga_SchemaError* err);
 
