@@ -13,7 +13,10 @@
 #include "papuga/errors.h"
 #include "papuga/allocator.h"
 #include "papuga/serialization.h"
+#include "papuga/requestParser.h"
+#include "papuga/valueVariant.h"
 #include "textwolf.hpp"
+#include "textwolf/xmlpathautomatonparse.hpp"
 #include <string>
 #include <map>
 #include <bitset>
@@ -21,8 +24,9 @@
 #include <cstdlib>
 #include <cstring>
 
-typedef textwolf::XMLPathSelectAutomaton<textwolf::charset::UTF8> Automaton;
+typedef textwolf::XMLPathSelectAutomatonParser<> Automaton;
 typedef textwolf::XMLPathSelectAutomaton<>::PathElement PathElement;
+typedef textwolf::XMLPathSelect<textwolf::charset::UTF8> AutomatonState;
 
 enum {MaxNofNodes = 64};
 
@@ -80,26 +84,34 @@ struct BitSet
 struct SchemaOperation
 {
 	enum Id {
+		NameAtomic,
+		NameArray,
 		ValueInteger,
 		ValueFloat,
+		ValueBool,
 		ValueString,
-		ArrayInteger,
-		ArrayFloat,
-		ArrayString,
-		OpenSubStructure,
+		AttributeInteger,
+		AttributeFloat,
+		AttributeBool,
+		AttributeString,
+		OpenNamedStructure,
+		CloseNamedStructure,
+		OpenNamedStructureArray,
+		CloseNamedStructureArray,
 		OpenStructure,
-		OpenSubStructureArray,
+		CloseStructure,
 		OpenStructureArray,
-		CloseStructure
+		CloseStructureArray
 	};
-	SchemaOperation( Id id_, uint64_t set_, int select_) :id(id_),set(set_),select(select_){}
+
+	SchemaOperation( Id id_, uint64_t set_, uint64_t mask_) :id(id_),set(set_),mask(mask_) {}
 
 	Id id;
 	uint64_t set;
-	int select;
+	uint64_t mask;
 };
 
-bool SchemaError( papuga_SchemaError* err, papuga_ErrorCode errcode, int line, const char* itm=0, int itmlen=0)
+bool SchemaError( papuga_SchemaError* err, papuga_ErrorCode errcode, int line=0, const char* itm=0, int itmlen=0)
 {
 	err->code = errcode;
 	err->line = line;
@@ -119,6 +131,25 @@ bool SchemaError( papuga_SchemaError* err, papuga_ErrorCode errcode, int line, c
 		}
 	}
 	return false;
+}
+
+static int errorLine( char const* start, char const* ptr)
+{
+	char const* pi = start;
+	int rt = 0;
+	for (; pi != ptr; ++pi)
+	{
+		if (*pi == '\n') ++rt;
+	}
+	return rt+1;
+}
+
+bool RequestParserError( papuga_SchemaError* err, papuga_ErrorCode errcode, papuga_RequestParser* parser, char* contentstr)
+{
+	char errlocation[ 1024];
+	int pos = papuga_RequestParser_get_position( parser, errlocation, sizeof(errlocation));
+	int line = pos == -1 ? 0 : errorLine( contentstr, contentstr + pos);
+	return SchemaError( err, errcode, line, errlocation);
 }
 
 struct papuga_Schema
@@ -158,9 +189,10 @@ struct SchemaNode
 	SchemaNode* next;
 	SchemaNode* chld;
 	bool array;
+	bool attribute;
 
 	SchemaNode( const char* name_)
-		:typnam(0),name(name_),next(0),chld(0),array(false){}
+		:typnam(0),name(name_),next(0),chld(0),array(false),attribute(false){}
 };
 
 struct StringView
@@ -201,7 +233,7 @@ struct Lexeme
 {
 	const char* name;
 	int namelen;
-	enum Type {EndOfSource,Error,Open,Close,Equal,Identifier,Comma};
+	enum Type {EndOfSource,Error,Open,Close,Equal,Attribute,Identifier,Comma};
 	Type type;
 
 	Lexeme( const char* name_, int namelen_, Type type_)
@@ -246,16 +278,53 @@ static bool isAlphaNum( unsigned char ch)
 {
 	return isAlpha( ch) || isDigit( ch);
 }
-static int errorLine( char const* start, char const* ptr)
+static bool stringToInt( int64_t& res,  char const* si)
 {
-	char const* pi = start;
-	int rt = 0;
-	for (; pi != ptr; ++pi)
+	res = 0;
+	int64_t res_prev = 0;
+	bool sign = false;
+	if (*si == '-')
 	{
-		if (*pi == '\n') ++rt;
+		sign = true;
+		++si;
 	}
-	return rt+1;
+	for (; isDigit(*si); ++si)
+	{
+		res_prev = res;
+		res = res * 10 + (*si - '0');
+		if (res < res_prev) return false;
+	}
+	return !*si;
 }
+static bool stringToDouble( double& res, char const* si)
+{	
+	char const* pi = si;
+	if (*si == '-') ++si;
+	for (; isDigit(*si); ++si){}
+	if (*si == '.')
+	{
+		++si;
+		for (; isDigit(*si); ++si){}
+	}
+	if ((*si | 32) == 'e')
+	{
+		++si;
+		if (*si == '-') ++si;
+		for (; isDigit(*si); ++si){}
+	}
+	return (!*si && 1==std::sscanf( pi, "%lf", &res));
+}
+static bool stringToBool( bool& res, char const* si)
+{
+	if (*si == 't' && 0==std::strcmp( si, "true")) {res = true; return true;}
+	if (*si == 'f' && 0==std::strcmp( si, "false")) {res = false; return true;}
+	if (*si == 'y' && 0==std::strcmp( si, "yes")) {res = true; return true;}
+	if (*si == 'n' && 0==std::strcmp( si, "no")) {res = false; return true;}
+	if (*si == '1' && !si[1]) {res = true; return true;}
+	if (*si == '0' && !si[1]) {res = false; return true;}
+	return false;
+}
+
 static Lexeme parseIdentifier( char const*& src)
 {
 	Lexeme rt( src, 1, Lexeme::Identifier);
@@ -271,6 +340,7 @@ static Lexeme parseNextLexeme( char const*& src)
 	if (*src == '}') {++src; return Lexeme( "}", 1, Lexeme::Close);}
 	if (*src == '=') {++src; return Lexeme( "=", 1, Lexeme::Equal);}
 	if (*src == ',') {++src; return Lexeme( ",", 1, Lexeme::Comma);}
+	if (*src == '@') {++src; return Lexeme( ",", 1, Lexeme::Attribute);}
 	if (isAlpha( *src)) return parseIdentifier( src);
 	return Lexeme( "", 0, Lexeme::Error);
 }
@@ -308,35 +378,35 @@ static bool parseSchemaSource( papuga_SchemaSource& res, papuga_Allocator& alloc
 	char const* start = si;
 	if (lx.type == Lexeme::Error)
 	{
-		return SchemaError( err, papuga_SyntaxError, errorLine( src, si), 0);
+		return SchemaError( err, papuga_SyntaxError, errorLine( src, si));
 	}
 	if (lx.type != Lexeme::Identifier)
 	{
-		return SchemaError( err, papuga_SyntaxError, errorLine( src, lx.name), lx.name, lx.namelen);
+		return SchemaError( err, papuga_SyntaxError, errorLine( src, si), lx.name, lx.namelen);
 	}
 	res.name = papuga_Allocator_copy_string( &allocator, lx.name, lx.namelen);
 	if (!res.name)
 	{
-		return SchemaError( err, papuga_NoMemError, errorLine( src, si), 0);
+		return SchemaError( err, papuga_NoMemError, errorLine( src, si));
 	}
 	lx = parseNextLexeme( si);
 	if (lx.type == Lexeme::Error)
 	{
-		return SchemaError( err, papuga_SyntaxError, errorLine( src, si), 0);
+		return SchemaError( err, papuga_SyntaxError, errorLine( src, si));
 	}
 	if (lx.type != Lexeme::Equal)
 	{
-		return SchemaError( err, papuga_SyntaxError, errorLine( src, lx.name), lx.name, lx.namelen);
+		return SchemaError( err, papuga_SyntaxError, errorLine( src, si), lx.name, lx.namelen);
 	}
 	if (!skipToEndBlock( si))
 	{
-		return SchemaError( err, papuga_SyntaxError, errorLine( src, si), 0);
+		return SchemaError( err, papuga_SyntaxError, errorLine( src, si));
 	}
 	for (; *si && (unsigned char)*si <= 32; ++si){}
 	res.source = papuga_Allocator_copy_string( &allocator, start, si-start+1);
 	if (!res.source)
 	{
-		return SchemaError( err, papuga_NoMemError, errorLine( src, si), 0);
+		return SchemaError( err, papuga_NoMemError, errorLine( src, si));
 	}
 	res.lines = errorLine( start, si);
 	return true;
@@ -386,7 +456,17 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 	{
 		if (lx.type == Lexeme::Error)
 		{
-			return SchemaError( err, papuga_SyntaxError, errorLine( src, si), 0);
+			return SchemaError( err, papuga_SyntaxError, errorLine( src, si));
+		}
+		bool attribute = false;
+		if (lx.type == Lexeme::Attribute)
+		{
+			attribute = true;
+			lx = parseNextLexeme( si);
+			if (lx.type != Lexeme::Identifier)
+			{
+				return SchemaError( err, papuga_SyntaxError, errorLine( src, si), lx.name, lx.namelen);
+			}
 		}
 		if (lx.type == Lexeme::Identifier)
 		{
@@ -398,12 +478,16 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 			lx = parseNextLexeme( si);
 			if (lx.type != Lexeme::Equal)
 			{
-				return SchemaError( err, papuga_SyntaxError, errorLine( src, si), 0);
+				return SchemaError( err, papuga_SyntaxError, errorLine( src, si));
 			}
 			lx = parseNextLexeme( si);
 
 			if (lx.type == Lexeme::Open)
 			{
+				if (attribute)
+				{
+					return SchemaError( err, papuga_SyntaxError, errorLine( src, si), lx.name);
+				}
 				// Test case of array:
 				char const* si_follow = si;
 				Lexeme lx_follow = parseNextLexeme( si_follow);
@@ -426,6 +510,7 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 			}
 			if (lx.type == Lexeme::Identifier)
 			{
+				node->attribute = attribute;
 				node->typnam = papuga_Allocator_copy_string( &tree.allocator, lx.name, lx.namelen);
 				if (!stack.link( node, tree))
 				{
@@ -472,76 +557,207 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 		}
 		else
 		{
-			return SchemaError( err, papuga_SyntaxError, errorLine( src, si), 0/*itm*/);
+			return SchemaError( err, papuga_SyntaxError, errorLine( src, si));
 		}
 	}
 	return true;
 }
 
-static bool buildAutomaton( PathElement& path, papuga_Schema* schema, papuga_SchemaError* err, SchemaNode const* node, const SchemaTree& tree, int select)
+static bool addOperation(
+		std::map<std::string,SchemaOperation>& opmap,
+		const std::string& key, SchemaOperation::Id id,
+		uint64_t set, int select, papuga_SchemaError* err)
 {
-	SchemaNode const* chld = node->chld;
-	for (; chld; chld=node->next)
+	uint64_t mask = select == 0 ? 0 : (1 << (select-1));
+	auto ins = opmap.insert( std::pair<std::string,SchemaOperation>( key, SchemaOperation( id, set, mask)));
+	if (!ins.second /*not insert*/)
 	{
-		PathElement subpath = path;
-		subpath[ chld->name];
-
-		if (chld->typnam)
+		if (ins.first->second.id != id || ins.first->second.set != set)
 		{
-			if (0==std::strcmp( chld->typnam, "integer"))
+			return SchemaError( err, papuga_DuplicateDefinition);
+		}
+		ins.first->second.mask |= mask;
+	}
+	return true;
+}
+
+static bool buildSelectExpressionMap(
+		std::map<std::string,SchemaOperation>& opmap,
+		std::string path,
+		SchemaNode const* node,
+		const SchemaTree& tree,
+		int select,
+		papuga_SchemaError* err)
+{
+	SchemaNode const* nd = node;
+	for (; nd; nd=nd->next)
+	{
+		std::string key;
+		if (nd->attribute)
+		{
+			key = path + "@" + nd->name;
+		}
+		else
+		{
+			key = path + "/" + nd->name;
+		}
+		if (nd->typnam)
+		{
+			if (0==std::strcmp( nd->typnam, "integer"))
 			{
-				schema->ops.push_back( SchemaOperation( SchemaOperation::ValueInteger, 0, select));
-				subpath.assignType( schema->ops.size());
-			}
-			else if (0==std::strcmp( chld->typnam, "float"))
-			{
-				schema->ops.push_back( SchemaOperation( SchemaOperation::ValueFloat, 0, select));
-				subpath.assignType( schema->ops.size());
-			}
-			else if (0==std::strcmp( chld->typnam, "string"))
-			{
-				schema->ops.push_back( SchemaOperation( SchemaOperation::ValueString, 0, select));
-				subpath.assignType( schema->ops.size());
-			}
-			else
-			{
-				std::map<StringView,BitSet>::const_iterator itr = tree.nodemap.find( chld->typnam);
-				if (itr == tree.nodemap.end())
+				if (nd->attribute)
 				{
-					return SchemaError( err, papuga_AddressedItemNotFound, 0/*no line info*/, chld->typnam);
+					if (!addOperation( opmap, key, SchemaOperation::AttributeInteger, 0, select, err)) return false;
 				}
 				else
 				{
-					schema->ops.push_back( SchemaOperation( SchemaOperation::OpenSubStructure, itr->second.val, select));
-					subpath.assignType( schema->ops.size());
+					const SchemaOperation::Id vid = nd->array
+						? SchemaOperation::NameArray
+						: SchemaOperation::NameAtomic;
+					if (!addOperation( opmap, key, vid, 0, select, err)
+					||  !addOperation( opmap, key + "()", SchemaOperation::ValueInteger, 0, select, err))
+					{
+						return false;
+					}
+				}
+			}
+			else if (0==std::strcmp( nd->typnam, "float"))
+			{
+				if (nd->attribute)
+				{
+					if (!addOperation( opmap, key, SchemaOperation::AttributeFloat, 0, select, err)) return false;
+				}
+				else
+				{
+					const SchemaOperation::Id vid = nd->array
+						? SchemaOperation::NameArray
+						: SchemaOperation::NameAtomic;
+					if (!addOperation( opmap, key, vid, 0, select, err)
+					||  !addOperation( opmap, key + "()", SchemaOperation::ValueFloat, 0, select, err))
+					{
+						return false;
+					}
+				}
+			}
+			else if (0==std::strcmp( nd->typnam, "bool"))
+			{
+				if (nd->attribute)
+				{
+					if (!addOperation( opmap, key, SchemaOperation::AttributeBool, 0, select, err)) return false;
+				}
+				else
+				{
+					const SchemaOperation::Id vid = nd->array
+						? SchemaOperation::NameArray
+						: SchemaOperation::NameAtomic;
+					if (!addOperation( opmap, key, vid, 0, select, err)
+					||  !addOperation( opmap, key + "()", SchemaOperation::ValueBool, 0, select, err))
+					{
+						return false;
+					}
+				}
+			}
+			else if (0==std::strcmp( nd->typnam, "string"))
+			{
+				if (nd->attribute)
+				{
+					if (!addOperation( opmap, key, SchemaOperation::AttributeString, 0, select, err)) return false;
+				}
+				else
+				{
+					const SchemaOperation::Id vid = nd->array
+						? SchemaOperation::NameArray
+						: SchemaOperation::NameAtomic;
+					if (!addOperation( opmap, key, vid, 0, select, err)
+					||  !addOperation( opmap, key + "()", SchemaOperation::ValueString, 0, select, err))
+					{
+						return false;
+					}
+				}
+			}
+			else if (nd->attribute)
+			{
+				return SchemaError( err, papuga_AttributeNotAtomic, 0/*no line info*/, nd->name);
+			}
+			else
+			{
+				std::map<StringView,BitSet>::const_iterator itr = tree.nodemap.find( nd->typnam);
+				if (itr == tree.nodemap.end())
+				{
+					return SchemaError( err, papuga_AddressedItemNotFound, 0/*no line info*/, nd->typnam);
+				}
+				else
+				{					
+					SchemaOperation::Id vopen,vclose;
+					if (nd->array)
+					{
+						vopen = SchemaOperation::OpenNamedStructureArray;
+						vclose = SchemaOperation::CloseNamedStructureArray;
+					}
+					else
+					{
+						vopen = SchemaOperation::OpenNamedStructure;
+						vclose = SchemaOperation::CloseNamedStructure;
+					}
+					if (!addOperation( opmap, key, vopen, itr->second.val, select, err)) return false;
 
 					BitSet::const_iterator bi = itr->second.begin(), be = itr->second.end();
 					for (; bi != be; ++bi)
 					{
-						PathElement seekpath = path;
-						seekpath--[ chld->name]; //... seekpath :=  <path> // <name>
-						if (!buildAutomaton( seekpath, schema, err, chld, tree, *bi/*select*/))
+						SchemaNode const* chld = tree.nodear[ *bi-1];
+						if (!buildSelectExpressionMap( opmap, path + "//" + nd->name, chld, tree, *bi, err))
 						{
 							return false;
 						}
 					}
-					subpath.selectCloseTag();
-					schema->ops.push_back( SchemaOperation( SchemaOperation::CloseStructure, 0, 0/*select*/));
-					subpath.assignType( schema->ops.size());
+					if (!addOperation( opmap, key + "~", vclose, 0, select, err)) return false;
 				}
 			}
 		}
-		else if (chld->chld)
+		else if (nd->chld)
 		{
-			schema->ops.push_back( SchemaOperation( SchemaOperation::OpenStructure, 0, 0/*select*/));
-			subpath.assignType( schema->ops.size());
-			if (!buildAutomaton( subpath, schema, err, chld, tree, 0/*select*/))
+			SchemaOperation::Id vopen,vclose;
+			if (nd->array)
+			{
+				vopen = SchemaOperation::OpenStructureArray;
+				vclose = SchemaOperation::CloseStructureArray;
+			}
+			else
+			{
+				vopen = SchemaOperation::OpenStructure;
+				vclose = SchemaOperation::CloseStructure;
+			}
+			if (!addOperation( opmap, key, vopen, 0, select, err)
+			||  !buildSelectExpressionMap( opmap, key, nd->chld, tree, select, err)
+			||  !addOperation( opmap, key + "~", vclose, 0, select, err))
 			{
 				return false;
 			}
-			subpath.selectCloseTag();
-			schema->ops.push_back( SchemaOperation( SchemaOperation::CloseStructure, 0, 0/*select*/));
-			subpath.assignType( schema->ops.size());
+		}
+	}
+	return true;
+}
+
+static bool buildAutomaton(
+		PathElement& path,
+		papuga_Schema* schema,
+		SchemaNode const* node,
+		const SchemaTree& tree,
+		papuga_SchemaError* err)
+{
+	std::map<std::string,SchemaOperation> opmap;
+	if (!buildSelectExpressionMap( opmap, "", node, tree, 0/*select*/, err))
+	{
+		return false;
+	}
+	auto oi = opmap.begin(), oe = opmap.end();
+	for (; oi != oe; ++oi)
+	{
+		schema->ops.push_back( oi->second);
+		int errorpos = schema->atm.addExpression( schema->ops.size(), oi->first.c_str(), oi->first.size());
+		if (!errorpos)
+		{
+			return SchemaError( err, papuga_LogicError, 0, oi->first.c_str(), oi->first.size());
 		}
 	}
 	return true;
@@ -563,7 +779,7 @@ extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga
 	papuga_SchemaMap* rt = (papuga_SchemaMap*) papuga_Allocator_alloc( &allocator, sizeof( papuga_SchemaMap), 0);
 	if (!rt)
 	{
-		SchemaError( err, papuga_NoMemError, 0/*line*/, 0/*item*/);
+		SchemaError( err, papuga_NoMemError);
 		return 0;
 	}
 	std::memcpy( &rt->allocator, &allocator, sizeof(allocator));
@@ -585,7 +801,7 @@ extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga
 		if (!rt->ar)
 		{
 			papuga_destroy_Allocator( &rt->allocator);
-			SchemaError( err, papuga_NoMemError, 0/*line*/, 0/*item*/);
+			SchemaError( err, papuga_NoMemError);
 			return 0;
 		}
 		std::map<StringView,BitSet>::const_iterator ni = tree.nodemap.begin(), ne = tree.nodemap.end();
@@ -601,13 +817,13 @@ extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga
 			if (!schemaName)
 			{
 				papuga_destroy_schemamap( rt);
-				SchemaError( err, papuga_NoMemError, 0/*line*/, 0/*item*/);
+				SchemaError( err, papuga_NoMemError);
 				return 0;
 			}
 			papuga_Schema* schema = new (rt->ar + rt->arsize) papuga_Schema( schemaName);
 			SchemaNode const* rootnode = tree.nodear[ rootidx-1];
 			PathElement rootpath = (*schema->atm)[ rootnode->name];
-			if (!buildAutomaton( rootpath, schema, err, rootnode, tree, 0))
+			if (!buildAutomaton( rootpath, schema, rootnode, tree, err))
 			{
 				papuga_destroy_schemamap( rt);
 				return 0;
@@ -617,7 +833,7 @@ extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga
 	}
 	catch (const std::bad_alloc&)
 	{
-		SchemaError( err, papuga_NoMemError, 0/*line*/, 0/*item*/);
+		SchemaError( err, papuga_NoMemError);
 		papuga_destroy_Allocator( &rt->allocator);
 		return 0;
 	}
@@ -637,23 +853,6 @@ extern "C" papuga_Schema const* papuga_schemamap_get( const papuga_SchemaMap* ma
 	return 0;
 }
 
-extern "C" bool papuga_schema_parse( papuga_Serialization* dest, papuga_Serialization const* src, papuga_Schema const* schema, papuga_SchemaError* err)
-{
-	bool rt = false;
-	try
-	{
-		papuga_SerializationIter iter;
-		papuga_init_SerializationIter( &iter, src);
-
-		rt = true;
-	}
-	catch (const std::bad_alloc&)
-	{
-		return SchemaError( err, papuga_NoMemError, 0/*line*/, 0/*item*/);
-	}
-	return rt;
-}
-
 extern "C" void papuga_destroy_schemalist( papuga_SchemaList* list)
 {
 	papuga_destroy_Allocator( &list->allocator);
@@ -666,7 +865,7 @@ extern "C" papuga_SchemaList* papuga_create_schemalist( const char* source, papu
 	papuga_SchemaList* rt = (papuga_SchemaList*) papuga_Allocator_alloc( &allocator, sizeof( papuga_SchemaList), 0);
 	if (!rt)
 	{
-		SchemaError( err, papuga_NoMemError, 0/*line*/, 0/*item*/);
+		SchemaError( err, papuga_NoMemError);
 		return 0;
 	}
 	std::memcpy( &rt->allocator, &allocator, sizeof(allocator));
@@ -694,7 +893,7 @@ extern "C" papuga_SchemaList* papuga_create_schemalist( const char* source, papu
 			if (!rt->ar)
 			{
 				papuga_destroy_Allocator( &rt->allocator);
-				SchemaError( err, papuga_NoMemError, 0/*line*/, 0/*item*/);
+				SchemaError( err, papuga_NoMemError);
 				return 0;
 			}
 			rt->arsize = count;
@@ -710,14 +909,14 @@ extern "C" papuga_SchemaList* papuga_create_schemalist( const char* source, papu
 	}
 	catch (const std::bad_alloc&)
 	{
-		SchemaError( err, papuga_NoMemError, 0/*line*/, 0/*item*/);
+		SchemaError( err, papuga_NoMemError);
 		papuga_destroy_Allocator( &rt->allocator);
 		return 0;
 	}
 	return rt;
 }
 
-papuga_SchemaSource const* papuga_schemalist_get( const papuga_SchemaList* list, const char* schemaname)
+extern "C" papuga_SchemaSource const* papuga_schemalist_get( const papuga_SchemaList* list, const char* schemaname)
 {
 	papuga_SchemaSource const* si = list->ar;
 	papuga_SchemaSource const* se = list->ar + list->arsize;
@@ -729,6 +928,414 @@ papuga_SchemaSource const* papuga_schemalist_get( const papuga_SchemaList* list,
 		}
 	}
 	return 0;
+}
+
+struct RequestElement
+{
+	textwolf::XMLScannerBase::ElementType type;
+	const char* valuestr;
+	std::size_t valuelen;
+
+	RequestElement( textwolf::XMLScannerBase::ElementType type_, const char* valuestr_, std::size_t valuelen_)
+		:type(type_),valuestr(valuestr_),valuelen(valuelen_){}
+	RequestElement( const RequestElement& o)
+		:type(o.type),valuestr(o.valuestr),valuelen(o.valuelen){}
+
+	bool operator==( const RequestElement& o) const
+	{
+		if (type != o.type) return false;
+		if (valuelen != o.valuelen) return false;
+		return (0==std::strcmp( valuestr, o.valuestr));
+	}
+};
+
+static inline textwolf::XMLScannerBase::ElementType requestElementType( papuga_RequestElementType elemtype)
+{
+	static const textwolf::XMLScannerBase::ElementType ar[] = {
+		textwolf::XMLScannerBase::Exit,
+		textwolf::XMLScannerBase::OpenTag,
+		textwolf::XMLScannerBase::CloseTag,
+		textwolf::XMLScannerBase::TagAttribName,
+		textwolf::XMLScannerBase::TagAttribValue,
+		textwolf::XMLScannerBase::Content
+	};
+	return ar[ elemtype];
+}
+
+static bool parseRequest( std::vector<RequestElement>& res, papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* contentstr, size_t contentlen, papuga_SchemaError* err)
+{
+	papuga_RequestParser* parser = 0;
+	papuga_ErrorCode errcode = papuga_Ok;
+	const char* valuestr;
+	std::size_t valuelen;
+	
+	switch (doctype)
+	{
+		case papuga_ContentType_Unknown:
+			errcode = papuga_InvalidRequest;
+		case papuga_ContentType_XML:
+			parser = papuga_create_RequestParser_xml( allocator, encoding, contentstr, contentlen, &errcode);
+			break;
+		case papuga_ContentType_JSON:
+			parser = papuga_create_RequestParser_json( allocator, encoding, contentstr, contentlen, &errcode);
+			break;
+		default:
+			errcode = papuga_InvalidRequest;
+			break;
+	}
+	if (!parser)
+	{
+		return SchemaError( err, errcode);
+	}
+	papuga_ValueVariant elemvalue;
+	papuga_RequestElementType elemtype = papuga_RequestParser_next( parser, &elemvalue);
+	for (; elemtype != papuga_RequestElementType_None; elemtype = papuga_RequestParser_next( parser, &elemvalue))
+	{
+		valuestr = papuga_ValueVariant_tostring( &elemvalue, allocator, &valuelen, &errcode);
+		if (errcode != papuga_Ok)
+		{
+			return SchemaError( err, errcode);
+		}
+		textwolf::XMLScannerBase::ElementType tp = requestElementType( elemtype);
+		
+		valuestr = valuelen == 0 ? "" : papuga_Allocator_copy_string( allocator, valuestr, valuelen);
+		if (!valuestr)
+		{
+			return SchemaError( err, papuga_NoMemError);
+		}
+		try
+		{
+			res.push_back( RequestElement( tp, valuestr, valuelen));
+		}
+		catch(...)
+		{
+			return SchemaError( err, papuga_NoMemError);
+		}
+	}
+	return true;
+}
+
+static bool RequestProcessError( papuga_SchemaError* err, papuga_ErrorCode errcode, const std::vector<RequestElement>& request, std::size_t idx)
+{
+	char errlocation[ 1024];
+	auto ri = request.begin(), re = (idx >= request.size()) ? request.end() : (request.begin() + idx);
+	std::vector<RequestElement> pt;
+	for (; ri != re; ++ri)
+	{
+		switch (ri->type)
+		{
+			case textwolf::XMLScannerBase::Exit: break;
+			case textwolf::XMLScannerBase::OpenTag:
+				pt.push_back( *ri);
+				break;
+			case textwolf::XMLScannerBase::CloseTag:
+				while (!pt.empty() && pt.back().type != textwolf::XMLScannerBase::OpenTag) pt.pop_back();
+				pt.pop_back();
+				break;
+			case textwolf::XMLScannerBase::TagAttribName:
+				pt.push_back( *ri);
+				break;
+			case textwolf::XMLScannerBase::TagAttribValue:
+				pt.push_back( *ri);
+				break;
+			case textwolf::XMLScannerBase::Content:
+				break;
+			default:
+				break;
+		}
+	}
+	std::string res;
+	auto pi = pt.begin(), pe = pt.end();
+	for (; pi != pe; ++pi)
+	{
+		switch (pi->type)
+		{
+			case textwolf::XMLScannerBase::Exit: break;
+			case textwolf::XMLScannerBase::OpenTag:
+				res.append( "/");
+				res.append( pi->valuestr, pi->valuelen);
+				break;
+			case textwolf::XMLScannerBase::CloseTag:
+				break;
+			case textwolf::XMLScannerBase::TagAttribName:
+				res.append( " ");
+				res.append( pi->valuestr, pi->valuelen);
+				break;
+			case textwolf::XMLScannerBase::TagAttribValue:
+				res.append( "=");
+				res.append( pi->valuestr, pi->valuelen);
+				break;
+			case textwolf::XMLScannerBase::Content:
+				break;
+			default:
+				break;
+		}
+	}
+	std::snprintf( errlocation, sizeof(errlocation), "%s", res.c_str());
+	errlocation[ sizeof(errlocation)-1] = 0;
+	return SchemaError( err, errcode, 0, errlocation);
+}
+
+static inline void pushName( papuga_Serialization* output, char const* namestr, size_t namelen)
+{
+	namestr = papuga_Allocator_copy_string( output->allocator, namestr, namelen);
+	if (!namestr) throw std::bad_alloc();
+	if (!papuga_Serialization_pushName_string( output, namestr, namelen))  throw std::bad_alloc();
+}
+
+static inline void pushValue( papuga_Serialization* output, char const* namestr, size_t namelen)
+{
+	namestr = papuga_Allocator_copy_string( output->allocator, namestr, namelen);
+	if (!namestr) throw std::bad_alloc();
+	if (!papuga_Serialization_pushValue_string( output, namestr, namelen))  throw std::bad_alloc();
+}
+
+static inline void pushOpen( papuga_Serialization* output)
+{
+	if (!papuga_Serialization_pushOpen( output))  throw std::bad_alloc();
+}
+
+static inline void pushClose( papuga_Serialization* output)
+{
+	if (!papuga_Serialization_pushClose( output))  throw std::bad_alloc();
+}
+
+static bool serializeRequest( papuga_Serialization* output, papuga_Schema const* schema, const std::vector<RequestElement>& request, papuga_SchemaError* err)
+{
+	AutomatonState atmstate( &schema->atm);
+	int64_t val_int;
+	double val_double;
+	bool val_bool;
+	const char* arraytag = 0;
+	std::vector<int64_t> setStack;	//... Stack to determine ambiguous structure definitions
+	std::vector<size_t> arrayStack;
+	
+	size_t ridx = 0;
+	size_t rsize = request.size();
+	for (; ridx != rsize; ++ridx)
+	{
+		const RequestElement& relem = request[ ridx];
+		AutomatonState::iterator itr = atmstate.push( relem.type, relem.valuestr, relem.valuelen);
+		int nofEvents = 0;
+		for (*itr; *itr; ++itr,++nofEvents)
+		{
+			const SchemaOperation& op = schema->ops[ *itr-1];
+			if (op.mask)
+			{
+				if (setStack.empty())
+				{
+					return SchemaError( err, papuga_LogicError);
+				}
+				if ((setStack.back() & op.mask) == 0)
+				{
+					return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+				}
+			}
+			if (arraytag)
+			{
+				if (op.id != SchemaOperation::ValueInteger
+				&&  op.id != SchemaOperation::ValueFloat
+				&&  op.id != SchemaOperation::ValueBool
+				&&  op.id != SchemaOperation::ValueString)
+				{}
+				else if (op.id == SchemaOperation::NameArray)
+				{
+					if (0!=std::memcmp( arraytag, relem.valuestr, relem.valuelen))
+					{
+						arraytag = 0;
+						pushClose( output);
+					}
+
+				}
+				else
+				{
+					arraytag = 0;
+					pushClose( output);
+				}
+			}
+			switch (op.id)
+			{
+				case SchemaOperation::NameAtomic:
+					pushName( output, relem.valuestr, relem.valuelen);
+					break;
+				case SchemaOperation::NameArray:
+					if (!arraytag)
+					{
+						pushName( output, relem.valuestr, relem.valuelen);
+						pushOpen( output);
+						arraytag = relem.valuestr;
+					}
+					break;
+				case SchemaOperation::AttributeInteger:
+					if (ridx == 0) return SchemaError( err, papuga_LogicError);
+					pushName( output, request[ ridx-1].valuestr, request[ ridx-1].valuelen);
+					/* no break here! */
+				case SchemaOperation::ValueInteger:
+					if (!stringToInt( val_int, relem.valuestr))
+					{
+						return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+					}
+					if (!papuga_Serialization_pushValue_int( output, val_int))
+					{
+						return SchemaError( err, papuga_NoMemError);
+					}
+					break;
+				case SchemaOperation::AttributeFloat:
+					if (ridx == 0) return SchemaError( err, papuga_LogicError);
+					pushName( output, request[ ridx-1].valuestr, request[ ridx-1].valuelen);
+					/* no break here! */
+				case SchemaOperation::ValueFloat:
+					if (!stringToDouble( val_double, relem.valuestr))
+					{
+						return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+					}
+					if (!papuga_Serialization_pushValue_double( output, val_double))
+					{
+						return SchemaError( err, papuga_NoMemError);
+					}
+					break;
+				case SchemaOperation::AttributeBool:
+					if (ridx == 0) return SchemaError( err, papuga_LogicError);
+					pushName( output, request[ ridx-1].valuestr, request[ ridx-1].valuelen);
+					/* no break here! */
+				case SchemaOperation::ValueBool:
+					if (!stringToBool( val_bool, relem.valuestr))
+					{
+						return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+					}
+					if (!papuga_Serialization_pushValue_double( output, val_bool))
+					{
+						return SchemaError( err, papuga_NoMemError);
+					}
+					break;
+				case SchemaOperation::AttributeString:
+					if (ridx == 0) return SchemaError( err, papuga_LogicError);
+					pushName( output, request[ ridx-1].valuestr, request[ ridx-1].valuelen);
+					/* no break here! */
+				case SchemaOperation::ValueString:
+					pushValue( output, relem.valuestr, relem.valuelen);
+					break;
+
+				case SchemaOperation::OpenNamedStructure:
+					setStack.push_back( op.set);
+
+					pushName( output, relem.valuestr, relem.valuelen);
+					pushOpen( output);
+					break;
+
+				case SchemaOperation::CloseNamedStructure:
+					if (setStack.empty()) return SchemaError( err, papuga_LogicError);
+					setStack.pop_back();
+
+					pushClose( output);
+					break;
+
+				case SchemaOperation::OpenNamedStructureArray:
+					setStack.push_back( op.set);
+					arrayStack.push_back( ridx);
+
+					pushName( output, relem.valuestr, relem.valuelen);
+					pushOpen( output);
+					pushOpen( output);
+					break;
+
+				case SchemaOperation::CloseNamedStructureArray:
+					if (setStack.empty() || arrayStack.empty())
+					{
+						return SchemaError( err, papuga_LogicError);
+					}
+					setStack.pop_back();
+
+					if (ridx+1 < request.size() && request[ arrayStack.back()] == request[ ridx])
+					{
+						pushClose( output);
+						pushOpen( output);
+						++ridx;
+					}
+					else
+					{
+						pushClose( output);
+						pushClose( output);
+						arrayStack.pop_back();
+					}
+					break;
+
+				case SchemaOperation::OpenStructure:
+					pushName( output, relem.valuestr, relem.valuelen);
+					pushOpen( output);
+					break;
+
+				case SchemaOperation::CloseStructure:
+					pushClose( output);
+					break;
+
+				case SchemaOperation::OpenStructureArray:
+					arrayStack.push_back( ridx);
+
+					pushName( output, relem.valuestr, relem.valuelen);
+					pushOpen( output);
+					pushOpen( output);
+					break;
+
+				case SchemaOperation::CloseStructureArray:
+					if (arrayStack.empty())
+					{
+						return SchemaError( err, papuga_LogicError);
+					}
+
+					if (ridx+1 < request.size() && request[ arrayStack.back()] == request[ ridx])
+					{
+						pushClose( output);
+						pushOpen( output);
+						++ridx;
+					}
+					else
+					{
+						pushClose( output);
+						pushClose( output);
+						arrayStack.pop_back();
+					}
+					break;
+			}
+		}
+		if (nofEvents == 0)
+		{
+			if (relem.type != textwolf::XMLScannerBase::CloseTag && relem.type != textwolf::XMLScannerBase::TagAttribName)
+			{
+				return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+			}
+		}
+		else if (nofEvents > 1)
+		{
+			return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+		}
+	}
+	return true;
+}
+
+extern "C" bool papuga_schema_parse( papuga_Serialization* dest, papuga_Schema const* schema, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* contentstr, size_t contentlen, papuga_SchemaError* err)
+{
+	bool rt = false;
+	papuga_Allocator allocator;
+	int allocatormem[ 2048];
+	papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
+
+	try
+	{
+		std::vector<RequestElement> request;
+		if (!parseRequest( request, &allocator, doctype, encoding, contentstr, contentlen, err)
+		||  !serializeRequest( dest, schema, request, err))
+		{
+			papuga_destroy_Allocator( &allocator);
+			return false;
+		}
+	}
+	catch (const std::bad_alloc&)
+	{
+		papuga_destroy_Allocator( &allocator);
+		return SchemaError( err, papuga_NoMemError);
+	}
+	return rt;
 }
 
 

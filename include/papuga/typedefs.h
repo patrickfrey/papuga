@@ -55,7 +55,8 @@ typedef enum papuga_ErrorCode
 	papuga_AmbiguousReference=23,
 	papuga_MaxRecursionDepthReached=24,
 	papuga_ComplexityOfProblem=25,
-	papuga_InvalidRequest=26
+	papuga_InvalidRequest=26,
+	papuga_AttributeNotAtomic=27
 } papuga_ErrorCode;
 
 /*

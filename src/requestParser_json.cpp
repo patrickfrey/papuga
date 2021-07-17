@@ -69,6 +69,25 @@ private:
 	cJSON* m_ptr;
 };
 
+static const papuga_RequestElementType textWolfElementType2requestElementType[]
+{
+	papuga_RequestElementType_None,			///< None
+	papuga_RequestElementType_None,			///< ErrorOccurred
+	papuga_RequestElementType_None,			///< HeaderStart
+	papuga_RequestElementType_None,			///< HeaderAttribName
+	papuga_RequestElementType_None,			///< HeaderAttribValue
+	papuga_RequestElementType_None,			///< HeaderEnd
+	papuga_RequestElementType_None,			///< DocAttribValue
+	papuga_RequestElementType_None,			///< DocAttribEnd
+	papuga_RequestElementType_AttributeName, 	///< TagAttribName
+	papuga_RequestElementType_AttributeValue,	///< TagAttribValue
+	papuga_RequestElementType_Open,			///< OpenTag
+	papuga_RequestElementType_Close,		///< CloseTag
+	papuga_RequestElementType_Close,		///< CloseTagIm
+	papuga_RequestElementType_Value,		///< Content
+	papuga_RequestElementType_None			///< Exit
+};
+
 struct RequestParser_json
 {
 	papuga_RequestParserHeader header;
@@ -234,32 +253,8 @@ struct RequestParser_json
 			}
 			tx::ElementType tp = iter->type;
 			++iter;
-			switch (tp)
-			{
-				case tx::None:
-				case tx::Exit:
-				case tx::ErrorOccurred:
-				case tx::HeaderStart:
-				case tx::HeaderAttribName:
-				case tx::HeaderAttribValue:
-				case tx::HeaderEnd:
-				case tx::DocAttribEnd:
-				case tx::DocAttribValue:
-					return papuga_RequestElementType_None;
-				case tx::TagAttribName:
-					return papuga_RequestElementType_AttributeName;
-				case tx::TagAttribValue:
-					return papuga_RequestElementType_AttributeValue;
-				case tx::OpenTag:
-					return papuga_RequestElementType_Open;
-				case tx::CloseTag:
-				case tx::CloseTagIm:
-					return papuga_RequestElementType_Close;
-				case tx::Content:
-					return papuga_RequestElementType_Value;
-			}
-			header.errcode = papuga_LogicError;
-			return papuga_RequestElementType_None;
+
+			return textWolfElementType2requestElementType[ tp];
 		}
 	}
 };
