@@ -2,14 +2,14 @@ term_expression = {
 	variable = string,
 	type = string,
 	value = string,
-	len = int
+	len = integer
 }
 
 term_expression = {
 	variable = string,
 	op = string,
-	range = int,
-	cardinality = int,
+	range = integer,
+	cardinality = integer,
 	arg = { term_expression }
 }
 

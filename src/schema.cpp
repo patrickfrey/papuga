@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <inttypes.h>
 
 typedef textwolf::XMLPathSelectAutomatonParser<> Automaton;
 typedef textwolf::XMLPathSelectAutomaton<>::PathElement PathElement;
@@ -103,6 +104,31 @@ struct SchemaOperation
 		OpenStructureArray,
 		CloseStructureArray
 	};
+	static const char* idName( Id id) noexcept
+	{
+		static const char* ar[] = {
+			"NameAtomic",
+			"NameArray",
+			"ValueInteger",
+			"ValueFloat",
+			"ValueBool",
+			"ValueString",
+			"AttributeInteger",
+			"AttributeFloat",
+			"AttributeBool",
+			"AttributeString",
+			"OpenNamedStructure",
+			"CloseNamedStructure",
+			"OpenNamedStructureArray",
+			"CloseNamedStructureArray",
+			"OpenStructure",
+			"CloseStructure",
+			"OpenStructureArray",
+			"CloseStructureArray",
+			0
+		};
+		return ar[ id];
+	}
 
 	SchemaOperation( Id id_, uint64_t set_, uint64_t mask_) :id(id_),set(set_),mask(mask_) {}
 
@@ -621,7 +647,7 @@ static bool buildSelectExpressionMap(
 					}
 				}
 			}
-			else if (0==std::strcmp( nd->typnam, "float"))
+			else if (0==std::strcmp( nd->typnam, "number") || 0==std::strcmp( nd->typnam, "float"))
 			{
 				if (nd->attribute)
 				{
@@ -746,7 +772,8 @@ static bool buildAutomaton(
 		papuga_SchemaError* err)
 {
 	std::map<std::string,SchemaOperation> opmap;
-	if (!buildSelectExpressionMap( opmap, "", node, tree, 0/*select*/, err))
+	std::string rootpath = std::string("/") + node->name;
+	if (!buildSelectExpressionMap( opmap, rootpath, node, tree, 0/*select*/, err))
 	{
 		return false;
 	}
@@ -755,7 +782,7 @@ static bool buildAutomaton(
 	{
 		schema->ops.push_back( oi->second);
 		int errorpos = schema->atm.addExpression( schema->ops.size(), oi->first.c_str(), oi->first.size());
-		if (!errorpos)
+		if (errorpos)
 		{
 			return SchemaError( err, papuga_LogicError, 0, oi->first.c_str(), oi->first.size());
 		}
@@ -770,6 +797,63 @@ extern "C" void papuga_destroy_schemamap( papuga_SchemaMap* map)
 		map->ar[ map->arsize-1].~papuga_Schema();
 	}
 	papuga_destroy_Allocator( &map->allocator);
+}
+
+extern "C" const char* papuga_print_schema_automaton( papuga_Allocator* allocator, const char* source, const char* schema, papuga_SchemaError* err)
+{
+	const char* rt = 0;
+	try
+	{
+		SchemaTree tree;
+		if (!parseSchemaTree( tree, source, err))
+		{
+			return 0;
+		}
+		std::map<StringView,BitSet>::const_iterator ni = tree.nodemap.find( schema);
+		if (ni == tree.nodemap.end())
+		{
+			SchemaError( err, papuga_AddressedItemNotFound, 0, schema);
+			return 0;
+		}
+		BitSet::const_iterator itr = ni->second.begin(), end = ni->second.end();
+		int rootidx = *itr++;
+		if (itr != end)
+		{
+			SchemaError( err, papuga_AmbiguousReference, 0, schema);
+			return 0;
+		}
+		SchemaNode const* rootnode = tree.nodear[ rootidx-1];
+
+		std::map<std::string,SchemaOperation> opmap;
+		std::string rootpath = std::string("/") + rootnode->name;
+		if (!buildSelectExpressionMap( opmap, rootpath, rootnode, tree, 0/*select*/, err))
+		{
+			return 0;
+		}
+		std::string res;
+		auto oi = opmap.begin(), oe = opmap.end();
+		for (; oi != oe; ++oi)
+		{
+			char buf[ 2048];
+			std::snprintf( buf, sizeof(buf), "%s %s %" PRIu64 " %" PRIu64 "\n",
+						oi->first.c_str(), SchemaOperation::idName( oi->second.id),
+						oi->second.set, oi->second.mask);
+			buf[ sizeof( buf)-1] = 0;
+			res.append( buf);
+		}
+		rt = papuga_Allocator_copy_string( allocator, res.c_str(), res.size());
+		if (!rt)
+		{
+			SchemaError( err, papuga_NoMemError);
+			return 0;
+		}
+	}
+	catch (const std::bad_alloc&)
+	{
+		SchemaError( err, papuga_NoMemError);
+		return 0;
+	}
+	return rt;
 }
 
 extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga_SchemaError* err)
@@ -834,7 +918,7 @@ extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga
 	catch (const std::bad_alloc&)
 	{
 		SchemaError( err, papuga_NoMemError);
-		papuga_destroy_Allocator( &rt->allocator);
+		papuga_destroy_schemamap( rt);
 		return 0;
 	}
 	return rt;

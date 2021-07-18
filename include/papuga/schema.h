@@ -28,6 +28,8 @@ typedef struct papuga_SchemaError
 	char item[ 1024];
 } papuga_SchemaError;
 
+#define papuga_init_SchemaError( err) {papuga_SchemaError* st = err; st->code = papuga_Ok; st->line = 0; st->item[0] = 0;}
+
 typedef struct  papuga_SchemaSource
 {
 	const char* name;
@@ -45,7 +47,19 @@ void papuga_destroy_schemamap( papuga_SchemaMap* map);
 
 papuga_Schema const* papuga_schemamap_get( const papuga_SchemaMap* map, const char* schemaname);
 
-bool papuga_schema_parse( papuga_Serialization* dest, papuga_Schema const* schema, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* contentstr, size_t contentlen, papuga_SchemaError* err);
+bool papuga_schema_parse(
+		papuga_Serialization* dest,
+		papuga_Schema const* schema,
+		papuga_ContentType doctype,
+		papuga_StringEncoding encoding,
+		const char* contentstr, size_t contentlen,
+		papuga_SchemaError* err);
+
+const char* papuga_print_schema_automaton(
+		papuga_Allocator* allocator,
+		const char* source,
+		const char* schema,
+		papuga_SchemaError* err);
 
 #ifdef __cplusplus
 }

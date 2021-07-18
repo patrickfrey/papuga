@@ -7,6 +7,7 @@
  */
 #include "papuga/schema.h"
 #include "papuga/errors.hpp"
+#include "papuga/allocator.h"
 #include <iostream>
 #include <stdexcept>
 #include <iostream>
@@ -47,7 +48,7 @@ private:
 		{
 			if (err.item[0])
 			{
-				std::snprintf( buf, sizeof(buf), "Error at line %d: %s: %s", err.line, papuga_ErrorCode_tostring(err.code), err.item);
+				std::snprintf( buf, sizeof(buf), "Error at line %d: %s \"%s\"", err.line, papuga_ErrorCode_tostring(err.code), err.item);
 			}
 			else
 			{
@@ -56,7 +57,14 @@ private:
 		}
 		else
 		{
+			if (err.item[0])
+			{
+				std::snprintf( buf, sizeof(buf), "%s \"%s\"", papuga_ErrorCode_tostring(err.code), err.item);
+			}
+			else
+			{
 				std::snprintf( buf, sizeof(buf), "%s", papuga_ErrorCode_tostring(err.code));
+			}
 		}
 		return std::string( buf);
 	}
@@ -86,17 +94,45 @@ public:
 		papuga_destroy_schemalist( m_list);
 	}
 
-	std::string process( const std::string& schemaName, const std::string& src)
+	std::string source( const std::string& schemaName)
 	{
 		std::string rt;
 		papuga_SchemaSource const* source = papuga_schemalist_get( m_list, schemaName.c_str());
-		papuga_Schema const* schema = papuga_schemamap_get( m_map, schemaName.c_str());
-		if (!source || !schema) throw SchemaException( papuga_AddressedItemNotFound);
+		if (!source) throw SchemaException( papuga_AddressedItemNotFound);
 		char tbuf[ 256];
 		std::snprintf( tbuf, sizeof(tbuf), "SCHEMA lines=%d, name='%s':\n", source->lines, source->name);
 		rt.append( tbuf);
 		rt.append( source->source);
-		rt.append( "\n\n");
+		rt.append( "\n");
+		return rt;
+	}
+
+	std::string dump( const std::string& schemaSource, const std::string& schemaName)
+	{
+		std::string rt;
+		papuga_Allocator allocator;
+		papuga_init_Allocator( &allocator, 0, 0);
+		papuga_SchemaError err;
+		papuga_init_SchemaError( &err);
+
+		const char* atm_source = papuga_print_schema_automaton( &allocator, schemaSource.c_str(), schemaName.c_str(), &err);
+		if (!atm_source)
+		{
+			papuga_destroy_Allocator( &allocator);
+			throw SchemaException( err);
+		}
+		rt.append( "AUTOMATON\n");
+		rt.append( atm_source);
+
+		papuga_destroy_Allocator( &allocator);
+		return rt;
+	}
+
+	std::string process( const std::string& schemaName, const std::string& src)
+	{
+		std::string rt;
+		papuga_Schema const* schema = papuga_schemamap_get( m_map, schemaName.c_str());
+		if (!schema) throw SchemaException( papuga_AddressedItemNotFound);
 
 		//[+] if (!papuga_schema_parse( papuga_Serialization* dest, papuga_Serialization const* src, papuga_Schema const* schema, papuga_SchemaError* err);
 		return rt;
@@ -109,8 +145,11 @@ private:
 
 void printUsage()
 {
-	std::cerr << "testSchema [-h][-V] <schemafile>" << std::endl
-		<< "\t<schemafile>      :File path of the schema description to load" << std::endl;
+	std::cerr << "testSchema [-h][-V] <schemafile> <schema> <input>\n"
+		<< "\t<schemafile>  :File path of the schema description to load\n"
+		<< "\t<schema>      :Name of the schema to filter input with\n"
+		<< "\t<schema>      :File path of the input to process\n"
+		<< std::endl;
 
 }
 
@@ -157,11 +196,20 @@ int main( int argc, const char* argv[])
 			printUsage();
 			throw std::runtime_error( "too many arguments");
 		}
-		std::string schemaFile( argv[ 1]);
-		std::string schemaName( argv[ 2]);
-		std::string sourceFile( argv[ 3]);
+		std::string schemaFile( argv[ argi+0]);
+		std::string schemaName( argv[ argi+1]);
+		std::string inputFile( argv[ argi+2]);
 		std::string schemaSrc = readFile( schemaFile);
+		std::string inputSrc = readFile( inputFile);
 		SchemaMap schemaMap( schemaSrc);
+		std::string result =
+				schemaMap.source( schemaName)
+				+ schemaMap.dump( schemaSrc, schemaName)
+				+ schemaMap.process( schemaName, inputSrc);
+		if (g_verbose)
+		{
+			std::cerr << result << std::endl;
+		}
 		std::cerr << "OK" << std::endl;
 		return 0;
 	}
