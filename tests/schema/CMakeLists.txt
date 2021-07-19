@@ -7,6 +7,6 @@ set( TESTBIN  "${CMAKE_CURRENT_BINARY_DIR}/src/testSchema" )
 
 
 # Tests:
-add_test( PapugaSchema_query1 ${TESTBIN} ${TESTDIR}/query1/schema.psm query ${TESTDIR}/query1/input.json )
-add_test( PapugaSchema_query2 ${TESTBIN} ${TESTDIR}/query1/schema.psm query ${TESTDIR}/query1/input.xml )
+add_test( PapugaSchema_query1 ${TESTBIN} ${TESTDIR}/query1/schema.psm query ${TESTDIR}/query1/input.json ${TESTDIR}/query1/expected.txt )
+add_test( PapugaSchema_query2 ${TESTBIN} ${TESTDIR}/query1/schema.psm query ${TESTDIR}/query1/input.xml ${TESTDIR}/query1/expected.txt )
 
