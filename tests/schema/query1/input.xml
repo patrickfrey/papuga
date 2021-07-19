@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <query>
 <feature>
-<set>weighted</set>",
+<set>weighted</set>
 <weight>1.0</weight>
 <content>
 <type>word</type>
@@ -9,7 +9,7 @@
 </content>
 <analyzed>
 <type>word</type>
-<value>Hello</value>
+<value>hello</value>
 </analyzed>
 </feature>
 </query>

@@ -1108,21 +1108,34 @@ static bool parseRequest( std::vector<RequestElement>& res, papuga_Allocator* al
 	papuga_RequestElementType elemtype = papuga_RequestParser_next( parser, &elemvalue);
 	for (; elemtype != papuga_RequestElementType_None; elemtype = papuga_RequestParser_next( parser, &elemvalue))
 	{
-		valuestr = papuga_ValueVariant_tostring( &elemvalue, allocator, &valuelen, &errcode);
-		if (errcode != papuga_Ok)
+		if (papuga_ValueVariant_defined( &elemvalue))
 		{
-			return SchemaError( err, errcode);
+			valuestr = papuga_ValueVariant_tostring( &elemvalue, allocator, &valuelen, &errcode);
+			if (!valuestr)
+			{
+				return SchemaError( err, errcode);
+			}
+			if (valuelen > 0)
+			{
+				valuestr = papuga_Allocator_copy_string( allocator, valuestr, valuelen);
+				if (!valuestr)
+				{
+					return SchemaError( err, papuga_NoMemError);
+				}
+			}
+			else
+			{
+				valuestr = "";
+			}
 		}
-		textwolf::XMLScannerBase::ElementType tp = requestElementType( elemtype);
-		
-		valuestr = valuelen == 0 ? "" : papuga_Allocator_copy_string( allocator, valuestr, valuelen);
-		if (!valuestr)
+		else
 		{
-			return SchemaError( err, papuga_NoMemError);
-		}
+			valuestr = "";
+			valuelen = 0;
+		}		
 		try
 		{
-			res.push_back( RequestElement( tp, valuestr, valuelen));
+			res.push_back( RequestElement( requestElementType( elemtype), valuestr, valuelen));
 		}
 		catch(...)
 		{
@@ -1419,7 +1432,23 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 		{
 			if (relem.type != textwolf::XMLScannerBase::CloseTag && relem.type != textwolf::XMLScannerBase::TagAttribName)
 			{
-				return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+				if (relem.type == textwolf::XMLScannerBase::Content)
+				{
+					char const* ci = relem.valuestr;
+					char const* ce = relem.valuestr + relem.valuelen;
+					for (; ci != ce; ++ci)
+					{
+						if ((unsigned char)*ci > 32) break;
+					}
+					if (ci != ce)
+					{
+						return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+					}
+				}
+				else
+				{
+					return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+				}
 			}
 		}
 		else if (nofEvents > 1)

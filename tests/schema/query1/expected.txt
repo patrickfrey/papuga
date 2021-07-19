@@ -1,0 +1,29 @@
+
+open
+  name query
+  open
+    name feature
+    open
+      open
+        name analyzed
+        open
+          name type
+          value "word"
+          name value
+          value "hello"
+        close
+        name content
+        open
+          name type
+          value "word"
+          name value
+          value "Hello"
+        close
+        name set
+        value "weighted"
+        name weight
+        value 1
+      close
+    close
+  close
+close

@@ -153,7 +153,6 @@ public:
 			papuga_destroy_Allocator( &allocator);
 			throw SchemaException( err);
 		}
-		rt.append( "SERIALIZATION\n");
 		rt.append( papuga::Serialization_tostring_deterministic( dest, true/*linemode*/, -1/*maxdepth*/, errcode));
 		rt.append( "\n");
 		if (errcode != papuga_Ok)
@@ -175,9 +174,38 @@ void printUsage()
 	std::cerr << "testSchema [-h][-V] <schemafile> <schema> <input>\n"
 		<< "\t<schemafile>  :File path of the schema description to load\n"
 		<< "\t<schema>      :Name of the schema to filter input with\n"
-		<< "\t<schema>      :File path of the input to process\n"
+		<< "\t<inputfile>   :File path of the input to process\n"
+		<< "\t<expectfile>  :File path of the expected ouput\n"
 		<< std::endl;
 
+}
+
+std::string normalizeOutput( const std::string& output)
+{
+	std::string rt;
+	auto oi = output.begin(), oe = output.end();
+	for (; oi != oe; ++oi)
+	{
+		int spaces = 0;
+		int eolns = 0;
+		while (oi != oe && (unsigned char)*oi <= 32)
+		{
+			if (*oi == '\n') {++eolns;}
+			++oi;
+			++spaces;
+		}
+		if (eolns)
+		{
+			rt.push_back( '\n');
+		}
+		else if (spaces)
+		{
+			rt.push_back( ' ');
+		}
+		if (oi == oe) break;
+		rt.push_back( *oi);
+	}
+	return rt;
 }
 
 int main( int argc, const char* argv[])
@@ -213,12 +241,12 @@ int main( int argc, const char* argv[])
 			}
 		}
 		int argn = argc-argi;
-		if (argn < 3)
+		if (argn < 4)
 		{
 			printUsage();
 			throw std::runtime_error( "too few arguments");
 		}
-		if (argn > 3)
+		if (argn > 4)
 		{
 			printUsage();
 			throw std::runtime_error( "too many arguments");
@@ -226,17 +254,30 @@ int main( int argc, const char* argv[])
 		std::string schemaFile( argv[ argi+0]);
 		std::string schemaName( argv[ argi+1]);
 		std::string inputFile( argv[ argi+2]);
+		std::string expectFile( argv[ argi+3]);
 		std::string schemaSrc = readFile( schemaFile);
 		std::string inputSrc = readFile( inputFile);
+		std::string expectSrc = readFile( expectFile);
 		SchemaMap schemaMap( schemaSrc);
-		std::string result =
-				schemaMap.source( schemaName)
-				+ schemaMap.dump( schemaSrc, schemaName)
-				+ schemaMap.process( schemaName, inputSrc)
+		std::string dump = schemaMap.source( schemaName) + schemaMap.dump( schemaSrc, schemaName);
+		std::string output = schemaMap.process( schemaName, inputSrc);
 		;
-		if (g_verbose)
+		if (normalizeOutput( output) != normalizeOutput( expectSrc))
 		{
-			std::cerr << result << std::endl;
+			if (g_verbose)
+			{
+				std::cerr
+					<< "OUTPUT:\n" << output << "\n--\n"
+					<< "EXPECT:\n" << expectSrc << "\n--\n"
+					<< std::endl;
+			}
+			throw std::runtime_error( "Different output than expected");
+		}
+		else if (g_verbose)
+		{
+			std::cerr
+				<< "DUMP:\n" << dump << "\n--\n"
+				<< "OUTPUT:\n" << output << "\n--\n";
 		}
 		std::cerr << "OK" << std::endl;
 		return 0;
