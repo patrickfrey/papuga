@@ -25,6 +25,10 @@
 #include <cstring>
 #include <inttypes.h>
 
+#if defined __GNUC__ || defined __clang__
+#define UNUSED __attribute__((unused)) 
+#endif
+
 typedef textwolf::XMLPathSelectAutomatonParser<> Automaton;
 typedef textwolf::XMLPathSelectAutomaton<>::PathElement PathElement;
 typedef textwolf::XMLPathSelect<textwolf::charset::UTF8> AutomatonState;
@@ -454,19 +458,31 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 
 		void push( SchemaNode* node)
 		{
-			ar.push_back( StackElem( node,node));
+			ar.push_back( StackElem( node, 0));
 		}
-		bool link( SchemaNode* node, SchemaTree& tree)
+		bool link( SchemaNode* node, SchemaTree& tree, papuga_SchemaError* err)
 		{
 			if (ar.empty())
 			{
-				if (tree.nodearsize >= MaxNofNodes) return false;
+				if (tree.nodearsize >= MaxNofNodes)
+				{
+					return SchemaError( err, papuga_ComplexityOfProblem);
+				}
 				tree.nodear[ tree.nodearsize++] = node;
 				tree.nodemap[ StringView(node->name)].set( tree.nodearsize);
 			}
-			else
+			else if (ar.back().tail)
 			{
 				ar.back().tail->next = node;
+				ar.back().tail = node;
+			}
+			else if (ar.back().node->chld)
+			{
+				return SchemaError( err, papuga_LogicError);
+			}
+			else
+			{
+				ar.back().node->chld = node;
 				ar.back().tail = node;
 			}
 			return true;
@@ -538,9 +554,9 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 			{
 				node->attribute = attribute;
 				node->typnam = papuga_Allocator_copy_string( &tree.allocator, lx.name, lx.namelen);
-				if (!stack.link( node, tree))
+				if (!stack.link( node, tree, err))
 				{
-					return SchemaError( err, papuga_ComplexityOfProblem, errorLine( src, si));
+					return false;
 				}
 				if (!stack.empty() && !expectComma( si))
 				{
@@ -572,9 +588,9 @@ static bool parseSchemaTree( SchemaTree& tree, char const* src, papuga_SchemaErr
 					return SchemaError( err, papuga_SyntaxError, errorLine( src, si), "}");
 				}
 			}
-			if (!stack.link( elem.node, tree))
+			if (!stack.link( elem.node, tree, err))
 			{
-				return SchemaError( err, papuga_ComplexityOfProblem, errorLine( src, si));
+				return false;
 			}
 			if (!stack.empty() && !expectComma( si))
 			{
@@ -618,15 +634,8 @@ static bool buildSelectExpressionMap(
 	SchemaNode const* nd = node;
 	for (; nd; nd=nd->next)
 	{
-		std::string key;
-		if (nd->attribute)
-		{
-			key = path + "@" + nd->name;
-		}
-		else
-		{
-			key = path + "/" + nd->name;
-		}
+		const char* sep = nd->attribute ? "@":"/";
+		std::string key = path + sep + nd->name;
 		if (nd->typnam)
 		{
 			if (0==std::strcmp( nd->typnam, "integer"))
@@ -730,7 +739,11 @@ static bool buildSelectExpressionMap(
 					BitSet::const_iterator bi = itr->second.begin(), be = itr->second.end();
 					for (; bi != be; ++bi)
 					{
-						SchemaNode const* chld = tree.nodear[ *bi-1];
+						SchemaNode const* chld = tree.nodear[ *bi-1]->chld;
+						if (!chld)
+						{
+							return SchemaError( err, papuga_StructureExpected, 0, key.c_str());
+						}
 						if (!buildSelectExpressionMap( opmap, path + "//" + nd->name, chld, tree, *bi, err))
 						{
 							return false;
@@ -764,6 +777,28 @@ static bool buildSelectExpressionMap(
 	return true;
 }
 
+static void UNUSED printNode( std::ostream& out, SchemaNode const* node, const std::string& indent = "\n")
+{
+	for (; node; node=node->next)
+	{
+		out << indent << node->name;
+		if (node->typnam)
+		{
+			out << " = " << node->typnam;
+		}
+		else if (node->chld)
+		{
+			out << " = {";
+			printNode( out, node->chld, indent + "  ");
+			out << "}";
+		}
+		if (node->next)
+		{
+			out << ",";
+		}
+	}
+}
+
 static bool buildAutomaton(
 		PathElement& path,
 		papuga_Schema* schema,
@@ -772,8 +807,7 @@ static bool buildAutomaton(
 		papuga_SchemaError* err)
 {
 	std::map<std::string,SchemaOperation> opmap;
-	std::string rootpath = std::string("/") + node->name;
-	if (!buildSelectExpressionMap( opmap, rootpath, node, tree, 0/*select*/, err))
+	if (!buildSelectExpressionMap( opmap, "", node, tree, 0/*select*/, err))
 	{
 		return false;
 	}
@@ -825,8 +859,7 @@ extern "C" const char* papuga_print_schema_automaton( papuga_Allocator* allocato
 		SchemaNode const* rootnode = tree.nodear[ rootidx-1];
 
 		std::map<std::string,SchemaOperation> opmap;
-		std::string rootpath = std::string("/") + rootnode->name;
-		if (!buildSelectExpressionMap( opmap, rootpath, rootnode, tree, 0/*select*/, err))
+		if (!buildSelectExpressionMap( opmap, "", rootnode, tree, 0/*select*/, err))
 		{
 			return 0;
 		}

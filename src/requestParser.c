@@ -134,12 +134,12 @@ papuga_ContentType papuga_guess_ContentType( const char* src_, size_t srcsize)
 	(void)detectBOM( src, srcsize, &BOM_size);
 	src += BOM_size;
 	srcsize -= BOM_size;
-	if (parse_xml_header( hdrbuf, sizeof(hdrbuf), src, xmlhdrsize)) return papuga_ContentType_XML;
 	for (si=0; si<srcsize; ++si)
 	{
 		if (src[si] == '\'' || src[si] == '\"' || src[si] == '{') return papuga_ContentType_JSON;
 		if ((unsigned char)src[si]>32) break;
 	}
+	if (parse_xml_header( hdrbuf, sizeof(hdrbuf), src, xmlhdrsize)) return papuga_ContentType_XML;
 	return papuga_ContentType_Unknown;
 }
 
@@ -197,7 +197,6 @@ papuga_StringEncoding papuga_guess_StringEncoding( const char* src, size_t srcsi
 		encoding = detectCharsetFromXmlHeader( hdrbuf, strlen(hdrbuf));
 		if (encoding != papuga_Binary) return encoding;
 	}
-
 	for (cidx=0; ci != ce; ++ci,++cidx)
 	{
 		if (*ci == 0x00)

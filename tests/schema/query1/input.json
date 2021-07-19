@@ -1,0 +1,16 @@
+{"query" : {
+	"feature" : [
+		{
+			"set" : "weighted",
+			"weight" : 1.0,
+			"content" : {
+				"type": "word",
+				"value": "Hello"
+			},
+			"analyzed" : {
+				"type": "word",
+				"value": "hello"
+			}
+		}
+	]
+}}

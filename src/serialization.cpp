@@ -17,6 +17,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <inttypes.h>
 
 using namespace papuga;
@@ -46,7 +47,9 @@ struct PrintStruct
 	bool deterministic;
 
 	PrintStruct( PrintMode mode_, const std::string& indent_, int printlevel_, bool deterministic_)
-		:mode(mode_),out(),indent(indent_),errcode(papuga_Ok),printlevel(printlevel_),itemcnt(0),deterministic(deterministic_){}
+		:mode(mode_),out(),indent(indent_),errcode(papuga_Ok)
+		,printlevel(printlevel_>=0 ? printlevel_:std::numeric_limits<int>::max())
+		,itemcnt(0),deterministic(deterministic_){}
 
 	void appendInt( int64_t value)
 	{

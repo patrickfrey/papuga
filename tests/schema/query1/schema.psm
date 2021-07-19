@@ -13,13 +13,18 @@ term_expression = {
 	arg = { term_expression }
 }
 
+sentence = {
+	field = string,
+	content = string,
+	results = number,
+	minweight = number
+}
+
 query = {
-	set = string,
-	weight = number,
 	feature = {{
 		set = string,
 		weight = number,
-		sentence = string,
+		sentence = sentence,
 		content = term_expression,
 		analyzed = term_expression
 	}}

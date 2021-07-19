@@ -48,15 +48,16 @@ typedef enum papuga_ErrorCode
 	papuga_UncaughtException=16,
 	papuga_ExecutionOrder=17,
 	papuga_AtomicValueExpected=18,
-	papuga_NotAllowed=19,
-	papuga_IteratorFailed=20,
-	papuga_AddressedItemNotFound=21,
-	papuga_HostObjectError=22,
-	papuga_AmbiguousReference=23,
-	papuga_MaxRecursionDepthReached=24,
-	papuga_ComplexityOfProblem=25,
-	papuga_InvalidRequest=26,
-	papuga_AttributeNotAtomic=27
+	papuga_StructureExpected=19,
+	papuga_NotAllowed=20,
+	papuga_IteratorFailed=21,
+	papuga_AddressedItemNotFound=22,
+	papuga_HostObjectError=23,
+	papuga_AmbiguousReference=24,
+	papuga_MaxRecursionDepthReached=25,
+	papuga_ComplexityOfProblem=26,
+	papuga_InvalidRequest=27,
+	papuga_AttributeNotAtomic=28
 } papuga_ErrorCode;
 
 /*

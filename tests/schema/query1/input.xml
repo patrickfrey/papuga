@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<query>
+<feature>
+<set>weighted</set>",
+<weight>1.0</weight>
+<content>
+<type>word</type>
+<value>Hello</value>
+</content>
+<analyzed>
+<type>word</type>
+<value>Hello</value>
+</analyzed>
+</feature>
+</query>
+

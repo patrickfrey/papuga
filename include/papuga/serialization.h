@@ -282,7 +282,7 @@ void papuga_Serialization_release_tail( papuga_Serialization* self, papuga_Seria
 * @param[in] self pointer to structure
 * @param[in] allocator allocator to use for the copy
 * @param[in] linemode true if to print codes line by line, false if to print structure
-* @param[in] maxdepth maximum depth of elements to print
+* @param[in] maxdepth maximum depth of elements to print, -1 if not defined
 * @param[out] errcode error code in case of an error
 * @return NULL on memory allocation error, null terminated string with serialization printed, allocated with malloc, to free by the caller, on success
 */

@@ -8,6 +8,9 @@
 #include "papuga/schema.h"
 #include "papuga/errors.hpp"
 #include "papuga/allocator.h"
+#include "papuga/serialization.h"
+#include "papuga/serialization.hpp"
+#include "papuga/requestParser.h"
 #include <iostream>
 #include <stdexcept>
 #include <iostream>
@@ -123,6 +126,7 @@ public:
 		}
 		rt.append( "AUTOMATON\n");
 		rt.append( atm_source);
+		rt.append( "\n");
 
 		papuga_destroy_Allocator( &allocator);
 		return rt;
@@ -133,8 +137,31 @@ public:
 		std::string rt;
 		papuga_Schema const* schema = papuga_schemamap_get( m_map, schemaName.c_str());
 		if (!schema) throw SchemaException( papuga_AddressedItemNotFound);
+		papuga_Allocator allocator;
+		papuga_init_Allocator( &allocator, 0, 0);
+		papuga_ErrorCode errcode = papuga_Ok;
+		papuga_SchemaError err;
+		papuga_init_SchemaError( &err);
+		papuga_Serialization dest;
+		papuga_init_Serialization( &dest, &allocator);
 
-		//[+] if (!papuga_schema_parse( papuga_Serialization* dest, papuga_Serialization const* src, papuga_Schema const* schema, papuga_SchemaError* err);
+		papuga_ContentType doctype = papuga_guess_ContentType( src.c_str(), src.size());
+		papuga_StringEncoding encoding = papuga_guess_StringEncoding( src.c_str(), src.size());
+
+		if (!papuga_schema_parse( &dest, schema, doctype, encoding, src.c_str(), src.size(),  &err))
+		{
+			papuga_destroy_Allocator( &allocator);
+			throw SchemaException( err);
+		}
+		rt.append( "SERIALIZATION\n");
+		rt.append( papuga::Serialization_tostring_deterministic( dest, true/*linemode*/, -1/*maxdepth*/, errcode));
+		rt.append( "\n");
+		if (errcode != papuga_Ok)
+		{
+			papuga_destroy_Allocator( &allocator);
+			throw SchemaException( errcode);
+		}
+		papuga_destroy_Allocator( &allocator);
 		return rt;
 	}
 
@@ -205,7 +232,8 @@ int main( int argc, const char* argv[])
 		std::string result =
 				schemaMap.source( schemaName)
 				+ schemaMap.dump( schemaSrc, schemaName)
-				+ schemaMap.process( schemaName, inputSrc);
+		//		+ schemaMap.process( schemaName, inputSrc)
+		;
 		if (g_verbose)
 		{
 			std::cerr << result << std::endl;
