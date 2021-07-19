@@ -232,7 +232,7 @@ int main( int argc, const char* argv[])
 		std::string result =
 				schemaMap.source( schemaName)
 				+ schemaMap.dump( schemaSrc, schemaName)
-		//		+ schemaMap.process( schemaName, inputSrc)
+				+ schemaMap.process( schemaName, inputSrc)
 		;
 		if (g_verbose)
 		{
