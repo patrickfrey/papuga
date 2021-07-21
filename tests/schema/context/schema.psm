@@ -1,0 +1,25 @@
+config = {
+	extension = {
+		modules = {string}
+	}
+
+	data = {
+		workdir = string,
+		resources = string
+	}
+
+	context = {
+		trace = {
+			log = string,
+			file = string,
+			groupby = string,
+			call = string,
+			count = string
+		},
+		debug = string,
+		rpc = string,
+		threads = integer
+	}
+}
+
+

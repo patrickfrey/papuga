@@ -324,6 +324,27 @@ static bool stringToInt( int64_t& res,  char const* si)
 		res = res * 10 + (*si - '0');
 		if (res < res_prev) return false;
 	}
+	if ((*si | 32) == 'k')
+	{
+		res_prev = res;
+		res = res * 1024;
+		if (res < res_prev) return false;
+		++si;
+	}
+	else if ((*si | 32) == 'm')
+	{
+		res_prev = res;
+		res = res * 1024 * 1024;
+		if (res < res_prev) return false;
+		++si;
+	}
+	else if ((*si | 32) == 'g')
+	{
+		res_prev = res;
+		res = res * 1024 * 1024 * 1024;
+		if (res < res_prev) return false;
+		++si;
+	}
 	return !*si;
 }
 static bool stringToDouble( double& res, char const* si)
@@ -674,7 +695,7 @@ static bool buildSelectExpressionMap(
 					}
 				}
 			}
-			else if (0==std::strcmp( nd->typnam, "bool"))
+			else if (0==std::strcmp( nd->typnam, "boolean"))
 			{
 				if (nd->attribute)
 				{
