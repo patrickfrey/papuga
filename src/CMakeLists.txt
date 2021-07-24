@@ -51,6 +51,8 @@ link_directories(
 	"${PROJECT_SOURCE_DIR}/3rdParty/cjson/src"
 )
 
+add_subdirectory( lua )
+
 # ------------------------------
 # LIBRARIES
 # ------------------------------

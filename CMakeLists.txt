@@ -1,9 +1,5 @@
 cmake_minimum_required( VERSION 2.8 FATAL_ERROR )
 
-if( NOT STRUS_CXX_STD_11 )
-MESSAGE( ERROR "Compiling with C++ version lower than 11, the webrequest bindings can not be built" )
-endif( NOT STRUS_CXX_STD_11 )
-
 # must be done BEFORE project in order to work!
 include(cmake/install_prefix.cmake)
 
@@ -67,6 +63,10 @@ configure_file( "${PROJECT_SOURCE_DIR}/include/papuga/version.h.in"          "${
 configure_file( "${PROJECT_SOURCE_DIR}/include/papuga/languages.h.in"      "${CMAKE_CURRENT_BINARY_DIR}/include/papuga/languages.h"   @ONLY )
 
 enable_testing()
+
+if( NOT STRUS_CXX_STD_11 )
+MESSAGE( ERROR "Compiling with C++ version lower than 11, the webrequest bindings can not be built" )
+endif( NOT STRUS_CXX_STD_11 )
 
 # Path declarations:
 set( FMT_INCLUDE_DIRS                             "${PROJECT_SOURCE_DIR}/3rdParty/fmt_4_1" )
