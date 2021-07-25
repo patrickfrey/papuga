@@ -316,7 +316,7 @@ static void init_ValueVariant_number( papuga_ValueVariant* result, double numval
 }
 
 
-static bool serialize_key( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
+static bool serialize_key( papuga_Serialization* result, lua_State* ls, int li, papuga_ErrorCode* errcode)
 {
 	bool rt = true;
 	switch (lua_type (ls, li))
@@ -343,19 +343,20 @@ static bool serialize_key( papuga_CallArgs* as, papuga_Serialization* result, lu
 		case LUA_TTHREAD:
 		case LUA_TLIGHTUSERDATA:
 		default:
-			as->errcode = papuga_TypeError; return false;
+			*errcode = papuga_TypeError;
+			return false;
 	}
 	if (!rt)
 	{
-		as->errcode = papuga_NoMemError;
+		*errcode = papuga_NoMemError;
 		return false;
 	}
 	return true;
 }
 
-static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li);
+static bool serialize_node( papuga_Serialization* result, lua_State* ls, int li, papuga_ErrorCode* errcode);
 
-static bool serialize_value( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
+static bool serialize_value( papuga_Serialization* result, lua_State* ls, int li, papuga_ErrorCode* errcode)
 {
 	bool rt = true;
 	const char* str;
@@ -378,7 +379,7 @@ static bool serialize_value( papuga_CallArgs* as, papuga_Serialization* result, 
 			break;
 		case LUA_TTABLE:
 			rt &= papuga_Serialization_pushOpen( result);
-			rt &= serialize_node( as, result, ls, li);
+			rt &= serialize_node( result, ls, li, errcode);
 			rt &= papuga_Serialization_pushClose( result);
 			break;
 		case LUA_TUSERDATA:
@@ -387,13 +388,13 @@ static bool serialize_value( papuga_CallArgs* as, papuga_Serialization* result, 
 			const papuga_lua_UserData* udata = get_UserData( ls, li);
 			if (!udata)
 			{
-				as->errcode = papuga_TypeError;
+				*errcode = papuga_TypeError;
 				return false;
 			}
-			hostobj = (papuga_HostObject*)papuga_Allocator_alloc_HostObject( &as->allocator, udata->classid, udata->objectref, 0);
+			hostobj = (papuga_HostObject*)papuga_Allocator_alloc_HostObject( result->allocator, udata->classid, udata->objectref, 0);
 			if (!hostobj)
 			{
-				as->errcode = papuga_NoMemError;
+				*errcode = papuga_NoMemError;
 				return false;
 			}
 			rt &= papuga_Serialization_pushValue_hostobject( result, hostobj);
@@ -402,17 +403,17 @@ static bool serialize_value( papuga_CallArgs* as, papuga_Serialization* result, 
 		case LUA_TTHREAD:
 		case LUA_TLIGHTUSERDATA:
 		default:
-			as->errcode = papuga_TypeError; return false;
+			*errcode = papuga_TypeError; return false;
 	}
 	if (!rt)
 	{
-		as->errcode = papuga_NoMemError;
+		*errcode = papuga_NoMemError;
 		return false;
 	}
 	return true;
 }
 
-static bool serialize_map( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
+static bool serialize_map( papuga_Serialization* result, lua_State* ls, int li, papuga_ErrorCode* errcode)
 {
 	STACKTRACE( ls, "loop before serialize table as map");
 	lua_pushvalue( ls, li);
@@ -421,8 +422,8 @@ static bool serialize_map( papuga_CallArgs* as, papuga_Serialization* result, lu
 	while (lua_next( ls, -2))
 	{
 		STACKTRACE( ls, "loop next serialize table as map");
-		if (!serialize_key( as, result, ls, -2)) goto ERROR;
-		if (!serialize_value( as, result, ls, -1)) goto ERROR;
+		if (!serialize_key( result, ls, -2, errcode)) goto ERROR;
+		if (!serialize_value( result, ls, -1, errcode)) goto ERROR;
 		lua_pop( ls, 1);
 	}
 	lua_pop( ls, 1);
@@ -448,7 +449,7 @@ static bool is_array_index( lua_State* ls, int li, int idx)
 	return false;
 }
 
-static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, lua_State* ls, int li)
+static bool serialize_node( papuga_Serialization* result, lua_State* ls, int li, papuga_ErrorCode* errcode)
 {
 	int idx = 0;
 	papuga_SerializationIter arrayStart;
@@ -457,7 +458,7 @@ static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, l
 
 	if (!lua_checkstack( ls, 8))
 	{
-		as->errcode = papuga_NoMemError;
+		*errcode = papuga_NoMemError;
 		return false;
 	}
 	STACKTRACE( ls, "loop before serialize table as map or array");
@@ -470,7 +471,7 @@ static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, l
 		{
 			/* ... still an array, push sequence of values */
 			++idx;
-			serialize_value( as, result, ls, -1);
+			serialize_value( result, ls, -1, errcode);
 			lua_pop(ls, 1);
 		}
 		else
@@ -478,7 +479,7 @@ static bool serialize_node( papuga_CallArgs* as, papuga_Serialization* result, l
 			/*... not an array, but still assumed as one, restart converting assuming a map as result */
 			if (idx) papuga_Serialization_release_tail( result, &arrayStart);
 			lua_pop( ls, 3);
-			return serialize_map( as, result, ls, li);
+			return serialize_map( result, ls, li, errcode);
 		}
 	}
 	lua_pop( ls, 1);
@@ -497,8 +498,8 @@ static bool serialize_root( papuga_CallArgs* as, lua_State* ls, int li)
 	papuga_init_ValueVariant_serialization( &as->argv[as->argc], result);
 	as->argc += 1;
 	bool rt = true;
-	rt &= serialize_node( as, result, ls, li);
-	return rt;
+	rt &= serialize_node( result, ls, li, &as->errcode);
+	return rt && as->errcode == papuga_Ok;
 }
 
 static bool deserialize_root( papuga_Serialization* ser, lua_State* ls, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
@@ -1111,4 +1112,10 @@ DLL_PUBLIC void papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVa
 	}
 }
 
+DLL_PUBLIC bool papuga_lua_serialize( lua_State *ls, papuga_Serialization* dest, int li, papuga_ErrorCode* errcode)
+{
+	bool rt = true;
+	rt &= serialize_node( dest, ls, li, errcode);
+	return rt && *errcode == papuga_Ok;
+}
 

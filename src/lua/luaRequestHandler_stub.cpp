@@ -21,8 +21,7 @@ papuga_LuaRequestHandlerFunction* papuga_create_LuaRequestHandlerFunction(
 }
 
 void papuga_delete_LuaRequestHandlerFunction( papuga_LuaRequestHandlerFunction* self)
-{
-}
+{}
 
 papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerFunction* function,
@@ -34,10 +33,18 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	return 0;
 }
 
+void papuga_delete_LuaRequestHandler( papuga_LuaRequestHandler* self)
+{}
+
 bool papuga_run_LuaRequestHandler( papuga_LuaRequestHandler* handler, papuga_ErrorCode* errcode)
 {
 	*errcode = papuga_NotImplemented;
 	return false;
+}
+
+int papuga_LuaRequestHandler_nof_DelegateRequests( const papuga_LuaRequestHandler* handler)
+{
+	return 0;
 }
 
 papuga_DelegateRequest const* papuga_LuaRequestHandler_get_delegateRequests( const papuga_LuaRequestHandler* handler)

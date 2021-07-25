@@ -12,10 +12,16 @@
 #include "luaRequestHandler.h"
 #include "papuga/allocator.h"
 #include "papuga/serialization.h"
+#include "papuga/lib/lua_dev.h"
 #include <string>
+#include <stdexcept>
+#include <new>
 #include <cstring>
-#include "lua.h"
-#include "lauxlib.h"
+
+extern "C" {
+#include <lua.h>
+#include <lauxlib.h>
+}
 
 static int luaDumpWriter( lua_State* ls, const void* p, size_t sz, void* ud)
 {
@@ -52,6 +58,15 @@ static const char* luaDumpReader( lua_State* ls, void* ud, size_t* size)
 	LuaDumpReader* dump = reinterpret_cast<LuaDumpReader*>(ud);
 	return dump->read( size);
 }
+
+static void createMetatable( lua_State* ls, const char* metatableName, const struct luaL_Reg* metatableMethods)
+{
+	luaL_newmetatable( ls, metatableName);
+	lua_pushvalue( ls, -1);
+	lua_setfield( ls, -2, "__index");
+	luaL_setfuncs( ls, metatableMethods, 0);
+}
+
 
 struct papuga_LuaRequestHandlerFunction
 {
@@ -118,19 +133,76 @@ void papuga_delete_LuaRequestHandlerFunction( papuga_LuaRequestHandlerFunction* 
 	delete self;
 }
 
+static void lippincottFunction( lua_State* ls)
+{
+	try
+	{
+		throw;
+	}
+	catch (const std::runtime_error& err)
+	{
+		lua_pushstring( ls, err.what());
+		lua_error( ls);
+	}
+	catch (const std::bad_alloc&)
+	{
+		lua_pushstring( ls, papuga_ErrorCode_tostring( papuga_NoMemError));
+		lua_error( ls);
+	}
+	catch (...)
+	{
+		lua_pushstring( ls, papuga_ErrorCode_tostring( papuga_UncaughtException));
+		lua_error( ls);
+	}
+}
+
+static int papuga_lua_yield( lua_State* ls);
+static int papuga_lua_send( lua_State* ls);
+
+static const struct luaL_Reg g_requestlib [] = {
+	{"yield", papuga_lua_yield},
+	{"send", papuga_lua_send},
+	{nullptr, nullptr} /* end of array */
+};
+
 struct papuga_LuaRequestHandler
 {
+	enum {MaxNofDelegates=256};
+
 	lua_State* m_ls;
 	papuga_RequestContext* m_context;
 	papuga_Allocator m_allocator;
+	papuga_DelegateRequest m_delegate[ MaxNofDelegates];
+	int m_nof_delegates;
 	int m_allocatormem[ 1<<14];
 
 	explicit papuga_LuaRequestHandler( papuga_RequestContext* context_)
 		:m_ls(0)
 		,m_context(context_)
+		,m_nof_delegates(0)
 	{
 		papuga_init_Allocator( &m_allocator, m_allocatormem, sizeof(m_allocatormem));
 		m_ls = lua_newstate( allocFunction, this);
+		lua_getglobal( m_ls, "_G");
+		lua_pushlightuserdata( m_ls, this);
+		luaL_setfuncs( m_ls, g_requestlib, 1/*number of closure elements*/);
+		lua_pop( m_ls, 1);
+	}
+	void send( const char* requestmethod, const char* url, papuga_Serialization* content)
+	{
+		if (m_nof_delegates >= MaxNofDelegates)
+		{
+			throw std::runtime_error( papuga_ErrorCode_tostring( papuga_NoMemError));
+		}
+		papuga_DelegateRequest* req = &m_delegate[ m_nof_delegates];
+		req->requestmethod = papuga_Allocator_copy_charp( &m_allocator, requestmethod);
+		req->url = papuga_Allocator_copy_charp( &m_allocator, url);
+		if (!req->requestmethod || !req->url)
+		{
+			throw std::bad_alloc();
+		}
+		std::memcpy( &req->content, content, sizeof( req->content));
+		m_nof_delegates += 1;
 	}
 	~papuga_LuaRequestHandler()
 	{
@@ -183,6 +255,54 @@ struct papuga_LuaRequestHandler
 	}
 };
 
+static int papuga_lua_yield( lua_State* ls)
+{
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
+	if (!reqhnd)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_LogicError));
+	}
+	try
+	{
+		lua_yield( ls, 0);
+	}
+	catch (...) {lippincottFunction( ls);}
+	return 0;
+}
+
+static int papuga_lua_send( lua_State* ls)
+{
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
+	if (!reqhnd)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_LogicError));
+	}
+	try
+	{
+		int nn = lua_gettop( ls);
+		if (nn != 3)
+		{
+			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
+		}
+		if (lua_type( ls, 1) != LUA_TSTRING || lua_type( ls, 2) != LUA_TSTRING)
+		{
+			luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
+		}
+		const char* requestmethod = lua_tostring( ls, 1);
+		const char* url = lua_tostring( ls, 2);
+		papuga_Serialization content;
+		papuga_init_Serialization( &content, &reqhnd->m_allocator);
+		papuga_ErrorCode errcode = papuga_Ok;
+		if (!papuga_lua_serialize( ls, &content, 3, &errcode))
+		{
+			luaL_error( ls, papuga_ErrorCode_tostring( errcode));
+		}
+		reqhnd->send( requestmethod, url, &content);
+	}
+	catch (...) {lippincottFunction( ls);}
+	return 0;
+}
+
 papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerFunction* function,
 	papuga_RequestContext* context,
@@ -227,7 +347,12 @@ bool papuga_run_LuaRequestHandler( papuga_LuaRequestHandler* handler, papuga_Err
 	return false;
 }
 
-papuga_DelegateRequest const* papuga_LuaRequestHandler_get_delegateRequests( const papuga_LuaRequestHandler* handler)
+int papuga_LuaRequestHandler_nof_DelegateRequests( const papuga_LuaRequestHandler* handler)
+{
+	return 0;
+}
+
+papuga_DelegateRequest const* papuga_LuaRequestHandler_get_delegateRequest( const papuga_LuaRequestHandler* handler, int idx)
 {
 	return 0;
 }
