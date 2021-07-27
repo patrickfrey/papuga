@@ -57,7 +57,6 @@ extern "C" {
 */
 #define papuga_Serialization_first_value(self_)			((self_)->head.size==0 ? NULL : &(self_)->head.ar[0].content)
 
-
 /*
 * @brief Add a node to the serialization
 * @param[in,out] self pointer to structure 

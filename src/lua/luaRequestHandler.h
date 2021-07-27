@@ -19,13 +19,18 @@ extern "C" {
 #include "papuga/errors.h"
 #include "papuga/requestHandler.h"
 
+#ifndef _PAPUGA_LUA_DEV_LIB_H_INCLUDED
+typedef struct papuga_lua_ClassEntryMap papuga_lua_ClassEntryMap;
+#endif
+
 typedef struct papuga_LuaRequestHandlerFunction papuga_LuaRequestHandlerFunction;
 typedef struct papuga_LuaRequestHandler papuga_LuaRequestHandler;
 
 papuga_LuaRequestHandlerFunction* papuga_create_LuaRequestHandlerFunction(
 	const char* functionName,
 	const char* source,
-	papuga_ErrorBuffer* errcode);
+	const papuga_lua_ClassEntryMap* cemap,
+	papuga_ErrorBuffer* errbuf);
 
 void papuga_delete_LuaRequestHandlerFunction( papuga_LuaRequestHandlerFunction* self);
 
@@ -42,16 +47,18 @@ typedef struct papuga_DelegateRequest
 	const char* requestmethod;
 	const char* url;
 	papuga_Serialization content;
+	papuga_Serialization result;
+	papuga_ErrorCode errcode;
 } papuga_DelegateRequest;
 
-
-bool papuga_run_LuaRequestHandler( papuga_LuaRequestHandler* handler, papuga_ErrorCode* errcode);
+bool papuga_run_LuaRequestHandler( papuga_LuaRequestHandler* handler, papuga_ErrorBuffer* errbuf);
 
 int papuga_LuaRequestHandler_nof_DelegateRequests( const papuga_LuaRequestHandler* handler);
 
 papuga_DelegateRequest const* papuga_LuaRequestHandler_get_delegateRequest( const papuga_LuaRequestHandler* handler, int idx);
 
-void papuga_LuaRequestHandler_init_answer( const papuga_LuaRequestHandler* handler, int idx, const papuga_Serialization* output);
+void papuga_LuaRequestHandler_init_answer( papuga_LuaRequestHandler* handler, int idx, const papuga_Serialization* output);
+void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* handler, int idx, papuga_ErrorCode errcode);
 
 papuga_Serialization* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler);
 

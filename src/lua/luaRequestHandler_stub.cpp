@@ -14,6 +14,7 @@
 papuga_LuaRequestHandlerFunction* papuga_create_LuaRequestHandlerFunction(
 	const char* functionName,
 	const char* source,
+	const papuga_lua_ClassEntryMap* cemap,
 	papuga_ErrorBuffer* errbuf)
 {
 	papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( papuga_NotImplemented));
@@ -36,28 +37,24 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 void papuga_delete_LuaRequestHandler( papuga_LuaRequestHandler* self)
 {}
 
-bool papuga_run_LuaRequestHandler( papuga_LuaRequestHandler* handler, papuga_ErrorCode* errcode)
+bool papuga_run_LuaRequestHandler( papuga_LuaRequestHandler* handler, papuga_ErrorBuffer* errbuf)
 {
-	*errcode = papuga_NotImplemented;
+	papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( papuga_NotImplemented));
 	return false;
 }
 
 int papuga_LuaRequestHandler_nof_DelegateRequests( const papuga_LuaRequestHandler* handler)
-{
-	return 0;
-}
+{return 0;}
 
 papuga_DelegateRequest const* papuga_LuaRequestHandler_get_delegateRequests( const papuga_LuaRequestHandler* handler)
-{
-	return 0;
-}
+{return nullptr;}
 
-void papuga_LuaRequestHandler_init_answer( const papuga_LuaRequestHandler* handler, int idx, const papuga_Serialization* output)
-{
-}
+void papuga_LuaRequestHandler_init_answer( papuga_LuaRequestHandler* handler, int idx, const papuga_Serialization* output)
+{}
+
+void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* handler, int idx, papuga_ErrorCode errcode)
+{}
 
 papuga_Serialization* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler)
-{
-	return 0;
-}
+{return nullptr;}
 

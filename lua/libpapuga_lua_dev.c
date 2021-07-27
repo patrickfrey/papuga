@@ -359,9 +359,6 @@ static bool serialize_node( papuga_Serialization* result, lua_State* ls, int li,
 static bool serialize_value( papuga_Serialization* result, lua_State* ls, int li, papuga_ErrorCode* errcode)
 {
 	bool rt = true;
-	const char* str;
-	size_t strsize;
-
 	switch (lua_type (ls, li))
 	{
 		case LUA_TNIL:
@@ -374,9 +371,12 @@ static bool serialize_value( papuga_Serialization* result, lua_State* ls, int li
 			rt &= papuga_Serialization_pushValue_bool( result, lua_toboolean( ls, li));
 			break;
 		case LUA_TSTRING:
-			str = lua_tolstring( ls, li, &strsize);
+		{
+			size_t strsize;
+			const char* str = lua_tolstring( ls, li, &strsize);
 			rt &= papuga_Serialization_pushValue_string( result, str, strsize);
 			break;
+		}
 		case LUA_TTABLE:
 			rt &= papuga_Serialization_pushOpen( result);
 			rt &= serialize_node( result, ls, li, errcode);
@@ -398,6 +398,7 @@ static bool serialize_value( papuga_Serialization* result, lua_State* ls, int li
 				return false;
 			}
 			rt &= papuga_Serialization_pushValue_hostobject( result, hostobj);
+			break;
 		}
 		case LUA_TFUNCTION:
 		case LUA_TTHREAD:
@@ -409,6 +410,67 @@ static bool serialize_value( papuga_Serialization* result, lua_State* ls, int li
 	{
 		*errcode = papuga_NoMemError;
 		return false;
+	}
+	return true;
+}
+
+static bool get_value( papuga_ValueVariant* result, papuga_Allocator* allocator, lua_State* ls, int li, papuga_ErrorCode* errcode)
+{
+	switch (lua_type (ls, li))
+	{
+		case LUA_TNIL:
+			papuga_init_ValueVariant( result);
+			break;
+		case LUA_TNUMBER:
+			papuga_init_ValueVariant_double( result, lua_tonumber( ls, li));
+			break;
+		case LUA_TBOOLEAN:
+			papuga_init_ValueVariant_bool( result, lua_toboolean( ls, li));
+			break;
+		case LUA_TSTRING:
+		{
+			size_t strsize;
+			const char* str = lua_tolstring( ls, li, &strsize);
+			str = papuga_Allocator_copy_string( allocator, str, strsize);
+			if (!str)
+			{
+				*errcode = papuga_NoMemError;
+				return false;
+			}
+			papuga_init_ValueVariant_string( result, str, strsize);
+			break;
+		}
+		case LUA_TTABLE:
+		{
+			papuga_Serialization* ser = papuga_Allocator_alloc_Serialization( allocator);
+			if (!serialize_node( ser, ls, li, errcode)) return false;
+			papuga_init_ValueVariant_serialization( result, ser);
+			break;
+		}
+		case LUA_TUSERDATA:
+		{
+			papuga_HostObject* hostobj;
+			const papuga_lua_UserData* udata = get_UserData( ls, li);
+			if (!udata)
+			{
+				*errcode = papuga_TypeError;
+				return false;
+			}
+			hostobj = (papuga_HostObject*)papuga_Allocator_alloc_HostObject( allocator, udata->classid, udata->objectref, 0);
+			if (!hostobj)
+			{
+				*errcode = papuga_NoMemError;
+				return false;
+			}
+			papuga_init_ValueVariant_hostobj( result, hostobj);
+			break;
+		}
+		case LUA_TFUNCTION:
+		case LUA_TTHREAD:
+		case LUA_TLIGHTUSERDATA:
+		default:
+			*errcode = papuga_TypeError;
+			return false;
 	}
 	return true;
 }
@@ -1116,6 +1178,13 @@ DLL_PUBLIC bool papuga_lua_serialize( lua_State *ls, papuga_Serialization* dest,
 {
 	bool rt = true;
 	rt &= serialize_node( dest, ls, li, errcode);
+	return rt && *errcode == papuga_Ok;
+}
+
+DLL_PUBLIC bool papuga_lua_value( lua_State *ls, papuga_ValueVariant* result, papuga_Allocator* allocator, int li, papuga_ErrorCode* errcode)
+{
+	bool rt = true;
+	rt &= get_value( result, allocator, ls, li, errcode);
 	return rt && *errcode == papuga_Ok;
 }
 

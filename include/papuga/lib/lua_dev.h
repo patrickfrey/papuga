@@ -131,12 +131,22 @@ void papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* valu
 * @brief Serialize a deep copy of a value from the lua stack
 * @param[in,out] ls lua state context
 * @param[out] dest destination for result
-* @param[in,out] allocator allocator to use
 * @param[in] idx Lua stack index
 * @param[out] errcode error code in case of failure
 * @return true, if success, false on failure
 */
 bool papuga_lua_serialize( lua_State *ls, papuga_Serialization* dest, int idx, papuga_ErrorCode* errcode);
+
+/*
+* @brief Get a deep copy of a value from the lua stack
+* @param[in,out] ls lua state context
+* @param[out] dest destination for result
+* @param[in,out] allocator allocator to use
+* @param[in] idx Lua stack index
+* @param[out] errcode error code in case of failure
+* @return true, if success, false on failure
+*/
+bool papuga_lua_value( lua_State *ls, papuga_ValueVariant* result, papuga_Allocator* allocator, int li, papuga_ErrorCode* errcode);
 
 #ifdef __cplusplus
 }
