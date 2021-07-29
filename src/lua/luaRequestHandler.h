@@ -32,7 +32,7 @@ papuga_LuaRequestHandlerFunction* papuga_create_LuaRequestHandlerFunction(
 	const char* source,
 	papuga_ErrorBuffer* errbuf);
 
-void papuga_delete_LuaRequestHandlerFunction( papuga_LuaRequestHandlerFunction* self);
+void papuga_destroy_LuaRequestHandlerFunction( papuga_LuaRequestHandlerFunction* self);
 
 papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerFunction* function,
@@ -43,7 +43,7 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	size_t contentlen,
 	papuga_ErrorCode* errcode);
 
-void papuga_delete_LuaRequestHandler( papuga_LuaRequestHandler* self);
+void papuga_destroy_LuaRequestHandler( papuga_LuaRequestHandler* self);
 
 typedef struct papuga_DelegateRequest
 {

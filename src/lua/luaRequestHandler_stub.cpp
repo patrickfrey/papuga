@@ -20,7 +20,7 @@ papuga_LuaRequestHandlerFunction* papuga_create_LuaRequestHandlerFunction(
 	return 0;
 }
 
-void papuga_delete_LuaRequestHandlerFunction( papuga_LuaRequestHandlerFunction* self)
+void papuga_destroy_LuaRequestHandlerFunction( papuga_LuaRequestHandlerFunction* self)
 {}
 
 papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
@@ -36,7 +36,7 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	return 0;
 }
 
-void papuga_delete_LuaRequestHandler( papuga_LuaRequestHandler* self)
+void papuga_destroy_LuaRequestHandler( papuga_LuaRequestHandler* self)
 {}
 
 bool papuga_run_LuaRequestHandler( papuga_LuaRequestHandler* handler, papuga_ErrorBuffer* errbuf)

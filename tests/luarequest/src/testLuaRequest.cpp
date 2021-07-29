@@ -9,6 +9,8 @@
 #include "luaRequestHandler.h"
 #include "papuga/requestParser.h"
 #include "papuga/requestHandler.h"
+#include "papuga/schema.h"
+#include "papuga/errors.h"
 #include <string>
 #include <cstring>
 #include <cstdlib>
@@ -18,6 +20,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <algorithm>
+#include <sys/types.h>
+#include <dirent.h>
 
 #undef PAPUGA_LOWLEVEL_DEBUG
 
@@ -41,10 +45,10 @@ static std::string readFile( const std::string& path)
 
 static void printUsage()
 {
-	std::cerr << "testLuaRequest <schema> <script> <input>\n"
-			<< "\t<script>     :Lua script file of the command\n"
-			<< "\t<schema>     :Input schema description file\n"
-			<< "\t<input>      :Input file to process\n"
+	std::cerr << "testLuaRequest <schemadir> <scriptfile> <inputfile>\n"
+			<< "\t<schemadir>    :Input schema description directory\n"
+			<< "\t<scriptfile>   :Lua script file of the command\n"
+			<< "\t<inputfile>    :Input file to process\n"
 	<< std::endl;
 }
 
@@ -58,18 +62,119 @@ static std::string baseName( const std::string& filenam)
 	return std::string( fi, ei-fi);
 }
 
+std::vector<std::string> readDirFiles( const std::string& path, const std::string& ext)
+{
+	std::vector<std::string> rt;
+	DIR *dir = ::opendir( path.c_str());
+	struct dirent *ent;
+	char errbuf[ 2014];
+
+	if (!dir)
+	{
+		std::snprintf( errbuf, sizeof(errbuf),
+				"Failed to open directory '%s': %s", path.c_str(), ::strerror( errno));
+		throw std::runtime_error( errbuf);
+	}
+	while (!!(ent = ::readdir(dir)))
+	{
+		if (ent->d_name[0] == '.') continue;
+		std::string entry( ent->d_name);
+		if (ext.size() > entry.size())
+		{
+			continue;
+		}
+		if (ext.empty() && entry[0] != '.')
+		{
+			rt.push_back( entry);
+		}
+		else if (ext.size() < entry.size())
+		{
+			const char* ee = entry.c_str() + entry.size() - ext.size();
+			if (0==std::memcmp( ee, ext.c_str(), ext.size()))
+			{
+				rt.push_back( entry );
+			}
+		}
+	}
+	std::sort( rt.begin(), rt.end(), std::less<std::string>());
+	::closedir(dir);
+	return rt;
+}
+
 static const papuga_lua_ClassEntryMap* g_cemap = nullptr;
 
-static bool runTest( const std::string& scriptFile, const std::string& schemaFile, const std::string& inputFile)
+std::pair<papuga_SchemaMap*,papuga_SchemaList*> loadSchemas( const std::string& schemaDir)
+{
+	std::vector<std::string> files = readDirFiles( schemaDir, ".psm");
+	std::vector<std::string>::const_iterator fi = files.begin(), fe = files.end();
+	std::vector<size_t> startPositions;
+	size_t startPosition = 0;
+	std::string source;
+	char errstrbuf[ 1024];
+	papuga_SchemaError errbuf;
+
+	for (; fi != fe; ++fi)
+	{
+		source.append( readFile( *fi));
+		source.push_back( '\n');
+		startPosition += source.size();
+		startPositions.push_back( startPosition);
+	}
+	papuga_init_SchemaError( &errbuf);
+
+	papuga_SchemaList* list = papuga_create_schemalist( source.c_str(), &err);
+	papuga_SchemaMap* map = papuga_create_schemamap( source.c_str(), &err);
+	if (!list || !map)
+	{
+		if (list) papuga_destroy_schemalist( list);
+		if (map) papuga_destroy_schemamap( map);
+
+		if (errbuf.line)
+		{
+			size_t fidx = 0;
+			for (; fidx < files.size(); ++fidx)
+			{
+				if (startPositions[ fidx] <= (size_t)errbuf.line) break;
+			}
+			if (fidx < files.size())
+			{
+				std::string schemaName( files[fidx].c_str(), files[fidx].size()-4);
+				std::snprintf( errstrbuf, sizeof(errstrbuf),
+						"Error in schema '%s': %s", schemaName.c_str(),
+						papuga_ErrorCode_tostring( errbuf.code));
+			}
+			else
+			{
+				std::snprintf( errstrbuf, sizeof(errstrbuf),
+						"Failed to load schemas from '%s': %s", schemaDir.c_str(),
+						papuga_ErrorCode_tostring( errbuf.code));
+			}
+		}
+		else
+		{
+			std::snprintf( errstrbuf, sizeof(errstrbuf),
+					"Failed to load schemas from '%s': %s", schemaDir.c_str(),
+					papuga_ErrorCode_tostring( errbuf.code));
+		}
+		throw std::runtime_error( errstrbuf);
+	}
+	return std::pair<papuga_SchemaMap*,papuga_SchemaList*>( map, list);
+}
+
+static bool runTest( const std::string& scriptFile, const std::string& schemaDir, const std::string& inputFile)
 {
 	std::string functionName = baseName( scriptFile);
 	std::string scriptSrc = readFile( scriptFile);
-	std::string schemaSrc = readFile( schemaFile);
 	std::string inputSrc = readFile( inputFile);
+	papuga_ErrorCode errcode = papuga_Ok;
 	papuga_ErrorBuffer errbuf;
 	char errbufbuf[ 4096];
 
-	papuga_init_ErrorBuffer( errbuf, errbufbuf, sizeof(errbufbuf));
+	std::pair<papuga_SchemaMap*,papuga_SchemaList*> schema = loadSchemas( schemaDir);
+	papuga_SchemaMap* schemaMap = schema.first;
+	papuga_SchemaMap* schemaList = schema.second;
+
+	papuga_init_ErrorBuffer( &errbuf, errbufbuf, sizeof(errbufbuf));
 
 	papuga_LuaRequestHandlerFunction* fhnd
 		= papuga_create_LuaRequestHandlerFunction(
@@ -77,21 +182,24 @@ static bool runTest( const std::string& scriptFile, const std::string& schemaFil
 	if (!fhnd) throw std::runtime_error( papuga_ErrorBuffer_lastError( &errbuf));
 
 	papuga_RequestContext* context = papuga_create_RequestContext();
-	if (!context) throw std::runtime_error( papuga_ErrorCode_tostring( papuga_NoMemError));
-
-	papuga_ContentType doctype = papuga_guess_ContentType( schemaSrc.c_str(), schemaSrc.size());
-	papuga_StringEncoding encoding = papuga_guess_StringEncoding( schemaSrc.c_str(), schemaSrc.size());
-	if (doctype == papuga_ContentType_Unknown || encoding == papuga_Binary)
+	if (!context)
 	{
+		papuga_delete_LuaRequestHandlerFunction( fhnd);
+		throw std::runtime_error( papuga_ErrorCode_tostring( papuga_NoMemError));
 	}
 
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
-			fhnd, context,
-	const papuga_Serialization* input,
-	papuga_ErrorCode* errcode);
+			fhnd, g_cemap, schemaMap, context, inputSrc.c_str(), inputSrc.size(), &errcode);
+	if (!rhnd)
+	{
+		papuga_destroy_LuaRequestHandlerFunction( fhnd);
+		papuga_destroy_RequestContext( context);
+		throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
+	}
 
 	papuga_delete_LuaRequestHandler( rhnd);
+	papuga_destroy_RequestContext( context);
 	papuga_delete_LuaRequestHandlerFunction( fhnd);
 }
 
@@ -135,11 +243,11 @@ int main( int argc, const char* argv[])
 			printUsage();
 			throw std::runtime_error( "Too many arguments");
 		}
-		std::string scriptFile = argv[ argi+0];
-		std::string schemaFile = argv[ argi+1];
+		std::string schemaDir  = argv[ argi+0];
+		std::string scriptFile = argv[ argi+1];
 		std::string inputFile  = argv[ argi+2];
 
-		if (!runTest( scriptFile, schemaFile, inputFile))
+		if (!runTest( scriptFile, schemaDir, inputFile))
 		{
 			std::cerr << "FAILED" << std::endl;
 			return 1;
