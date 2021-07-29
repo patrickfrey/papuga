@@ -29,7 +29,7 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestContext* context,
 	const char* contentstr,
-	std::size_t contentlen,
+	size_t contentlen,
 	papuga_ErrorCode* errcode)
 {
 	*errcode = papuga_NotImplemented;
