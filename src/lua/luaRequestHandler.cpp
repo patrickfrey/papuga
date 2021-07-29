@@ -9,7 +9,7 @@
 * \brief Structures for executing a request defined as Lua script
 * \file luaRequestHandler.cpp
 */
-#include "luaRequestHandler.h"
+#include "papuga/luaRequestHandler.h"
 #include "papuga/requestParser.h"
 #include "papuga/errors.h"
 #include "papuga/allocator.h"

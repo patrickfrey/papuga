@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 #include "papuga.hpp"
-#include "luaRequestHandler.h"
+#include "papuga/luaRequestHandler.h"
 #include "papuga/requestParser.h"
 #include "papuga/requestHandler.h"
 #include "papuga/schema.h"
@@ -18,6 +18,7 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <algorithm>
 #include <sys/types.h>
@@ -122,8 +123,8 @@ std::pair<papuga_SchemaMap*,papuga_SchemaList*> loadSchemas( const std::string& 
 	}
 	papuga_init_SchemaError( &errbuf);
 
-	papuga_SchemaList* list = papuga_create_schemalist( source.c_str(), &err);
-	papuga_SchemaMap* map = papuga_create_schemamap( source.c_str(), &err);
+	papuga_SchemaList* list = papuga_create_schemalist( source.c_str(), &errbuf);
+	papuga_SchemaMap* map = papuga_create_schemamap( source.c_str(), &errbuf);
 	if (!list || !map)
 	{
 		if (list) papuga_destroy_schemalist( list);
@@ -161,7 +162,7 @@ std::pair<papuga_SchemaMap*,papuga_SchemaList*> loadSchemas( const std::string& 
 	return std::pair<papuga_SchemaMap*,papuga_SchemaList*>( map, list);
 }
 
-static bool runTest( const std::string& scriptFile, const std::string& schemaDir, const std::string& inputFile)
+static void runTest( const std::string& scriptFile, const std::string& schemaDir, const std::string& inputFile)
 {
 	std::string functionName = baseName( scriptFile);
 	std::string scriptSrc = readFile( scriptFile);
@@ -172,35 +173,35 @@ static bool runTest( const std::string& scriptFile, const std::string& schemaDir
 
 	std::pair<papuga_SchemaMap*,papuga_SchemaList*> schema = loadSchemas( schemaDir);
 	papuga_SchemaMap* schemaMap = schema.first;
-	papuga_SchemaMap* schemaList = schema.second;
+	papuga_SchemaList* schemaList = schema.second;
 
 	papuga_init_ErrorBuffer( &errbuf, errbufbuf, sizeof(errbufbuf));
 
 	papuga_LuaRequestHandlerFunction* fhnd
-		= papuga_create_LuaRequestHandlerFunction(
-			functionName.c_str(), scriptSrc.c_str(), g_cemap, errbuf);
-	if (!fhnd) throw std::runtime_error( papuga_ErrorBuffer_lastError( &errbuf));
-
+		= papuga_create_LuaRequestHandlerFunction( functionName.c_str(), scriptSrc.c_str(), &errbuf);
+	if (!fhnd)
+	{
+		throw std::runtime_error( papuga_ErrorBuffer_lastError( &errbuf));
+	}
 	papuga_RequestContext* context = papuga_create_RequestContext();
 	if (!context)
 	{
-		papuga_delete_LuaRequestHandlerFunction( fhnd);
+		papuga_destroy_LuaRequestHandlerFunction( fhnd);
 		throw std::runtime_error( papuga_ErrorCode_tostring( papuga_NoMemError));
 	}
-
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
 			fhnd, g_cemap, schemaMap, context, inputSrc.c_str(), inputSrc.size(), &errcode);
 	if (!rhnd)
 	{
-		papuga_destroy_LuaRequestHandlerFunction( fhnd);
 		papuga_destroy_RequestContext( context);
+		papuga_destroy_LuaRequestHandlerFunction( fhnd);
 		throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
 	}
 
-	papuga_delete_LuaRequestHandler( rhnd);
+	papuga_destroy_LuaRequestHandler( rhnd);
 	papuga_destroy_RequestContext( context);
-	papuga_delete_LuaRequestHandlerFunction( fhnd);
+	papuga_destroy_LuaRequestHandlerFunction( fhnd);
 }
 
 
@@ -247,11 +248,8 @@ int main( int argc, const char* argv[])
 		std::string scriptFile = argv[ argi+1];
 		std::string inputFile  = argv[ argi+2];
 
-		if (!runTest( scriptFile, schemaDir, inputFile))
-		{
-			std::cerr << "FAILED" << std::endl;
-			return 1;
-		}
+		runTest( scriptFile, schemaDir, inputFile);
+
 		std::cerr << "OK" << std::endl;
 		return 0;
 	}

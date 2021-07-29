@@ -9,7 +9,7 @@
 * \brief Empty stub (if Lua support is not configured) for structures for executing a request defined as Lua script
 * \file luaRequestHandler_stub.cpp
 */
-#include "luaRequestHandler.h"
+#include "papuga/luaRequestHandler.h"
 
 papuga_LuaRequestHandlerFunction* papuga_create_LuaRequestHandlerFunction(
 	const char* functionName,

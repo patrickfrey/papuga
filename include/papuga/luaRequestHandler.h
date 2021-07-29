@@ -6,7 +6,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 /*
-* \brief Structures for executing a request defined as Lua script
+* \brief Structures for executing a request defined as Lua script, an empty stub is linked if Lua is not defined (WITH_LUA="NO")
 * \file luaRequestHandler.h
 */
 #ifndef _PAPUGA_LUA_REQUEST_HANDLER_H_INCLUDED

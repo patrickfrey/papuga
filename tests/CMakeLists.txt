@@ -8,5 +8,6 @@ add_subdirectory( serialization_doc )
 add_subdirectory( request )
 add_subdirectory( requestParser )
 add_subdirectory( schema )
+add_subdirectory( luarequest )
 
 
