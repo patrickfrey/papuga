@@ -57,7 +57,10 @@ typedef enum papuga_ErrorCode
 	papuga_MaxRecursionDepthReached=25,
 	papuga_ComplexityOfProblem=26,
 	papuga_InvalidRequest=27,
-	papuga_AttributeNotAtomic=28
+	papuga_AttributeNotAtomic=28,
+	papuga_UnknownContentType=29,
+	papuga_UnknownSchema=30,
+	papuga_MissingStructureDescription=31
 } papuga_ErrorCode;
 
 /*

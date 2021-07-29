@@ -18,6 +18,7 @@ extern "C" {
 #include "papuga/classdef.h"
 #include "papuga/errors.h"
 #include "papuga/requestHandler.h"
+#include "papuga/schema.h"
 
 #ifndef _PAPUGA_LUA_DEV_LIB_H_INCLUDED
 typedef struct papuga_lua_ClassEntryMap papuga_lua_ClassEntryMap;
@@ -29,15 +30,17 @@ typedef struct papuga_LuaRequestHandler papuga_LuaRequestHandler;
 papuga_LuaRequestHandlerFunction* papuga_create_LuaRequestHandlerFunction(
 	const char* functionName,
 	const char* source,
-	const papuga_lua_ClassEntryMap* cemap,
 	papuga_ErrorBuffer* errbuf);
 
 void papuga_delete_LuaRequestHandlerFunction( papuga_LuaRequestHandlerFunction* self);
 
 papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerFunction* function,
+	const papuga_lua_ClassEntryMap* cemap,
+	const papuga_SchemaMap* schemamap,
 	papuga_RequestContext* context,
-	const papuga_Serialization* input,
+	const char* contentstr,
+	size_t contentlen,
 	papuga_ErrorCode* errcode);
 
 void papuga_delete_LuaRequestHandler( papuga_LuaRequestHandler* self);
@@ -46,8 +49,10 @@ typedef struct papuga_DelegateRequest
 {
 	const char* requestmethod;
 	const char* url;
-	papuga_Serialization content;
-	papuga_Serialization result;
+	const char* contentstr;
+	size_t contentlen;
+	const char* resultstr;
+	size_t resultlen;
 	papuga_ErrorCode errcode;
 } papuga_DelegateRequest;
 
@@ -57,7 +62,7 @@ int papuga_LuaRequestHandler_nof_DelegateRequests( const papuga_LuaRequestHandle
 
 papuga_DelegateRequest const* papuga_LuaRequestHandler_get_delegateRequest( const papuga_LuaRequestHandler* handler, int idx);
 
-void papuga_LuaRequestHandler_init_answer( papuga_LuaRequestHandler* handler, int idx, const papuga_Serialization* output);
+void papuga_LuaRequestHandler_init_answer( papuga_LuaRequestHandler* handler, int idx, const char* resultstr, size_t resultlen);
 void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* handler, int idx, papuga_ErrorCode errcode);
 
 papuga_Serialization* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler);

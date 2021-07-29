@@ -1483,7 +1483,7 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 extern "C" bool papuga_schema_parse( papuga_Serialization* dest, papuga_Schema const* schema, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* contentstr, size_t contentlen, papuga_SchemaError* err)
 {
 	papuga_Allocator allocator;
-	int allocatormem[ 2048];
+	int allocatormem[ 4096];
 	papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
 
 	try

@@ -193,6 +193,7 @@ public:
 			}
 			else
 			{
+				if (!structs) throw ErrorException( papuga_MissingStructureDescription);
 				int ecnt = 0;
 				for (; papuga_SerializationIter_tag(&iter) != papuga_TagClose; ++ecnt)
 				{

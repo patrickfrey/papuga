@@ -1071,7 +1071,11 @@ static bool lua_push_ValueVariant( lua_State *ls, const papuga_ValueVariant* val
 	papuga_lua_UserData* udata;
 	const char* cname;
 	papuga_Iterator* itr;
-
+	if (!lua_checkstack( ls, 1))
+	{
+		*errcode = papuga_NoMemError;
+		return false;
+	}
 	switch (value->valuetype)
 	{
 		case papuga_TypeVoid:
@@ -1154,24 +1158,14 @@ DLL_PUBLIC int papuga_lua_move_CallResult( lua_State* ls, papuga_CallResult* ret
 	return retval->nofvalues;
 }
 
-DLL_PUBLIC void papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, const papuga_lua_ClassEntryMap* cemap)
+DLL_PUBLIC bool papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
-	papuga_ErrorCode errcode = papuga_Ok;
-	if (!lua_push_ValueVariant( ls, value, cemap, &errcode))
-	{
-		papuga_lua_error( ls, "push value", errcode);
-		/* exit function, lua throws (longjumps) */
-	}
+	return lua_push_ValueVariant( ls, value, cemap, errcode);
 }
 
-DLL_PUBLIC void papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* value)
+DLL_PUBLIC bool papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* value, papuga_ErrorCode* errcode)
 {
-	papuga_ErrorCode errcode = papuga_Ok;
-	if (!lua_push_ValueVariant( ls, value, NULL, &errcode))
-	{
-		papuga_lua_error( ls, "push value", errcode);
-		/* exit function, lua throws (longjumps) */
-	}
+	return lua_push_ValueVariant( ls, value, NULL/*cemap*/, errcode);
 }
 
 DLL_PUBLIC bool papuga_lua_serialize( lua_State *ls, papuga_Serialization* dest, int li, papuga_ErrorCode* errcode)

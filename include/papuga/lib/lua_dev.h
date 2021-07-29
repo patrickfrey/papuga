@@ -117,15 +117,17 @@ int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* callres,
 * @param[in,out] ls lua state context
 * @param[in] value value to push
 * @param[in] cemap class description for object meta data
+* @return true, if success, false on failure
 */
-void papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, const papuga_lua_ClassEntryMap* cemap);
+bool papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
 /*
 * @brief Push a variant value to the lua stack in plain (not accepting host objects or iterators or data without all meta data in plain)
 * @param[in,out] ls lua state context
 * @param[in] value value to push
+* @return true, if success, false on failure
 */
-void papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* value);
+bool papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* value, papuga_ErrorCode* errcode);
 
 /*
 * @brief Serialize a deep copy of a value from the lua stack

@@ -47,6 +47,16 @@ void papuga_destroy_schemamap( papuga_SchemaMap* map);
 
 papuga_Schema const* papuga_schemamap_get( const papuga_SchemaMap* map, const char* schemaname);
 
+/*
+ * @brief Parse document content according to a schema
+ * @param[in,out] schema where to append the result to
+ * @param[in] doctype document content type
+ * @param[in] encoding document content encoding
+ * @param[in] contentstr pointer to document content string
+ * @param[in] contentlen size of document content in bytes
+ * @param[out] err error code in case of failure
+ * @return true in case of success, false in case of failure
+ */
 bool papuga_schema_parse(
 		papuga_Serialization* dest,
 		papuga_Schema const* schema,
@@ -55,6 +65,14 @@ bool papuga_schema_parse(
 		const char* contentstr, size_t contentlen,
 		papuga_SchemaError* err);
 
+/*
+ * @brief Print the content of the schema automaton for debugging purposes
+ * @param[in,out] allocator allocator for the result string returned
+ * @param[in] source automaton source
+ * @param[in] schema automaton schema
+ * @param[out] err error code in case of failure
+ * @return pointer to string with content printed, nullptr in case of failure
+ */
 const char* papuga_print_schema_automaton(
 		papuga_Allocator* allocator,
 		const char* source,
