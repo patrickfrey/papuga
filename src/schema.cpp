@@ -845,7 +845,7 @@ static bool buildAutomaton(
 	return true;
 }
 
-extern "C" void papuga_destroy_schemamap( papuga_SchemaMap* map)
+extern "C" void papuga_destroy_SchemaMap( papuga_SchemaMap* map)
 {
 	for (; map->arsize > 0; --map->arsize)
 	{
@@ -910,7 +910,7 @@ extern "C" const char* papuga_print_schema_automaton( papuga_Allocator* allocato
 	return rt;
 }
 
-extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga_SchemaError* err)
+extern "C" papuga_SchemaMap* papuga_create_SchemaMap( const char* source, papuga_SchemaError* err)
 {
 	papuga_Allocator allocator;
 	papuga_init_Allocator( &allocator, 0, 0);
@@ -954,7 +954,7 @@ extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga
 			char const* schemaName = papuga_Allocator_copy_charp( &rt->allocator, ni->first.str);
 			if (!schemaName)
 			{
-				papuga_destroy_schemamap( rt);
+				papuga_destroy_SchemaMap( rt);
 				SchemaError( err, papuga_NoMemError);
 				return 0;
 			}
@@ -963,7 +963,7 @@ extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga
 			PathElement rootpath = (*schema->atm)[ rootnode->name];
 			if (!buildAutomaton( rootpath, schema, rootnode, tree, err))
 			{
-				papuga_destroy_schemamap( rt);
+				papuga_destroy_SchemaMap( rt);
 				return 0;
 			}
 			rt->arsize += 1;
@@ -972,13 +972,13 @@ extern "C" papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga
 	catch (const std::bad_alloc&)
 	{
 		SchemaError( err, papuga_NoMemError);
-		papuga_destroy_schemamap( rt);
+		papuga_destroy_SchemaMap( rt);
 		return 0;
 	}
 	return rt;
 }
 
-extern "C" papuga_Schema const* papuga_schemamap_get( const papuga_SchemaMap* map, const char* schemaname)
+extern "C" papuga_Schema const* papuga_SchemaMap_get( const papuga_SchemaMap* map, const char* schemaname)
 {
 	int si = 0, se = map->arsize;
 	for (; si != se; ++si)
@@ -991,12 +991,12 @@ extern "C" papuga_Schema const* papuga_schemamap_get( const papuga_SchemaMap* ma
 	return 0;
 }
 
-extern "C" void papuga_destroy_schemalist( papuga_SchemaList* list)
+extern "C" void papuga_destroy_SchemaList( papuga_SchemaList* list)
 {
 	papuga_destroy_Allocator( &list->allocator);
 }
 
-extern "C" papuga_SchemaList* papuga_create_schemalist( const char* source, papuga_SchemaError* err)
+extern "C" papuga_SchemaList* papuga_create_SchemaList( const char* source, papuga_SchemaError* err)
 {
 	papuga_Allocator allocator;
 	papuga_init_Allocator( &allocator, 0, 0);
@@ -1054,7 +1054,7 @@ extern "C" papuga_SchemaList* papuga_create_schemalist( const char* source, papu
 	return rt;
 }
 
-extern "C" papuga_SchemaSource const* papuga_schemalist_get( const papuga_SchemaList* list, const char* schemaname)
+extern "C" papuga_SchemaSource const* papuga_SchemaList_get( const papuga_SchemaList* list, const char* schemaname)
 {
 	papuga_SchemaSource const* si = list->ar;
 	papuga_SchemaSource const* se = list->ar + list->arsize;

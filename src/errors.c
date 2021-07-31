@@ -53,6 +53,8 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)
 		case papuga_UnknownContentType: return _TXT("cannot determine content type (XML or Json)");
 		case papuga_UnknownSchema: return _TXT("document schema not defined");
 		case papuga_MissingStructureDescription: return _TXT("cannot serialize structure with members referenced by position without having a structure description");
+		case papuga_DelegateRequestFailed: return _TXT("delegate request failed");
+		case papuga_ServiceImplementationError: return _TXT("service implementation error");
 		default: return _TXT("unknown error");
 	}
 }

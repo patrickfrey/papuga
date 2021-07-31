@@ -79,28 +79,28 @@ public:
 	explicit SchemaMap( const std::string& src)
 	{
 		papuga_SchemaError err;
-		m_map = papuga_create_schemamap( src.c_str(), &err);
+		m_map = papuga_create_SchemaMap( src.c_str(), &err);
 		if (!m_map)
 		{
 			throw SchemaException( err);
 		}
-		m_list = papuga_create_schemalist( src.c_str(), &err);
+		m_list = papuga_create_SchemaList( src.c_str(), &err);
 		if (!m_list)
 		{
-			papuga_destroy_schemamap( m_map);
+			papuga_destroy_SchemaMap( m_map);
 			throw SchemaException( err);
 		}
 	}
 	~SchemaMap()
 	{
-		papuga_destroy_schemamap( m_map);
-		papuga_destroy_schemalist( m_list);
+		papuga_destroy_SchemaMap( m_map);
+		papuga_destroy_SchemaList( m_list);
 	}
 
 	std::string source( const std::string& schemaName)
 	{
 		std::string rt;
-		papuga_SchemaSource const* source = papuga_schemalist_get( m_list, schemaName.c_str());
+		papuga_SchemaSource const* source = papuga_SchemaList_get( m_list, schemaName.c_str());
 		if (!source) throw SchemaException( papuga_AddressedItemNotFound);
 		char tbuf[ 256];
 		std::snprintf( tbuf, sizeof(tbuf), "SCHEMA lines=%d, name='%s':\n", source->lines, source->name);
@@ -135,7 +135,7 @@ public:
 	std::string process( const std::string& schemaName, const std::string& src)
 	{
 		std::string rt;
-		papuga_Schema const* schema = papuga_schemamap_get( m_map, schemaName.c_str());
+		papuga_Schema const* schema = papuga_SchemaMap_get( m_map, schemaName.c_str());
 		if (!schema) throw SchemaException( papuga_AddressedItemNotFound);
 		papuga_Allocator allocator;
 		papuga_init_Allocator( &allocator, 0, 0);

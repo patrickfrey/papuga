@@ -37,15 +37,15 @@ typedef struct  papuga_SchemaSource
 	int lines;
 } papuga_SchemaSource;
 
-papuga_SchemaList* papuga_create_schemalist( const char* source, papuga_SchemaError* err);
-void papuga_destroy_schemalist( papuga_SchemaList* list);
+papuga_SchemaList* papuga_create_SchemaList( const char* source, papuga_SchemaError* err);
+void papuga_destroy_SchemaList( papuga_SchemaList* list);
 
-papuga_SchemaSource const* papuga_schemalist_get( const papuga_SchemaList* list, const char* schemaname);
+papuga_SchemaSource const* papuga_SchemaList_get( const papuga_SchemaList* list, const char* schemaname);
 
-papuga_SchemaMap* papuga_create_schemamap( const char* source, papuga_SchemaError* err);
-void papuga_destroy_schemamap( papuga_SchemaMap* map);
+papuga_SchemaMap* papuga_create_SchemaMap( const char* source, papuga_SchemaError* err);
+void papuga_destroy_SchemaMap( papuga_SchemaMap* map);
 
-papuga_Schema const* papuga_schemamap_get( const papuga_SchemaMap* map, const char* schemaname);
+papuga_Schema const* papuga_SchemaMap_get( const papuga_SchemaMap* map, const char* schemaname);
 
 /*
  * @brief Parse document content according to a schema
