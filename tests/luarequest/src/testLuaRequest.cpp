@@ -311,7 +311,7 @@ int main( int argc, const char* argv[])
 	try
 	{
 		int argi = 1;
-		for (; argi < argc; ++argi)
+		for (; argi < argc and argv[argi][0] == '-'; ++argi)
 		{
 			if (std::strcmp( argv[argi], "-h") == 0 || std::strcmp( argv[argi], "--help") == 0)
 			{
@@ -327,6 +327,11 @@ int main( int argc, const char* argv[])
 			{
 				g_verbose = true;
 				return 0;
+			}
+			else if (std::strcmp( argv[argi], "--") == 0)
+			{
+				++argi;
+				break;
 			}
 			else
 			{

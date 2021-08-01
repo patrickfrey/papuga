@@ -11,5 +11,5 @@ link_directories(
 )
 
 add_executable( testLuaRequest testLuaRequest.cpp )
-target_link_libraries( testLuaRequest papuga_devel papuga_request_devel papuga_lua_dev ${Boost_LIBRARIES} ${Intl_LIBRARIES} )
+target_link_libraries( testLuaRequest papuga_devel papuga_request_devel papuga_lua_dev papuga_luarequest ${Boost_LIBRARIES} ${Intl_LIBRARIES} )
 

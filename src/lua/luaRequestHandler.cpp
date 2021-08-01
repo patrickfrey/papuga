@@ -124,23 +124,20 @@ static const struct luaL_Reg g_context_methods[] = {
 struct papuga_LuaRequestHandlerObject
 {
 public:
-	papuga_LuaRequestHandlerObject( std::string&& name_, std::string&& dump_, const papuga_lua_ClassEntryMap* cemap_)
-		:m_name(std::move(name_)),m_dump(std::move(dump_)),m_cemap(cemap_){}
+	papuga_LuaRequestHandlerObject( std::string&& name_, std::string&& dump_)
+		:m_name(std::move(name_)),m_dump(std::move(dump_)){}
 
 	const std::string& name() const 		{return m_name;}
 	const std::string& dump() const 		{return m_dump;}
-	const papuga_lua_ClassEntryMap* cemap() const 	{return m_cemap;}
 
 private:
 	std::string m_name;
 	std::string m_dump;
-	const papuga_lua_ClassEntryMap* m_cemap;
 };
 
-papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject(
+extern "C" papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject(
 	const char* name,
 	const char* source,
-	const papuga_lua_ClassEntryMap* cemap,
 	papuga_ErrorBuffer* errbuf)
 {
 	lua_State* ls = luaL_newstate();
@@ -174,7 +171,7 @@ papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject(
 	papuga_LuaRequestHandlerObject* rt = 0;
 	try
 	{
-		rt = new papuga_LuaRequestHandlerObject( std::string(name), std::move(dump), cemap);
+		rt = new papuga_LuaRequestHandlerObject( std::string(name), std::move(dump));
 	}
 	catch (...)
 	{
@@ -184,7 +181,7 @@ papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject(
 	return rt;
 }
 
-void papuga_destroy_LuaRequestHandlerObject( papuga_LuaRequestHandlerObject* self)
+extern "C" void papuga_destroy_LuaRequestHandlerObject( papuga_LuaRequestHandlerObject* self)
 {
 	delete self;
 }
@@ -905,7 +902,7 @@ static int papuga_lua_schema( lua_State* ls)
 	return 1;
 }
 
-papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
+extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerObject* reqobj,
 	const papuga_lua_ClassEntryMap* cemap,
 	const papuga_SchemaMap* schemamap,
@@ -930,29 +927,29 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	return rt;
 }
 
-void papuga_destroy_LuaRequestHandler( papuga_LuaRequestHandler* self)
+extern "C" void papuga_destroy_LuaRequestHandler( papuga_LuaRequestHandler* self)
 {
 	delete self;
 }
 
-bool papuga_run_LuaRequestHandler( papuga_LuaRequestHandler* handler, papuga_ErrorBuffer* errbuf)
+extern "C" bool papuga_run_LuaRequestHandler( papuga_LuaRequestHandler* handler, papuga_ErrorBuffer* errbuf)
 {
 	handler->m_start_delegates = handler->m_nof_delegates;
 	return handler->run( errbuf);
 }
 
-int papuga_LuaRequestHandler_nof_DelegateRequests( const papuga_LuaRequestHandler* handler)
+extern "C" int papuga_LuaRequestHandler_nof_DelegateRequests( const papuga_LuaRequestHandler* handler)
 {
 	return handler->m_nof_delegates - handler->m_start_delegates;
 }
 
-papuga_DelegateRequest const* papuga_LuaRequestHandler_get_delegateRequest( const papuga_LuaRequestHandler* handler, int idx)
+extern "C" papuga_DelegateRequest const* papuga_LuaRequestHandler_get_delegateRequest( const papuga_LuaRequestHandler* handler, int idx)
 {
 	if (handler->m_start_delegates + idx > handler->m_nof_delegates) return nullptr;
 	return &handler->m_delegate[ handler->m_start_delegates + idx];
 }
 
-void papuga_LuaRequestHandler_init_result( papuga_LuaRequestHandler* handler, int idx, const char* resultstr, size_t resultlen)
+extern "C" void papuga_LuaRequestHandler_init_result( papuga_LuaRequestHandler* handler, int idx, const char* resultstr, size_t resultlen)
 {
 	if (handler->m_start_delegates + idx < handler->m_nof_delegates)
 	{
@@ -971,7 +968,7 @@ void papuga_LuaRequestHandler_init_result( papuga_LuaRequestHandler* handler, in
 	}
 }
 
-void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* handler, int idx, papuga_ErrorCode errcode, const char* errmsg)
+extern "C" void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* handler, int idx, papuga_ErrorCode errcode, const char* errmsg)
 {
 	if (handler->m_start_delegates + idx < handler->m_nof_delegates)
 	{
@@ -984,7 +981,7 @@ void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* handler, int
 	}
 }
 
-const char* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler, size_t* resultlen)
+extern "C" const char* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler, size_t* resultlen)
 {
 	*resultlen = handler->m_resultlen;
 	return handler->m_resultstr;
