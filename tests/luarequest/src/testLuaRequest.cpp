@@ -45,6 +45,31 @@ static std::string readFile( const std::string& path)
 	return rt;
 }
 
+static size_t countLines( const std::string& source)
+{
+	size_t rt = 0;
+	auto si = source.begin(), se = source.end();
+	for (; si != se; ++si)
+	{
+		if (*si == '\n')
+		{
+			++rt;
+		}
+	}
+	return rt;
+}
+
+static std::string joinPath( const std::string& path, const std::string& name)
+{
+#ifdef _WIN32
+	static const char pathSeparator = '\\';
+#else
+	static const char pathSeparator = '/';
+#endif
+
+	return path + pathSeparator + name;
+}
+
 static void printUsage()
 {
 	std::cerr << "testLuaRequest <scriptdir> <schemadir> <method> <object> <input> <expect>\n"
@@ -165,10 +190,13 @@ private:
 
 		for (; fi != fe; ++fi)
 		{
-			source.append( readFile( *fi));
+			std::string fcontent = readFile( joinPath( schemaDir, *fi));
+			source.append( fcontent);
 			source.push_back( '\n');
-			startPosition += source.size();
-			startPositions.push_back( startPosition);
+			size_t flines = countLines( fcontent);
+			startPosition += flines;
+			startPositions.push_back( startPosition + 1);
+			std::cerr << "++++ SOURCE " << *fi << " +" << flines << " =" << startPosition << std::endl;
 		}
 		papuga_init_SchemaError( &errbuf);
 
@@ -179,19 +207,20 @@ private:
 			if (m_schemaList) papuga_destroy_SchemaList( m_schemaList);
 			if (m_schemaMap) papuga_destroy_SchemaMap( m_schemaMap);
 
+			std::cerr << "++++ ERROR " << errbuf.line << std::endl;
 			if (errbuf.line)
 			{
 				size_t fidx = 0;
-				for (; fidx < files.size(); ++fidx)
-				{
-					if (startPositions[ fidx] <= (size_t)errbuf.line) break;
-				}
+				for (; fidx < files.size() && startPositions[ fidx] < (size_t)errbuf.line; ++fidx){}
 				if (fidx < files.size())
 				{
+					size_t fileline = fidx == 0
+							? errbuf.line
+							: (errbuf.line - startPositions[ fidx-1]);
 					std::string schemaName( files[fidx].c_str(), files[fidx].size()-4);
 					std::snprintf( errstrbuf, sizeof(errstrbuf),
-							"Error in schema '%s': %s", schemaName.c_str(),
-							papuga_ErrorCode_tostring( errbuf.code));
+							"Error in schema '%s' at line %d: %s", schemaName.c_str(),
+							(int)fileline, papuga_ErrorCode_tostring( errbuf.code));
 				}
 				else
 				{
@@ -221,7 +250,7 @@ private:
 		for (; fi != fe; ++fi)
 		{
 			std::string scriptName = baseName( *fi);
-			std::string scriptSrc = readFile( objectDir + "/" + *fi);
+			std::string scriptSrc = readFile( joinPath( objectDir, *fi));
 
 			papuga_LuaRequestHandlerObject* object
 				= papuga_create_LuaRequestHandlerObject(
@@ -230,6 +259,7 @@ private:
 			{
 				throw std::runtime_error( papuga_ErrorBuffer_lastError( &errbuf));
 			}
+			std::cerr << "++++ OBJECT " << scriptName << std::endl;
 			m_objectMap[ scriptName] = object;
 		}
 	}
@@ -254,6 +284,7 @@ static std::string runRequest(
 	{
 		throw std::runtime_error( papuga_ErrorCode_tostring( papuga_NoMemError));
 	}
+	std::cerr << "++++ FETCH OBJECT " << objectName << std::endl;
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
 			ctx.object( objectName), g_cemap, ctx.schemaMap(), context, 

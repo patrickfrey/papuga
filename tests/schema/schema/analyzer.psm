@@ -73,7 +73,7 @@ docanalyzer = {
 		select = string
 	}},
 	field = {documentField},
-	structure = {{documentStructure}}
+	structure = {documentStructure}
 }
 
 queryAnalyzerElement = {

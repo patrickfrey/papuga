@@ -1,12 +1,12 @@
 config = {
 	extension = {
 		modules = {string}
-	}
+	},
 
 	data = {
 		workdir = string,
 		resources = string
-	}
+	},
 
 	context = {
 		trace = {
