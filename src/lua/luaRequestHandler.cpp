@@ -29,13 +29,33 @@ extern "C" {
 #include <lualib.h>
 }
 
+static papuga_ErrorCode errorFromLuaErrcode( int luares)
+{
+	if (luares == LUA_ERRSYNTAX)
+	{
+		return papuga_SyntaxError;
+	}
+	else if (luares == LUA_ERRMEM)
+	{
+		return papuga_NoMemError;
+	}
+	else if (luares == LUA_ERRRUN)
+	{
+		return papuga_ServiceImplementationError;
+	}
+	else
+	{
+		return papuga_LogicError;
+	}
+}
+
 static int luaDumpWriter( lua_State* ls, const void* p, size_t sz, void* ud)
 {
 	std::string* dump = reinterpret_cast<std::string*>(ud);
 	try
 	{
 		dump->append( (const char*)p, sz);
-		return 0;
+		return papuga_Ok;
 	}
 	catch (...)
 	{
@@ -125,36 +145,39 @@ static const struct luaL_Reg g_context_methods[] = {
 struct papuga_LuaRequestHandlerObject
 {
 public:
-	papuga_LuaRequestHandlerObject( std::string&& name_, std::string&& dump_)
-		:m_name(std::move(name_)),m_dump(std::move(dump_)){}
+	papuga_LuaRequestHandlerObject( std::string&& name_, std::string&& dump_, std::string&& source_)
+		:m_name(std::move(name_)),m_dump(std::move(dump_)),m_source(std::move(source_)){}
 
 	const std::string& name() const 		{return m_name;}
 	const std::string& dump() const 		{return m_dump;}
+	const std::string& source() const 		{return m_source;}
 
 private:
 	std::string m_name;
 	std::string m_dump;
+	std::string m_source;
 };
 
 extern "C" papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject(
 	const char* name,
-	const char* source,
+	const char* sourcestr,
 	papuga_ErrorBuffer* errbuf)
 {
 	lua_State* ls = luaL_newstate();
 	if (!ls) 
 	{
 		papuga_ErrorBuffer_reportError( errbuf, "failed to create lua state");
-		return 0;
+		return nullptr;
 	}
 	createMetatable( ls, g_request_metatable_name, g_request_methods);
 	createMetatable( ls, g_context_metatable_name, g_context_methods);
-	if (luaL_loadbuffer( ls, source, std::strlen(source), name))
+	std::string source( sourcestr);
+	if (luaL_loadbuffer( ls, source.c_str(), source.size(), name))
 	{
 		const char* msg = lua_tostring( ls, -1);
 		papuga_ErrorBuffer_reportError( errbuf, "failed to load Lua request handler object '%s': %s", name, msg);
 		lua_close( ls);
-		return 0;
+		return nullptr;
 	}
 	#ifdef NDEBUG
 	enum {Strip=0};
@@ -167,17 +190,17 @@ extern "C" papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject
 	if (errcode != papuga_Ok)
 	{
 		papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
-		return 0;
+		return nullptr;
 	}
-	papuga_LuaRequestHandlerObject* rt = 0;
+	papuga_LuaRequestHandlerObject* rt = nullptr;
 	try
 	{
-		rt = new papuga_LuaRequestHandlerObject( std::string(name), std::move(dump));
+		rt = new papuga_LuaRequestHandlerObject( std::string(name), std::move(dump), std::move(source));
 	}
 	catch (...)
 	{
 		papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( papuga_NoMemError));
-		rt = 0;
+		rt = nullptr;
 	}
 	return rt;
 }
@@ -255,6 +278,21 @@ struct papuga_LuaRequestHandler
 		lua_pop( m_ls, 1);
 	}
 
+	void dumpScriptFunctions( const char* prefix, std::ostream& out)
+	{
+		lua_rawgeti( m_ls, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
+		lua_pushnil( m_ls);
+		while (lua_next( m_ls, -2))
+		{
+			if (lua_isfunction( m_ls, -1) && lua_type( m_ls, -2) == LUA_TSTRING)
+			{
+				out << prefix << lua_tostring( m_ls, -2) << std::endl;
+			}
+			lua_pop( m_ls, 1);
+		}
+		lua_pop( m_ls, 1);
+	}
+
 	bool init(
 			const papuga_LuaRequestHandlerObject* reqobj,
 			const char* requestmethod,
@@ -265,26 +303,27 @@ struct papuga_LuaRequestHandler
 	{
 		LuaDumpReader reader( reqobj->dump());
 		int res = lua_load( m_ls, luaDumpReader, (void*)&reader, reqobj->name().c_str(), "b"/*mode binary*/);
-		if (res)
+		if (res != LUA_OK)
 		{
-			if (res == LUA_ERRSYNTAX)
-			{
-				*errcode = papuga_SyntaxError;
-			}
-			else if (res == LUA_ERRMEM)
-			{
-				*errcode = papuga_NoMemError;
-			}
-			else
-			{
-				*errcode = papuga_LogicError;
-			}
+			*errcode = errorFromLuaErrcode( res);
+			return false;
+		}
+		res = lua_pcall( m_ls, 0, LUA_MULTRET, 0);
+		if (res != LUA_OK)
+		{
+			*errcode = errorFromLuaErrcode( res);
 			return false;
 		}
 		m_thread = lua_newthread( m_ls);
 		lua_pushvalue( m_ls, -1);
 		m_threadref = luaL_ref( m_ls, LUA_REGISTRYINDEX);
 		lua_getglobal( m_thread, requestmethod);
+		if (lua_type( m_thread, -1) != LUA_TFUNCTION)
+		{
+			*errcode = papuga_AddressedItemNotFound;
+			lua_pop( m_thread, 1);
+			return false;
+		}
 		papuga_lua_new_context( m_ls, m_context, cemap);
 		lua_pushlstring( m_ls, contentstr, contentlen);
 		return true;
