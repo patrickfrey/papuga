@@ -21,6 +21,7 @@
 #include <stdexcept>
 #include <new>
 #include <cstring>
+#include <iostream>
 
 extern "C" {
 #include <lua.h>
@@ -240,7 +241,7 @@ struct papuga_LuaRequestHandler
 		,m_doctype(papuga_ContentType_Unknown),m_encoding(papuga_Binary),m_contentDefined(0)
 	{
 		papuga_init_Allocator( &m_allocator, m_allocatormem, sizeof(m_allocatormem));
-		m_ls = lua_newstate( allocFunction, this);
+		m_ls = lua_newstate( customAllocFunction, this);
 		luaL_openlibs( m_ls);
 
 		lua_getglobal( m_ls, "_G");
@@ -449,11 +450,11 @@ struct papuga_LuaRequestHandler
 		return nullptr;
 	}
 
-	enum AllocClass {AllocClassNone=0,AllocClassTiny=16,AllocClassSmall=64,AllocClassMedium=256};
+	enum AllocClass {AllocClassNone=-1,AllocClassNothing=0,AllocClassTiny=8,AllocClassSmall=64,AllocClassMedium=256};
 	static AllocClass getAllocClass( std::size_t memsize)
 	{
 		return  (memsize <= (size_t)AllocClassTiny)
-			? AllocClassTiny
+			? (memsize == 0 ? AllocClassNothing : AllocClassTiny)
 			: ((memsize <= (size_t)AllocClassSmall)
 				? AllocClassSmall
 				: ((memsize <= (size_t)AllocClassMedium)
@@ -462,36 +463,51 @@ struct papuga_LuaRequestHandler
 				)
 			);
 	}
-	void* thisAllocFunction( void *ptr, size_t osize, size_t nsize)
+	void* customAllocFunction( void *ptr, size_t osize, size_t nsize)
 	{
 		void* rt = 0;
-		if (ptr)
+		if (nsize == 0)
 		{
-			AllocClass oc = getAllocClass( osize);
-			AllocClass nc = getAllocClass( nsize);
-			if (nc == oc)
+			return nullptr; //... AllocClassNothing
+		}
+		AllocClass oc = getAllocClass( osize);
+		AllocClass nc = getAllocClass( nsize);
+		if (nc == AllocClassNone)
+		{
+			if (nsize <= osize)
 			{
 				rt = ptr;
 			}
 			else
 			{
 				rt = papuga_Allocator_alloc( &m_allocator, nsize, 0);
-				if (rt)
+				if (rt && ptr)
 				{
-					std::memcpy( rt, ptr, (osize < nsize) ? osize : nsize);
+					std::memcpy( rt, ptr, osize);
 				}
 			}
 		}
+		else if (nc == oc && ptr)
+		{
+			rt = ptr;
+		}
 		else
 		{
-			rt = papuga_Allocator_alloc( &m_allocator, nsize, 0);
-			
+			rt = papuga_Allocator_alloc( &m_allocator, nc, 0);
+			if (rt && ptr)
+			{
+				std::memcpy( rt, ptr, (osize < nsize) ? osize : nsize);
+			}
 		}
 		return rt;
 	}
-	static void* allocFunction( void *ud, void *ptr, size_t osize, size_t nsize)
+	static void* mallocAllocFunction( void *ud, void *ptr, size_t osize, size_t nsize)
 	{
-		return ((papuga_LuaRequestHandler*)ud)->thisAllocFunction( ptr, osize, nsize);
+		return ::realloc( ptr, nsize);
+	}
+	static void* customAllocFunction( void *ud, void *ptr, size_t osize, size_t nsize)
+	{
+		return ((papuga_LuaRequestHandler*)ud)->customAllocFunction( ptr, osize, nsize);
 	}
 };
 

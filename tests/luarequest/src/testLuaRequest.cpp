@@ -196,7 +196,6 @@ private:
 			size_t flines = countLines( fcontent);
 			startPosition += flines;
 			startPositions.push_back( startPosition + 1);
-			std::cerr << "++++ SOURCE " << *fi << " +" << flines << " =" << startPosition << std::endl;
 		}
 		papuga_init_SchemaError( &errbuf);
 
@@ -207,7 +206,6 @@ private:
 			if (m_schemaList) papuga_destroy_SchemaList( m_schemaList);
 			if (m_schemaMap) papuga_destroy_SchemaMap( m_schemaMap);
 
-			std::cerr << "++++ ERROR " << errbuf.line << std::endl;
 			if (errbuf.line)
 			{
 				size_t fidx = 0;
@@ -259,7 +257,6 @@ private:
 			{
 				throw std::runtime_error( papuga_ErrorBuffer_lastError( &errbuf));
 			}
-			std::cerr << "++++ OBJECT " << scriptName << std::endl;
 			m_objectMap[ scriptName] = object;
 		}
 	}
@@ -284,7 +281,6 @@ static std::string runRequest(
 	{
 		throw std::runtime_error( papuga_ErrorCode_tostring( papuga_NoMemError));
 	}
-	std::cerr << "++++ FETCH OBJECT " << objectName << std::endl;
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
 			ctx.object( objectName), g_cemap, ctx.schemaMap(), context, 
