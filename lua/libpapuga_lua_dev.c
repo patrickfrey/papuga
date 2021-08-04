@@ -1168,6 +1168,11 @@ DLL_PUBLIC bool papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVa
 	return lua_push_ValueVariant( ls, value, NULL/*cemap*/, errcode);
 }
 
+DLL_PUBLIC bool papuga_lua_push_serialization( lua_State *ls, const papuga_Serialization* ser, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+{
+	return deserialize_root( (papuga_Serialization*)ser, ls, cemap, errcode);
+}
+
 DLL_PUBLIC bool papuga_lua_serialize( lua_State *ls, papuga_Serialization* dest, int li, papuga_ErrorCode* errcode)
 {
 	bool rt = true;

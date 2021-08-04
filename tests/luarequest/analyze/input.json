@@ -1,0 +1,27 @@
+{"query" : {
+	"feature" : [
+		{"set": "term", "weight": 1.0, "content" : {"type":"word", "value":"I"}},
+		{"set": "term", "weight": 1.0, "content" : {"type":"word", "value":"love"}},
+		{"set": "term", "weight": 1.0, "content" : {"type":"word", "value":"Zurich"}}
+	],
+	"restriction" : {
+		"content" : {
+			"condition" : {
+				"op": "<=",
+				"name": "date",
+				"value": "20210901"
+			}
+		},
+	},
+	"termstats" : [
+		{"type": "word", "value": "i", "df": 98},
+		{"type": "word", "value": "love", "df": 12},
+		{"type": "word", "value": "zurich", "df": 3}
+	],
+	"globalstats": {
+		"nofdocs": 100,
+	},
+	"nofranks" : 20,
+	"minrank" : 1,
+	"mergeres" : false
+}}

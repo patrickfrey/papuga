@@ -130,6 +130,15 @@ bool papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, con
 bool papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* value, papuga_ErrorCode* errcode);
 
 /*
+* @brief Push a serialization as table to the lua stack
+* @param[in,out] ls lua state context
+* @param[in] ser serialization to push
+* @param[in] cemap class description for object meta data
+* @return true, if success, false on failure
+*/
+bool papuga_lua_push_serialization( lua_State *ls, const papuga_Serialization* ser, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+
+/*
 * @brief Serialize a deep copy of a value from the lua stack
 * @param[in,out] ls lua state context
 * @param[out] dest destination for result
