@@ -180,7 +180,7 @@ void printUsage()
 
 }
 
-std::string normalizeOutput( const std::string& output)
+static std::string normalizeOutput( const std::string& output)
 {
 	std::string rt;
 	auto oi = output.begin(), oe = output.end();
@@ -260,8 +260,11 @@ int main( int argc, const char* argv[])
 		std::string expectSrc = readFile( expectFile);
 		SchemaMap schemaMap( schemaSrc);
 		std::string dump = schemaMap.source( schemaName) + schemaMap.dump( schemaSrc, schemaName);
+		if (g_verbose)
+		{
+			std::cerr << "DUMP:\n" << dump << "\n--\n" << std::endl;
+		}
 		std::string output = schemaMap.process( schemaName, inputSrc);
-		;
 		if (normalizeOutput( output) != normalizeOutput( expectSrc))
 		{
 			if (g_verbose)
@@ -275,9 +278,7 @@ int main( int argc, const char* argv[])
 		}
 		else if (g_verbose)
 		{
-			std::cerr
-				<< "DUMP:\n" << dump << "\n--\n"
-				<< "OUTPUT:\n" << output << "\n--\n";
+			std::cerr << "OUTPUT:\n" << output << "\n--\n" << std::endl;
 		}
 		std::cerr << "OK" << std::endl;
 		return 0;

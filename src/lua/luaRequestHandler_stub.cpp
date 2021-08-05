@@ -31,6 +31,8 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const char* requestmethod,
 	const char* contentstr,
 	size_t contentlen,
+	bool beautifiedOutput,
+	bool deterministicOutput,
 	papuga_ErrorCode* errcode)
 {
 	*errcode = papuga_NotImplemented;

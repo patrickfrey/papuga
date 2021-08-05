@@ -45,6 +45,14 @@ struct BitSet
 	{
 		val |= (1 << (bit-1));
 	}
+	BitSet operator + ( const BitSet& o) const
+	{
+		return BitSet( val | o.val);
+	}
+	BitSet operator - ( const BitSet& o) const
+	{
+		return BitSet( val & ~o.val);
+	}
 	struct const_iterator
 	{
 		uint64_t val;
@@ -75,7 +83,7 @@ struct BitSet
 		}
 		void skip()
 		{
-			val &= ((1 << (idx-1)) - 1);
+			val &= ~(1 << (idx-1));
 			idx = ::ffsl( val);
 		}
 	};
@@ -141,7 +149,7 @@ struct SchemaOperation
 	uint64_t mask;
 };
 
-bool SchemaError( papuga_SchemaError* err, papuga_ErrorCode errcode, int line=0, const char* itm=0, int itmlen=0)
+static bool SchemaError( papuga_SchemaError* err, papuga_ErrorCode errcode, int line=0, const char* itm=0, int itmlen=0)
 {
 	err->code = errcode;
 	err->line = line;
@@ -174,7 +182,7 @@ static int errorLine( char const* start, char const* ptr)
 	return rt+1;
 }
 
-bool RequestParserError( papuga_SchemaError* err, papuga_ErrorCode errcode, papuga_RequestParser* parser, char* contentstr)
+static bool RequestParserError( papuga_SchemaError* err, papuga_ErrorCode errcode, papuga_RequestParser* parser, const char* contentstr)
 {
 	char errlocation[ 1024];
 	int pos = papuga_RequestParser_get_position( parser, errlocation, sizeof(errlocation));
@@ -650,6 +658,7 @@ static bool buildSelectExpressionMap(
 		SchemaNode const* node,
 		const SchemaTree& tree,
 		int select,
+		const BitSet& visited,
 		papuga_SchemaError* err)
 {
 	SchemaNode const* nd = node;
@@ -743,7 +752,7 @@ static bool buildSelectExpressionMap(
 					return SchemaError( err, papuga_AddressedItemNotFound, 0/*no line info*/, nd->typnam);
 				}
 				else
-				{					
+				{	
 					SchemaOperation::Id vopen,vclose;
 					if (nd->array)
 					{
@@ -757,7 +766,10 @@ static bool buildSelectExpressionMap(
 					}
 					if (!addOperation( opmap, key, vopen, itr->second.val, select, err)) return false;
 
-					BitSet::const_iterator bi = itr->second.begin(), be = itr->second.end();
+					BitSet new_visited = itr->second + visited;
+					BitSet to_visit = itr->second - visited;
+
+					BitSet::const_iterator bi = to_visit.begin(), be = to_visit.end();
 					for (; bi != be; ++bi)
 					{
 						SchemaNode const* chld = tree.nodear[ *bi-1]->chld;
@@ -765,7 +777,7 @@ static bool buildSelectExpressionMap(
 						{
 							return SchemaError( err, papuga_StructureExpected, 0, key.c_str());
 						}
-						if (!buildSelectExpressionMap( opmap, path + "//" + nd->name, chld, tree, *bi, err))
+						if (!buildSelectExpressionMap( opmap, path + "//" + nd->name, chld, tree, *bi, new_visited, err))
 						{
 							return false;
 						}
@@ -788,7 +800,7 @@ static bool buildSelectExpressionMap(
 				vclose = SchemaOperation::CloseStructure;
 			}
 			if (!addOperation( opmap, key, vopen, 0, select, err)
-			||  !buildSelectExpressionMap( opmap, key, nd->chld, tree, select, err)
+			||  !buildSelectExpressionMap( opmap, key, nd->chld, tree, select, visited, err)
 			||  !addOperation( opmap, key + "~", vclose, 0, select, err))
 			{
 				return false;
@@ -828,7 +840,7 @@ static bool buildAutomaton(
 		papuga_SchemaError* err)
 {
 	std::map<std::string,SchemaOperation> opmap;
-	if (!buildSelectExpressionMap( opmap, "", node, tree, 0/*select*/, err))
+	if (!buildSelectExpressionMap( opmap, "", node, tree, 0/*select*/, BitSet()/*visited*/, err))
 	{
 		return false;
 	}
@@ -845,6 +857,41 @@ static bool buildAutomaton(
 	return true;
 }
 
+static void printSchemaTreeDump( std::string& output, SchemaNode const* node, const std::string& indent)
+{
+	output.append( indent);
+	if (node->attribute)
+	{
+		output.append( "@");
+	}
+	if (node->name)
+	{
+		output.append( node->name);
+	}
+	if (node->typnam)
+	{
+		output.append( "=");
+		output.append( node->typnam);
+	}
+	if (node->array)
+	{
+		output.append( "[]");
+	}
+	if (node->chld)
+	{
+		printSchemaTreeDump( output, node->chld, indent + "  ");
+	}
+	if (node->next)
+	{
+		SchemaNode const* nd = node->next;
+		for (;nd;nd=nd->next)
+		{
+			output.append( ",");
+			printSchemaTreeDump( output, nd, indent);
+		}
+	}
+}
+				 
 extern "C" void papuga_destroy_SchemaMap( papuga_SchemaMap* map)
 {
 	for (; map->arsize > 0; --map->arsize)
@@ -859,6 +906,7 @@ extern "C" const char* papuga_print_schema_automaton( papuga_Allocator* allocato
 	const char* rt = 0;
 	try
 	{
+		std::string res;
 		SchemaTree tree;
 		if (!parseSchemaTree( tree, source, err))
 		{
@@ -878,13 +926,17 @@ extern "C" const char* papuga_print_schema_automaton( papuga_Allocator* allocato
 			return 0;
 		}
 		SchemaNode const* rootnode = tree.nodear[ rootidx-1];
+		res.append( "Tree:");
+		printSchemaTreeDump( res, rootnode, "\n");
+		res.append( "\n\n");
 
 		std::map<std::string,SchemaOperation> opmap;
-		if (!buildSelectExpressionMap( opmap, "", rootnode, tree, 0/*select*/, err))
+		if (!buildSelectExpressionMap( opmap, "", rootnode, tree, 0/*select*/, BitSet()/*visited*/, err))
 		{
 			return 0;
 		}
-		std::string res;
+
+		res.append( "Automaton:\n");
 		auto oi = opmap.begin(), oe = opmap.end();
 		for (; oi != oe; ++oi)
 		{
@@ -1163,7 +1215,8 @@ static bool parseRequest( std::vector<RequestElement>& res, papuga_Allocator* al
 			return SchemaError( err, papuga_NoMemError);
 		}
 	}
-	return true;
+	papuga_ErrorCode parseError = papuga_RequestParser_last_error( parser);
+	return (parseError == papuga_Ok) ? true : RequestParserError( err, parseError, parser, contentstr);
 }
 
 static bool RequestProcessError( papuga_SchemaError* err, papuga_ErrorCode errcode, const std::vector<RequestElement>& request, std::size_t idx)
@@ -1271,7 +1324,9 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 		for (*itr; *itr; ++itr,++nofEvents)
 		{
 			const SchemaOperation& op = schema->ops[ *itr-1];
-			if (op.mask)
+			if (op.mask
+			&&  op.id != SchemaOperation::CloseNamedStructureArray
+			&&  op.id != SchemaOperation::CloseNamedStructure)
 			{
 				if (setStack.empty())
 				{

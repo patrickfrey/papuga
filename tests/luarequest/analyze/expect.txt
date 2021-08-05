@@ -1,0 +1,29 @@
+{
+"query":{
+	"feature":[
+		{
+			"weight": 1,
+			"set": "term",
+			"analyzed":{
+				"value": "zurich",
+				"type": "word"},
+			"content":{
+				"value": "Zurich",
+				"type": "word"}}],
+	"nofranks": 20,
+	"mergeres": 0,
+	"minrank": 1,
+	"termstats":{
+		"value": "zurich",
+		"type": "word",
+		"df": 3},
+	"restriction":[
+		{
+			"content":{
+				"condition":[
+					{
+						"value": "20210901",
+						"op": "<=",
+						"name": "date"}]}}],
+	"globalstats":{
+		"nofdocs": 100}}}

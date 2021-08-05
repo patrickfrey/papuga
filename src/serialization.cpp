@@ -496,3 +496,150 @@ std::string papuga::Serialization_tostring_deterministic( const papuga_Serializa
 	}
 }
 
+struct NameMapElement
+{
+	papuga_SerializationIter from;
+	papuga_SerializationIter to;
+
+	NameMapElement()
+	{
+		papuga_init_SerializationIter_empty( &from);
+		papuga_init_SerializationIter_empty( &to);
+	}
+	NameMapElement( const papuga_SerializationIter& from_, const papuga_SerializationIter& to_)
+	{
+		papuga_init_SerializationIter_copy( &from, &from_);
+		papuga_init_SerializationIter_copy( &to, &to_);
+	}
+	NameMapElement( const NameMapElement& o)
+	{
+		papuga_init_SerializationIter_copy( &from, &o.from);
+		papuga_init_SerializationIter_copy( &to, &o.to);
+	}
+};
+
+static bool addNameMap( std::map<std::string,NameMapElement>& keyElementMap, papuga_SerializationIter& itr, papuga_ErrorCode* errcode)
+{
+	try
+	{
+		papuga_Allocator allocator;
+		int allocatormem[ 1024];
+		papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
+
+		size_t namelen;
+		const papuga_ValueVariant* nameval = papuga_SerializationIter_value( &itr);
+		const char* namestr = papuga_ValueVariant_tostring( nameval, &allocator, &namelen, errcode);
+		if (namestr == nullptr) return false;
+		papuga_SerializationIter_skip( &itr);
+		papuga_SerializationIter start;
+		papuga_init_SerializationIter_copy( &start, &itr);
+		if (!papuga_SerializationIter_skip_structure( &itr))
+		{
+			*errcode = papuga_SyntaxError;
+			return false;
+		}
+		keyElementMap[ namestr] = NameMapElement( start, itr);
+		return true;
+	}
+	catch (...)
+	{
+		*errcode = papuga_NoMemError;
+		return false;
+	}
+}
+
+static bool SerializationIter_copy_deterministic( papuga_Serialization* dest, const papuga_SerializationIter& from, const papuga_SerializationIter& to, papuga_ErrorCode* errcode)
+{
+	int cnt = 0;
+	int opn = 0;
+	papuga_SerializationIter itr;
+	papuga_SerializationIter cpy;
+	papuga_init_SerializationIter_copy( &itr, &from);
+	while (!papuga_SerializationIter_isequal( &itr, &to))
+	{
+		++cnt;
+		switch (papuga_SerializationIter_tag( &itr))
+		{
+			case papuga_TagOpen:
+				opn = cnt;
+				papuga_init_SerializationIter_copy( &cpy, &itr);
+				/*no break here!!!*/
+			case papuga_TagValue:
+			case papuga_TagClose:
+				if (!papuga_Serialization_push_node( dest, papuga_SerializationIter_node( &itr)))
+				{
+					*errcode = papuga_NoMemError;
+					return false;
+				}
+				break;
+			case papuga_TagName:
+				if (cnt != opn+1)
+				{
+					*errcode = papuga_SyntaxError;
+					return false;
+				}
+				else
+				{
+					std::map<std::string,NameMapElement> keyElementMap;
+					while (papuga_SerializationIter_tag( &itr) == papuga_TagName)
+					{
+						if (!addNameMap( keyElementMap, itr, errcode))
+						{
+							return false;
+						}
+					}
+					auto ki = keyElementMap.begin(), ke = keyElementMap.end();
+					for (; ki != ke; ++ki)
+					{
+						char* namestr = papuga_Allocator_copy_string( dest->allocator, ki->first.c_str(), ki->first.size());
+						if (!papuga_Serialization_pushName_string( dest, namestr, ki->first.size()))
+						{
+							*errcode = papuga_NoMemError;
+							return false;
+						}
+						papuga_SerializationIter eitr;
+						papuga_init_SerializationIter_copy( &eitr, &ki->second.from);
+						while (!papuga_SerializationIter_isequal( &eitr, &ki->second.to))
+						{
+							if (!papuga_Serialization_push_node( dest, papuga_SerializationIter_node( &eitr)))
+							{
+								*errcode = papuga_NoMemError;
+								return false;
+							}
+							papuga_SerializationIter_skip( &eitr);
+						}
+					}
+					if (papuga_SerializationIter_tag( &itr) != papuga_TagClose)
+					{
+						*errcode = papuga_SyntaxError;
+						return false;
+					}
+					if (!papuga_Serialization_pushClose( dest))
+					{
+						*errcode = papuga_NoMemError;
+						return false;
+					}
+				}
+				break;
+		}
+		papuga_SerializationIter_skip( &itr);
+	}
+	return true;
+}
+
+extern "C" bool papuga_Serialization_copy_deterministic( papuga_Serialization* dest, const papuga_Serialization* ser, papuga_ErrorCode* errcode)
+{
+	try
+	{
+		papuga_SerializationIter start;
+		papuga_SerializationIter end;
+		papuga_init_SerializationIter( &start, ser);
+		papuga_init_SerializationIter_end( &end, ser);
+		return SerializationIter_copy_deterministic( dest, start, end, errcode);
+	}
+	catch (const std::bad_alloc&)
+	{
+		*errcode = papuga_NoMemError;
+		return false;
+	}
+}

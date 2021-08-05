@@ -243,6 +243,8 @@ struct papuga_LuaRequestHandler
 	lua_State* m_thread;
 	int m_threadref;
 	bool m_running;
+	bool m_beautifiedOutput;
+	bool m_deterministicOutput;
 	papuga_RequestContext* m_context;
 	papuga_Allocator m_allocator;
 	papuga_DelegateRequest m_delegate[ MaxNofDelegates];
@@ -257,8 +259,11 @@ struct papuga_LuaRequestHandler
 
 	papuga_LuaRequestHandler( 
 			papuga_RequestContext* context_, 
-			const papuga_SchemaMap* schemamap)
+			const papuga_SchemaMap* schemamap,
+			bool beautifiedOutput_,
+			bool deterministicOutput_)
 		:m_ls(nullptr),m_thread(nullptr),m_threadref(0),m_running(false)
+		,m_beautifiedOutput(beautifiedOutput_),m_deterministicOutput(deterministicOutput_)
 		,m_context(context_),m_nof_delegates(0),m_start_delegates(0)
 		,m_resultstr(nullptr),m_resultlen(0)
 		,m_doctype(papuga_ContentType_Unknown),m_encoding(papuga_Binary),m_contentDefined(0)
@@ -349,6 +354,7 @@ struct papuga_LuaRequestHandler
 		m_running = true;
 		papuga_ErrorCode errcode = papuga_Ok;
 		papuga_ValueVariant resultval;
+		papuga_Serialization detser;
 		int nresults = 0;
 		switch (resume( nof_args, nresults))
 		{
@@ -364,6 +370,16 @@ struct papuga_LuaRequestHandler
 				{
 					if (papuga_lua_value( m_thread, &resultval, &m_allocator, -1, &errcode))
 					{
+						if (m_deterministicOutput && resultval.valuetype == papuga_TypeSerialization)
+						{
+							papuga_init_Serialization( &detser, &m_allocator);
+							if (!papuga_Serialization_copy_deterministic( &detser, resultval.value.serialization, &errcode))
+							{
+								papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
+								return false;
+							}
+							resultval.value.serialization = &detser;
+						}
 						m_resultstr = getOutputString( resultval, &m_resultlen, &errcode);
 						if (!m_resultstr && errcode != papuga_Ok)
 						{
@@ -381,7 +397,7 @@ struct papuga_LuaRequestHandler
 			default:
 				msg = lua_tostring( m_thread, -1);
 				papuga_ErrorBuffer_reportError( errbuf, msg);
-				return true;
+				return false;
 		}
 	}
 
@@ -405,7 +421,7 @@ struct papuga_LuaRequestHandler
 		req->resultlen = 0;
 		req->contentstr = (char*)papuga_ValueVariant_tojson(
 					content, &m_allocator, nullptr/*structdefs*/,
-					papuga_UTF8, false, nullptr/*rooname*/, "item"/*elemname*/, 
+					papuga_UTF8, m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
 					&req->contentlen, &req->errcode);
 		if (!req->contentstr)
 		{
@@ -453,9 +469,6 @@ struct papuga_LuaRequestHandler
 		}
 		else if (m_contentDefined == 1)
 		{
-			/*[-]*/std::string dump = papuga::ValueVariant_todump( result, nullptr/*structdefs*/, *errcode);
-			/*[-]*/std::cerr << "++++ RESULT DUMP:\n" << dump << std::endl;
-
 			papuga_StringEncoding encoding = (m_encoding == papuga_Binary) ? papuga_UTF8 : m_encoding;
 			switch (m_doctype)
 			{
@@ -463,13 +476,13 @@ struct papuga_LuaRequestHandler
 				case papuga_ContentType_JSON:
 					return (char*)papuga_ValueVariant_tojson(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, false, nullptr/*rooname*/, "item"/*elemname*/, 
+							encoding, m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
 							resultlen, errcode);
 					break;
 				case papuga_ContentType_XML:
 					return (char*)papuga_ValueVariant_toxml(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, false, nullptr/*rooname*/, "item"/*elemname*/, 
+							encoding, m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
 							resultlen, errcode);
 					break;
 			}
@@ -792,13 +805,13 @@ static int papuga_lua_document( lua_State* ls)
 		case papuga_ContentType_JSON:
 			docstr = (char*)papuga_ValueVariant_tojson(
 					&doc, &reqhnd->m_allocator, nullptr/*structdefs*/,
-					encoding, false, nullptr/*rooname*/, "item"/*elemname*/, 
+					encoding, reqhnd->m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
 					&doclen, &errcode);
 			break;
 		case papuga_ContentType_XML:
 			docstr = (char*)papuga_ValueVariant_toxml(
 					&doc, &reqhnd->m_allocator, nullptr/*structdefs*/,
-					encoding, false, nullptr/*rooname*/, "item"/*elemname*/, 
+					encoding, reqhnd->m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
 					&doclen, &errcode);
 			break;
 	}
@@ -955,10 +968,12 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const char* requestmethod,
 	const char* contentstr,
 	std::size_t contentlen,
+	bool beautifiedOutput,
+	bool deterministicOutput,
 	papuga_ErrorCode* errcode)
 {
 	papuga_LuaRequestHandler* rt = 0;
-	rt = new (std::nothrow) papuga_LuaRequestHandler( context, schemamap);
+	rt = new (std::nothrow) papuga_LuaRequestHandler( context, schemamap, beautifiedOutput, deterministicOutput);
 	if (!rt)
 	{
 		*errcode = papuga_NoMemError;

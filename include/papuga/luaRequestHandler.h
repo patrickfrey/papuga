@@ -42,6 +42,8 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const char* requestmethod,
 	const char* contentstr,
 	size_t contentlen,
+	bool beautifiedOutput,
+	bool deterministicOutput,
 	papuga_ErrorCode* errcode);
 
 void papuga_destroy_LuaRequestHandler( papuga_LuaRequestHandler* self);

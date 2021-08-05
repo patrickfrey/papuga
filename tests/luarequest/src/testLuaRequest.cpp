@@ -284,7 +284,7 @@ static std::string runRequest(
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
 			ctx.object( objectName), g_cemap, ctx.schemaMap(), context, 
-			requestMethod, contentstr, contentlen, &errcode);
+			requestMethod, contentstr, contentlen, true/*beautified*/, true/*deterministic*/, &errcode);
 	if (!rhnd)
 	{
 		papuga_destroy_RequestContext( context);
@@ -326,11 +326,56 @@ static std::string runRequest(
 	return std::string( resultstr, resultlen);
 }
 
+static std::string normalizeOutput( const std::string& output)
+{
+	std::string rt;
+	auto oi = output.begin(), oe = output.end();
+	for (; oi != oe; ++oi)
+	{
+		int spaces = 0;
+		int eolns = 0;
+		while (oi != oe && (unsigned char)*oi <= 32)
+		{
+			if (*oi == '\n') {++eolns;}
+			++oi;
+			++spaces;
+		}
+		if (eolns)
+		{
+			rt.push_back( '\n');
+		}
+		else if (spaces)
+		{
+			rt.push_back( ' ');
+		}
+		if (oi == oe) break;
+		rt.push_back( *oi);
+	}
+	return rt;
+}
+
 static void runTest( const std::string& scriptDir, const std::string& schemaDir, const std::string& method, const std::string& object, const std::string& inputFile, const std::string& expectFile)
 {
 	std::string inputSrc = readFile( inputFile);
+	std::string expectSrc = readFile( expectFile);
 	GlobalContext ctx( schemaDir, scriptDir);
-	std::string result = runRequest( ctx, method.c_str(), object.c_str(), inputSrc.c_str(), inputSrc.size());
+	std::string output = runRequest( ctx, method.c_str(), object.c_str(), inputSrc.c_str(), inputSrc.size());
+
+	if (normalizeOutput( output) != normalizeOutput( expectSrc))
+	{
+		if (g_verbose)
+		{
+			std::cerr
+				<< "OUTPUT:\n" << output << "\n--\n"
+				<< "EXPECT:\n" << expectSrc << "\n--\n"
+				<< std::endl;
+		}
+		throw std::runtime_error( "Different output than expected");
+	}
+	else if (g_verbose)
+	{
+		std::cerr << "OUTPUT:\n" << output << "\n--\n" << std::endl;
+	}
 }
 
 int main( int argc, const char* argv[])
@@ -348,12 +393,6 @@ int main( int argc, const char* argv[])
 			else if (std::strcmp( argv[argi], "-V") == 0 || std::strcmp( argv[argi], "--verbose") == 0)
 			{
 				g_verbose = true;
-				return 0;
-			}
-			else if (std::strcmp( argv[argi], "-V") == 0 || std::strcmp( argv[argi], "--verbose") == 0)
-			{
-				g_verbose = true;
-				return 0;
 			}
 			else if (std::strcmp( argv[argi], "--") == 0)
 			{

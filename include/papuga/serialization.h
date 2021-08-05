@@ -383,6 +383,15 @@ papuga_Tag papuga_SerializationIter_follow_tag( const papuga_SerializationIter* 
 */
 const papuga_Node* papuga_SerializationIter_node( const papuga_SerializationIter* self);
 
+/*
+* @brief Make the contents of a serialization deterministic
+* @param[in,out] dest where to append the result to
+* @param[in] ser pointer to serialization to copy
+* @param[out] errcode error code in case of failure
+* @return true on success, false on failure
+*/
+bool papuga_Serialization_copy_deterministic( papuga_Serialization* dest, const papuga_Serialization* ser, papuga_ErrorCode* errcode);
+
 #ifdef __cplusplus
 }
 #endif

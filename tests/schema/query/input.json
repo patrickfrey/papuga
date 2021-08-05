@@ -12,5 +12,14 @@
 				"value": "hello"
 			}
 		}
+	],
+	"restriction" : [
+		{"content" : {
+			"condition" : {
+				"op": "<=",
+				"name": "date",
+				"value": "20210901"
+			}
+		}}
 	]
 }}

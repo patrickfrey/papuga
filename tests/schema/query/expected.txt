@@ -5,24 +5,43 @@ open
     name feature
     open
       open
-        name analyzed
-        open
-          name type
-          value "word"
-          name value
-          value "hello"
-        close
-        name content
-        open
-          name type
-          value "word"
-          name value
-          value "Hello"
-        close
-        name set
-        value "weighted"
-        name weight
-        value 1
+	name analyzed
+	open
+	  name type
+	  value "word"
+	  name value
+	  value "hello"
+	close
+	name content
+	open
+	  name type
+	  value "word"
+	  name value
+	  value "Hello"
+	close
+	name set
+	value "weighted"
+	name weight
+	value 1
+      close
+    close
+    name restriction
+    open
+      open
+	name content
+	open
+	  name condition
+	  open
+	    open
+	      name name
+	      value "date"
+	      name op
+	      value "<="
+	      name value
+	      value "20210901"
+	    close
+	  close
+	close
       close
     close
   close
