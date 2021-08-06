@@ -52,6 +52,8 @@ typedef struct papuga_ClassDef
 	int methodtablesize;					/*< number of functions defined in the method table and the array of method names of the class */
 } papuga_ClassDef;
 
+#define papuga_ClassDef_NULL	{0,0,0,0,0,0}
+
 #ifdef __cplusplus
 }
 #endif

@@ -246,6 +246,7 @@ struct papuga_LuaRequestHandler
 	bool m_running;
 	bool m_beautifiedOutput;
 	bool m_deterministicOutput;
+	papuga_RequestHandler* m_handler;
 	papuga_RequestContext* m_context;
 	papuga_Allocator m_allocator;
 	papuga_DelegateRequest m_delegate[ MaxNofDelegates];
@@ -258,14 +259,15 @@ struct papuga_LuaRequestHandler
 	int m_contentDefined;
 	int m_allocatormem[ 1<<14];
 
-	papuga_LuaRequestHandler( 
+	papuga_LuaRequestHandler(
+			papuga_RequestHandler* handler_,
 			papuga_RequestContext* context_, 
 			const papuga_SchemaMap* schemamap,
 			bool beautifiedOutput_,
 			bool deterministicOutput_)
 		:m_ls(nullptr),m_thread(nullptr),m_threadref(0),m_running(false)
 		,m_beautifiedOutput(beautifiedOutput_),m_deterministicOutput(deterministicOutput_)
-		,m_context(context_),m_nof_delegates(0),m_start_delegates(0)
+		,m_handler(handler_),m_context(context_),m_nof_delegates(0),m_start_delegates(0)
 		,m_resultstr(nullptr),m_resultlen(0)
 		,m_doctype(papuga_ContentType_Unknown),m_encoding(papuga_Binary),m_contentDefined(0)
 	{
@@ -965,7 +967,8 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerObject* reqobj,
 	const papuga_lua_ClassEntryMap* cemap,
 	const papuga_SchemaMap* schemamap,
-	papuga_RequestContext* context,
+	papuga_RequestHandler* requesthandler,
+	papuga_RequestContext* requestcontext,
 	const char* requestmethod,
 	const char* contentstr,
 	std::size_t contentlen,
@@ -974,7 +977,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	papuga_ErrorCode* errcode)
 {
 	papuga_LuaRequestHandler* rt = 0;
-	rt = new (std::nothrow) papuga_LuaRequestHandler( context, schemamap, beautifiedOutput, deterministicOutput);
+	rt = new (std::nothrow) papuga_LuaRequestHandler( requesthandler, requestcontext, schemamap, beautifiedOutput, deterministicOutput);
 	if (!rt)
 	{
 		*errcode = papuga_NoMemError;

@@ -12,6 +12,7 @@
 #include "papuga/valueVariant.h"
 #include "papuga/schema.h"
 #include "papuga/errors.h"
+#include "papuga/classdef.h"
 #include <string>
 #include <cstring>
 #include <cstdlib>
@@ -142,26 +143,31 @@ std::vector<std::string> readDirFiles( const std::string& path, const std::strin
 }
 
 static const papuga_lua_ClassEntryMap* g_cemap = nullptr;
+static const papuga_ClassDef g_classdefs[1] = {papuga_ClassDef_NULL};
 
 class GlobalContext
 {
 public:
 	GlobalContext( const std::string& schemaDir, const std::string& scriptDir)
-		:m_schemaList(nullptr),m_schemaMap(nullptr),m_objectMap()
+		:m_requestHandler(nullptr),m_schemaList(nullptr),m_schemaMap(nullptr),m_objectMap()
 	{
-		loadSchemas( schemaDir);
-		loadFunctions( scriptDir);
+		m_requestHandler = papuga_create_RequestHandler( g_classdefs);
+		if (!m_requestHandler) throw std::bad_alloc();
+		try
+		{
+			loadSchemas( schemaDir);
+			loadFunctions( scriptDir);
+		}
+		catch (...)
+		{
+			deinit();
+			throw;
+		}
 	}
 
 	~GlobalContext()
 	{
-		papuga_destroy_SchemaList( m_schemaList);
-		papuga_destroy_SchemaMap( m_schemaMap);
-		auto fi = m_objectMap.begin(), fe = m_objectMap.end();
-		for (; fi != fe; ++fi)
-		{
-			papuga_destroy_LuaRequestHandlerObject( fi->second);
-		}
+		deinit();
 	}
 
 	const papuga_LuaRequestHandlerObject* object( const char* name) const
@@ -173,12 +179,30 @@ public:
 		}
 		return fi->second;
 	}
+
 	const papuga_SchemaMap* schemaMap() const
 	{
 		return m_schemaMap;
 	}
 
+	papuga_RequestHandler* handler() const
+	{
+		return m_requestHandler;
+	}
+
 private:
+	void deinit()
+	{
+		auto fi = m_objectMap.begin(), fe = m_objectMap.end();
+		for (; fi != fe; ++fi)
+		{
+			papuga_destroy_LuaRequestHandlerObject( fi->second);
+		}
+		if (m_schemaList) papuga_destroy_SchemaList( m_schemaList);
+		if (m_schemaMap) papuga_destroy_SchemaMap( m_schemaMap);
+		if (m_requestHandler) papuga_destroy_RequestHandler( m_requestHandler);
+	}
+
 	void loadSchemas( const std::string& schemaDir)
 	{
 		std::vector<std::string> files = readDirFiles( schemaDir, ".psm");
@@ -204,9 +228,6 @@ private:
 		m_schemaMap = papuga_create_SchemaMap( source.c_str(), &errbuf);
 		if (!m_schemaList || !m_schemaMap)
 		{
-			if (m_schemaList) papuga_destroy_SchemaList( m_schemaList);
-			if (m_schemaMap) papuga_destroy_SchemaMap( m_schemaMap);
-
 			if (errbuf.line)
 			{
 				size_t fidx = 0;
@@ -263,6 +284,7 @@ private:
 	}
 
 private:
+	papuga_RequestHandler* m_requestHandler;
 	papuga_SchemaList* m_schemaList;
 	papuga_SchemaMap* m_schemaMap;
 	std::map<std::string,papuga_LuaRequestHandlerObject*> m_objectMap;
@@ -335,7 +357,7 @@ static std::string runRequest(
 	}
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
-			ctx.object( objectName), g_cemap, ctx.schemaMap(), context,
+			ctx.object( objectName), g_cemap, ctx.schemaMap(), ctx.handler(), context,
 			requestMethod, contentstr, contentlen, true/*beautified*/, true/*deterministic*/, &errcode);
 	if (!rhnd)
 	{

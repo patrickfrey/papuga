@@ -98,6 +98,7 @@ bool papuga_RequestContext_inherit( papuga_RequestContext* self, const papuga_Re
 /*
  * @brief Creates a request handler
  * @param[in] classdefs interface description of structures and classes
+ * @remark papuga_ClassDef_NULL terminated
  * @return pointer to request handler
  */
 papuga_RequestHandler* papuga_create_RequestHandler( const papuga_ClassDef* classdefs);
