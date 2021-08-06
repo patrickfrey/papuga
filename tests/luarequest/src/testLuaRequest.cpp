@@ -351,6 +351,10 @@ static std::string normalizeOutput( const std::string& output)
 		if (oi == oe) break;
 		rt.push_back( *oi);
 	}
+	while (!rt.empty() && (unsigned char)rt[ rt.size()-1] <= 32)
+	{
+		rt.resize( rt.size()-1);
+	}
 	return rt;
 }
 

@@ -2,28 +2,28 @@
 "query":{
 	"feature":[
 		{
-			"weight": 1,
-			"set": "term",
 			"analyzed":{
-				"value": "zurich",
-				"type": "word"},
+				"type": "word",
+				"value": "zurich"},
 			"content":{
-				"value": "Zurich",
-				"type": "word"}}],
-	"nofranks": 20,
+				"type": "word",
+				"value": "Zurich"},
+			"set": "term",
+			"weight": 1}],
+	"globalstats":{
+		"nofdocs": 100},
 	"mergeres": 0,
 	"minrank": 1,
-	"termstats":{
-		"value": "zurich",
-		"type": "word",
-		"df": 3},
+	"nofranks": 20,
 	"restriction":[
 		{
 			"content":{
 				"condition":[
 					{
-						"value": "20210901",
+						"name": "date",
 						"op": "<=",
-						"name": "date"}]}}],
-	"globalstats":{
-		"nofdocs": 100}}}
+						"value": "20210901"}]}}],
+	"termstats":{
+		"df": 3,
+		"type": "word",
+		"value": "zurich"}}}

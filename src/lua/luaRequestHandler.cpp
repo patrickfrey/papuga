@@ -14,6 +14,7 @@
 #include "papuga/errors.h"
 #include "papuga/allocator.h"
 #include "papuga/serialization.h"
+#include "papuga/serialization.hpp"
 #include "papuga/valueVariant.h"
 #include "papuga/valueVariant.hpp"
 #include "papuga/encoding.h"

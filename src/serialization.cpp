@@ -597,16 +597,9 @@ static bool SerializationIter_copy_deterministic( papuga_Serialization* dest, co
 							*errcode = papuga_NoMemError;
 							return false;
 						}
-						papuga_SerializationIter eitr;
-						papuga_init_SerializationIter_copy( &eitr, &ki->second.from);
-						while (!papuga_SerializationIter_isequal( &eitr, &ki->second.to))
+						if (!SerializationIter_copy_deterministic( dest, ki->second.from, ki->second.to, errcode))
 						{
-							if (!papuga_Serialization_push_node( dest, papuga_SerializationIter_node( &eitr)))
-							{
-								*errcode = papuga_NoMemError;
-								return false;
-							}
-							papuga_SerializationIter_skip( &eitr);
+							return false;
 						}
 					}
 					if (papuga_SerializationIter_tag( &itr) != papuga_TagClose)
@@ -614,7 +607,7 @@ static bool SerializationIter_copy_deterministic( papuga_Serialization* dest, co
 						*errcode = papuga_SyntaxError;
 						return false;
 					}
-					if (!papuga_Serialization_pushClose( dest))
+					if (!papuga_SerializationIter_eof( &itr) && !papuga_Serialization_pushClose( dest))
 					{
 						*errcode = papuga_NoMemError;
 						return false;
