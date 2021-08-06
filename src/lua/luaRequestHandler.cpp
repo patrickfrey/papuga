@@ -108,10 +108,11 @@ static int papuga_lua_destroy_request( lua_State* ls);
 static int papuga_lua_request_result( lua_State* ls);
 static int papuga_lua_request_error( lua_State* ls);
 
-static int papuga_lua_new_context( lua_State* ls, papuga_RequestContext* ctx, const papuga_lua_ClassEntryMap* cemap);
+static int papuga_lua_new_context( lua_State* ls, papuga_RequestHandler* hnd, papuga_RequestContext* ctx, const papuga_lua_ClassEntryMap* cemap);
 static int papuga_lua_destroy_context( lua_State* ls);
-static int papuga_lua_context_index( lua_State* ls);
-static int papuga_lua_context_newindex( lua_State* ls);
+static int papuga_lua_context_get( lua_State* ls);
+static int papuga_lua_context_set( lua_State* ls);
+static int papuga_lua_context_inherit( lua_State* ls);
 
 static const struct luaL_Reg g_functionlib [] = {
 	{"doctype", papuga_lua_doctype},
@@ -137,8 +138,9 @@ static const struct luaL_Reg g_request_methods[] = {
 static const char* g_context_metatable_name = "papuga_context";
 static const struct luaL_Reg g_context_methods[] = {
 	{ "__gc",		papuga_lua_destroy_context },
-	{ "__index",		papuga_lua_context_index },
-	{ "__newindex",		papuga_lua_context_newindex },
+	{ "get",		papuga_lua_context_get },
+	{ "set",		papuga_lua_context_set },
+	{ "inherit",		papuga_lua_context_inherit },
 	{ nullptr,		nullptr }
 };
 
@@ -332,7 +334,7 @@ struct papuga_LuaRequestHandler
 			lua_pop( m_thread, 1);
 			return false;
 		}
-		papuga_lua_new_context( m_thread, m_context, cemap);
+		papuga_lua_new_context( m_thread, m_handler, m_context, cemap);
 		lua_pushlstring( m_thread, contentstr, contentlen);
 		return true;
 	}
@@ -633,13 +635,15 @@ static int papuga_lua_request_error( lua_State* ls)
 
 struct LuaRequestContext
 {
+	papuga_RequestHandler* hnd;
 	papuga_RequestContext* ctx;
 	const papuga_lua_ClassEntryMap* cemap;
 };
 
-static int papuga_lua_new_context( lua_State* ls, papuga_RequestContext* ctx, const papuga_lua_ClassEntryMap* cemap)
+static int papuga_lua_new_context( lua_State* ls, papuga_RequestHandler* hnd, papuga_RequestContext* ctx, const papuga_lua_ClassEntryMap* cemap)
 {
 	LuaRequestContext* td = (LuaRequestContext*)lua_newuserdata( ls, sizeof(LuaRequestContext));
+	td->hnd = hnd;
 	td->ctx = ctx;
 	td->cemap = cemap;
 	luaL_getmetatable( ls, g_context_metatable_name);
@@ -652,7 +656,7 @@ static int papuga_lua_destroy_context( lua_State* ls)
 	return 0;
 }
 
-static int papuga_lua_context_index( lua_State* ls)
+static int papuga_lua_context_get( lua_State* ls)
 {
 	LuaRequestContext* td = (LuaRequestContext*)luaL_checkudata( ls, 1, g_context_metatable_name);
 	try
@@ -685,7 +689,7 @@ static int papuga_lua_context_index( lua_State* ls)
 	return 0;
 }
 
-static int papuga_lua_context_newindex( lua_State* ls)
+static int papuga_lua_context_set( lua_State* ls)
 {
 	LuaRequestContext* td = (LuaRequestContext*)luaL_checkudata( ls, 1, g_context_metatable_name);
 	try
@@ -718,6 +722,36 @@ static int papuga_lua_context_newindex( lua_State* ls)
 				luaL_error( ls, papuga_ErrorCode_tostring( papuga_NoMemError));
 			}
 		}
+	}
+	catch (...) { lippincottFunction( ls); }	
+	return 0;
+}
+
+static int papuga_lua_context_inherit( lua_State* ls)
+{
+	LuaRequestContext* td = (LuaRequestContext*)luaL_checkudata( ls, 1, g_context_metatable_name);
+	try
+	{
+		int nargs = lua_gettop( ls);
+		if (nargs != 3)
+		{
+			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
+		}
+		if (lua_type( ls, 2) != LUA_TSTRING || lua_type( ls, 3) != LUA_TSTRING)
+		{
+			luaL_error( ls, papuga_ErrorCode_tostring( papuga_InvalidAccess));
+		}
+		char const* inheritContextType = lua_tostring( ls, 2);
+		char const* inheritContextName = lua_tostring( ls, 3);
+		if (!inheritContextType || !inheritContextName)
+		{
+			luaL_error( ls, papuga_ErrorCode_tostring( papuga_InvalidAccess));
+		}
+		if (!papuga_RequestContext_inherit( td->ctx, td->hnd, inheritContextType, inheritContextName))
+		{
+			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NoMemError));
+		}
+		return 0;
 	}
 	catch (...) { lippincottFunction( ls); }	
 	return 0;
