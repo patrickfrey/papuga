@@ -9,6 +9,7 @@
 #include "papuga/luaRequestHandler.h"
 #include "papuga/requestParser.h"
 #include "papuga/requestHandler.h"
+#include "papuga/valueVariant.h"
 #include "papuga/schema.h"
 #include "papuga/errors.h"
 #include <string>
@@ -267,6 +268,57 @@ private:
 	std::map<std::string,papuga_LuaRequestHandlerObject*> m_objectMap;
 };
 
+static bool dumpContext( std::string& output, papuga_RequestContext* context, papuga_ErrorCode* errcode)
+{
+	papuga_Allocator allocator;
+	int allocatormem[ 2048];
+	enum {MaxContextVariables=128};
+	char const* buf[ MaxContextVariables];
+	papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
+
+	try
+	{
+		const char** varlist = papuga_RequestContext_list_variables( context, -1/*max_inheritcnt*/, buf, MaxContextVariables);
+		size_t vi = 0;
+		for (; varlist[vi]; ++vi)
+		{
+			const char* varname = varlist[vi];
+			const char* varstr = nullptr;
+			size_t varstrlen = 0;
+			const papuga_ValueVariant* varval = papuga_RequestContext_get_variable( context, varname);
+
+			if (papuga_ValueVariant_defined( varval))
+			{
+				if (papuga_ValueVariant_isatomic( varval))
+				{
+					varstr = papuga_ValueVariant_tostring( varval, &allocator, &varstrlen, errcode);
+				}
+				else
+				{
+					varstr = (char*)papuga_ValueVariant_tojson( 
+							varval, &allocator, nullptr, 
+							papuga_UTF8, false/*beautified*/, nullptr/*root*/, "item",
+							&varstrlen, errcode);
+				}
+				if (!varstr) 
+				{
+					return false;
+				}
+				output.append( varname);
+				output.append( " = ");
+				output.append( varstr, varstrlen);
+				output.append( "\n");
+			}
+		}
+		return true;
+	}
+	catch (...)
+	{
+		*errcode = papuga_NoMemError;
+		return false;
+	}
+}
+
 static std::string runRequest(
 		GlobalContext& ctx, const char* requestMethod, const char* objectName,
 		const char* contentstr, size_t contentlen)
@@ -283,7 +335,7 @@ static std::string runRequest(
 	}
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
-			ctx.object( objectName), g_cemap, ctx.schemaMap(), context, 
+			ctx.object( objectName), g_cemap, ctx.schemaMap(), context,
 			requestMethod, contentstr, contentlen, true/*beautified*/, true/*deterministic*/, &errcode);
 	if (!rhnd)
 	{
@@ -321,9 +373,17 @@ static std::string runRequest(
 			}
 		}
 	}
+	std::string rt;
+	if (!dumpContext( rt, context, &errcode))
+	{
+		throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
+	}
+	rt.append( "\n----\n");
 	size_t resultlen = 0;
 	const char* resultstr = papuga_LuaRequestHandler_get_result( rhnd, &resultlen);
-	return std::string( resultstr, resultlen);
+	rt.append( resultstr, resultlen);
+	rt.append( "\n");
+	return rt;
 }
 
 static std::string normalizeOutput( const std::string& output)
