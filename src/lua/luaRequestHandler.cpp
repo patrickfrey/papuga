@@ -173,8 +173,6 @@ extern "C" papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject
 		papuga_ErrorBuffer_reportError( errbuf, "failed to create lua state");
 		return nullptr;
 	}
-	createMetatable( ls, g_request_metatable_name, g_request_methods);
-	createMetatable( ls, g_context_metatable_name, g_context_methods);
 	std::string source( sourcestr);
 	if (luaL_loadbuffer( ls, source.c_str(), source.size(), name))
 	{
@@ -276,6 +274,8 @@ struct papuga_LuaRequestHandler
 		papuga_init_Allocator( &m_allocator, m_allocatormem, sizeof(m_allocatormem));
 		m_ls = lua_newstate( customAllocFunction, this);
 		luaL_openlibs( m_ls);
+		createMetatable( m_ls, g_request_metatable_name, g_request_methods);
+		createMetatable( m_ls, g_context_metatable_name, g_context_methods);
 
 		lua_getglobal( m_ls, "_G");
 		lua_pushlightuserdata( m_ls, this);
@@ -647,6 +647,10 @@ static int papuga_lua_new_context( lua_State* ls, papuga_RequestHandler* hnd, pa
 	td->ctx = ctx;
 	td->cemap = cemap;
 	luaL_getmetatable( ls, g_context_metatable_name);
+	if (lua_isnil( ls, -1))
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_LogicError));
+	}
 	lua_setmetatable( ls, -2);
 	return 1;
 }

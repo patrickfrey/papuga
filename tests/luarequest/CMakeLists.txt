@@ -9,6 +9,5 @@ set( SCRIPTDIR  "${TESTDIR}/scripts" )
 set( TESTBIN    "${CMAKE_CURRENT_BINARY_DIR}/src/testLuaRequest" )
 
 # Tests:
-add_test( PapugaLuaRequest ${TESTBIN} ${SCRIPTDIR} ${SCHEMADIR} GET analyzer ${TESTDIR}/analyze/input.json ${TESTDIR}/analyze/expect.txt )
-
+add_test( PapugaLuaRequest ${TESTBIN} ${SCRIPTDIR} ${SCHEMADIR} ${TESTDIR}/analyze/run.txt ${TESTDIR}/analyze/expect.txt )
 

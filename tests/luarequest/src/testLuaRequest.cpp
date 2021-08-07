@@ -74,12 +74,10 @@ static std::string joinPath( const std::string& path, const std::string& name)
 
 static void printUsage()
 {
-	std::cerr << "testLuaRequest <scriptdir> <schemadir> <method> <object> <input> <expect>\n"
+	std::cerr << "testLuaRequest <scriptdir> <schemadir> <cmdfile> <expect>\n"
 			<< "\t<scriptdir>    :Lua script directory (service definitions)\n"
 			<< "\t<schemadir>    :Schema description directory (schema definitions)\n"
-			<< "\t<method>       :Request method\n"
-			<< "\t<object>       :Service object file (basename of Lua script)\n"
-			<< "\t<input>        :Input to process\n"
+			<< "\t<cmdfile>      :File with commands (<method> <object> <input>) to process\n"
 			<< "\t<expect>       :Expected output\n"
 	<< std::endl;
 }
@@ -101,6 +99,58 @@ static std::string baseName( const std::string& filenam)
 		if (*fi == '/' || *fi == '\\') {++fi;}
 	}
 	return std::string( fi, ei-fi);
+}
+
+static std::string dirName( const std::string& filenam)
+{
+	char const* ei = filenam.c_str() + filenam.size();
+	for (; ei != filenam.c_str() && *ei != '/' && *ei != '\\'; --ei){}
+	return std::string( filenam.c_str(), ei-filenam.c_str());
+}
+
+static bool isSpace( unsigned char ch)
+{
+	return ch && ch <= 32;
+}
+
+static char const* skipSpaces( char const* si)
+{
+	for (; *si && isSpace(*si); ++si){}
+	return si;
+}
+
+static char const* skipWord( char const* si)
+{
+	for (; *si && !isSpace(*si); ++si){}
+	return si;
+}
+
+static std::vector<std::string> splitWords( const std::string& line)
+{
+	std::vector<std::string> rt;
+	char const* si = skipSpaces( line.c_str());
+	char const* sn = skipWord( si);
+	for (; *si; si = skipSpaces( sn), sn = skipWord( si))
+	{
+		rt.emplace_back( si, sn - si);
+	}
+	return rt;
+}
+
+static std::vector<std::string> readLines( const std::string& source)
+{
+	std::vector<std::string> rt;
+	char const* si = source.c_str();
+	char const* se = si + source.size();
+	char const* sn = std::strchr( si, '\n');
+	for (; sn; si = sn+1, sn = std::strchr( si, '\n'))
+	{
+		for (; si != sn && isSpace(*si); ++si){}
+		if (si != sn) rt.emplace_back( si, sn-si);
+	}
+	for (; si != se && isSpace(*si); ++si){}
+	if (si != se) rt.emplace_back( si);
+	return rt;
 }
 
 std::vector<std::string> readDirFiles( const std::string& path, const std::string& ext)
@@ -290,6 +340,7 @@ private:
 	std::map<std::string,papuga_LuaRequestHandlerObject*> m_objectMap;
 };
 
+
 static bool dumpContext( std::string& output, papuga_RequestContext* context, papuga_ErrorCode* errcode)
 {
 	papuga_Allocator allocator;
@@ -440,13 +491,48 @@ static std::string normalizeOutput( const std::string& output)
 	return rt;
 }
 
-static void runTest( const std::string& scriptDir, const std::string& schemaDir, const std::string& method, const std::string& object, const std::string& inputFile, const std::string& expectFile)
+struct TestCommand
 {
-	std::string inputSrc = readFile( inputFile);
-	std::string expectSrc = readFile( expectFile);
-	GlobalContext ctx( schemaDir, scriptDir);
-	std::string output = runRequest( ctx, method.c_str(), object.c_str(), inputSrc.c_str(), inputSrc.size());
+	std::string method;
+	std::string object;
+	std::string input;
 
+	TestCommand( std::string&& method_, std::string&& object_, std::string&& input_)
+		:method(std::move(method_)),object(std::move(object_)),input(std::move(input_)){}
+
+	static std::vector<TestCommand> read( const std::string& cmdFile)
+	{
+		std::vector<TestCommand> rt;
+		std::string dir( dirName( cmdFile));
+		auto cmds = readLines( readFile( cmdFile));
+		for (auto const& cmdLine : cmds)
+		{
+			auto cmd = splitWords( cmdLine);
+			if (cmd.size() != 3) throw std::runtime_error( std::string("Bad command line: '") + cmdLine + "'");
+			rt.emplace_back( std::move(cmd[0]), std::move(cmd[1]), readFile( joinPath( dir, cmd[2])));
+		}
+		return rt;
+	}
+};
+
+static void runTest( const std::string& scriptDir, const std::string& schemaDir, const std::string& cmdFile, const std::string& expectFile)
+{
+	std::string expectSrc = readFile( expectFile);
+	std::string output;
+	std::size_t outputPos = 0;
+	GlobalContext ctx( schemaDir, scriptDir);
+
+	auto testCmds = TestCommand::read( cmdFile);
+	for (auto cmd : testCmds)
+	{
+		output.append( std::string("-- ") + cmd.method + " " + cmd.object + " " + cmd.input + "\n");
+		output.append( runRequest( ctx, cmd.method.c_str(), cmd.object.c_str(), cmd.input.c_str(), cmd.input.size()));
+		if (g_verbose)
+		{
+			std::cerr << (output.c_str() + outputPos) << std::endl;
+		}
+		outputPos = output.size();
+	}
 	if (normalizeOutput( output) != normalizeOutput( expectSrc))
 	{
 		if (g_verbose)
@@ -492,24 +578,22 @@ int main( int argc, const char* argv[])
 			}
 		}
 		int argn = argc - argi;
-		if (argn < 6)
+		if (argn < 4)
 		{
 			printUsage();
 			throw std::runtime_error( "Too few arguments");
 		}
-		else if (argn > 6)
+		else if (argn > 4)
 		{
 			printUsage();
 			throw std::runtime_error( "Too many arguments");
 		}
 		std::string scriptDir = argv[ argi+0];
 		std::string schemaDir  = argv[ argi+1];
-		std::string method  = argv[ argi+2];
-		std::string object  = argv[ argi+3];
-		std::string input  = argv[ argi+4];
-		std::string expect  = argv[ argi+5];
+		std::string cmdFile  = argv[ argi+2];
+		std::string expectFile  = argv[ argi+3];
 
-		runTest( scriptDir, schemaDir, method, object, input, expect);
+		runTest( scriptDir, schemaDir, cmdFile, expectFile);
 
 		std::cerr << "OK" << std::endl;
 		return 0;

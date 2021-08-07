@@ -1,0 +1,2 @@
+PUT analyzer config.json
+GET analyzer input.json

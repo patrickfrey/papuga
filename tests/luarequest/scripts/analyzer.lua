@@ -1,5 +1,19 @@
 
+
 function PUT( context, input)
+	local function tokenize( input)
+		local function split( text)
+			result = {}
+			for word in text:gmatch("%w+") do table.insert( result, word) end
+			return result
+		end
+		return split( input)
+	end
+	local function normalize( input)
+		return input:lower()
+	end
+	context:set( "tokenizer", tokenize)
+	context:set( "normalizer", normalize)
 end
 
 local function keys( stu)
