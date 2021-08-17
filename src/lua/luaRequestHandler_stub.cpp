@@ -11,7 +11,7 @@
 */
 #include "papuga/luaRequestHandler.h"
 
-extern "C" papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject(
+extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(
 	const char* name,
 	const char* source,
 	papuga_ErrorBuffer* errbuf)
@@ -20,11 +20,11 @@ extern "C" papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject
 	return 0;
 }
 
-extern "C" void papuga_destroy_LuaRequestHandlerObject( papuga_LuaRequestHandlerObject* self)
+extern "C" void papuga_destroy_LuaRequestHandlerScript( papuga_LuaRequestHandlerScript* self)
 {}
 
 extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
-	const papuga_LuaRequestHandlerObject* reqobj,
+	const papuga_LuaRequestHandlerScript* script,
 	const papuga_lua_ClassEntryMap* cemap,
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestHandler* requesthandler,

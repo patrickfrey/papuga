@@ -1,5 +1,3 @@
-
-
 function PUT( context, input)
 	context:set( "tokenizer", "T")
 	context:set( "normalizer", "N")

@@ -146,10 +146,10 @@ static const struct luaL_Reg g_context_methods[] = {
 
 
 
-struct papuga_LuaRequestHandlerObject
+struct papuga_LuaRequestHandlerScript
 {
 public:
-	papuga_LuaRequestHandlerObject( std::string&& name_, std::string&& dump_, std::string&& source_)
+	papuga_LuaRequestHandlerScript( std::string&& name_, std::string&& dump_, std::string&& source_)
 		:m_name(std::move(name_)),m_dump(std::move(dump_)),m_source(std::move(source_)){}
 
 	const std::string& name() const 		{return m_name;}
@@ -162,7 +162,7 @@ private:
 	std::string m_source;
 };
 
-extern "C" papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject(
+extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(
 	const char* name,
 	const char* sourcestr,
 	papuga_ErrorBuffer* errbuf)
@@ -194,10 +194,10 @@ extern "C" papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject
 		papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
 		return nullptr;
 	}
-	papuga_LuaRequestHandlerObject* rt = nullptr;
+	papuga_LuaRequestHandlerScript* rt = nullptr;
 	try
 	{
-		rt = new papuga_LuaRequestHandlerObject( std::string(name), std::move(dump), std::move(source));
+		rt = new papuga_LuaRequestHandlerScript( std::string(name), std::move(dump), std::move(source));
 	}
 	catch (...)
 	{
@@ -207,7 +207,7 @@ extern "C" papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject
 	return rt;
 }
 
-extern "C" void papuga_destroy_LuaRequestHandlerObject( papuga_LuaRequestHandlerObject* self)
+extern "C" void papuga_destroy_LuaRequestHandlerScript( papuga_LuaRequestHandlerScript* self)
 {
 	delete self;
 }
@@ -304,15 +304,15 @@ struct papuga_LuaRequestHandler
 	}
 
 	bool init(
-			const papuga_LuaRequestHandlerObject* reqobj,
+			const papuga_LuaRequestHandlerScript* script,
 			const char* requestmethod,
 			const char* contentstr,
 			std::size_t contentlen,
 			const papuga_lua_ClassEntryMap* cemap,
 			papuga_ErrorCode* errcode)
 	{
-		LuaDumpReader reader( reqobj->dump());
-		int res = lua_load( m_ls, luaDumpReader, (void*)&reader, reqobj->name().c_str(), "b"/*mode binary*/);
+		LuaDumpReader reader( script->dump());
+		int res = lua_load( m_ls, luaDumpReader, (void*)&reader, script->name().c_str(), "b"/*mode binary*/);
 		if (res != LUA_OK)
 		{
 			*errcode = errorFromLuaErrcode( res);
@@ -1002,7 +1002,7 @@ static int papuga_lua_schema( lua_State* ls)
 }
 
 extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
-	const papuga_LuaRequestHandlerObject* reqobj,
+	const papuga_LuaRequestHandlerScript* script,
 	const papuga_lua_ClassEntryMap* cemap,
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestHandler* requesthandler,
@@ -1021,7 +1021,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 		*errcode = papuga_NoMemError;
 		return 0;
 	}
-	if (!rt->init( reqobj, requestmethod, contentstr, contentlen, cemap, errcode))
+	if (!rt->init( script, requestmethod, contentstr, contentlen, cemap, errcode))
 	{
 		delete rt;
 		rt = 0;

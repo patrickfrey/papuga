@@ -24,18 +24,18 @@ extern "C" {
 typedef struct papuga_lua_ClassEntryMap papuga_lua_ClassEntryMap;
 #endif
 
-typedef struct papuga_LuaRequestHandlerObject papuga_LuaRequestHandlerObject;
+typedef struct papuga_LuaRequestHandlerScript papuga_LuaRequestHandlerScript;
 typedef struct papuga_LuaRequestHandler papuga_LuaRequestHandler;
 
-papuga_LuaRequestHandlerObject* papuga_create_LuaRequestHandlerObject(
+papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(
 	const char* name,
 	const char* source,
 	papuga_ErrorBuffer* errbuf);
 
-void papuga_destroy_LuaRequestHandlerObject( papuga_LuaRequestHandlerObject* self);
+void papuga_destroy_LuaRequestHandlerScript( papuga_LuaRequestHandlerScript* self);
 
 papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
-	const papuga_LuaRequestHandlerObject* reqobj,
+	const papuga_LuaRequestHandlerScript* script,
 	const papuga_lua_ClassEntryMap* cemap,
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestHandler* requesthandler,

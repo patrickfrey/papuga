@@ -77,7 +77,7 @@ static void printUsage()
 	std::cerr << "testLuaRequest <scriptdir> <schemadir> <cmdfile> <expect>\n"
 			<< "\t<scriptdir>    :Lua script directory (service definitions)\n"
 			<< "\t<schemadir>    :Schema description directory (schema definitions)\n"
-			<< "\t<cmdfile>      :File with commands (<method> <object> <input>) to process\n"
+			<< "\t<cmdfile>      :File with commands (<method> <script> <input>) to process\n"
 			<< "\t<expect>       :Expected output\n"
 	<< std::endl;
 }
@@ -135,6 +135,13 @@ static std::vector<std::string> splitWords( const std::string& line)
 		rt.emplace_back( si, sn - si);
 	}
 	return rt;
+}
+
+static std::pair<std::string,std::string> splitSlash2( const std::string& arg)
+{
+	char const* si = arg.c_str();
+	for (; *si && *si != '/'; ++si){}
+	return {std::string(arg.c_str(),si-arg.c_str()),std::string(*si?(si+1):si)};
 }
 
 static std::vector<std::string> readLines( const std::string& source)
@@ -199,14 +206,16 @@ class GlobalContext
 {
 public:
 	GlobalContext( const std::string& schemaDir, const std::string& scriptDir)
-		:m_requestHandler(nullptr),m_schemaList(nullptr),m_schemaMap(nullptr),m_objectMap()
+		:m_requestHandler(nullptr),m_requestContext(nullptr),m_schemaList(nullptr),m_schemaMap(nullptr),m_schemaSrc(),m_scriptMap()
 	{
 		m_requestHandler = papuga_create_RequestHandler( g_classdefs);
-		if (!m_requestHandler) throw std::bad_alloc();
+		m_requestContext = papuga_create_RequestContext();
+
 		try
 		{
+			if (!m_requestHandler || !m_requestContext) throw std::bad_alloc();
 			loadSchemas( schemaDir);
-			loadFunctions( scriptDir);
+			loadScripts( scriptDir);
 		}
 		catch (...)
 		{
@@ -220,12 +229,12 @@ public:
 		deinit();
 	}
 
-	const papuga_LuaRequestHandlerObject* object( const char* name) const
+	const papuga_LuaRequestHandlerScript* script( const char* name) const
 	{
-		auto fi = m_objectMap.find( name);
-		if (fi == m_objectMap.end())
+		auto fi = m_scriptMap.find( name);
+		if (fi == m_scriptMap.end())
 		{
-			throw std::runtime_error( std::string( "undefined object '") + name + "'");
+			throw std::runtime_error( std::string( "undefined script '") + name + "'");
 		}
 		return fi->second;
 	}
@@ -240,16 +249,34 @@ public:
 		return m_requestHandler;
 	}
 
+	papuga_RequestContext* context() const
+	{
+		return m_requestContext;
+	}
+
+	std::string schemaAutomatonDump( const std::string& schema)
+	{
+		papuga_Allocator allocator;
+		int allocatormem[ 2048];
+		papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
+		papuga_SchemaError err;
+		papuga_init_SchemaError( &err);
+		const char* atmstr = papuga_print_schema_automaton( &allocator, m_schemaSrc.c_str(), schema.c_str(), &err);
+		if (!atmstr) throw std::runtime_error( papuga_ErrorCode_tostring( err.code));
+		return atmstr;
+	}
+
 private:
 	void deinit()
 	{
-		auto fi = m_objectMap.begin(), fe = m_objectMap.end();
+		auto fi = m_scriptMap.begin(), fe = m_scriptMap.end();
 		for (; fi != fe; ++fi)
 		{
-			papuga_destroy_LuaRequestHandlerObject( fi->second);
+			papuga_destroy_LuaRequestHandlerScript( fi->second);
 		}
 		if (m_schemaList) papuga_destroy_SchemaList( m_schemaList);
 		if (m_schemaMap) papuga_destroy_SchemaMap( m_schemaMap);
+		if (m_requestContext) papuga_destroy_RequestContext( m_requestContext);
 		if (m_requestHandler) papuga_destroy_RequestHandler( m_requestHandler);
 	}
 
@@ -272,6 +299,7 @@ private:
 			startPosition += flines;
 			startPositions.push_back( startPosition + 1);
 		}
+		m_schemaSrc.append( source);
 		papuga_init_SchemaError( &errbuf);
 
 		m_schemaList = papuga_create_SchemaList( source.c_str(), &errbuf);
@@ -309,9 +337,9 @@ private:
 		}
 	}
 
-	void loadFunctions( const std::string& objectDir)
+	void loadScripts( const std::string& scriptDir)
 	{
-		std::vector<std::string> files = readDirFiles( objectDir, ".lua");
+		std::vector<std::string> files = readDirFiles( scriptDir, ".lua");
 		std::vector<std::string>::const_iterator fi = files.begin(), fe = files.end();
 		char errstrbuf[ 2048];
 		papuga_ErrorBuffer errbuf;
@@ -320,24 +348,26 @@ private:
 		for (; fi != fe; ++fi)
 		{
 			std::string scriptName = baseName( *fi);
-			std::string scriptSrc = readFile( joinPath( objectDir, *fi));
+			std::string scriptSrc = readFile( joinPath( scriptDir, *fi));
 
-			papuga_LuaRequestHandlerObject* object
-				= papuga_create_LuaRequestHandlerObject(
+			papuga_LuaRequestHandlerScript* script
+				= papuga_create_LuaRequestHandlerScript(
 					scriptName.c_str(), scriptSrc.c_str(), &errbuf);
-			if (!object)
+			if (!script)
 			{
 				throw std::runtime_error( papuga_ErrorBuffer_lastError( &errbuf));
 			}
-			m_objectMap[ scriptName] = object;
+			m_scriptMap[ scriptName] = script;
 		}
 	}
 
 private:
 	papuga_RequestHandler* m_requestHandler;
+	papuga_RequestContext* m_requestContext;
 	papuga_SchemaList* m_schemaList;
 	papuga_SchemaMap* m_schemaMap;
-	std::map<std::string,papuga_LuaRequestHandlerObject*> m_objectMap;
+	std::string m_schemaSrc;
+	std::map<std::string,papuga_LuaRequestHandlerScript*> m_scriptMap;
 };
 
 
@@ -393,7 +423,7 @@ static bool dumpContext( std::string& output, papuga_RequestContext* context, pa
 }
 
 static std::string runRequest(
-		GlobalContext& ctx, const char* requestMethod, const char* objectName,
+		GlobalContext& ctx, const char* requestMethod, const char* scriptName,
 		const char* contentstr, size_t contentlen)
 {
 	papuga_ErrorCode errcode = papuga_Ok;
@@ -401,18 +431,12 @@ static std::string runRequest(
 	char errbufbuf[ 4096];
 	papuga_init_ErrorBuffer( &errbuf, errbufbuf, sizeof(errbufbuf));
 
-	papuga_RequestContext* context = papuga_create_RequestContext();
-	if (!context)
-	{
-		throw std::runtime_error( papuga_ErrorCode_tostring( papuga_NoMemError));
-	}
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
-			ctx.object( objectName), g_cemap, ctx.schemaMap(), ctx.handler(), context,
+			ctx.script( scriptName), g_cemap, ctx.schemaMap(), ctx.handler(), ctx.context(),
 			requestMethod, contentstr, contentlen, true/*beautified*/, true/*deterministic*/, &errcode);
 	if (!rhnd)
 	{
-		papuga_destroy_RequestContext( context);
 		throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
 	}
 	while (!papuga_run_LuaRequestHandler( rhnd, &errbuf))
@@ -420,7 +444,6 @@ static std::string runRequest(
 		if (papuga_ErrorBuffer_hasError( &errbuf))
 		{
 			papuga_destroy_LuaRequestHandler( rhnd);
-			papuga_destroy_RequestContext( context);
 			throw std::runtime_error( papuga_ErrorBuffer_lastError( &errbuf));
 		}
 		int nofDelegates = papuga_LuaRequestHandler_nof_DelegateRequests( rhnd);
@@ -447,11 +470,12 @@ static std::string runRequest(
 		}
 	}
 	std::string rt;
-	if (!dumpContext( rt, context, &errcode))
+	rt.append( "---- CONTEXT:\n");
+	if (!dumpContext( rt, ctx.context(), &errcode))
 	{
 		throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
 	}
-	rt.append( "\n----\n");
+	rt.append( "\n---- RESULT:\n");
 	size_t resultlen = 0;
 	const char* resultstr = papuga_LuaRequestHandler_get_result( rhnd, &resultlen);
 	rt.append( resultstr, resultlen);
@@ -494,11 +518,12 @@ static std::string normalizeOutput( const std::string& output)
 struct TestCommand
 {
 	std::string method;
-	std::string object;
+	std::string script;
+	std::string instance;
 	std::string input;
 
-	TestCommand( std::string&& method_, std::string&& object_, std::string&& input_)
-		:method(std::move(method_)),object(std::move(object_)),input(std::move(input_)){}
+	TestCommand( std::string&& method_, std::string&& script_, std::string&& instance_, std::string&& input_)
+		:method(std::move(method_)),script(std::move(script_)),instance(std::move(instance_)),input(std::move(input_)){}
 
 	static std::vector<TestCommand> read( const std::string& cmdFile)
 	{
@@ -509,7 +534,13 @@ struct TestCommand
 		{
 			auto cmd = splitWords( cmdLine);
 			if (cmd.size() != 3) throw std::runtime_error( std::string("Bad command line: '") + cmdLine + "'");
-			rt.emplace_back( std::move(cmd[0]), std::move(cmd[1]), readFile( joinPath( dir, cmd[2])));
+			auto obj = splitSlash2( cmd[1]);
+			if (obj.second.empty()) { obj.second = obj.first; }
+			if (g_verbose)
+			{
+				std::cerr << "Execute command: " << cmd[0] << " on '" << obj.first << "/" << obj.second << "' with input " << cmd[2] << std::endl;
+			}
+			rt.emplace_back( std::move(cmd[0]), std::move(obj.first), std::move(obj.second), readFile( joinPath( dir, cmd[2])));
 		}
 		return rt;
 	}
@@ -519,19 +550,13 @@ static void runTest( const std::string& scriptDir, const std::string& schemaDir,
 {
 	std::string expectSrc = readFile( expectFile);
 	std::string output;
-	std::size_t outputPos = 0;
 	GlobalContext ctx( schemaDir, scriptDir);
 
 	auto testCmds = TestCommand::read( cmdFile);
 	for (auto cmd : testCmds)
 	{
-		output.append( std::string("-- ") + cmd.method + " " + cmd.object + " " + cmd.input + "\n");
-		output.append( runRequest( ctx, cmd.method.c_str(), cmd.object.c_str(), cmd.input.c_str(), cmd.input.size()));
-		if (g_verbose)
-		{
-			std::cerr << (output.c_str() + outputPos) << std::endl;
-		}
-		outputPos = output.size();
+		output.append( std::string("-- CALL ") + cmd.method + " " + cmd.script + " " + cmd.input + "\n");
+		output.append( runRequest( ctx, cmd.method.c_str(), cmd.script.c_str(), cmd.input.c_str(), cmd.input.size()));
 	}
 	if (normalizeOutput( output) != normalizeOutput( expectSrc))
 	{

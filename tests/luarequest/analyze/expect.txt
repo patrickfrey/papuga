@@ -1,23 +1,24 @@
--- PUT analyzer {"analyzer" :{}}
+-- CALL PUT analyzer {"analyzer" :{}}
 
+---- CONTEXT:
 tokenizer = T
 normalizer = N
 
-----
+---- RESULT:
 
--- GET analyzer {"query" : {
+-- CALL GET analyzer {"query" : {
 	"feature" : [
 		{"set": "term", "weight": 1.0, "content" : {"type":"word", "value":"I"}},
 		{"set": "term", "weight": 1.0, "content" : {"type":"word", "value":"love"}},
 		{"set": "term", "weight": 1.0, "content" : {"type":"word", "value":"Zurich"}}
 	],
-	"restriction" : [
-		{"content" : {
+	"restriction" : {
+		"content" : {
 			"condition" : [
 				{"op": "<=", "name": "date", "value": "20210901"}
 			]
-		}}
-	],
+		}
+	},
 	"termstats" : [
 		{"type": "word", "value": "i", "df": 98},
 		{"type": "word", "value": "love", "df": 12},
@@ -31,8 +32,11 @@ normalizer = N
 	"mergeres" : false
 }}
 
+---- CONTEXT:
+tokenizer = T
+normalizer = N
 
-----
+---- RESULT:
 {
 "query":{
 	"feature":[
@@ -62,3 +66,4 @@ normalizer = N
 		"df": 3,
 		"type": "word",
 		"value": "zurich"}}}
+

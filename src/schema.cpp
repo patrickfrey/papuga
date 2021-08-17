@@ -43,7 +43,7 @@ struct BitSet
 
 	void set( int bit)
 	{
-		val |= (1 << (bit-1));
+		val |= ((uint64_t)1 << (bit-1));
 	}
 	BitSet operator + ( const BitSet& o) const
 	{
@@ -83,7 +83,7 @@ struct BitSet
 		}
 		void skip()
 		{
-			val &= ~(1 << (idx-1));
+			val &= ~((uint64_t)1 << (idx-1));
 			idx = ::ffsl( val);
 		}
 	};
@@ -639,7 +639,7 @@ static bool addOperation(
 		const std::string& key, SchemaOperation::Id id,
 		uint64_t set, int select, papuga_SchemaError* err)
 {
-	uint64_t mask = select == 0 ? 0 : (1 << (select-1));
+	uint64_t mask = select == 0 ? 0 : ((uint64_t)1 << (select-1));
 	auto ins = opmap.insert( std::pair<std::string,SchemaOperation>( key, SchemaOperation( id, set, mask)));
 	if (!ins.second /*not insert*/)
 	{
