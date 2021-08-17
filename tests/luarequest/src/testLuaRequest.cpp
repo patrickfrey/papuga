@@ -206,14 +206,12 @@ class GlobalContext
 {
 public:
 	GlobalContext( const std::string& schemaDir, const std::string& scriptDir)
-		:m_requestHandler(nullptr),m_requestContext(nullptr),m_schemaList(nullptr),m_schemaMap(nullptr),m_schemaSrc(),m_scriptMap()
+		:m_requestHandler(nullptr),m_schemaList(nullptr),m_schemaMap(nullptr),m_schemaSrc(),m_scriptMap()
 	{
 		m_requestHandler = papuga_create_RequestHandler( g_classdefs);
-		m_requestContext = papuga_create_RequestContext();
-
 		try
 		{
-			if (!m_requestHandler || !m_requestContext) throw std::bad_alloc();
+			if (!m_requestHandler) throw std::bad_alloc();
 			loadSchemas( schemaDir);
 			loadScripts( scriptDir);
 		}
@@ -249,11 +247,6 @@ public:
 		return m_requestHandler;
 	}
 
-	papuga_RequestContext* context() const
-	{
-		return m_requestContext;
-	}
-
 	std::string schemaAutomatonDump( const std::string& schema)
 	{
 		papuga_Allocator allocator;
@@ -276,7 +269,6 @@ private:
 		}
 		if (m_schemaList) papuga_destroy_SchemaList( m_schemaList);
 		if (m_schemaMap) papuga_destroy_SchemaMap( m_schemaMap);
-		if (m_requestContext) papuga_destroy_RequestContext( m_requestContext);
 		if (m_requestHandler) papuga_destroy_RequestHandler( m_requestHandler);
 	}
 
@@ -363,7 +355,6 @@ private:
 
 private:
 	papuga_RequestHandler* m_requestHandler;
-	papuga_RequestContext* m_requestContext;
 	papuga_SchemaList* m_schemaList;
 	papuga_SchemaMap* m_schemaMap;
 	std::string m_schemaSrc;
@@ -422,8 +413,41 @@ static bool dumpContext( std::string& output, papuga_RequestContext* context, pa
 	}
 }
 
+struct RequestContext
+{
+	explicit RequestContext( papuga_RequestHandler* handler_)
+		:handler(handler_)
+	{
+		impl = papuga_create_RequestContext();
+		if (!impl) throw std::bad_alloc();
+	}
+	~RequestContext()
+	{
+		if (impl) papuga_destroy_RequestContext( impl);
+	}
+
+	void get( const char* typeName, const char* instanceName)
+	{
+		if (!papuga_RequestContext_inherit( impl, handler, typeName, instanceName))
+		{
+			throw std::bad_alloc();
+		}
+	}
+	void put( const char* typeName, const char* instanceName)
+	{
+		papuga_ErrorCode errcode = papuga_Ok;
+		if (!papuga_RequestHandler_transfer_context( handler, typeName, instanceName, impl, &errcode))
+		{
+			throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
+		}
+		impl = nullptr;
+	}
+	papuga_RequestHandler* handler;
+	papuga_RequestContext* impl;
+};
+
 static std::string runRequest(
-		GlobalContext& ctx, const char* requestMethod, const char* scriptName,
+		GlobalContext& ctx, const char* requestMethod, const char* scriptName, const char* instanceName,
 		const char* contentstr, size_t contentlen)
 {
 	papuga_ErrorCode errcode = papuga_Ok;
@@ -431,9 +455,14 @@ static std::string runRequest(
 	char errbufbuf[ 4096];
 	papuga_init_ErrorBuffer( &errbuf, errbufbuf, sizeof(errbufbuf));
 
+	RequestContext reqctx( ctx.handler());
+	if (0==strcasecmp( requestMethod, "GET"))
+	{
+		reqctx.get( scriptName, instanceName);
+	}
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
-			ctx.script( scriptName), g_cemap, ctx.schemaMap(), ctx.handler(), ctx.context(),
+			ctx.script( scriptName), g_cemap, ctx.schemaMap(), ctx.handler(), reqctx.impl,
 			requestMethod, contentstr, contentlen, true/*beautified*/, true/*deterministic*/, &errcode);
 	if (!rhnd)
 	{
@@ -456,9 +485,10 @@ static std::string runRequest(
 					= papuga_LuaRequestHandler_get_delegateRequest( rhnd, di);
 				try
 				{
-					std::string delegateObjectName( baseName( delegate->url));
+					auto delegateAddr = splitSlash2( delegate->url);
 					std::string delegateRes
-						= runRequest( ctx, delegate->requestmethod, delegateObjectName.c_str(),
+						= runRequest( ctx, delegate->requestmethod,
+								delegateAddr.first.c_str(), delegateAddr.second.c_str(),
 								delegate->contentstr, delegate->contentlen);
 					papuga_LuaRequestHandler_init_result( rhnd, di, delegateRes.c_str(), delegateRes.size());
 				}
@@ -471,9 +501,13 @@ static std::string runRequest(
 	}
 	std::string rt;
 	rt.append( "---- CONTEXT:\n");
-	if (!dumpContext( rt, ctx.context(), &errcode))
+	if (!dumpContext( rt, reqctx.impl, &errcode))
 	{
 		throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
+	}
+	if (0==strcasecmp( requestMethod, "PUT"))
+	{
+		reqctx.put( scriptName, instanceName);
 	}
 	rt.append( "\n---- RESULT:\n");
 	size_t resultlen = 0;
@@ -556,7 +590,7 @@ static void runTest( const std::string& scriptDir, const std::string& schemaDir,
 	for (auto cmd : testCmds)
 	{
 		output.append( std::string("-- CALL ") + cmd.method + " " + cmd.script + " " + cmd.input + "\n");
-		output.append( runRequest( ctx, cmd.method.c_str(), cmd.script.c_str(), cmd.input.c_str(), cmd.input.size()));
+		output.append( runRequest( ctx, cmd.method.c_str(), cmd.script.c_str(), cmd.instance.c_str(), cmd.input.c_str(), cmd.input.size()));
 	}
 	if (normalizeOutput( output) != normalizeOutput( expectSrc))
 	{
