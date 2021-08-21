@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <map>
 #include <stdexcept>
 #include <cstdio>
 #include <iostream>
@@ -249,14 +250,14 @@ struct papuga_RequestContext
 	~papuga_RequestContext()
 	{}
 
-	std::string tostring( const char* indent) const
+	std::string tostring( const char* indent, papuga_StructInterfaceDescription* structdefs) const
 	{
 		std::ostringstream out;
 		RequestVariableMap::const_iterator vi = varmap.begin(), ve = varmap.end();
 		for (; vi != ve; ++vi)
 		{
 			papuga_ErrorCode errcode_local = papuga_Ok;
-			out << indent << vi->ptr->name << " #" << vi->ptr.use_count() << "=" << papuga::ValueVariant_tostring( vi->ptr->value, errcode_local) << "\n";
+			out << indent << vi->ptr->name << " #" << vi->ptr.use_count() << "=" << papuga::ValueVariant_todump( vi->ptr->value, structdefs, true/*deterministic*/, errcode_local) << "\n";
 		}
 		return out.str();
 	}
@@ -282,6 +283,10 @@ struct SymKey
 		std::size_t keysize = std::snprintf( keybuf, keybufsize, "%s/%s", type, name);
 		if (keybufsize <= keysize) throw std::bad_alloc();
 		return SymKey( keybuf, keysize);
+	}
+	bool operator < (const SymKey& o) const
+	{
+		return 0>std::memcmp( str, o.str, (len < o.len ? len : o.len)+1);
 	}
 };
 struct MapSymKeyEqual
@@ -338,14 +343,20 @@ struct RequestContextMap
 		return mi == tab.end() ? NULL : mi->second.get();
 	}
 
-	std::string tostring() const
+	std::string tostring( papuga_StructInterfaceDescription* structdefs) const
 	{
+		std::map<SymKey,papuga_RequestContext*> deterministicMap;
 		std::ostringstream out;
-		RequestContextTab::const_iterator ci = tab.begin(), ce = tab.end();
+		auto ci = tab.begin(), ce = tab.end();
 		for (; ci != ce; ++ci)
 		{
-			out << std::string(ci->first.str,ci->first.len) << ":" << std::endl;
-			out << ci->second->tostring( "\t") << std::endl;
+			deterministicMap[ ci->first] = &*ci->second;
+		}
+		auto di = deterministicMap.begin(), de = deterministicMap.end();
+		for (; di != de; ++di)
+		{
+			out << std::string(di->first.str,di->first.len) << ":" << std::endl;
+			out << di->second->tostring( "\t", structdefs) << std::endl;
 		}
 		return out.str();
 	}
@@ -993,12 +1004,12 @@ extern "C" bool papuga_RequestContext_execute_request( papuga_RequestContext* co
 	}
 }
 
-extern "C" const char* papuga_RequestContext_debug_tostring( const papuga_RequestContext* context, papuga_Allocator* allocator)
+extern "C" const char* papuga_RequestContext_debug_tostring( const papuga_RequestContext* context, papuga_Allocator* allocator, papuga_StructInterfaceDescription* structdefs)
 {
 	try
 	{
 		char* rt;
-		std::string dump = context->tostring("");
+		std::string dump = context->tostring("",structdefs);
 		if (allocator)
 		{
 			rt = papuga_Allocator_copy_string( allocator, dump.c_str(), dump.size());
@@ -1017,13 +1028,13 @@ extern "C" const char* papuga_RequestContext_debug_tostring( const papuga_Reques
 	}
 }
 
-extern "C" const char* papuga_RequestHandler_debug_contextmap_tostring( const papuga_RequestHandler* self, papuga_Allocator* allocator)
+extern "C" const char* papuga_RequestHandler_debug_contextmap_tostring( const papuga_RequestHandler* self, papuga_Allocator* allocator, papuga_StructInterfaceDescription* structdefs)
 {
 	try
 	{
 		char* rt;
 		RequestContextMapRef contextmap( self->contextmap);
-		std::string dump = contextmap->tostring();
+		std::string dump = contextmap->tostring( structdefs);
 		if (allocator)
 		{
 			rt = papuga_Allocator_copy_string( allocator, dump.c_str(), dump.size());

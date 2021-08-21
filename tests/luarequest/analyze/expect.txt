@@ -75,3 +75,8 @@
 		"type": "word",
 		"value": "zurich"}}}
 
+-- CONTEXT
+analyzer/analyzer:
+	tokenizer #1=	T
+	normalizer #1=	N
+

@@ -13,21 +13,6 @@ local function keys( stu)
 	return rt
 end
 
-local function dump_( stu, indent)
-	if type(stu) == "table" then
-		for key,val in pairs(stu) do
-			io.stderr:write( indent .. "'" .. key .. "' :")
-			dump_( val, indent .. "  ")
-		end
-	else
-		io.stderr:write( " '" .. stu .. "'")
-	end
-end
-local function dump( stu)
-	dump_( stu, "\n")
-	io.stderr:write( "\n")
-end
-
 function GET( context, input)
 	query = schema( "query", input ).query
 

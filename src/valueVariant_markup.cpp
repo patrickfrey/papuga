@@ -122,7 +122,7 @@ extern "C" void* papuga_ValueVariant_tojson(
 }
 
 
-std::string papuga::ValueVariant_todump( const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structdefs, papuga_ErrorCode& errcode)
+std::string papuga::ValueVariant_todump( const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structdefs, bool deterministic, papuga_ErrorCode& errcode)
 {
 	try
 	{
@@ -138,7 +138,14 @@ std::string papuga::ValueVariant_todump( const papuga_ValueVariant& value, const
 		}
 		else if (value.valuetype == papuga_TypeSerialization)
 		{
-			dump.append( papuga::Serialization_tostring( *value.value.serialization, false/*linemode*/, PAPUGA_MAX_RECURSION_DEPTH, errcode));
+			if (deterministic)
+			{
+				dump.append( papuga::Serialization_tostring_deterministic( *value.value.serialization, false/*linemode*/, PAPUGA_MAX_RECURSION_DEPTH, errcode));
+			}
+			else
+			{
+				dump.append( papuga::Serialization_tostring( *value.value.serialization, false/*linemode*/, PAPUGA_MAX_RECURSION_DEPTH, errcode));
+			}
 		}
 		else
 		{
@@ -159,12 +166,13 @@ extern "C" char* papuga_ValueVariant_todump(
 		const papuga_ValueVariant* self,
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
+		bool deterministic,
 		size_t* len)
 {
 	papuga_ErrorCode errcode = papuga_Ok;
 	try
 	{
-		std::string res = papuga::ValueVariant_todump( *self, structdefs, errcode);
+		std::string res = papuga::ValueVariant_todump( *self, structdefs, deterministic, errcode);
 		if (errcode) return NULL;
 		char* rt = (char*)std::malloc( res.size() +1);
 		if (!rt) return NULL;

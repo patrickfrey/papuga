@@ -247,7 +247,7 @@ public:
 		return m_requestHandler;
 	}
 
-	std::string schemaAutomatonDump( const std::string& schema)
+	std::string schemaAutomatonDump( const std::string& schema) const
 	{
 		papuga_Allocator allocator;
 		int allocatormem[ 2048];
@@ -257,6 +257,28 @@ public:
 		const char* atmstr = papuga_print_schema_automaton( &allocator, m_schemaSrc.c_str(), schema.c_str(), &err);
 		if (!atmstr) throw std::runtime_error( papuga_ErrorCode_tostring( err.code));
 		return atmstr;
+	}
+
+	std::string contextDump() const
+	{
+		std::string rt;
+		papuga_Allocator allocator;
+		int allocatormem[ 2048];
+		try
+		{
+			papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
+			const char* contextdump = papuga_RequestHandler_debug_contextmap_tostring( m_requestHandler, &allocator, nullptr);
+			if (!contextdump) throw std::bad_alloc();
+			rt.append( contextdump);
+			papuga_destroy_Allocator( &allocator);
+		}
+		catch (...)
+		{
+			papuga_destroy_Allocator( &allocator);
+			throw;
+		}
+		papuga_destroy_Allocator( &allocator);
+		return rt;
 	}
 
 private:
@@ -587,6 +609,9 @@ static void runTest( const std::string& scriptDir, const std::string& schemaDir,
 		output.append( std::string("-- CALL ") + cmd.method + " " + cmd.script + " " + cmd.input + "\n");
 		output.append( runRequest( ctx, cmd.method.c_str(), cmd.script.c_str(), cmd.instance.c_str(), cmd.input.c_str(), cmd.input.size()));
 	}
+	output.append( "-- CONTEXT\n");
+	output.append( ctx.contextDump());
+
 	if (normalizeOutput( output) != normalizeOutput( expectSrc))
 	{
 		if (g_verbose)

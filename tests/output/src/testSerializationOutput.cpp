@@ -230,10 +230,10 @@ public:
 		{
 			case JSON:
 				resptr = (char*)papuga_ValueVariant_tojson(
-						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautified, 
+						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautified,
 						m_root.c_str(), m_elem.empty() ? 0 : m_elem.c_str(),
 						&reslen, &errcode);
-				
+
 				break;
 			case XML:
 				resptr = (char*)papuga_ValueVariant_toxml(
@@ -243,7 +243,7 @@ public:
 				break;
 			case TEXT:
 				resptr = (char*)papuga_ValueVariant_totext(
-						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautified, 
+						&m_content, &m_allocator, &structdefs, papuga_UTF8, beautified,
 						m_root.c_str(), m_elem.empty() ? 0 : m_elem.c_str(),
 						&reslen, &errcode);
 				break;
@@ -290,7 +290,7 @@ private:
 	void printTestDump( const char* title, const papuga_ValueVariant& dump)
 	{
 		std::size_t len;
-		std::string dumpstr = papuga_ValueVariant_todump( &dump, &m_allocator, 0/*structdefs*/, &len);
+		std::string dumpstr = papuga_ValueVariant_todump( &dump, &m_allocator, 0/*structdefs*/, true/*deterministic*/, &len);
 		std::cerr << "\tDump " << title << ": " << dumpstr << std::endl << std::endl;
 	}
 

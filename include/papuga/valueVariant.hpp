@@ -25,15 +25,17 @@ std::string ValueVariant_tostring( const papuga_ValueVariant& value, papuga_Erro
 
 /// \brief Dump a value variant value including serializations to string
 /// \param[in] value variant value to convert
-/// \param[out] error code returned in case of error
+/// \param[in] structdefs structure descriptions
+/// \param[in] deterministic true, for deterministic ouput
+/// \param[out] errcode code returned in case of error
 /// \return result string of empty string in case of error
 /// \note does not throw
-std::string ValueVariant_todump( const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structdefs, papuga_ErrorCode& errcode);
+std::string ValueVariant_todump( const papuga_ValueVariant& value, const papuga_StructInterfaceDescription* structdefs, bool deterministic, papuga_ErrorCode& errcode);
 
 /// \brief Append value variant to a string, if possible
 /// \param[in,out] dest where to append result to
 /// \param[in] value variant value to convert
-/// \param[out] error code returned in case of error
+/// \param[out] errcode code returned in case of error
 /// \return result string of empty string in case of error
 /// \note does not throw
 /// \remark only converting atomic values, not handling structures

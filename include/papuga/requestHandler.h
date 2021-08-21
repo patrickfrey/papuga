@@ -226,15 +226,16 @@ bool papuga_RequestContext_execute_request( papuga_RequestContext* context, cons
  * @param[in] allocator allocator to use for the result string copy or NULL if std::malloc should be used
  * @return the contents of the context as readable, null terminated string
  */
-const char* papuga_RequestContext_debug_tostring( const papuga_RequestContext* self, papuga_Allocator* allocator);
+const char* papuga_RequestContext_debug_tostring( const papuga_RequestContext* self, papuga_Allocator* allocator, papuga_StructInterfaceDescription* structdefs);
 
 /*
  * @brief Get the dump of the context map of the request handler as string for debugging purposes
  * @param[in] self request handler to dump
  * @param[in] allocator allocator to use for the result string copy or NULL if std::malloc should be used
+ * @param[in] structdefs structure descriptions for dump
  * @return the contents of the context map as readable, null terminated string
  */
-const char* papuga_RequestHandler_debug_contextmap_tostring( const papuga_RequestHandler* self, papuga_Allocator* allocator);
+const char* papuga_RequestHandler_debug_contextmap_tostring( const papuga_RequestHandler* self, papuga_Allocator* allocator, papuga_StructInterfaceDescription* structdefs);
 
 #ifdef __cplusplus
 }

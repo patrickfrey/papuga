@@ -289,6 +289,7 @@ char* papuga_ValueVariant_todump(
 		const papuga_ValueVariant* self,
 		papuga_Allocator* allocator,
 		const papuga_StructInterfaceDescription* structdefs,
+		bool deterministic,
 		size_t* len);
 
 /*
