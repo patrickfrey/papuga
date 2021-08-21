@@ -20,6 +20,7 @@
 #include <string>
 #include <map>
 #include <bitset>
+#include <limits>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -1135,6 +1136,7 @@ struct RequestElement
 	{
 		if (type != o.type) return false;
 		if (valuelen != o.valuelen) return false;
+		if (valuestr == o.valuestr) return true;
 		return (0==std::strcmp( valuestr, o.valuestr));
 	}
 };
@@ -1311,9 +1313,9 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 	double val_double;
 	bool val_bool;
 	const char* arraytag = 0;
-	std::vector<int64_t> setStack;	//... Stack to determine ambiguous structure definitions
+	std::vector<int64_t> setStack;					//... Stack to determine ambiguous structure definitions
 	std::vector<size_t> arrayStack;
-	
+	size_t consumed_ridx = std::numeric_limits<size_t>::max();	//... Variable to mark an event as comsumed (OpenArray after CloseArray = ReopenArray) 
 	size_t ridx = 0;
 	size_t rsize = request.size();
 	for (; ridx != rsize; ++ridx)
@@ -1437,12 +1439,16 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 					break;
 
 				case SchemaOperation::OpenNamedStructureArray:
-					setStack.push_back( op.set);
-					arrayStack.push_back( ridx);
+					if (ridx != consumed_ridx)
+					{
+						setStack.push_back( op.set);
+						arrayStack.push_back( ridx);
 
-					pushName( output, relem.valuestr, relem.valuelen);
-					pushOpen( output);
-					pushOpen( output);
+						pushName( output, relem.valuestr, relem.valuelen);
+						pushOpen( output);
+						pushOpen( output);
+					}
+					//... else reopen
 					break;
 
 				case SchemaOperation::CloseNamedStructureArray:
@@ -1450,19 +1456,18 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 					{
 						return SchemaError( err, papuga_LogicError);
 					}
-					setStack.pop_back();
-
-					if (ridx+1 < request.size() && request[ arrayStack.back()] == request[ ridx])
+					if (ridx+1 < request.size() && request[ arrayStack.back()] == request[ ridx+1])
 					{
 						pushClose( output);
 						pushOpen( output);
-						++ridx;
+						consumed_ridx = ridx+1;
 					}
 					else
 					{
 						pushClose( output);
 						pushClose( output);
 						arrayStack.pop_back();
+						setStack.pop_back();
 					}
 					break;
 
@@ -1476,11 +1481,15 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 					break;
 
 				case SchemaOperation::OpenStructureArray:
-					arrayStack.push_back( ridx);
+					if (ridx != consumed_ridx)
+					{
+						arrayStack.push_back( ridx);
 
-					pushName( output, relem.valuestr, relem.valuelen);
-					pushOpen( output);
-					pushOpen( output);
+						pushName( output, relem.valuestr, relem.valuelen);
+						pushOpen( output);
+						pushOpen( output);
+					}
+					//... else reopen
 					break;
 
 				case SchemaOperation::CloseStructureArray:
@@ -1488,12 +1497,11 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 					{
 						return SchemaError( err, papuga_LogicError);
 					}
-
-					if (ridx+1 < request.size() && request[ arrayStack.back()] == request[ ridx])
+					if (ridx+1 < request.size() && request[ arrayStack.back()] == request[ ridx+1])
 					{
 						pushClose( output);
 						pushOpen( output);
-						++ridx;
+						consumed_ridx = ridx+1;
 					}
 					else
 					{

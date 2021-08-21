@@ -1,0 +1,13 @@
+count = {
+	name = string,
+	value = integer
+}
+
+count_config = {
+	address = string,
+	factor = integer
+}
+
+distcount = {
+	server = {count_config}
+}

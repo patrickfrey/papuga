@@ -1,0 +1,2 @@
+PUT distcount config.json
+GET distcount input.json

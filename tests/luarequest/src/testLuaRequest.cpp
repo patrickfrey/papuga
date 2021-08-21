@@ -362,57 +362,6 @@ private:
 };
 
 
-static bool dumpContext( std::string& output, papuga_RequestContext* context, papuga_ErrorCode* errcode)
-{
-	papuga_Allocator allocator;
-	int allocatormem[ 2048];
-	enum {MaxContextVariables=128};
-	char const* buf[ MaxContextVariables];
-	papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
-
-	try
-	{
-		const char** varlist = papuga_RequestContext_list_variables( context, -1/*max_inheritcnt*/, buf, MaxContextVariables);
-		size_t vi = 0;
-		for (; varlist[vi]; ++vi)
-		{
-			const char* varname = varlist[vi];
-			const char* varstr = nullptr;
-			size_t varstrlen = 0;
-			const papuga_ValueVariant* varval = papuga_RequestContext_get_variable( context, varname);
-
-			if (papuga_ValueVariant_defined( varval))
-			{
-				if (papuga_ValueVariant_isatomic( varval))
-				{
-					varstr = papuga_ValueVariant_tostring( varval, &allocator, &varstrlen, errcode);
-				}
-				else
-				{
-					varstr = (char*)papuga_ValueVariant_tojson( 
-							varval, &allocator, nullptr, 
-							papuga_UTF8, false/*beautified*/, nullptr/*root*/, "item",
-							&varstrlen, errcode);
-				}
-				if (!varstr) 
-				{
-					return false;
-				}
-				output.append( varname);
-				output.append( " = ");
-				output.append( varstr, varstrlen);
-				output.append( "\n");
-			}
-		}
-		return true;
-	}
-	catch (...)
-	{
-		*errcode = papuga_NoMemError;
-		return false;
-	}
-}
-
 struct RequestContext
 {
 	explicit RequestContext( papuga_RequestHandler* handler_)
@@ -442,6 +391,58 @@ struct RequestContext
 		}
 		impl = nullptr;
 	}
+
+	bool dump( std::string& output, papuga_ErrorCode* errcode)
+	{
+		papuga_Allocator allocator;
+		int allocatormem[ 2048];
+		enum {MaxContextVariables=128};
+		char const* buf[ MaxContextVariables];
+		papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
+
+		try
+		{
+			const char** varlist = papuga_RequestContext_list_variables( impl, -1/*max_inheritcnt*/, buf, MaxContextVariables);
+			size_t vi = 0;
+			for (; varlist[vi]; ++vi)
+			{
+				const char* varname = varlist[vi];
+				const char* varstr = nullptr;
+				size_t varstrlen = 0;
+				const papuga_ValueVariant* varval = papuga_RequestContext_get_variable( impl, varname);
+
+				if (papuga_ValueVariant_defined( varval))
+				{
+					if (papuga_ValueVariant_isatomic( varval))
+					{
+						varstr = papuga_ValueVariant_tostring( varval, &allocator, &varstrlen, errcode);
+					}
+					else
+					{
+						varstr = (char*)papuga_ValueVariant_tojson( 
+								varval, &allocator, nullptr, 
+								papuga_UTF8, false/*beautified*/, nullptr/*root*/, "item",
+								&varstrlen, errcode);
+					}
+					if (!varstr) 
+					{
+						return false;
+					}
+					output.append( varname);
+					output.append( " = ");
+					output.append( varstr, varstrlen);
+					output.append( "\n");
+				}
+			}
+			return true;
+		}
+		catch (...)
+		{
+			*errcode = papuga_NoMemError;
+			return false;
+		}
+	}
+
 	papuga_RequestHandler* handler;
 	papuga_RequestContext* impl;
 };
@@ -500,16 +501,10 @@ static std::string runRequest(
 		}
 	}
 	std::string rt;
-	rt.append( "---- CONTEXT:\n");
-	if (!dumpContext( rt, reqctx.impl, &errcode))
-	{
-		throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
-	}
 	if (0==strcasecmp( requestMethod, "PUT"))
 	{
 		reqctx.put( scriptName, instanceName);
 	}
-	rt.append( "\n---- RESULT:\n");
 	size_t resultlen = 0;
 	const char* resultstr = papuga_LuaRequestHandler_get_result( rhnd, &resultlen);
 	rt.append( resultstr, resultlen);

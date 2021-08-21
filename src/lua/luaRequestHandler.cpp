@@ -101,6 +101,7 @@ static int papuga_lua_encoding( lua_State* ls);
 static int papuga_lua_yield( lua_State* ls);
 static int papuga_lua_send( lua_State* ls);
 static int papuga_lua_schema( lua_State* ls);
+static int papuga_lua_content( lua_State* ls);
 static int papuga_lua_document( lua_State* ls);
 
 static int papuga_lua_new_request( lua_State* ls, papuga_DelegateRequest* req);
@@ -285,6 +286,9 @@ struct papuga_LuaRequestHandler
 		lua_pushlightuserdata( m_ls, const_cast<papuga_SchemaMap*>(schemamap));
 		lua_pushcclosure( m_ls, papuga_lua_schema, 2/*number of closure elements*/);
 		lua_setglobal( m_ls, "schema");
+		lua_pushlightuserdata( m_ls, this);
+		lua_pushcclosure( m_ls, papuga_lua_content, 1/*number of closure elements*/);
+		lua_setglobal( m_ls, "content");
 		lua_pop( m_ls, 1);
 	}
 
@@ -424,13 +428,21 @@ struct papuga_LuaRequestHandler
 		req->errmsg = nullptr;
 		req->resultstr = nullptr;
 		req->resultlen = 0;
-		req->contentstr = (char*)papuga_ValueVariant_tojson(
-					content, &m_allocator, nullptr/*structdefs*/,
-					papuga_UTF8, m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
-					&req->contentlen, &req->errcode);
-		if (!req->contentstr)
+		if (content->valuetype == papuga_TypeString)
 		{
-			throw std::runtime_error( papuga_ErrorCode_tostring( req->errcode));
+			req->contentstr = content->value.string;
+			req->contentlen = content->length;
+		}
+		else
+		{
+			req->contentstr = (char*)papuga_ValueVariant_tojson(
+						content, &m_allocator, nullptr/*structdefs*/,
+						papuga_UTF8, m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+						&req->contentlen, &req->errcode);
+			if (!req->contentstr)
+			{
+				throw std::runtime_error( papuga_ErrorCode_tostring( req->errcode));
+			}
 		}
 		m_nof_delegates += 1;
 		return req;
@@ -579,7 +591,7 @@ static int papuga_lua_request_result( lua_State* ls)
 	try
 	{
 		int nargs = lua_gettop( ls);
-		if (nargs != 0)
+		if (nargs != 1)
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
 		}
@@ -596,7 +608,7 @@ static int papuga_lua_request_result( lua_State* ls)
 		papuga_init_Serialization( &resultser, &allocator);
 		papuga_ErrorCode errcode = papuga_Ok;
 
-		if (papuga_Serialization_append_json( &resultser, req->resultstr, req->resultlen, papuga_UTF8, false, &errcode))
+		if (!papuga_Serialization_append_json( &resultser, req->resultstr, req->resultlen, papuga_UTF8, true/*with root*/, &errcode))
 		{
 			papuga_destroy_Allocator( &allocator);
 			luaL_error( ls, papuga_ErrorCode_tostring( errcode));
@@ -619,14 +631,15 @@ static int papuga_lua_request_error( lua_State* ls)
 	try
 	{
 		int nargs = lua_gettop( ls);
-		if (nargs != 0)
+		if (nargs != 1)
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
 		}
 		if ((*td)->errcode != papuga_Ok)
 		{
+			lua_pushinteger( ls, (*td)->errcode);
 			lua_pushstring( ls, papuga_ErrorCode_tostring( (*td)->errcode));
-			return 1;
+			return 2;
 		}
 	}
 	catch (...) { lippincottFunction( ls); }
@@ -802,7 +815,7 @@ static int papuga_lua_send( lua_State* ls)
 		if (!papuga_lua_value( ls, &value, &reqhnd->m_allocator, 3, &errcode))
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( errcode));
-		}		
+		}
 		papuga_DelegateRequest* req = reqhnd->send( requestmethod, url, &value);
 		return papuga_lua_new_request( ls, req);
 	}
@@ -934,6 +947,39 @@ static int papuga_lua_encoding( lua_State* ls)
 		return 1;
 	}
 	return 0;
+}
+
+static int papuga_lua_content( lua_State* ls)
+{
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
+
+	int nn = lua_gettop( ls);
+	if (nn != 1)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
+	}
+	if (lua_type( ls, 1) != LUA_TSTRING)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
+	}
+	std::size_t contentlen;
+	const char* contentstr = lua_tolstring( ls, 1, &contentlen);
+
+	papuga_ContentType doctype = papuga_guess_ContentType( contentstr, contentlen);
+	papuga_StringEncoding encoding = papuga_guess_StringEncoding( contentstr, contentlen);
+	if (doctype == papuga_ContentType_Unknown)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_UnknownContentType));
+	}
+	if (encoding == papuga_Binary)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_EncodingError));
+	}
+	reqhnd->setDocumentType( doctype, encoding);
+
+	lua_pushstring( ls, papuga_ContentType_name( doctype));
+	lua_pushstring( ls, papuga_stringEncodingName( encoding));
+	return 2;
 }
 
 static int papuga_lua_schema( lua_State* ls)

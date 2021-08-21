@@ -1,0 +1,8 @@
+{"distcount" :{
+	"server":[
+		{"address": "count/1", "factor":"1" },
+		{"address": "count/2", "factor":"2" },
+		{"address": "count/3", "factor":"3" },
+		{"address": "count/4", "factor":"5" }
+	]
+}}

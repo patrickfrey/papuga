@@ -64,6 +64,7 @@ struct JsonTreeRef
 
 	void operator=( cJSON* ptr_)	{if (m_ptr) cJSON_Delete( m_ptr); m_ptr = ptr_;}
 	operator cJSON*()		{return m_ptr;}
+	cJSON* operator ->() const	{return m_ptr;}
 
 private:
 	cJSON* m_ptr;
@@ -564,6 +565,11 @@ extern "C" bool papuga_init_ValueVariant_json( papuga_ValueVariant* self, papuga
 		if (!tree)
 		{
 			*errcode = (ctx.position < 0) ? papuga_NoMemError : papuga_SyntaxError;
+			return false;
+		}
+		else if (!tree->child)
+		{
+			*errcode = papuga_SyntaxError;
 			return false;
 		}
 		bool rt = getJsonSerialization( ser, tree, 0, true/*deep*/, errcode);

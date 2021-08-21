@@ -1,6 +1,0 @@
-person = {
-	name = string,
-	age = integer
-}
-
-

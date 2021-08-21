@@ -157,6 +157,11 @@ extern "C" bool papuga_Serialization_append_json( papuga_Serialization* self, co
 		}
 		return false;
 	}
+	else if (!tree->child)
+	{
+		*errcode = papuga_SyntaxError;
+		rt = false;
+	}
 	else if (withRoot)
 	{
 		rt = Serialization_append_tree( self, tree, true/*isDict*/, 0/*depth*/, errcode);
