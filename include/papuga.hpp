@@ -16,7 +16,4 @@
 #include "papuga/valueVariant.hpp"
 #include "papuga/serialization.hpp"
 
-/* Implemented in library papuga_request_devel: */
-#include "papuga/requestAutomaton.hpp"
-
 #endif

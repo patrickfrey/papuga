@@ -15,9 +15,8 @@
 extern "C" {
 #endif
 #include "papuga/typedefs.h"
-#include "papuga/classdef.h"
 #include "papuga/errors.h"
-#include "papuga/requestHandler.h"
+#include "papuga/requestContext.h"
 #include "papuga/schema.h"
 
 #ifndef _PAPUGA_LUA_DEV_LIB_H_INCLUDED
@@ -38,7 +37,7 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerScript* script,
 	const papuga_lua_ClassEntryMap* cemap,
 	const papuga_SchemaMap* schemamap,
-	papuga_RequestHandler* requesthandler,
+	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,
 	const char* requestmethod,
 	const char* contentstr,

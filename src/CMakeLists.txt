@@ -25,10 +25,7 @@ set( source_files
 )
 
 set( source_files_request
-	request.cpp
-	requestHandler.cpp
-	requestResult.cpp
-	requestAutomaton.cpp
+	requestContext.cpp
 	requestParser.c
 	requestParser.cpp
 	requestParser_json.cpp
@@ -36,7 +33,6 @@ set( source_files_request
 	requestParser_utils.c
 	requestParser_tostring.cpp
 	schema.cpp
-	schemaDescription.cpp
 )
 
 include_directories(

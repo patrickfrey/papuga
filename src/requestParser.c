@@ -9,7 +9,6 @@
  * @file requestParser.c
  */
 #include "papuga/requestParser.h"
-#include "papuga/request.h"
 #include "papuga/allocator.h"
 #include <string.h>
 #include <stdio.h>
@@ -237,66 +236,6 @@ papuga_RequestElementType papuga_RequestParser_next( papuga_RequestParser* self,
 {
 	papuga_RequestParserHeader* header = (papuga_RequestParserHeader*)self;
 	return header->next( self, value);
-}
-
-bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Request* request, papuga_ErrorCode* errcode)
-{
-	papuga_ValueVariant value;
-	bool done = false;
-
-	while (!done)
-	{
-		papuga_RequestElementType elemtype = papuga_RequestParser_next( parser, &value);
-		switch (elemtype)
-		{
-			case papuga_RequestElementType_None:
-				*errcode = papuga_RequestParser_last_error( parser);
-				if (*errcode != papuga_Ok) return false;
-				done = true;
-				break;
-			case papuga_RequestElementType_Open:
-				if (!papuga_Request_feed_open_tag( request, &value))
-				{
-					*errcode = papuga_Request_last_error( request);
-					return false;
-				}
-				break;
-			case papuga_RequestElementType_Close:
-				if (!papuga_Request_feed_close_tag( request))
-				{
-					*errcode = papuga_Request_last_error( request);
-					return false;
-				}
-				break;
-			case papuga_RequestElementType_AttributeName:
-				if (!papuga_Request_feed_attribute_name( request, &value))
-				{
-					*errcode = papuga_Request_last_error( request);
-					return false;
-				}
-				break;
-			case papuga_RequestElementType_AttributeValue:
-				if (!papuga_Request_feed_attribute_value( request, &value))
-				{
-					*errcode = papuga_Request_last_error( request);
-					return false;
-				}
-				break;
-			case papuga_RequestElementType_Value:
-				if (!papuga_Request_feed_content_value( request, &value))
-				{
-					*errcode = papuga_Request_last_error( request);
-					return false;
-				}
-				break;
-		}
-	}
-	if (!papuga_Request_feed_close_tag( request) || !papuga_Request_done( request))
-	{
-		*errcode = papuga_Request_last_error( request);
-		return false;
-	}
-	return true;
 }
 
 papuga_RequestParser* papuga_create_RequestParser( papuga_Allocator* allocator, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* content, size_t size, papuga_ErrorCode* errcode)

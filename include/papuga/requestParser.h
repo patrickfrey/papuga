@@ -11,7 +11,6 @@
 #ifndef _PAPUGA_REQUEST_PARSER_H_INCLUDED
 #define _PAPUGA_REQUEST_PARSER_H_INCLUDED
 #include "papuga/typedefs.h"
-#include "papuga/request.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -103,7 +102,7 @@ typedef struct papuga_RequestParserHeader {
 	int errpos;								/*< last error position of this document parser if available */
 	const char* libname;							/*< library name of this document parser */
 
-	void (*destroy)( 
+	void (*destroy)(
 		papuga_RequestParser* self);					/*< methodtable: destructor */
 	papuga_RequestElementType (*next)(
 		papuga_RequestParser* self, papuga_ValueVariant* value);	/*< methodtable: method fetching the next element */
@@ -174,16 +173,6 @@ papuga_ErrorCode papuga_RequestParser_last_error( const papuga_RequestParser* se
  * @return position or -1 if not available
  */
 int papuga_RequestParser_get_position( const papuga_RequestParser* self, char* locbuf, size_t locbufsize);
-
-/*
- * @brief Feed a request iterating with a request parser on some content
- * @param[in,out] parser the iterator on content
- * @param[in,out] request the request to feed
- * @param[out] errcode the error code in case of an error
- * @return true on success, error on failure
- * @note to get the error position in case of an error with a hint on the location call 'papuga_RequestParser_get_position'
- */
-bool papuga_RequestParser_feed_request( papuga_RequestParser* parser, papuga_Request* request, papuga_ErrorCode* errcode);
 
 /*
  * @brief Get the request content as it is seen from a request parser in a scope defined by an ordinal as string

@@ -109,7 +109,7 @@ static int papuga_lua_destroy_request( lua_State* ls);
 static int papuga_lua_request_result( lua_State* ls);
 static int papuga_lua_request_error( lua_State* ls);
 
-static int papuga_lua_new_context( lua_State* ls, papuga_RequestHandler* hnd, papuga_RequestContext* ctx, const papuga_lua_ClassEntryMap* cemap);
+static int papuga_lua_new_context( lua_State* ls, papuga_RequestContextPool* hnd, papuga_RequestContext* ctx, const papuga_lua_ClassEntryMap* cemap);
 static int papuga_lua_destroy_context( lua_State* ls);
 static int papuga_lua_context_get( lua_State* ls);
 static int papuga_lua_context_set( lua_State* ls);
@@ -247,7 +247,7 @@ struct papuga_LuaRequestHandler
 	bool m_running;
 	bool m_beautifiedOutput;
 	bool m_deterministicOutput;
-	papuga_RequestHandler* m_handler;
+	papuga_RequestContextPool* m_handler;
 	papuga_RequestContext* m_context;
 	papuga_Allocator m_allocator;
 	papuga_DelegateRequest m_delegate[ MaxNofDelegates];
@@ -261,7 +261,7 @@ struct papuga_LuaRequestHandler
 	int m_allocatormem[ 1<<14];
 
 	papuga_LuaRequestHandler(
-			papuga_RequestHandler* handler_,
+			papuga_RequestContextPool* handler_,
 			papuga_RequestContext* context_, 
 			const papuga_SchemaMap* schemamap,
 			bool beautifiedOutput_,
@@ -648,12 +648,12 @@ static int papuga_lua_request_error( lua_State* ls)
 
 struct LuaRequestContext
 {
-	papuga_RequestHandler* hnd;
+	papuga_RequestContextPool* hnd;
 	papuga_RequestContext* ctx;
 	const papuga_lua_ClassEntryMap* cemap;
 };
 
-static int papuga_lua_new_context( lua_State* ls, papuga_RequestHandler* hnd, papuga_RequestContext* ctx, const papuga_lua_ClassEntryMap* cemap)
+static int papuga_lua_new_context( lua_State* ls, papuga_RequestContextPool* hnd, papuga_RequestContext* ctx, const papuga_lua_ClassEntryMap* cemap)
 {
 	LuaRequestContext* td = (LuaRequestContext*)lua_newuserdata( ls, sizeof(LuaRequestContext));
 	td->hnd = hnd;
@@ -1051,7 +1051,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerScript* script,
 	const papuga_lua_ClassEntryMap* cemap,
 	const papuga_SchemaMap* schemamap,
-	papuga_RequestHandler* requesthandler,
+	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* requestcontext,
 	const char* requestmethod,
 	const char* contentstr,
@@ -1061,7 +1061,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	papuga_ErrorCode* errcode)
 {
 	papuga_LuaRequestHandler* rt = 0;
-	rt = new (std::nothrow) papuga_LuaRequestHandler( requesthandler, requestcontext, schemamap, beautifiedOutput, deterministicOutput);
+	rt = new (std::nothrow) papuga_LuaRequestHandler( contextpool, requestcontext, schemamap, beautifiedOutput, deterministicOutput);
 	if (!rt)
 	{
 		*errcode = papuga_NoMemError;

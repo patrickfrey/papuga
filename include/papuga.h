@@ -31,10 +31,8 @@
 #include "papuga/interfaceDescription.h"
 
 /* Implemented in library papuga_request_devel: */
-#include "papuga/classdef.h"
-#include "papuga/request.h"
 #include "papuga/requestParser.h"
-#include "papuga/requestHandler.h"
+#include "papuga/requestContext.h"
 #include "papuga/requestLogger.h"
 
 #endif

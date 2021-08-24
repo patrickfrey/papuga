@@ -8,11 +8,10 @@
 #include "papuga.hpp"
 #include "papuga/luaRequestHandler.h"
 #include "papuga/requestParser.h"
-#include "papuga/requestHandler.h"
+#include "papuga/requestContext.h"
 #include "papuga/valueVariant.h"
 #include "papuga/schema.h"
 #include "papuga/errors.h"
-#include "papuga/classdef.h"
 #include <string>
 #include <cstring>
 #include <cstdlib>
@@ -200,18 +199,17 @@ std::vector<std::string> readDirFiles( const std::string& path, const std::strin
 }
 
 static const papuga_lua_ClassEntryMap* g_cemap = nullptr;
-static const papuga_ClassDef g_classdefs[1] = {papuga_ClassDef_NULL};
 
 class GlobalContext
 {
 public:
 	GlobalContext( const std::string& schemaDir, const std::string& scriptDir)
-		:m_requestHandler(nullptr),m_schemaList(nullptr),m_schemaMap(nullptr),m_schemaSrc(),m_scriptMap()
+		:m_requestContextPool(nullptr),m_schemaList(nullptr),m_schemaMap(nullptr),m_schemaSrc(),m_scriptMap()
 	{
-		m_requestHandler = papuga_create_RequestHandler( g_classdefs);
+		m_requestContextPool = papuga_create_RequestContextPool();
 		try
 		{
-			if (!m_requestHandler) throw std::bad_alloc();
+			if (!m_requestContextPool) throw std::bad_alloc();
 			loadSchemas( schemaDir);
 			loadScripts( scriptDir);
 		}
@@ -242,9 +240,9 @@ public:
 		return m_schemaMap;
 	}
 
-	papuga_RequestHandler* handler() const
+	papuga_RequestContextPool* handler() const
 	{
-		return m_requestHandler;
+		return m_requestContextPool;
 	}
 
 	std::string schemaAutomatonDump( const std::string& schema) const
@@ -267,7 +265,7 @@ public:
 		try
 		{
 			papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
-			const char* contextdump = papuga_RequestHandler_debug_contextmap_tostring( m_requestHandler, &allocator, nullptr);
+			const char* contextdump = papuga_RequestContextPool_debug_contextmap_tostring( m_requestContextPool, &allocator, nullptr);
 			if (!contextdump) throw std::bad_alloc();
 			rt.append( contextdump);
 			papuga_destroy_Allocator( &allocator);
@@ -291,7 +289,7 @@ private:
 		}
 		if (m_schemaList) papuga_destroy_SchemaList( m_schemaList);
 		if (m_schemaMap) papuga_destroy_SchemaMap( m_schemaMap);
-		if (m_requestHandler) papuga_destroy_RequestHandler( m_requestHandler);
+		if (m_requestContextPool) papuga_destroy_RequestContextPool( m_requestContextPool);
 	}
 
 	void loadSchemas( const std::string& schemaDir)
@@ -376,7 +374,7 @@ private:
 	}
 
 private:
-	papuga_RequestHandler* m_requestHandler;
+	papuga_RequestContextPool* m_requestContextPool;
 	papuga_SchemaList* m_schemaList;
 	papuga_SchemaMap* m_schemaMap;
 	std::string m_schemaSrc;
@@ -386,7 +384,7 @@ private:
 
 struct RequestContext
 {
-	explicit RequestContext( papuga_RequestHandler* handler_)
+	explicit RequestContext( papuga_RequestContextPool* handler_)
 		:handler(handler_)
 	{
 		impl = papuga_create_RequestContext();
@@ -407,7 +405,7 @@ struct RequestContext
 	void put( const char* typeName, const char* instanceName)
 	{
 		papuga_ErrorCode errcode = papuga_Ok;
-		if (!papuga_RequestHandler_transfer_context( handler, typeName, instanceName, impl, &errcode))
+		if (!papuga_RequestContextPool_transfer_context( handler, typeName, instanceName, impl, &errcode))
 		{
 			throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
 		}
@@ -465,7 +463,7 @@ struct RequestContext
 		}
 	}
 
-	papuga_RequestHandler* handler;
+	papuga_RequestContextPool* handler;
 	papuga_RequestContext* impl;
 };
 
