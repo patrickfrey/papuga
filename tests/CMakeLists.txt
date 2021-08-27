@@ -7,6 +7,8 @@ add_subdirectory( serialization )
 add_subdirectory( serialization_doc )
 add_subdirectory( requestParser )
 add_subdirectory( schema )
+IF (WITH_LUA STREQUAL "YES")
 add_subdirectory( luarequest )
+ENDIF (WITH_LUA STREQUAL "YES")
 
 

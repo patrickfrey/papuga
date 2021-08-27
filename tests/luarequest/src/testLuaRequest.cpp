@@ -5,7 +5,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
-#include "papuga.hpp"
+#include "papuga/lib/lua_dev.h"
 #include "papuga/luaRequestHandler.h"
 #include "papuga/requestParser.h"
 #include "papuga/requestContext.h"

@@ -150,18 +150,26 @@ static const struct luaL_Reg g_context_methods[] = {
 struct papuga_LuaRequestHandlerScript
 {
 public:
-	papuga_LuaRequestHandlerScript( std::string&& name_, std::string&& dump_, std::string&& source_)
-		:m_name(std::move(name_)),m_dump(std::move(dump_)),m_source(std::move(source_)){}
+	papuga_LuaRequestHandlerScript( std::string&& name_, std::string&& dump_, std::string&& source_, std::string&& options_)
+		:m_name(std::move(name_)),m_dump(std::move(dump_)),m_source(std::move(source_)),m_options(std::move(options_)){}
 
 	const std::string& name() const 		{return m_name;}
 	const std::string& dump() const 		{return m_dump;}
 	const std::string& source() const 		{return m_source;}
+	const std::string& options() const 		{return m_options;}
 
 private:
 	std::string m_name;
 	std::string m_dump;
 	std::string m_source;
+	std::string m_options;
 };
+
+static bool isUppercaseString( char const* si) noexcept
+{
+	while (*si && *si >= 'A' && *si <= 'Z') ++si;
+	return !*si;
+}
 
 extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(
 	const char* name,
@@ -182,6 +190,23 @@ extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript
 		lua_close( ls);
 		return nullptr;
 	}
+	std::string options; //... comma separated list of uppercase name functions in script
+	lua_rawgeti( ls, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
+	lua_pushnil(ls);
+	while (lua_next( ls, -2))
+	{
+		if (lua_isfunction( ls, -1) && lua_isstring( ls, -2))
+		{
+			const char* fn = lua_tostring( ls, -2);
+			if (isUppercaseString( fn))
+			{
+				if (!options.empty()) options.push_back(',');
+				options.append( fn);
+			}
+		}
+		lua_pop( ls, 1);
+	}
+	lua_pop( ls, 1);
 	#ifdef NDEBUG
 	enum {Strip=0};
 	#else
@@ -198,7 +223,7 @@ extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript
 	papuga_LuaRequestHandlerScript* rt = nullptr;
 	try
 	{
-		rt = new papuga_LuaRequestHandlerScript( std::string(name), std::move(dump), std::move(source));
+		rt = new papuga_LuaRequestHandlerScript( std::string(name), std::move(dump), std::move(source), std::move(options));
 	}
 	catch (...)
 	{
@@ -211,6 +236,16 @@ extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript
 extern "C" void papuga_destroy_LuaRequestHandlerScript( papuga_LuaRequestHandlerScript* self)
 {
 	delete self;
+}
+
+extern "C" const char* papuga_LuaRequestHandlerScript_options( papuga_LuaRequestHandlerScript const* self)
+{
+	return self->options().c_str();
+}
+
+extern "C" const char* papuga_LuaRequestHandlerScript_name( papuga_LuaRequestHandlerScript const* self)
+{
+	return self->name().c_str();
 }
 
 static void lippincottFunction( lua_State* ls)

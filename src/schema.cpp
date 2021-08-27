@@ -1107,6 +1107,21 @@ extern "C" papuga_SchemaList* papuga_create_SchemaList( const char* source, papu
 	return rt;
 }
 
+extern "C" char const** papuga_SchemaList_get_names( const papuga_SchemaList* list, char const** buf, size_t bufsize)
+{
+	papuga_SchemaSource const* si = list->ar;
+	papuga_SchemaSource const* se = list->ar + list->arsize;
+	size_t bi = 0;
+	for (; si != se; ++si)
+	{
+		if (bi >= bufsize) return nullptr;
+		buf[ bi] = si->name;
+	}
+	if (bi >= bufsize) return nullptr;
+	buf[ bi] = nullptr;
+	return buf;
+}
+
 extern "C" papuga_SchemaSource const* papuga_SchemaList_get( const papuga_SchemaList* list, const char* schemaname)
 {
 	papuga_SchemaSource const* si = list->ar;

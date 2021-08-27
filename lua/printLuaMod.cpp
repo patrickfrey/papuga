@@ -259,8 +259,8 @@ void papuga::printLuaModSource(
 {
 	out << papuga::cppCodeSnippet( 0,
 		"#include \"lauxlib.h\"",
-		"#include \"papuga.h\"",
-		"#include \"papuga/lib/lua_dev.h\"", 0);
+		"#include \"papuga/lib/lua_dev.h\"",
+		"#include \"papuga.h\"", 0);
 
 	char const** fi = descr.includefiles;
 	for (; *fi; ++fi)

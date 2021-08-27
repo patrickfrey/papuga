@@ -40,6 +40,7 @@ typedef struct  papuga_SchemaSource
 papuga_SchemaList* papuga_create_SchemaList( const char* source, papuga_SchemaError* err);
 void papuga_destroy_SchemaList( papuga_SchemaList* list);
 
+char const** papuga_SchemaList_get_names( const papuga_SchemaList* list, char const** buf, size_t bufsize);
 papuga_SchemaSource const* papuga_SchemaList_get( const papuga_SchemaList* list, const char* schemaname);
 
 papuga_SchemaMap* papuga_create_SchemaMap( const char* source, papuga_SchemaError* err);

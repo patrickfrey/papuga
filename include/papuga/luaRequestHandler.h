@@ -33,6 +33,9 @@ papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(
 
 void papuga_destroy_LuaRequestHandlerScript( papuga_LuaRequestHandlerScript* self);
 
+const char* papuga_LuaRequestHandlerScript_options( papuga_LuaRequestHandlerScript const* self);
+const char* papuga_LuaRequestHandlerScript_name( papuga_LuaRequestHandlerScript const* self);
+
 papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerScript* script,
 	const papuga_lua_ClassEntryMap* cemap,
