@@ -40,6 +40,7 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,
 	const char* requestmethod,
+	const char* requestpath,
 	const char* contentstr,
 	size_t contentlen,
 	bool beautifiedOutput,
@@ -51,7 +52,7 @@ void papuga_destroy_LuaRequestHandler( papuga_LuaRequestHandler* self);
 typedef struct papuga_DelegateRequest
 {
 	const char* requestmethod;
-	const char* url;
+	const char* requesturl;
 	const char* contentstr;
 	size_t contentlen;
 	const char* resultstr;

@@ -10,7 +10,7 @@
 /*
 * @brief Main C include file of the papuga library
 * @file papuga.h
-*/ 
+*/
 /* Implemented in library papuga_devel: */
 #include "papuga/typedefs.h"
 #include "papuga/constants.h"
@@ -33,7 +33,7 @@
 /* Implemented in library papuga_request_devel: */
 #include "papuga/requestParser.h"
 #include "papuga/requestContext.h"
-#include "papuga/requestLogger.h"
+#include "papuga/luaRequestHandler.h"
 
 #endif
 

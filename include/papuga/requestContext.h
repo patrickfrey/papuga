@@ -12,7 +12,6 @@
 #ifndef _PAPUGA_REQUEST_CONTEXT_H_INCLUDED
 #define _PAPUGA_REQUEST_CONTEXT_H_INCLUDED
 #include "papuga/typedefs.h"
-#include "papuga/requestLogger.h"
 #include "papuga/interfaceDescription.h"
 
 #ifdef __cplusplus

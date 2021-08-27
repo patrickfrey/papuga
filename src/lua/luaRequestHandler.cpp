@@ -310,10 +310,11 @@ struct papuga_LuaRequestHandler
 	bool init(
 			const papuga_LuaRequestHandlerScript* script,
 			const char* requestmethod,
+			const char* requestpath,
 			const char* contentstr,
 			std::size_t contentlen,
 			const papuga_lua_ClassEntryMap* cemap,
-			papuga_ErrorCode* errcode)
+			papuga_ErrorCode* errcode) noexcept
 	{
 		LuaDumpReader reader( script->dump());
 		int res = lua_load( m_ls, luaDumpReader, (void*)&reader, script->name().c_str(), "b"/*mode binary*/);
@@ -340,6 +341,7 @@ struct papuga_LuaRequestHandler
 		}
 		papuga_lua_new_context( m_thread, m_handler, m_context, cemap);
 		lua_pushlstring( m_thread, contentstr, contentlen);
+		lua_pushstring( m_thread, requestpath);
 		return true;
 	}
 
@@ -359,7 +361,7 @@ struct papuga_LuaRequestHandler
 	bool run( papuga_ErrorBuffer* errbuf)
 	{
 		char const* msg;
-		int nof_args = m_running ? 0 : 2;
+		int nof_args = m_running ? 0 : 3;
 		m_running = true;
 		papuga_ErrorCode errcode = papuga_Ok;
 		papuga_ValueVariant resultval;
@@ -410,7 +412,7 @@ struct papuga_LuaRequestHandler
 		}
 	}
 
-	papuga_DelegateRequest* send( const char* requestmethod, const char* url, papuga_ValueVariant* content)
+	papuga_DelegateRequest* send( const char* requestmethod, const char* requesturl, papuga_ValueVariant* content)
 	{
 		if (m_nof_delegates >= MaxNofDelegates)
 		{
@@ -419,8 +421,8 @@ struct papuga_LuaRequestHandler
 		papuga_DelegateRequest* req = &m_delegate[ m_nof_delegates];
 		std::memset( req, 0, sizeof(papuga_DelegateRequest));
 		req->requestmethod = papuga_Allocator_copy_charp( &m_allocator, requestmethod);
-		req->url = papuga_Allocator_copy_charp( &m_allocator, url);
-		if (!req->requestmethod || !req->url)
+		req->requesturl = papuga_Allocator_copy_charp( &m_allocator, requesturl);
+		if (!req->requestmethod || !req->requesturl)
 		{
 			throw std::bad_alloc();
 		}
@@ -811,12 +813,12 @@ static int papuga_lua_send( lua_State* ls)
 		papuga_ErrorCode errcode = papuga_Ok;
 
 		const char* requestmethod = lua_tostring( ls, 1);
-		const char* url = lua_tostring( ls, 2);
+		const char* requesturl = lua_tostring( ls, 2);
 		if (!papuga_lua_value( ls, &value, &reqhnd->m_allocator, 3, &errcode))
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( errcode));
 		}
-		papuga_DelegateRequest* req = reqhnd->send( requestmethod, url, &value);
+		papuga_DelegateRequest* req = reqhnd->send( requestmethod, requesturl, &value);
 		return papuga_lua_new_request( ls, req);
 	}
 	catch (...) {lippincottFunction( ls);}
@@ -1054,6 +1056,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* requestcontext,
 	const char* requestmethod,
+	const char* requestpath,
 	const char* contentstr,
 	std::size_t contentlen,
 	bool beautifiedOutput,
@@ -1067,7 +1070,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 		*errcode = papuga_NoMemError;
 		return 0;
 	}
-	if (!rt->init( script, requestmethod, contentstr, contentlen, cemap, errcode))
+	if (!rt->init( script, requestmethod, requestpath, contentstr, contentlen, cemap, errcode))
 	{
 		delete rt;
 		rt = 0;

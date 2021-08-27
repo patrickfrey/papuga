@@ -468,7 +468,8 @@ struct RequestContext
 };
 
 static std::string runRequest(
-		GlobalContext& ctx, const char* requestMethod, const char* scriptName, const char* instanceName,
+		GlobalContext& ctx, const char* requestMethod, 	const char* requestPath,
+		const char* scriptName, const char* instanceName,
 		const char* contentstr, size_t contentlen)
 {
 	papuga_ErrorCode errcode = papuga_Ok;
@@ -484,7 +485,7 @@ static std::string runRequest(
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
 			ctx.script( scriptName), g_cemap, ctx.schemaMap(), ctx.handler(), reqctx.impl,
-			requestMethod, contentstr, contentlen, true/*beautified*/, true/*deterministic*/, &errcode);
+			requestMethod, requestPath, contentstr, contentlen, true/*beautified*/, true/*deterministic*/, &errcode);
 	if (!rhnd)
 	{
 		throw std::runtime_error( papuga_ErrorCode_tostring( errcode));
@@ -506,9 +507,9 @@ static std::string runRequest(
 					= papuga_LuaRequestHandler_get_delegateRequest( rhnd, di);
 				try
 				{
-					auto delegateAddr = splitSlash2( delegate->url);
+					auto delegateAddr = splitSlash2( delegate->requesturl);
 					std::string delegateRes
-						= runRequest( ctx, delegate->requestmethod,
+						= runRequest( ctx, delegate->requestmethod, delegate->requesturl,
 								delegateAddr.first.c_str(), delegateAddr.second.c_str(),
 								delegate->contentstr, delegate->contentlen);
 					papuga_LuaRequestHandler_init_result( rhnd, di, delegateRes.c_str(), delegateRes.size());
@@ -604,8 +605,9 @@ static void runTest( const std::string& scriptDir, const std::string& schemaDir,
 	auto testCmds = TestCommand::read( cmdFile);
 	for (auto cmd : testCmds)
 	{
+		std::string path = cmd.script + "/" + cmd.instance;
 		output.append( std::string("-- CALL ") + cmd.method + " " + cmd.script + " " + cmd.input + "\n");
-		output.append( runRequest( ctx, cmd.method.c_str(), cmd.script.c_str(), cmd.instance.c_str(), cmd.input.c_str(), cmd.input.size()));
+		output.append( runRequest( ctx, cmd.method.c_str(), path.c_str(), cmd.script.c_str(), cmd.instance.c_str(), cmd.input.c_str(), cmd.input.size()));
 	}
 	output.append( "-- CONTEXT\n");
 	output.append( ctx.contextDump());

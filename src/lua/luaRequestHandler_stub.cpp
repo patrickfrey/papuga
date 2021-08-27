@@ -30,6 +30,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,
 	const char* requestmethod,
+	const char* requestpath,
 	const char* contentstr,
 	size_t contentlen,
 	bool beautifiedOutput,
