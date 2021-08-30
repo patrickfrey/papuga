@@ -23,6 +23,14 @@ papuga_ContentType papuga_contentTypeFromName( const char* name)
 	{
 		return papuga_ContentType_JSON;
 	}
+	else if (NULL!=strstr( name, "html") || NULL!=strstr( name, "HTML"))
+	{
+		return papuga_ContentType_HTML;
+	}
+	else if (NULL!=strstr( name, "text") || NULL!=strstr( name, "TEXT"))
+	{
+		return papuga_ContentType_TEXT;
+	}
 	else
 	{
 		return papuga_ContentType_Unknown;
@@ -31,13 +39,13 @@ papuga_ContentType papuga_contentTypeFromName( const char* name)
 
 const char* papuga_ContentType_name( papuga_ContentType type)
 {
-	static const char* ar[] = {"unknown","XML","JSON"};
+	static const char* ar[] = {"unknown","XML","JSON","HTML","TEXT"};
 	return ar[ (int)type];
 }
 
 const char* papuga_ContentType_mime( papuga_ContentType type)
 {
-	static const char* ar[] = {"application/octet-stream","application/xml","application/json"};
+	static const char* ar[] = {"application/octet-stream","application/xml","application/json","text/html","text/plain"};
 	return ar[ (int)type];
 }
 

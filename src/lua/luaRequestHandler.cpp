@@ -274,6 +274,38 @@ static void lippincottFunction( lua_State* ls)
 	}
 }
 
+static void copyRequestAttributes( papuga_Allocator* allocator, papuga_RequestAttributes* dest, const papuga_RequestAttributes* src)
+{
+	if (src)
+	{
+		dest->accepted_charset = src->accepted_charset ? papuga_Allocator_copy_charp( allocator, src->accepted_charset) : nullptr;
+		dest->accepted_doctype = src->accepted_doctype ? papuga_Allocator_copy_charp( allocator, src->accepted_doctype) : nullptr;
+		dest->html_base_href = src->html_base_href ? papuga_Allocator_copy_charp( allocator, src->html_base_href) : nullptr;
+		dest->beautifiedOutput = src->beautifiedOutput;
+		dest->deterministicOutput = src->deterministicOutput;
+	}
+	else
+	{
+		dest->accepted_charset = nullptr;
+		dest->accepted_doctype = nullptr;
+		dest->html_base_href = nullptr;
+		dest->beautifiedOutput = true;
+		dest->deterministicOutput = true;
+	}
+}
+
+static void copyTransactionHandler( papuga_TransactionHandler* dest, const papuga_TransactionHandler* src)
+{
+	if (src)
+	{
+		std::memcpy( dest, src, sizeof(papuga_TransactionHandler));
+	}
+	else
+	{
+		std::memset( dest, 0, sizeof(papuga_TransactionHandler));
+	}
+}
+
 struct papuga_LuaRequestHandler
 {
 	enum {MaxNofDelegates=256};
@@ -283,11 +315,10 @@ struct papuga_LuaRequestHandler
 	lua_State* m_thread;
 	int m_threadref;
 	bool m_running;
-	bool m_beautifiedOutput;
-	bool m_deterministicOutput;
 	papuga_RequestContextPool* m_handler;
 	papuga_RequestContext* m_context;
-	TransactionHandler transactionHandler;
+	papuga_TransactionHandler m_transactionHandler;
+	papuga_RequestAttributes m_attributes;
 	papuga_Allocator m_allocator;
 	papuga_DelegateRequest m_delegate[ MaxNofDelegates];
 	int m_nof_delegates;
@@ -303,12 +334,10 @@ struct papuga_LuaRequestHandler
 			papuga_RequestContextPool* handler_,
 			papuga_RequestContext* context_, 
 			const char* contextname_,
-			TransactionHandler* transactionHandler_,
-			const papuga_SchemaMap* schemamap,
-			bool beautifiedOutput_,
-			bool deterministicOutput_)
+			papuga_TransactionHandler* transactionHandler_,
+			const papuga_RequestAttributes* attributes_,
+			const papuga_SchemaMap* schemamap)
 		:m_ls(nullptr),m_thread(nullptr),m_threadref(0),m_running(false)
-		,m_beautifiedOutput(beautifiedOutput_),m_deterministicOutput(deterministicOutput_)
 		,m_handler(handler_),m_context(context_),m_nof_delegates(0),m_start_delegates(0)
 		,m_resultstr(nullptr),m_resultlen(0)
 		,m_doctype(papuga_ContentType_Unknown),m_encoding(papuga_Binary),m_contentDefined(0)
@@ -318,14 +347,8 @@ struct papuga_LuaRequestHandler
 		luaL_openlibs( m_ls);
 		createMetatable( m_ls, g_request_metatable_name, g_request_methods);
 		createMetatable( m_ls, g_context_metatable_name, g_context_methods);
-		if (transactionHandler_)
-		{
-			std::memcpy( &transactionHandler, transactionHandler_, sizeof(TransactionHandler));
-		}
-		else
-		{
-			std::memset( &transactionHandler, 0, sizeof(TransactionHandler));
-		}
+		copyTransactionHandler( &m_transactionHandler, transactionHandler_);
+		copyRequestAttributes( &m_allocator, &m_attributes, attributes_);
 		lua_getglobal( m_ls, "_G");
 		lua_pushlightuserdata( m_ls, this);
 		luaL_setfuncs( m_ls, g_requestlib, 1/*number of closure elements*/);
@@ -433,7 +456,7 @@ struct papuga_LuaRequestHandler
 				{
 					if (papuga_lua_value( m_thread, &resultval, &m_allocator, -1, &errcode))
 					{
-						if (m_deterministicOutput && resultval.valuetype == papuga_TypeSerialization)
+						if (m_attributes.deterministicOutput && resultval.valuetype == papuga_TypeSerialization)
 						{
 							papuga_init_Serialization( &detser, &m_allocator);
 							if (!papuga_Serialization_copy_deterministic( &detser, resultval.value.serialization, &errcode))
@@ -491,7 +514,8 @@ struct papuga_LuaRequestHandler
 		{
 			req->contentstr = (char*)papuga_ValueVariant_tojson(
 						content, &m_allocator, nullptr/*structdefs*/,
-						papuga_UTF8, m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+						papuga_UTF8, m_attributes.beautifiedOutput,
+						nullptr/*rooname*/, "item"/*elemname*/, 
 						&req->contentlen, &req->errcode);
 			if (!req->contentstr)
 			{
@@ -547,13 +571,25 @@ struct papuga_LuaRequestHandler
 				case papuga_ContentType_JSON:
 					return (char*)papuga_ValueVariant_tojson(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
 							resultlen, errcode);
 					break;
 				case papuga_ContentType_XML:
 					return (char*)papuga_ValueVariant_toxml(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+							resultlen, errcode);
+					break;
+				case papuga_ContentType_HTML:
+					return (char*)papuga_ValueVariant_tohtml5(
+							&result, &m_allocator, nullptr/*structdefs*/,
+							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+							""/*head*/,""/*href_base*/, resultlen, errcode);
+					break;
+				case papuga_ContentType_TEXT:
+					return (char*)papuga_ValueVariant_totext(
+							&result, &m_allocator, nullptr/*structdefs*/,
+							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
 							resultlen, errcode);
 					break;
 			}
@@ -911,13 +947,30 @@ static int papuga_lua_document( lua_State* ls)
 		case papuga_ContentType_JSON:
 			docstr = (char*)papuga_ValueVariant_tojson(
 					&doc, &reqhnd->m_allocator, nullptr/*structdefs*/,
-					encoding, reqhnd->m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+					encoding, reqhnd->m_attributes.beautifiedOutput,
+					nullptr/*rooname*/, "item"/*elemname*/, 
 					&doclen, &errcode);
 			break;
 		case papuga_ContentType_XML:
 			docstr = (char*)papuga_ValueVariant_toxml(
 					&doc, &reqhnd->m_allocator, nullptr/*structdefs*/,
-					encoding, reqhnd->m_beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+					encoding, reqhnd->m_attributes.beautifiedOutput,
+					nullptr/*rooname*/, "item"/*elemname*/, 
+					&doclen, &errcode);
+			break;
+		case papuga_ContentType_HTML:
+			docstr = (char*)papuga_ValueVariant_tohtml5(
+					&doc, &reqhnd->m_allocator, nullptr/*structdefs*/,
+					encoding, reqhnd->m_attributes.beautifiedOutput,
+					nullptr/*rooname*/, "item"/*elemname*/, 
+					""/*head*/,""/*href_base*/,
+					&doclen, &errcode);
+			break;
+		case papuga_ContentType_TEXT:
+			docstr = (char*)papuga_ValueVariant_totext(
+					&doc, &reqhnd->m_allocator, nullptr/*structdefs*/,
+					encoding, reqhnd->m_attributes.beautifiedOutput,
+					nullptr/*rooname*/, "item"/*elemname*/, 
 					&doclen, &errcode);
 			break;
 	}
@@ -933,7 +986,7 @@ static int papuga_lua_create_transaction( lua_State* ls)
 {
 	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
 	int nn = lua_gettop( ls);
-	if (!reqhnd->transactionHandler.create)
+	if (!reqhnd->m_transactionHandler.create)
 	{
 		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NotImplemented));
 	}
@@ -966,7 +1019,7 @@ static int papuga_lua_create_transaction( lua_State* ls)
 		papuga_destroy_Allocator( &allocator);
 		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NoMemError));
 	}
-	const char* tid = reqhnd->transactionHandler.create( reqhnd->transactionHandler.self, typenam, transactionContext, &allocator);
+	const char* tid = reqhnd->m_transactionHandler.create( reqhnd->m_transactionHandler.self, typenam, transactionContext, &allocator);
 	if (!tid)
 	{
 		papuga_destroy_Allocator( &allocator);
@@ -980,9 +1033,9 @@ static int papuga_lua_create_transaction( lua_State* ls)
 static int papuga_lua_done_transaction( lua_State* ls)
 {
 	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
-	if (reqhnd->transactionHandler.done)
+	if (reqhnd->m_transactionHandler.done)
 	{
-		reqhnd->transactionHandler.done( reqhnd->transactionHandler.self);
+		reqhnd->m_transactionHandler.done( reqhnd->m_transactionHandler.self);
 	}
 	int nn = lua_gettop( ls);
 	if (nn != 0)
@@ -1167,18 +1220,17 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* requestcontext,
-	TransactionHandler* transactionHandler,
+	papuga_TransactionHandler* transactionHandler,
+	const papuga_RequestAttributes* attributes,
 	const char* requestmethod,
 	const char* contextname,
 	const char* requestpath,
 	const char* contentstr,
 	std::size_t contentlen,
-	bool beautifiedOutput,
-	bool deterministicOutput,
 	papuga_ErrorCode* errcode)
 {
 	papuga_LuaRequestHandler* rt = 0;
-	rt = new (std::nothrow) papuga_LuaRequestHandler( contextpool, requestcontext, contextname, transactionHandler, schemamap, beautifiedOutput, deterministicOutput);
+	rt = new (std::nothrow) papuga_LuaRequestHandler( contextpool, requestcontext, contextname, transactionHandler, attributes, schemamap);
 	if (!rt)
 	{
 		*errcode = papuga_NoMemError;

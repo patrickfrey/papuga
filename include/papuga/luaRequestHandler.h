@@ -22,15 +22,24 @@ extern "C" {
 typedef struct papuga_LuaRequestHandlerScript papuga_LuaRequestHandlerScript;
 typedef struct papuga_LuaRequestHandler papuga_LuaRequestHandler;
 
-typedef const char* (*CreateTransaction)( void* self, const char* type, papuga_RequestContext* context, papuga_Allocator* allocator);
-typedef bool (*DoneTransaction)( void* self);
+typedef const char* (*papuga_CreateTransaction)( void* self, const char* type, papuga_RequestContext* context, papuga_Allocator* allocator);
+typedef bool (*papuga_DoneTransaction)( void* self);
 
-typedef struct TransactionHandler
+typedef struct papuga_TransactionHandler
 {
 	void* self;
-	CreateTransaction create;
-	DoneTransaction done;
-} TransactionHandler;
+	papuga_CreateTransaction create;
+	papuga_DoneTransaction done;
+} papuga_TransactionHandler;
+
+typedef struct papuga_RequestAttributes
+{
+	const char* accepted_charset;
+	const char* accepted_doctype;
+	const char* html_base_href;
+	bool beautifiedOutput;
+	bool deterministicOutput;
+} papuga_RequestAttributes;
 
 papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(
 	const char* name,
@@ -47,14 +56,13 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,
-	TransactionHandler* transactionHandler,
+	papuga_TransactionHandler* transactionHandler,
+	const papuga_RequestAttributes* attributes,
 	const char* requestmethod,
 	const char* contextname,
 	const char* requestpath,
 	const char* contentstr,
 	size_t contentlen,
-	bool beautifiedOutput,
-	bool deterministicOutput,
 	papuga_ErrorCode* errcode);
 
 void papuga_destroy_LuaRequestHandler( papuga_LuaRequestHandler* self);

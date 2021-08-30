@@ -361,8 +361,7 @@ private:
 			std::string scriptSrc = readFile( joinPath( scriptDir, *fi));
 
 			papuga_LuaRequestHandlerScript* script
-				= papuga_create_LuaRequestHandlerScript(
-					scriptName.c_str(), scriptSrc.c_str(), &errbuf);
+				= papuga_create_LuaRequestHandlerScript( scriptName.c_str(), scriptSrc.c_str(), &errbuf);
 			if (!script)
 			{
 				throw std::runtime_error( papuga_ErrorBuffer_lastError( &errbuf));
@@ -482,8 +481,9 @@ static std::string runRequest(
 	}
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
-			ctx.script( scriptName), ctx.schemaMap(), ctx.handler(), reqctx.impl, nullptr/*TransactionHandler*/,
-			requestMethod, instanceName, requestPath, contentstr, contentlen, true/*beautified*/, true/*deterministic*/, &errcode);
+			ctx.script( scriptName), ctx.schemaMap(), ctx.handler(), reqctx.impl,
+			nullptr/*TransactionHandler*/, nullptr/*RequestAttributes*/,
+			requestMethod, instanceName, requestPath, contentstr, contentlen, &errcode);
 	if (!rhnd)
 	{
 		throw std::runtime_error( papuga_ErrorCode_tostring( errcode));

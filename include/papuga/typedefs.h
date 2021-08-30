@@ -134,7 +134,9 @@ typedef enum papuga_StringEncoding {
 typedef enum {
 	papuga_ContentType_Unknown,				/*< Content type is not known */
 	papuga_ContentType_XML,					/*< Content type is XML*/
-	papuga_ContentType_JSON					/*< Content type is JSON */
+	papuga_ContentType_JSON,				/*< Content type is JSON */
+	papuga_ContentType_HTML,				/*< Content type is HTML */
+	papuga_ContentType_TEXT					/*< Content type is TEXT */	
 } papuga_ContentType;
 
 /*

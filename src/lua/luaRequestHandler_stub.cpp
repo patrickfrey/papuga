@@ -33,14 +33,13 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,
-	TransactionHandler* transactionHandler,
+	papuga_TransactionHandler* transactionHandler,
+	const papuga_RequestAttributes* attributes,
 	const char* requestmethod,
 	const char* contextname,
 	const char* requestpath,
 	const char* contentstr,
 	size_t contentlen,
-	bool beautifiedOutput,
-	bool deterministicOutput,
 	papuga_ErrorCode* errcode)
 {
 	*errcode = papuga_NotImplemented;
