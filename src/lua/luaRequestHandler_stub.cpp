@@ -30,11 +30,12 @@ extern "C" const char* papuga_LuaRequestHandlerScript_options( papuga_LuaRequest
 
 extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerScript* script,
-	const papuga_lua_ClassEntryMap* cemap,
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,
+	TransactionHandler* transactionHandler,
 	const char* requestmethod,
+	const char* contextname,
 	const char* requestpath,
 	const char* contentstr,
 	size_t contentlen,

@@ -19,12 +19,18 @@ extern "C" {
 #include "papuga/requestContext.h"
 #include "papuga/schema.h"
 
-#ifndef _PAPUGA_LUA_DEV_LIB_H_INCLUDED
-typedef struct papuga_lua_ClassEntryMap papuga_lua_ClassEntryMap;
-#endif
-
 typedef struct papuga_LuaRequestHandlerScript papuga_LuaRequestHandlerScript;
 typedef struct papuga_LuaRequestHandler papuga_LuaRequestHandler;
+
+typedef const char* (*CreateTransaction)( void* self, const char* type, papuga_RequestContext* context, papuga_Allocator* allocator);
+typedef bool (*DoneTransaction)( void* self);
+
+typedef struct TransactionHandler
+{
+	void* self;
+	CreateTransaction create;
+	DoneTransaction done;
+} TransactionHandler;
 
 papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(
 	const char* name,
@@ -38,11 +44,12 @@ const char* papuga_LuaRequestHandlerScript_name( papuga_LuaRequestHandlerScript 
 
 papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerScript* script,
-	const papuga_lua_ClassEntryMap* cemap,
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,
+	TransactionHandler* transactionHandler,
 	const char* requestmethod,
+	const char* contextname,
 	const char* requestpath,
 	const char* contentstr,
 	size_t contentlen,

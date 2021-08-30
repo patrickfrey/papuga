@@ -27,6 +27,7 @@
 #define IS_CONVERTIBLE_TOUINT( x)   ((x-floor(x) <= NUM_EPSILON) && x < MAX_INT && x > -NUM_EPSILON)
 
 #define PAPUGA_DEEP_TYPE_CHECKING
+#define PAPUGA_GLOBAL_CEMAP "__papuga_cemap"
 
 #undef PAPUGA_LOWLEVEL_DEBUG
 #ifdef PAPUGA_LOWLEVEL_DEBUG
@@ -104,6 +105,13 @@ static const char** get_structmembers( const papuga_lua_ClassEntryMap* cemap, un
 	--structid;
 	return (structid > cemap->soarsize) ? NULL : cemap->soar[ structid];
 }
+static const papuga_lua_ClassEntryMap* get_cemap( lua_State* ls)
+{
+	lua_getglobal( ls, PAPUGA_GLOBAL_CEMAP);
+	const papuga_lua_ClassEntryMap* cemap = lua_touserdata( ls, -1);
+	lua_pop( ls, 1);
+	return cemap;
+}
 
 struct papuga_lua_UserData
 {
@@ -111,13 +119,12 @@ struct papuga_lua_UserData
 	int checksum;
 	void* objectref;
 	papuga_Deleter destructor;
-	const papuga_lua_ClassEntryMap* cemap;
 };
 
 #define KNUTH_HASH 2654435761U
 static int calcCheckSum( const papuga_lua_UserData* udata)
 {
-	return (((udata->classid ^ (uintptr_t)udata->objectref) * KNUTH_HASH) ^ (uintptr_t)udata->destructor ^ ((uintptr_t)udata->cemap << 7));
+	return (((udata->classid ^ (uintptr_t)udata->objectref) * KNUTH_HASH) ^ (uintptr_t)udata->destructor);
 }
 
 static int papuga_lua_destroy_UserData( lua_State* ls)
@@ -138,7 +145,8 @@ static const papuga_lua_UserData* get_UserData( lua_State* ls, int idx)
 	const char* cname;
 	const papuga_lua_UserData* udata = (const papuga_lua_UserData*)lua_touserdata( ls, idx);
 	if (!udata) return 0;
-	cname = get_classname( udata->cemap, udata->classid);
+	const papuga_lua_ClassEntryMap* cemap = get_cemap( ls);
+	cname = get_classname( cemap, udata->classid);
 	if (calcCheckSum(udata) != udata->checksum) return 0;
 	if (!cname) return 0;
 	if (!luaL_testudata( ls, idx, cname)) return 0;
@@ -151,7 +159,6 @@ static void release_UserData( papuga_lua_UserData* udata)
 	udata->objectref = 0;
 	udata->destructor = 0;
 	udata->checksum = 0;
-	udata->cemap = 0;
 }
 
 static void createClassMetaTable( lua_State* ls, const char* classname, unsigned int classid, const luaL_Reg* mt)
@@ -239,7 +246,7 @@ static int iteratorGetNext( lua_State* ls)
 		}
 		return 0;
 	}
-	rt = papuga_lua_move_CallResult( ls, &retval, udata->cemap, &errcode);
+	rt = papuga_lua_move_CallResult( ls, &retval, &errcode);
 	if (rt < 0)
 	{
 		papuga_lua_error( ls, "iterator get next", errcode);
@@ -248,13 +255,13 @@ static int iteratorGetNext( lua_State* ls)
 	return rt;
 }
 
-static void pushIterator( lua_State* ls, void* objectref, papuga_Deleter destructor, papuga_GetNext getNext, const papuga_lua_ClassEntryMap* cemap)
+static void pushIterator( lua_State* ls, void* objectref, papuga_Deleter destructor, papuga_GetNext getNext)
 {
 	papuga_lua_UserData* udata;
 	lua_pushlightuserdata( ls, objectref);
 	lua_pushlightuserdata( ls, *(void**)&getNext);
 	udata = papuga_lua_new_userdata( ls, ITERATOR_METATABLE_NAME);
-	papuga_lua_init_UserData( udata, 0, objectref, destructor, cemap);
+	papuga_lua_init_UserData( udata, 0, objectref, destructor);
 	lua_pushcclosure( ls, iteratorGetNext, 3);
 }
 
@@ -564,7 +571,7 @@ static bool serialize_root( papuga_CallArgs* as, lua_State* ls, int li)
 	return rt && as->errcode == papuga_Ok;
 }
 
-static bool deserialize_root( papuga_Serialization* ser, lua_State* ls, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+static bool deserialize_root( papuga_Serialization* ser, lua_State* ls, papuga_ErrorCode* errcode);
 
 static bool push_string( lua_State* ls, const papuga_ValueVariant* item, papuga_ErrorCode* errcode)
 {
@@ -622,7 +629,7 @@ static bool deserialize_key( const papuga_ValueVariant* item, lua_State* ls, pap
 	return true;
 }
 
-static bool deserialize_value( const papuga_ValueVariant* item, lua_State* ls, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+static bool deserialize_value( const papuga_ValueVariant* item, lua_State* ls, papuga_ErrorCode* errcode)
 {
 	switch (item->valuetype)
 	{
@@ -642,14 +649,10 @@ static bool deserialize_value( const papuga_ValueVariant* item, lua_State* ls, c
 			return push_string( ls, item, errcode);
 		case papuga_TypeHostObject:
 		{
+			const papuga_lua_ClassEntryMap* cemap = get_cemap( ls);
 			papuga_HostObject* obj;
 			papuga_lua_UserData* udata;
 			const char* cname;
-			if (!cemap)
-			{
-				*errcode = papuga_TypeError;
-				return false;
-			}
 			obj = item->value.hostObject;
 			cname = get_classname( cemap, obj->classid);
 			if (!cname)
@@ -658,24 +661,18 @@ static bool deserialize_value( const papuga_ValueVariant* item, lua_State* ls, c
 				return false;
 			}
 			udata = papuga_lua_new_userdata( ls, cname);
-			papuga_lua_init_UserData( udata, obj->classid, obj->data, obj->destroy, cemap);
+			papuga_lua_init_UserData( udata, obj->classid, obj->data, obj->destroy);
 			papuga_release_HostObject( obj);
 			break;
 		}
 		case papuga_TypeSerialization:
 		{
-			return deserialize_root( item->value.serialization, ls, cemap, errcode);
+			return deserialize_root( item->value.serialization, ls, errcode);
 		}
 		case papuga_TypeIterator:
 		{
-			papuga_Iterator* itr;
-			if (!cemap)
-			{
-				*errcode = papuga_TypeError;
-				return false;
-			}
-			itr = item->value.iterator;
-			pushIterator( ls, itr->data, itr->destroy, itr->getNext, cemap);
+			papuga_Iterator* itr = item->value.iterator;
+			pushIterator( ls, itr->data, itr->destroy, itr->getNext);
 			papuga_release_Iterator( itr);
 			break;
 		}
@@ -697,12 +694,13 @@ typedef struct StructElementNaming
 	StructElementNamingCategory category;
 } StructElementNaming;
 
-static bool init_StructElementNaming( StructElementNaming* ths, int structid, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+static bool init_StructElementNaming( StructElementNaming* ths, int structid, lua_State* ls, papuga_ErrorCode* errcode)
 {
 	ths->name = NULL;
 	papuga_init_ValueVariant( &ths->membername);
 	if (structid)
 	{
+		const papuga_lua_ClassEntryMap* cemap = get_cemap( ls);
 		if (!cemap)
 		{
 			*errcode = papuga_AtomicValueExpected;
@@ -819,11 +817,11 @@ static void StructElementNaming_reset_name( StructElementNaming* ths)
 	ths->name = NULL;
 }
 
-static bool deserialize_node( papuga_SerializationIter* seriter, lua_State* ls, int structid, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+static bool deserialize_node( papuga_SerializationIter* seriter, lua_State* ls, int structid, papuga_ErrorCode* errcode)
 {
 	StructElementNaming state;
 
-	if (!init_StructElementNaming( &state, structid, cemap, errcode))
+	if (!init_StructElementNaming( &state, structid, ls, errcode))
 	{
 		return false;
 	}
@@ -847,7 +845,7 @@ static bool deserialize_node( papuga_SerializationIter* seriter, lua_State* ls, 
 				STACKTRACE( ls, "deserialize node open");
 				lua_newtable( ls);
 				papuga_SerializationIter_skip( seriter);
-				if (!deserialize_node( seriter, ls, substructure_structid, cemap, errcode))
+				if (!deserialize_node( seriter, ls, substructure_structid, errcode))
 				{
 					return false;
 				}
@@ -905,7 +903,7 @@ static bool deserialize_node( papuga_SerializationIter* seriter, lua_State* ls, 
 				{
 					lua_pushinteger( ls, ++state.memberidx);
 				}
-				if (!deserialize_value( papuga_SerializationIter_value(seriter), ls, cemap, errcode))
+				if (!deserialize_value( papuga_SerializationIter_value(seriter), ls, errcode))
 				{
 					return false;
 				}
@@ -917,14 +915,14 @@ static bool deserialize_node( papuga_SerializationIter* seriter, lua_State* ls, 
 	return true;
 }
 
-static bool deserialize_root( papuga_Serialization* ser, lua_State* ls, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+static bool deserialize_root( papuga_Serialization* ser, lua_State* ls, papuga_ErrorCode* errcode)
 {
 	papuga_SerializationIter seriter;
 	int structid = papuga_Serialization_structid( ser);
 	DUMP_SERIALIZATION( "DESERIALIZE STRUCT", ser);
 	papuga_init_SerializationIter( &seriter, ser);
 	lua_newtable( ls);
-	if (!deserialize_node( &seriter, ls, structid, cemap, errcode))
+	if (!deserialize_node( &seriter, ls, structid, errcode))
 	{
 		return false;
 	}
@@ -936,9 +934,11 @@ static bool deserialize_root( papuga_Serialization* ser, lua_State* ls, const pa
 	return true;
 }
 
-DLL_PUBLIC void papuga_lua_init( lua_State* ls)
+DLL_PUBLIC void papuga_lua_init( lua_State* ls, const papuga_lua_ClassEntryMap* cemap)
 {
 	createIteratorMetaTable( ls);
+	lua_pushlightuserdata( ls, (void*)cemap);
+	lua_setglobal( ls, PAPUGA_GLOBAL_CEMAP);
 }
 
 DLL_PUBLIC void papuga_lua_declare_class( lua_State* ls, int classid, const char* classname, const luaL_Reg* mt)
@@ -955,12 +955,11 @@ DLL_PUBLIC papuga_lua_UserData* papuga_lua_new_userdata( lua_State* ls, const ch
 	return rt;
 }
 
-DLL_PUBLIC void papuga_lua_init_UserData( papuga_lua_UserData* udata, int classid, void* objectref, papuga_Deleter destructor, const papuga_lua_ClassEntryMap* cemap)
+DLL_PUBLIC void papuga_lua_init_UserData( papuga_lua_UserData* udata, int classid, void* objectref, papuga_Deleter destructor)
 {
 	udata->classid = classid;
 	udata->objectref = objectref;
 	udata->destructor = destructor;
-	udata->cemap = cemap;
 	udata->checksum = calcCheckSum( udata);
 }
 
@@ -1064,11 +1063,12 @@ ERROR:
 	return false;
 }
 
-static bool lua_push_ValueVariant( lua_State *ls, const papuga_ValueVariant* value, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+static bool lua_push_ValueVariant( lua_State *ls, const papuga_ValueVariant* value, papuga_ErrorCode* errcode)
 {
 	/* NOTE: Returns only with false if an error is not thrown by luaL_error */
 	papuga_HostObject* obj;
 	papuga_lua_UserData* udata;
+	const papuga_lua_ClassEntryMap* cemap = NULL;
 	const char* cname;
 	papuga_Iterator* itr;
 	if (!lua_checkstack( ls, 1))
@@ -1096,15 +1096,14 @@ static bool lua_push_ValueVariant( lua_State *ls, const papuga_ValueVariant* val
 			/* REMARK: Ownership of hostobject transfered */
 			if (!cemap)
 			{
-				*errcode = papuga_AtomicValueExpected;
-				return false;
+				cemap = get_cemap( ls);
 			}
 			obj = value->value.hostObject;
 			cname = get_classname( cemap, obj->classid);
 			if (cname)
 			{
 				udata = papuga_lua_new_userdata( ls, cname);
-				papuga_lua_init_UserData( udata, obj->classid, obj->data, obj->destroy, cemap);
+				papuga_lua_init_UserData( udata, obj->classid, obj->data, obj->destroy);
 				papuga_release_HostObject( obj);
 			}
 			else
@@ -1114,16 +1113,11 @@ static bool lua_push_ValueVariant( lua_State *ls, const papuga_ValueVariant* val
 			}
 			break;
 		case papuga_TypeSerialization:
-			return deserialize_root( value->value.serialization, ls, cemap, errcode);
+			return deserialize_root( value->value.serialization, ls, errcode);
 		case papuga_TypeIterator:
-			if (!cemap)
-			{
-				*errcode = papuga_AtomicValueExpected;
-				return false;
-			}
 			/* REMARK: Ownership of iterator transfered */
 			itr = value->value.iterator;
-			pushIterator( ls, itr->data, itr->destroy, itr->getNext, cemap);
+			pushIterator( ls, itr->data, itr->destroy, itr->getNext);
 			papuga_release_Iterator( itr);
 			break;
 		default:
@@ -1133,7 +1127,7 @@ static bool lua_push_ValueVariant( lua_State *ls, const papuga_ValueVariant* val
 	return true;
 }
 
-DLL_PUBLIC int papuga_lua_move_CallResult( lua_State* ls, papuga_CallResult* retval, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+DLL_PUBLIC int papuga_lua_move_CallResult( lua_State* ls, papuga_CallResult* retval, papuga_ErrorCode* errcode)
 {
 	/* NOTE:
 	 *	Memory leak on error, papuga_destroy_CallResult( retval) not called when Lua fails because of a memory allocation error
@@ -1147,7 +1141,7 @@ DLL_PUBLIC int papuga_lua_move_CallResult( lua_State* ls, papuga_CallResult* ret
 	}
 	for (; ni != ne; ++ni)
 	{
-		if (!lua_push_ValueVariant( ls, &retval->valuear[ ni], cemap, errcode))
+		if (!lua_push_ValueVariant( ls, &retval->valuear[ ni], errcode))
 		{
 			papuga_destroy_CallResult( retval);
 			papuga_lua_error( ls, "move result", *errcode);
@@ -1158,19 +1152,14 @@ DLL_PUBLIC int papuga_lua_move_CallResult( lua_State* ls, papuga_CallResult* ret
 	return retval->nofvalues;
 }
 
-DLL_PUBLIC bool papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+DLL_PUBLIC bool papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, papuga_ErrorCode* errcode)
 {
-	return lua_push_ValueVariant( ls, value, cemap, errcode);
+	return lua_push_ValueVariant( ls, value, errcode);
 }
 
-DLL_PUBLIC bool papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* value, papuga_ErrorCode* errcode)
+DLL_PUBLIC bool papuga_lua_push_serialization( lua_State *ls, const papuga_Serialization* ser, papuga_ErrorCode* errcode)
 {
-	return lua_push_ValueVariant( ls, value, NULL/*cemap*/, errcode);
-}
-
-DLL_PUBLIC bool papuga_lua_push_serialization( lua_State *ls, const papuga_Serialization* ser, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
-{
-	return deserialize_root( (papuga_Serialization*)ser, ls, cemap, errcode);
+	return deserialize_root( (papuga_Serialization*)ser, ls, errcode);
 }
 
 DLL_PUBLIC bool papuga_lua_serialize( lua_State *ls, papuga_Serialization* dest, int li, papuga_ErrorCode* errcode)

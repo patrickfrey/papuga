@@ -198,8 +198,6 @@ std::vector<std::string> readDirFiles( const std::string& path, const std::strin
 	return rt;
 }
 
-static const papuga_lua_ClassEntryMap* g_cemap = nullptr;
-
 class GlobalContext
 {
 public:
@@ -484,8 +482,8 @@ static std::string runRequest(
 	}
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
-			ctx.script( scriptName), g_cemap, ctx.schemaMap(), ctx.handler(), reqctx.impl,
-			requestMethod, requestPath, contentstr, contentlen, true/*beautified*/, true/*deterministic*/, &errcode);
+			ctx.script( scriptName), ctx.schemaMap(), ctx.handler(), reqctx.impl, nullptr/*TransactionHandler*/,
+			requestMethod, instanceName, requestPath, contentstr, contentlen, true/*beautified*/, true/*deterministic*/, &errcode);
 	if (!rhnd)
 	{
 		throw std::runtime_error( papuga_ErrorCode_tostring( errcode));

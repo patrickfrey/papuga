@@ -45,7 +45,7 @@ typedef struct papuga_lua_UserData papuga_lua_UserData;
 * @param[in] ls lua state to initialize
 * @remark this function has to be called when initializing the lua context
 */
-void papuga_lua_init( lua_State* ls);
+void papuga_lua_init( lua_State* ls, const papuga_lua_ClassEntryMap* cemap);
 
 /*
 * @brief Declares a class with its meta data table
@@ -70,11 +70,8 @@ papuga_lua_UserData* papuga_lua_new_userdata( lua_State* ls, const char* classna
 * @param[in] classid identifier of the class
 * @param[in] objref pointer to user data object (class instance)
 * @param[in] destructor destructor of 'objref'
-* @param[in] cemap map class identifiers to class names
 */
-void papuga_lua_init_UserData( papuga_lua_UserData* udata,
-				int classid, void* objref, papuga_Deleter destructor,
-				const papuga_lua_ClassEntryMap* cemap);
+void papuga_lua_init_UserData( papuga_lua_UserData* udata, int classid, void* objref, papuga_Deleter destructor);
 
 /*
 * @brief Invokes a lua error exception on a papuga error
@@ -105,38 +102,26 @@ bool papuga_lua_set_CallArgs( papuga_CallArgs* arg, lua_State *ls, int argc, con
 * @brief Procedure that transfers the call result of a function into the lua context, freeing the call result structure
 * @param[in] ls lua state context
 * @param[out] callres result structure initialized
-* @param[in] cemap table of application class names
 * @param[out] errcode error code
 * @return the number of values returned
 */
-int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* callres,
-				const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+int papuga_lua_move_CallResult( lua_State *ls, papuga_CallResult* callres, papuga_ErrorCode* errcode);
 
 /*
 * @brief Push a variant value to the lua stack
 * @param[in,out] ls lua state context
 * @param[in] value value to push
-* @param[in] cemap class description for object meta data
 * @return true, if success, false on failure
 */
-bool papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
-
-/*
-* @brief Push a variant value to the lua stack in plain (not accepting host objects or iterators or data without all meta data in plain)
-* @param[in,out] ls lua state context
-* @param[in] value value to push
-* @return true, if success, false on failure
-*/
-bool papuga_lua_push_value_plain( lua_State *ls, const papuga_ValueVariant* value, papuga_ErrorCode* errcode);
+bool papuga_lua_push_value( lua_State *ls, const papuga_ValueVariant* value, papuga_ErrorCode* errcode);
 
 /*
 * @brief Push a serialization as table to the lua stack
 * @param[in,out] ls lua state context
 * @param[in] ser serialization to push
-* @param[in] cemap class description for object meta data
 * @return true, if success, false on failure
 */
-bool papuga_lua_push_serialization( lua_State *ls, const papuga_Serialization* ser, const papuga_lua_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+bool papuga_lua_push_serialization( lua_State *ls, const papuga_Serialization* ser, papuga_ErrorCode* errcode);
 
 /*
 * @brief Serialize a deep copy of a value from the lua stack

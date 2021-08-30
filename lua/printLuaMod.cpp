@@ -103,7 +103,7 @@ static void define_method(
 		"papuga_init_CallResult( &retval, &allocator, true/*allocator ownership*/, membuf_err, sizeof(membuf_err));",
 		"if (!{funcname}( arg.self, &retval, arg.argc, arg.argv)) goto ERROR_CALL;",
 		"papuga_destroy_CallArgs( &arg);",
-		"rt = papuga_lua_move_CallResult( ls, &retval, &g_classentrymap, &arg.errcode);",
+		"rt = papuga_lua_move_CallResult( ls, &retval, &arg.errcode);",
 		"if (rt < 0) papuga_lua_error( ls, \"{nsclassname}.{methodname}\", arg.errcode);",
 		"return rt;",
 		"ERROR_CALL:",
@@ -149,7 +149,7 @@ static void define_constructor(
 		"objref = {constructor}( &errbufstruct, arg.argc, arg.argv);",
 		"if (!objref) goto ERROR_CALL;",
 		"papuga_destroy_CallArgs( &arg);",
-		"papuga_lua_init_UserData( udata, {classid}, objref, {destructor}, &g_classentrymap);",
+		"papuga_lua_init_UserData( udata, {classid}, objref, {destructor});",
 		"return 1;",
 		"ERROR_CALL:",
 		"papuga_destroy_CallArgs( &arg);",
@@ -205,7 +205,7 @@ static void define_main(
 	out << fmt::format( papuga::cppCodeSnippet( 0,
 		"int luaopen_{modulename}( lua_State* ls )",
 		"{",
-		"papuga_lua_init( ls);",
+		"papuga_lua_init( ls, &g_classentrymap);",
 		0),
 		fmt::arg("modulename", modulename)
 	);
