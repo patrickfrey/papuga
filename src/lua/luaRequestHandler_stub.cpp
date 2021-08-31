@@ -24,8 +24,7 @@ extern "C" void papuga_destroy_LuaRequestHandlerScript( papuga_LuaRequestHandler
 {}
 extern "C" const char* papuga_LuaRequestHandlerScript_options( papuga_LuaRequestHandlerScript const* self)
 {
-	papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( papuga_NotImplemented));
-	return 0;
+	return "";
 }
 
 extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(

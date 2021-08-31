@@ -278,20 +278,100 @@ static void copyRequestAttributes( papuga_Allocator* allocator, papuga_RequestAt
 {
 	if (src)
 	{
-		dest->accepted_charset = src->accepted_charset ? papuga_Allocator_copy_charp( allocator, src->accepted_charset) : nullptr;
-		dest->accepted_doctype = src->accepted_doctype ? papuga_Allocator_copy_charp( allocator, src->accepted_doctype) : nullptr;
-		dest->html_base_href = src->html_base_href ? papuga_Allocator_copy_charp( allocator, src->html_base_href) : nullptr;
+		dest->accepted_encoding_set = src->accepted_encoding_set;
+		dest->accepted_doctype_set = src->accepted_doctype_set;
+		size_t html_base_href_len = std::strlen( src->html_base_href);
+		while (html_base_href_len > 0 && (src->html_base_href[html_base_href_len-1] == '/' || src->html_base_href[html_base_href_len-1] == '*'))
+		{
+			html_base_href_len -= 1;
+		}
+		dest->html_base_href = src->html_base_href ? papuga_Allocator_copy_string( allocator, src->html_base_href, html_base_href_len) : nullptr;
 		dest->beautifiedOutput = src->beautifiedOutput;
 		dest->deterministicOutput = src->deterministicOutput;
 	}
 	else
 	{
-		dest->accepted_charset = nullptr;
-		dest->accepted_doctype = nullptr;
+		dest->accepted_encoding_set = 0xFFFF;
+		dest->accepted_doctype_set = 0xFFFF;
 		dest->html_base_href = nullptr;
 		dest->beautifiedOutput = true;
 		dest->deterministicOutput = true;
 	}
+}
+
+extern "C" papuga_ContentType papuga_http_default_doctype( papuga_RequestAttributes* attr)
+{
+	papuga_ContentType rt = papuga_ContentType_JSON;
+	if ((attr->accepted_doctype_set & (1<<papuga_ContentType_HTML)) != 0) rt = papuga_ContentType_HTML;
+	else if ((attr->accepted_doctype_set & (1<<papuga_ContentType_TEXT)) != 0) rt = papuga_ContentType_TEXT;
+	else if ((attr->accepted_doctype_set & (1<<papuga_ContentType_JSON)) != 0) rt = papuga_ContentType_JSON;
+	else if ((attr->accepted_doctype_set & (1<<papuga_ContentType_XML)) != 0) rt = papuga_ContentType_XML;
+	return rt;
+}
+
+static int parseContentType( const char* tp)
+{
+	if (0==std::strcmp( tp, "application/octet-stream")) return (1<<papuga_ContentType_Unknown);
+	if (0==std::strcmp( tp, "application/json")) return (1<<papuga_ContentType_JSON);
+	if (0==std::strcmp( tp, "application/xml")) return (1<<papuga_ContentType_XML);
+	if (0==std::strcmp( tp, "application/xhtml+xml")) return (1<<papuga_ContentType_XML)|(1<<papuga_ContentType_HTML);
+	if (0==std::strcmp( tp, "application/json+xml")) return (1<<papuga_ContentType_JSON)|(1<<papuga_ContentType_XML);
+	if (0==std::strcmp( tp, "application/xml+json")) return (1<<papuga_ContentType_JSON)|(1<<papuga_ContentType_XML);
+	if (0==std::strcmp( tp, "application/xhtml+xml+json")) return (1<<papuga_ContentType_JSON)|(1<<papuga_ContentType_XML)|(1<<papuga_ContentType_HTML);
+	if (0==std::strcmp( tp, "text/html")) return (1<<papuga_ContentType_HTML);
+	if (0==std::strcmp( tp, "text/plain")) return (1<<papuga_ContentType_TEXT);
+	if (0==std::strcmp( tp, "text/html+plain")) return (1<<papuga_ContentType_HTML)|(1<<papuga_ContentType_TEXT);
+	if (0==std::strcmp( tp, "text/plain+html")) return (1<<papuga_ContentType_HTML)|(1<<papuga_ContentType_TEXT);
+	return (1<<papuga_ContentType_JSON);
+}
+
+static int parseHttpAccept( char const* si)
+{
+	int rt = 0;
+	char buf[ 128];
+	buf[ 0] = 0;
+	while (si)
+	{
+		for (;*si && (unsigned char)*si <= 32; ++si){}
+		char const* start = si;
+		char const* next = nullptr;
+		for (;*si && *si != ',' && *si != ';'; ++si){}
+		if (*si == ',' || *si == ';')
+		{
+			if (*si == ';')
+			{
+				next = std::strchr( si, ',');
+				if (next) ++next;
+			}
+			else
+			{
+				next = si+1;
+			}
+			for (;si != start && (unsigned char)*(si-1) <= 32; --si){}
+			if (si - start < sizeof(buf))
+			{
+				std::memcpy( buf, start, si-start);
+				buf[ si-start] = 0;
+			}
+			for (char* lp = buf; *lp; ++lp){*lp = *lp | 32;}
+			rt |= parseContentType( buf);
+			si = next;
+		}
+		else
+		{
+			rt |= parseContentType( buf);
+		}
+	}
+	return rt;
+}
+
+extern "C" void papuga_init_RequestAttributes( papuga_RequestAttributes* dest, const char* http_accept, const char* html_base_href, bool beautifiedOutput, bool deterministicOutput)
+{
+	dest->accepted_encoding_set = 0xFFff;
+	dest->accepted_doctype_set = parseHttpAccept( http_accept);
+	dest->html_base_href = html_base_href;
+	dest->beautifiedOutput = beautifiedOutput;
+	dest->deterministicOutput = deterministicOutput;
 }
 
 static void copyTransactionHandler( papuga_TransactionHandler* dest, const papuga_TransactionHandler* src)
@@ -531,21 +611,58 @@ struct papuga_LuaRequestHandler
 		papuga_destroy_Allocator( &m_allocator);
 	}
 
-	void setDocumentType( papuga_ContentType doctype_, papuga_StringEncoding encoding_)
+	void setDocumentType( papuga_ContentType doctype_, papuga_StringEncoding encoding_) noexcept
 	{
 		if (m_contentDefined == 0)
 		{
-			m_doctype = doctype_;
-			m_encoding = encoding_;
-			m_contentDefined = 1;
+			if ((m_attributes.accepted_doctype_set & (1 << (int)doctype_)) != 0
+			&&  (m_attributes.accepted_encoding_set & (1 << (int)encoding_)) != 0)
+			{
+				m_doctype = doctype_;
+				m_encoding = encoding_;
+				m_contentDefined = 1;
+			}
 		}
 		else if (m_contentDefined == 1)
 		{
 			if (m_doctype != doctype_ || m_encoding != encoding_)
 			{
-				m_contentDefined = 2;
+				if ((m_attributes.accepted_doctype_set & (1 << (int)doctype_)) != 0
+				&&  (m_attributes.accepted_encoding_set & (1 << (int)encoding_)) != 0)
+				{
+					m_contentDefined = 2;
+				}
 			}
 		}
+	}
+
+	papuga_ContentType resultContentType() const noexcept
+	{
+		papuga_ContentType rt = m_doctype;
+		if (rt == papuga_ContentType_Unknown)
+		{
+			if ((m_attributes.accepted_doctype_set & (1<<papuga_ContentType_HTML)) != 0) rt = papuga_ContentType_HTML;
+			else if ((m_attributes.accepted_doctype_set & (1<<papuga_ContentType_TEXT)) != 0) rt = papuga_ContentType_TEXT;
+			else if ((m_attributes.accepted_doctype_set & (1<<papuga_ContentType_JSON)) != 0) rt = papuga_ContentType_JSON;
+			else if ((m_attributes.accepted_doctype_set & (1<<papuga_ContentType_XML)) != 0) rt = papuga_ContentType_XML;
+		}
+		return rt;
+	}
+
+	papuga_StringEncoding resultEncoding() const noexcept
+	{
+		papuga_StringEncoding rt = m_encoding;
+		if (rt == papuga_Binary)
+		{
+			if ((m_attributes.accepted_encoding_set & (1<<papuga_UTF8)) != 0) rt = papuga_UTF8;
+			else if ((m_attributes.accepted_encoding_set & (1<<papuga_UTF16BE)) != 0) rt = papuga_UTF16BE;
+			else if ((m_attributes.accepted_encoding_set & (1<<papuga_UTF16LE)) != 0) rt = papuga_UTF16LE;
+			else if ((m_attributes.accepted_encoding_set & (1<<papuga_UTF32BE)) != 0) rt = papuga_UTF32BE;
+			else if ((m_attributes.accepted_encoding_set & (1<<papuga_UTF32LE)) != 0) rt = papuga_UTF32LE;
+			else if ((m_attributes.accepted_encoding_set & (1<<papuga_UTF32)) != 0) rt = papuga_UTF32;
+			else rt = papuga_UTF8;
+		}
+		return rt;
 	}
 
 	const char* getOutputString( const papuga_ValueVariant& result, size_t* resultlen, papuga_ErrorCode* errcode)
@@ -562,10 +679,11 @@ struct papuga_LuaRequestHandler
 			*resultlen = result.length;
 			return result.value.string;
 		}
-		else if (m_contentDefined == 1)
+		else
 		{
-			papuga_StringEncoding encoding = (m_encoding == papuga_Binary) ? papuga_UTF8 : m_encoding;
-			switch (m_doctype)
+			papuga_StringEncoding encoding = resultEncoding();
+			papuga_ContentType doctype = resultContentType();
+			switch (doctype)
 			{
 				case papuga_ContentType_Unknown:
 				case papuga_ContentType_JSON:

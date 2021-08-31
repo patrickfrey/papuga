@@ -34,12 +34,15 @@ typedef struct papuga_TransactionHandler
 
 typedef struct papuga_RequestAttributes
 {
-	const char* accepted_charset;
-	const char* accepted_doctype;
+	int accepted_encoding_set;
+	int accepted_doctype_set;
 	const char* html_base_href;
 	bool beautifiedOutput;
 	bool deterministicOutput;
 } papuga_RequestAttributes;
+
+void papuga_init_RequestAttributes( papuga_RequestAttributes* dest, const char* http_accept, const char* html_base_href, bool beautifiedOutput, bool deterministicOutput);
+papuga_ContentType papuga_http_default_doctype( papuga_RequestAttributes* attr);
 
 papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(
 	const char* name,
