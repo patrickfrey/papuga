@@ -285,6 +285,15 @@ extern "C" bool papuga_copy_RequestAttributes( papuga_Allocator* allocator, papu
 		{
 			html_base_href_len -= 1;
 		}
+		if (src->html_head)
+		{
+			dest->html_head = papuga_Allocator_copy_charp( allocator, src->html_head);
+			if (!dest->html_head) return false;
+		}
+		else
+		{
+			dest->html_head = "";
+		}
 		if (src->html_base_href)
 		{
 			dest->html_base_href = papuga_Allocator_copy_string( allocator, src->html_base_href, html_base_href_len);
@@ -292,7 +301,7 @@ extern "C" bool papuga_copy_RequestAttributes( papuga_Allocator* allocator, papu
 		}
 		else
 		{
-			dest->html_base_href = nullptr;
+			dest->html_base_href = "";
 		}
 		dest->beautifiedOutput = src->beautifiedOutput;
 		dest->deterministicOutput = src->deterministicOutput;
@@ -301,7 +310,8 @@ extern "C" bool papuga_copy_RequestAttributes( papuga_Allocator* allocator, papu
 	{
 		dest->accepted_encoding_set = 0xFFFF;
 		dest->accepted_doctype_set = 0xFFFF;
-		dest->html_base_href = nullptr;
+		dest->html_head = "";
+		dest->html_base_href = "";
 		dest->beautifiedOutput = true;
 		dest->deterministicOutput = true;
 	}
@@ -374,10 +384,11 @@ static int parseHttpAccept( char const* si)
 	return rt;
 }
 
-extern "C" void papuga_init_RequestAttributes( papuga_RequestAttributes* dest, const char* http_accept, const char* html_base_href, bool beautifiedOutput, bool deterministicOutput)
+extern "C" void papuga_init_RequestAttributes( papuga_RequestAttributes* dest, const char* http_accept, const char* html_head, const char* html_base_href, bool beautifiedOutput, bool deterministicOutput)
 {
 	dest->accepted_encoding_set = 0xFFff;
 	dest->accepted_doctype_set = parseHttpAccept( http_accept);
+	dest->html_head = html_head;
 	dest->html_base_href = html_base_href;
 	dest->beautifiedOutput = beautifiedOutput;
 	dest->deterministicOutput = deterministicOutput;
@@ -701,25 +712,26 @@ struct papuga_LuaRequestHandler
 				case papuga_ContentType_JSON:
 					return (char*)papuga_ValueVariant_tojson(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/,
 							resultlen, errcode);
 					break;
 				case papuga_ContentType_XML:
 					return (char*)papuga_ValueVariant_toxml(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/,
 							resultlen, errcode);
 					break;
 				case papuga_ContentType_HTML:
 					return (char*)papuga_ValueVariant_tohtml5(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
-							""/*head*/,""/*href_base*/, resultlen, errcode);
+							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/,
+							m_attributes.html_head, m_attributes.html_base_href,
+							resultlen, errcode);
 					break;
 				case papuga_ContentType_TEXT:
 					return (char*)papuga_ValueVariant_totext(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/, 
+							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/,
 							resultlen, errcode);
 					break;
 			}
