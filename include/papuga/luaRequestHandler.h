@@ -42,6 +42,7 @@ typedef struct papuga_RequestAttributes
 } papuga_RequestAttributes;
 
 void papuga_init_RequestAttributes( papuga_RequestAttributes* dest, const char* http_accept, const char* html_base_href, bool beautifiedOutput, bool deterministicOutput);
+bool papuga_copy_RequestAttributes( papuga_Allocator* allocator, papuga_RequestAttributes* dest, papuga_RequestAttributes const* src);
 papuga_ContentType papuga_http_default_doctype( papuga_RequestAttributes* attr);
 
 papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(

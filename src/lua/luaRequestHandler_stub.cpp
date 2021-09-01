@@ -11,6 +11,19 @@
 */
 #include "papuga/luaRequestHandler.h"
 
+extern "C" void papuga_init_RequestAttributes( papuga_RequestAttributes* dest, const char* http_accept, const char* html_base_href, bool beautifiedOutput, bool deterministicOutput)
+{
+	return;
+}
+extern "C" bool papuga_copy_RequestAttributes( papuga_Allocator* allocator, papuga_RequestAttributes* dest, papuga_RequestAttributes const* src)
+{
+	return false;
+}
+extern "C" papuga_ContentType papuga_http_default_doctype( papuga_RequestAttributes* attr)
+{
+	return papuga_ContentType_Unknown;
+}
+
 extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(
 	const char* name,
 	const char* source,

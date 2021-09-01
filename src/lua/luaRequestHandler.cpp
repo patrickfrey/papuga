@@ -274,7 +274,7 @@ static void lippincottFunction( lua_State* ls)
 	}
 }
 
-static void copyRequestAttributes( papuga_Allocator* allocator, papuga_RequestAttributes* dest, const papuga_RequestAttributes* src)
+extern "C" bool papuga_copy_RequestAttributes( papuga_Allocator* allocator, papuga_RequestAttributes* dest, papuga_RequestAttributes const* src)
 {
 	if (src)
 	{
@@ -285,7 +285,15 @@ static void copyRequestAttributes( papuga_Allocator* allocator, papuga_RequestAt
 		{
 			html_base_href_len -= 1;
 		}
-		dest->html_base_href = src->html_base_href ? papuga_Allocator_copy_string( allocator, src->html_base_href, html_base_href_len) : nullptr;
+		if (src->html_base_href)
+		{
+			dest->html_base_href = papuga_Allocator_copy_string( allocator, src->html_base_href, html_base_href_len);
+			if (!dest->html_base_href) return false;
+		}
+		else
+		{
+			dest->html_base_href = nullptr;
+		}
 		dest->beautifiedOutput = src->beautifiedOutput;
 		dest->deterministicOutput = src->deterministicOutput;
 	}
@@ -297,6 +305,7 @@ static void copyRequestAttributes( papuga_Allocator* allocator, papuga_RequestAt
 		dest->beautifiedOutput = true;
 		dest->deterministicOutput = true;
 	}
+	return true;
 }
 
 extern "C" papuga_ContentType papuga_http_default_doctype( papuga_RequestAttributes* attr)
@@ -428,7 +437,10 @@ struct papuga_LuaRequestHandler
 		createMetatable( m_ls, g_request_metatable_name, g_request_methods);
 		createMetatable( m_ls, g_context_metatable_name, g_context_methods);
 		copyTransactionHandler( &m_transactionHandler, transactionHandler_);
-		copyRequestAttributes( &m_allocator, &m_attributes, attributes_);
+		if (!papuga_copy_RequestAttributes( &m_allocator, &m_attributes, attributes_))
+		{
+			luaL_error( m_ls, papuga_ErrorCode_tostring( papuga_NoMemError));
+		}
 		lua_getglobal( m_ls, "_G");
 		lua_pushlightuserdata( m_ls, this);
 		luaL_setfuncs( m_ls, g_requestlib, 1/*number of closure elements*/);
