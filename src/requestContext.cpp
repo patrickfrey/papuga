@@ -29,6 +29,7 @@
 #include <cstdio>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
 /* @brief Hook for GETTEXT */
 #define _TXT(x) x
@@ -230,6 +231,8 @@ struct SymKey
 		:str(0),len(0){}
 	SymKey( const char* str_, std::size_t len_)
 		:str(str_),len(len_){}
+	SymKey( const std::string& str_)
+		:str(str_.c_str()),len(str_.size()){}
 	SymKey( const SymKey& o)
 		:str(o.str),len(o.len){}
 
@@ -242,6 +245,31 @@ struct SymKey
 	bool operator < (const SymKey& o) const
 	{
 		return 0>std::memcmp( str, o.str, (len < o.len ? len : o.len)+1);
+	}
+	std::string first() const
+	{
+		char const* si = std::strchr( str, '/');
+		std::string rt;
+		if (si)
+		{
+			rt.append( str, si-str);
+		}
+		else
+		{
+			rt.append( str, si-str);
+		}
+		return rt;
+	}
+	bool hasFirst( char const* nam) const noexcept
+	{
+		size_t ii = 0;
+		for (; ii<len && nam[ii] == str[ii]; ++ii){}
+		return str[ii] == '/' && nam[ii] == 0;
+	}
+	const char* second() const noexcept
+	{
+		char const* si = std::strchr( str, '/');
+		return si ? (si+1) : "";
 	}
 };
 struct MapSymKeyEqual
@@ -300,27 +328,57 @@ struct RequestContextMap
 
 	std::string tostring( papuga_StructInterfaceDescription* structdefs) const
 	{
-		std::map<SymKey,papuga_RequestContext*> deterministicMap;
 		std::ostringstream out;
-		auto ci = tab.begin(), ce = tab.end();
-		for (; ci != ce; ++ci)
-		{
-			deterministicMap[ ci->first] = &*ci->second;
-		}
-		auto di = deterministicMap.begin(), de = deterministicMap.end();
+		std::vector<SymKey> ordered_keylist( keylist.begin(), keylist.end());
+		std::sort( ordered_keylist.begin(), ordered_keylist.end());
+		auto di = ordered_keylist.begin(), de = ordered_keylist.end();
 		for (; di != de; ++di)
 		{
-			out << std::string(di->first.str,di->first.len) << ":" << std::endl;
-			out << di->second->tostring( "\t", structdefs) << std::endl;
+			auto const& fi = tab.find( *di);
+			out << std::string( di->str, di->len) << ":" << std::endl;
+			out << fi->second->tostring( "\t", structdefs) << std::endl;
 		}
 		return out.str();
+	}
+
+	char const* const* listTypes( papuga_Allocator* allocator) const
+	{
+		char** rt = (char**)papuga_Allocator_alloc( allocator, (keylist.size()+1) * sizeof(char*), 0);
+		size_t ri = 0;
+		auto di = keylist.begin(), de = keylist.end();
+		for (; di != de; ++di,++ri)
+		{
+			SymKey key( *di);
+			std::string val( key.first());
+			rt[ ri] = papuga_Allocator_copy_string( allocator, val.c_str(), val.size());
+		}
+		rt[ ri] = nullptr;
+		return rt;
+	}
+
+	char const* const* listNames( const char* typnam, papuga_Allocator* allocator) const noexcept
+	{
+		char** rt = (char**)papuga_Allocator_alloc( allocator, (keylist.size()+1) * sizeof(char*), 0);
+		size_t ri = 0;
+		auto di = keylist.begin(), de = keylist.end();
+		for (; di != de; ++di)
+		{
+			SymKey key( *di);
+			if (key.hasFirst( typnam))
+			{
+				rt[ ri] = papuga_Allocator_copy_charp( allocator, key.second());
+				++ri;
+			}
+		}
+		rt[ ri] = nullptr;
+		return rt;
 	}
 
 private:
 	SymKey allocKey( const SymKey& key)
 	{
 		keylist.push_back( std::string( key.str, key.len));
-		return SymKey( keylist.back().c_str(), keylist.back().size());
+		return SymKey( keylist.back());
 	}
 };
 
@@ -554,7 +612,33 @@ extern "C" const char* papuga_RequestContextPool_debug_contextmap_tostring( cons
 	}
 	catch (...)
 	{
-		return 0;
+		return nullptr;
+	}
+}
+
+extern "C" char const* const* papuga_RequestContextPool_list_types( const papuga_RequestContextPool* self, papuga_Allocator* allocator)
+{
+	try
+	{
+		RequestContextMapRef contextmap( self->contextmap);
+		return contextmap->listTypes( allocator);
+	}
+	catch (...)
+	{
+		return nullptr;
+	}
+}
+
+extern "C" char const* const* papuga_RequestContextPool_list_names( const papuga_RequestContextPool* self, const char* typnam, papuga_Allocator* allocator)
+{
+	try
+	{
+		RequestContextMapRef contextmap( self->contextmap);
+		return contextmap->listNames( typnam, allocator);
+	}
+	catch (...)
+	{
+		return nullptr;
 	}
 }
 

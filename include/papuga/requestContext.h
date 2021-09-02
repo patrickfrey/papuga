@@ -131,6 +131,23 @@ const char* papuga_RequestContext_debug_tostring( const papuga_RequestContext* s
  */
 const char* papuga_RequestContextPool_debug_contextmap_tostring( const papuga_RequestContextPool* self, papuga_Allocator* allocator, papuga_StructInterfaceDescription* structdefs);
 
+/*
+* @brief List the names of types defined in a context pool
+* @param[in] self this pointer to the context pool
+* @param[in] allocator allocator to use for the result
+* @return NULL terminated array of context type names or NULL on a memory allocation error
+*/
+char const* const* papuga_RequestContextPool_list_types( const papuga_RequestContextPool* self, papuga_Allocator* allocator);
+
+/*
+* @brief List the names of types defined in a context pool
+* @param[in] self this pointer to the context pool
+* @param[in] typnam name of context type of objects selected
+* @param[in] allocator allocator to use for the result
+* @return NULL terminated array of context type names or NULL on a memory allocation error
+*/
+char const* const* papuga_RequestContextPool_list_names( const papuga_RequestContextPool* self, const char* typnam, papuga_Allocator* allocator);
+
 #ifdef __cplusplus
 }
 #endif
