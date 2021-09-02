@@ -117,6 +117,8 @@ static int papuga_lua_context_inherit( lua_State* ls);
 
 static int papuga_lua_create_transaction( lua_State* ls);
 static int papuga_lua_done_transaction( lua_State* ls);
+static int papuga_lua_html_base_href( lua_State* ls);
+static int papuga_lua_http_accept( lua_State* ls);
 
 static const struct luaL_Reg g_functionlib [] = {
 	{ "doctype", 		papuga_lua_doctype},
@@ -128,8 +130,10 @@ static const struct luaL_Reg g_requestlib [] = {
 	{ "yield", 		papuga_lua_yield},
 	{ "send", 		papuga_lua_send},
 	{ "document", 		papuga_lua_document},
-	{ "transaction",	papuga_lua_create_transaction },
-	{ "done", 		papuga_lua_done_transaction },
+	{ "transaction",	papuga_lua_create_transaction},
+	{ "done", 		papuga_lua_done_transaction},
+	{ "html_base_href",	papuga_lua_html_base_href},
+	{ "http_accept",	papuga_lua_http_accept},
 	{nullptr, nullptr} /* end of array */
 };
 
@@ -308,8 +312,8 @@ extern "C" bool papuga_copy_RequestAttributes( papuga_Allocator* allocator, papu
 	}
 	else
 	{
-		dest->accepted_encoding_set = 0xFFFF;
-		dest->accepted_doctype_set = 0xFFFF;
+		dest->accepted_encoding_set = 0x1FF;
+		dest->accepted_doctype_set = 0xFF;
 		dest->html_head = "";
 		dest->html_base_href = "";
 		dest->beautifiedOutput = true;
@@ -1185,6 +1189,60 @@ static int papuga_lua_done_transaction( lua_State* ls)
 		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
 	}
 	return 0;
+}
+
+static int papuga_lua_html_base_href( lua_State* ls)
+{
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
+	int nn = lua_gettop( ls);
+	if (nn != 0)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
+	}
+	lua_pushstring( ls, reqhnd->m_attributes.html_base_href);
+	return 1;
+}
+
+static int papuga_lua_http_accept( lua_State* ls)
+{
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
+	int nn = lua_gettop( ls);
+	if (nn != 0)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
+	}
+	{
+		lua_newtable( ls);
+		int st = reqhnd->m_attributes.accepted_doctype_set;
+		int si = 0;
+		int ri = 0;
+		while (st)
+		{
+			if ((st & (1 << si)) != 0)
+			{
+				lua_pushstring( ls, papuga_ContentType_mime( (papuga_ContentType)si));
+				lua_rawseti( ls, -2, ++ri);
+			}
+			st &= ~(1 << si);
+			si += 1;
+		}
+	}{
+		lua_newtable( ls);
+		int st = reqhnd->m_attributes.accepted_encoding_set;
+		int si = 0;
+		int ri = 0;
+		while (st)
+		{
+			if ((st & (1 << si)) != 0)
+			{
+				lua_pushstring( ls, papuga_StringEncoding_name( (papuga_StringEncoding)si));
+				lua_rawseti( ls, -2, ++ri);
+			}
+			st &= ~(1 << si);
+			si += 1;
+		}
+	}
+	return 2;
 }
 
 static void lua_schema_error( lua_State* ls, const papuga_SchemaError& err)
