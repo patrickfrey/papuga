@@ -116,7 +116,6 @@ static int papuga_lua_context_set( lua_State* ls);
 static int papuga_lua_context_inherit( lua_State* ls);
 
 static int papuga_lua_create_transaction( lua_State* ls);
-static int papuga_lua_done_transaction( lua_State* ls);
 static int papuga_lua_html_base_href( lua_State* ls);
 static int papuga_lua_http_accept( lua_State* ls);
 
@@ -131,7 +130,6 @@ static const struct luaL_Reg g_requestlib [] = {
 	{ "send", 		papuga_lua_send},
 	{ "document", 		papuga_lua_document},
 	{ "transaction",	papuga_lua_create_transaction},
-	{ "done", 		papuga_lua_done_transaction},
 	{ "html_base_href",	papuga_lua_html_base_href},
 	{ "http_accept",	papuga_lua_http_accept},
 	{nullptr, nullptr} /* end of array */
@@ -1174,21 +1172,6 @@ static int papuga_lua_create_transaction( lua_State* ls)
 	lua_pushstring( ls, tid);
 	papuga_destroy_Allocator( &allocator);
 	return 1;
-}
-
-static int papuga_lua_done_transaction( lua_State* ls)
-{
-	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
-	if (reqhnd->m_transactionHandler.done)
-	{
-		reqhnd->m_transactionHandler.done( reqhnd->m_transactionHandler.self);
-	}
-	int nn = lua_gettop( ls);
-	if (nn != 0)
-	{
-		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
-	}
-	return 0;
 }
 
 static int papuga_lua_html_base_href( lua_State* ls)

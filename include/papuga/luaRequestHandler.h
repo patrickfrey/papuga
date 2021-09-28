@@ -23,13 +23,11 @@ typedef struct papuga_LuaRequestHandlerScript papuga_LuaRequestHandlerScript;
 typedef struct papuga_LuaRequestHandler papuga_LuaRequestHandler;
 
 typedef const char* (*papuga_CreateTransaction)( void* self, const char* type, papuga_RequestContext* context, papuga_Allocator* allocator);
-typedef bool (*papuga_DoneTransaction)( void* self);
 
 typedef struct papuga_TransactionHandler
 {
 	void* self;
 	papuga_CreateTransaction create;
-	papuga_DoneTransaction done;
 } papuga_TransactionHandler;
 
 typedef struct papuga_RequestAttributes

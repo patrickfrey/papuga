@@ -1068,8 +1068,8 @@ static bool lua_push_ValueVariant( lua_State *ls, const papuga_ValueVariant* val
 	/* NOTE: Returns only with false if an error is not thrown by luaL_error */
 	papuga_HostObject* obj;
 	papuga_lua_UserData* udata;
-	const papuga_lua_ClassEntryMap* cemap = NULL;
 	const char* cname;
+	const papuga_lua_ClassEntryMap* cemap;
 	papuga_Iterator* itr;
 	if (!lua_checkstack( ls, 1))
 	{
@@ -1094,10 +1094,7 @@ static bool lua_push_ValueVariant( lua_State *ls, const papuga_ValueVariant* val
 			return push_string( ls, value, errcode);
 		case papuga_TypeHostObject:
 			/* REMARK: Ownership of hostobject transfered */
-			if (!cemap)
-			{
-				cemap = get_cemap( ls);
-			}
+			cemap = get_cemap( ls);
 			obj = value->value.hostObject;
 			cname = get_classname( cemap, obj->classid);
 			if (cname)
