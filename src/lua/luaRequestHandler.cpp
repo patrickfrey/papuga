@@ -115,6 +115,7 @@ static int papuga_lua_context_get( lua_State* ls);
 static int papuga_lua_context_set( lua_State* ls);
 static int papuga_lua_context_inherit( lua_State* ls);
 
+static int papuga_lua_log( lua_State* ls);
 static int papuga_lua_create_transaction( lua_State* ls);
 static int papuga_lua_html_base_href( lua_State* ls);
 static int papuga_lua_http_accept( lua_State* ls);
@@ -129,6 +130,7 @@ static const struct luaL_Reg g_requestlib [] = {
 	{ "yield", 		papuga_lua_yield},
 	{ "send", 		papuga_lua_send},
 	{ "document", 		papuga_lua_document},
+	{ "log",		papuga_lua_log},
 	{ "transaction",	papuga_lua_create_transaction},
 	{ "html_base_href",	papuga_lua_html_base_href},
 	{ "http_accept",	papuga_lua_http_accept},
@@ -408,6 +410,18 @@ static void copyTransactionHandler( papuga_TransactionHandler* dest, const papug
 	}
 }
 
+static void copyLogger( papuga_Logger* dest, const papuga_Logger* src)
+{
+	if (src)
+	{
+		std::memcpy( dest, src, sizeof(papuga_Logger));
+	}
+	else
+	{
+		std::memset( dest, 0, sizeof(papuga_Logger));
+	}
+}
+
 struct papuga_LuaRequestHandler
 {
 	enum {MaxNofDelegates=256};
@@ -420,6 +434,7 @@ struct papuga_LuaRequestHandler
 	papuga_RequestContextPool* m_handler;
 	papuga_RequestContext* m_context;
 	papuga_TransactionHandler m_transactionHandler;
+	papuga_Logger m_logger;
 	papuga_RequestAttributes m_attributes;
 	papuga_Allocator m_allocator;
 	papuga_DelegateRequest m_delegate[ MaxNofDelegates];
@@ -437,6 +452,7 @@ struct papuga_LuaRequestHandler
 			papuga_RequestContext* context_, 
 			const char* contextname_,
 			papuga_TransactionHandler* transactionHandler_,
+			papuga_Logger* logger_,
 			const papuga_RequestAttributes* attributes_,
 			const papuga_SchemaMap* schemamap)
 		:m_ls(nullptr),m_thread(nullptr),m_threadref(0),m_running(false)
@@ -450,6 +466,7 @@ struct papuga_LuaRequestHandler
 		createMetatable( m_ls, g_request_metatable_name, g_request_methods);
 		createMetatable( m_ls, g_context_metatable_name, g_context_methods);
 		copyTransactionHandler( &m_transactionHandler, transactionHandler_);
+		copyLogger( &m_logger, logger_);
 		if (!papuga_copy_RequestAttributes( &m_allocator, &m_attributes, attributes_))
 		{
 			luaL_error( m_ls, papuga_ErrorCode_tostring( papuga_NoMemError));
@@ -1126,6 +1143,52 @@ static int papuga_lua_document( lua_State* ls)
 	return 1;
 }
 
+static int papuga_lua_log( lua_State* ls)
+{
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
+	int nn = lua_gettop( ls);
+	if (!reqhnd->m_logger.log)
+	{
+		return 0;
+	}
+	if (nn != 3)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
+	}
+	if (lua_type( ls, 1) != LUA_TSTRING || lua_type( ls, 2) != LUA_TSTRING)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
+	}
+	char const* level = lua_tostring( ls, 1);
+	char const* tag = lua_tostring( ls, 2);
+	char const* contentstr;
+	size_t contentlen = 0;
+	papuga_ValueVariant contentval;
+	papuga_ErrorCode errcode = papuga_Ok;
+	if (lua_type( ls, 3) == LUA_TSTRING)
+	{
+		contentstr = lua_tolstring( ls, 3, &contentlen);
+	}
+	else if (papuga_lua_value( ls, &contentval, &reqhnd->m_allocator, 3, &errcode))
+	{
+		contentstr = (char const*)papuga_ValueVariant_tojson(
+						&contentval, &reqhnd->m_allocator, nullptr/*structdefs*/,
+						papuga_UTF8, reqhnd->m_attributes.beautifiedOutput,
+						nullptr/*rooname*/, "item"/*elemname*/, 
+						&contentlen, &errcode);
+		if (!contentstr)
+		{
+			luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
+		}
+	}
+	else
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( errcode));
+	}
+	reqhnd->m_logger.log( reqhnd->m_logger.self, level, tag, contentstr, contentlen);
+	return 0;
+}
+
 static int papuga_lua_create_transaction( lua_State* ls)
 {
 	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
@@ -1404,6 +1467,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* requestcontext,
 	papuga_TransactionHandler* transactionHandler,
+	papuga_Logger* logger,
 	const papuga_RequestAttributes* attributes,
 	const char* requestmethod,
 	const char* contextname,
@@ -1413,7 +1477,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	papuga_ErrorCode* errcode)
 {
 	papuga_LuaRequestHandler* rt = 0;
-	rt = new (std::nothrow) papuga_LuaRequestHandler( contextpool, requestcontext, contextname, transactionHandler, attributes, schemamap);
+	rt = new (std::nothrow) papuga_LuaRequestHandler( contextpool, requestcontext, contextname, transactionHandler, logger, attributes, schemamap);
 	if (!rt)
 	{
 		*errcode = papuga_NoMemError;

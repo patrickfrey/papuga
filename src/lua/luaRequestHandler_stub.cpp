@@ -46,6 +46,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,
 	papuga_TransactionHandler* transactionHandler,
+	papuga_Logger* logger,
 	const papuga_RequestAttributes* attributes,
 	const char* requestmethod,
 	const char* contextname,

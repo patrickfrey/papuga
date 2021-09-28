@@ -482,7 +482,7 @@ static std::string runRequest(
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
 			ctx.script( scriptName), ctx.schemaMap(), ctx.handler(), reqctx.impl,
-			nullptr/*TransactionHandler*/, nullptr/*RequestAttributes*/,
+			nullptr/*TransactionHandler*/, nullptr/*Logger*/, nullptr/*RequestAttributes*/,
 			requestMethod, instanceName, requestPath, contentstr, contentlen, &errcode);
 	if (!rhnd)
 	{

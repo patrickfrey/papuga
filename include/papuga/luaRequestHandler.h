@@ -30,6 +30,14 @@ typedef struct papuga_TransactionHandler
 	papuga_CreateTransaction create;
 } papuga_TransactionHandler;
 
+typedef void (*papuga_LogMessage)( void* self, const char* level, const char* tag, const char* msgstr, size_t msglen);
+
+typedef struct papuga_Logger
+{
+	void* self;
+	papuga_LogMessage log;
+} papuga_Logger;
+
 typedef struct papuga_RequestAttributes
 {
 	int accepted_encoding_set;
@@ -60,6 +68,7 @@ papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,
 	papuga_TransactionHandler* transactionHandler,
+	papuga_Logger* logger,
 	const papuga_RequestAttributes* attributes,
 	const char* requestmethod,
 	const char* contextname,
