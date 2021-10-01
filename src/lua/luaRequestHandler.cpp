@@ -353,7 +353,7 @@ static int parseHttpAccept( char const* si)
 	int rt = 0;
 	char buf[ 128];
 	buf[ 0] = 0;
-	while (si)
+	while (si && *si)
 	{
 		for (;*si && (unsigned char)*si <= 32; ++si){}
 		char const* start = si;
