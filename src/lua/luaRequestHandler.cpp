@@ -284,7 +284,7 @@ extern "C" bool papuga_copy_RequestAttributes( papuga_Allocator* allocator, papu
 	{
 		dest->accepted_encoding_set = src->accepted_encoding_set;
 		dest->accepted_doctype_set = src->accepted_doctype_set;
-		size_t html_base_href_len = std::strlen( src->html_base_href);
+		size_t html_base_href_len = src->html_base_href ? std::strlen( src->html_base_href) : 0;
 		while (html_base_href_len > 0 && (src->html_base_href[html_base_href_len-1] == '/' || src->html_base_href[html_base_href_len-1] == '*'))
 		{
 			html_base_href_len -= 1;
@@ -611,6 +611,8 @@ struct papuga_LuaRequestHandler
 
 	papuga_DelegateRequest* send( const char* requestmethod, const char* requesturl, papuga_ValueVariant* content)
 	{
+		const char* rootname = nullptr;
+		const char* elemname = "item";
 		if (m_nof_delegates >= MaxNofDelegates)
 		{
 			throw std::runtime_error( papuga_ErrorCode_tostring( papuga_NoMemError));
@@ -637,8 +639,7 @@ struct papuga_LuaRequestHandler
 			req->contentstr = (char*)papuga_ValueVariant_tojson(
 						content, &m_allocator, nullptr/*structdefs*/,
 						papuga_UTF8, m_attributes.beautifiedOutput,
-						nullptr/*rooname*/, "item"/*elemname*/, 
-						&req->contentlen, &req->errcode);
+						rootname, elemname, &req->contentlen, &req->errcode);
 			if (!req->contentstr)
 			{
 				throw std::runtime_error( papuga_ErrorCode_tostring( req->errcode));
@@ -709,6 +710,8 @@ struct papuga_LuaRequestHandler
 
 	const char* getOutputString( const papuga_ValueVariant& result, size_t* resultlen, papuga_ErrorCode* errcode)
 	{
+		const char* rootname = nullptr;
+		const char* elemname = "item";
 		if (!papuga_ValueVariant_defined( &result))
 		{
 			*errcode = papuga_Ok;
@@ -731,26 +734,26 @@ struct papuga_LuaRequestHandler
 				case papuga_ContentType_JSON:
 					return (char*)papuga_ValueVariant_tojson(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/,
+							encoding, m_attributes.beautifiedOutput, rootname, elemname,
 							resultlen, errcode);
 					break;
 				case papuga_ContentType_XML:
 					return (char*)papuga_ValueVariant_toxml(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/,
+							encoding, m_attributes.beautifiedOutput, rootname, elemname,
 							resultlen, errcode);
 					break;
 				case papuga_ContentType_HTML:
 					return (char*)papuga_ValueVariant_tohtml5(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/,
+							encoding, m_attributes.beautifiedOutput, rootname, elemname,
 							m_attributes.html_head, m_attributes.html_base_href,
 							resultlen, errcode);
 					break;
 				case papuga_ContentType_TEXT:
 					return (char*)papuga_ValueVariant_totext(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, nullptr/*rooname*/, "item"/*elemname*/,
+							encoding, m_attributes.beautifiedOutput, rootname, elemname,
 							resultlen, errcode);
 					break;
 			}
@@ -1074,6 +1077,8 @@ static int papuga_lua_send( lua_State* ls)
 
 static int papuga_lua_document( lua_State* ls)
 {
+	const char* rootname = nullptr;
+	const char* elemname = "item";
 	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
 	int nn = lua_gettop( ls);
 	if (nn != 3)
@@ -1109,30 +1114,26 @@ static int papuga_lua_document( lua_State* ls)
 			docstr = (char*)papuga_ValueVariant_tojson(
 					&doc, &reqhnd->m_allocator, nullptr/*structdefs*/,
 					encoding, reqhnd->m_attributes.beautifiedOutput,
-					nullptr/*rooname*/, "item"/*elemname*/, 
-					&doclen, &errcode);
+					rootname, elemname, &doclen, &errcode);
 			break;
 		case papuga_ContentType_XML:
 			docstr = (char*)papuga_ValueVariant_toxml(
 					&doc, &reqhnd->m_allocator, nullptr/*structdefs*/,
 					encoding, reqhnd->m_attributes.beautifiedOutput,
-					nullptr/*rooname*/, "item"/*elemname*/, 
-					&doclen, &errcode);
+					rootname, elemname, &doclen, &errcode);
 			break;
 		case papuga_ContentType_HTML:
 			docstr = (char*)papuga_ValueVariant_tohtml5(
 					&doc, &reqhnd->m_allocator, nullptr/*structdefs*/,
 					encoding, reqhnd->m_attributes.beautifiedOutput,
-					nullptr/*rooname*/, "item"/*elemname*/, 
-					""/*head*/,""/*href_base*/,
+					rootname, elemname, ""/*head*/,""/*href_base*/,
 					&doclen, &errcode);
 			break;
 		case papuga_ContentType_TEXT:
 			docstr = (char*)papuga_ValueVariant_totext(
 					&doc, &reqhnd->m_allocator, nullptr/*structdefs*/,
 					encoding, reqhnd->m_attributes.beautifiedOutput,
-					nullptr/*rooname*/, "item"/*elemname*/, 
-					&doclen, &errcode);
+					rootname, elemname, &doclen, &errcode);
 			break;
 	}
 	if (!docstr)
@@ -1159,6 +1160,8 @@ static int papuga_lua_log( lua_State* ls)
 	{
 		luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
 	}
+	const char* rootname = nullptr;
+	const char* elemname = "item";
 	char const* level = lua_tostring( ls, 1);
 	char const* tag = lua_tostring( ls, 2);
 	char const* contentstr;
@@ -1174,8 +1177,7 @@ static int papuga_lua_log( lua_State* ls)
 		contentstr = (char const*)papuga_ValueVariant_tojson(
 						&contentval, &reqhnd->m_allocator, nullptr/*structdefs*/,
 						papuga_UTF8, reqhnd->m_attributes.beautifiedOutput,
-						nullptr/*rooname*/, "item"/*elemname*/, 
-						&contentlen, &errcode);
+						rootname, elemname, &contentlen, &errcode);
 		if (!contentstr)
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
