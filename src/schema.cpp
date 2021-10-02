@@ -354,6 +354,9 @@ static bool stringToInt( int64_t& res,  char const* si)
 		if (res < res_prev) return false;
 		++si;
 	}
+	if (sign) {
+		res = -res;
+	}
 	return !*si;
 }
 static bool stringToDouble( double& res, char const* si)
@@ -1036,7 +1039,7 @@ extern "C" papuga_Schema const* papuga_SchemaMap_get( const papuga_SchemaMap* ma
 	int si = 0, se = map->arsize;
 	for (; si != se; ++si)
 	{
-		if (0==std::strcmp( schemaname, map->ar[ si].name))
+		if (map->ar[ si].name[0] == schemaname[0] && 0==std::strcmp( schemaname, map->ar[ si].name))
 		{
 			return map->ar+si;
 		}
