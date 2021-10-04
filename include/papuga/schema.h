@@ -51,6 +51,8 @@ papuga_Schema const* papuga_SchemaMap_get( const papuga_SchemaMap* map, const ch
 /*
  * @brief Parse document content according to a schema
  * @param[in,out] schema where to append the result to
+ * @param[in] schema to verify
+ * @param[in] has_rootelem true, if the content parsed has the schema name as root element, false, if the content only is passed
  * @param[in] doctype document content type
  * @param[in] encoding document content encoding
  * @param[in] contentstr pointer to document content string
@@ -61,6 +63,7 @@ papuga_Schema const* papuga_SchemaMap_get( const papuga_SchemaMap* map, const ch
 bool papuga_schema_parse(
 		papuga_Serialization* dest,
 		papuga_Schema const* schema,
+		bool rootelem,
 		papuga_ContentType doctype,
 		papuga_StringEncoding encoding,
 		const char* contentstr, size_t contentlen,

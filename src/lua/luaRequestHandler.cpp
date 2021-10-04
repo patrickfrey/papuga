@@ -1409,13 +1409,18 @@ static int papuga_lua_schema( lua_State* ls)
 	try
 	{
 		int nn = lua_gettop( ls);
-		if (nn != 2)
+		if (nn < 2 || nn > 3)
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
 		}
 		if (lua_type( ls, 1) != LUA_TSTRING || lua_type( ls, 2) != LUA_TSTRING)
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
+		}
+		bool with_rootelem = true;
+		if (nn == 3)
+		{
+			with_rootelem = lua_toboolean( ls, 3);
 		}
 		const char* schemaname = lua_tostring( ls, 1);
 		std::size_t contentlen;
@@ -1446,7 +1451,7 @@ static int papuga_lua_schema( lua_State* ls)
 		papuga_SchemaError schemaerr;
 		papuga_init_SchemaError( &schemaerr);
 		papuga_init_Serialization( &contentser, &allocator);
-		if (!papuga_schema_parse( &contentser, schema, doctype, encoding, contentstr, contentlen, &schemaerr))
+		if (!papuga_schema_parse( &contentser, schema, with_rootelem, doctype, encoding, contentstr, contentlen, &schemaerr))
 		{
 			papuga_destroy_Allocator( &allocator);
 			lua_schema_error( ls, schemaerr);

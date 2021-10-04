@@ -148,7 +148,7 @@ public:
 		papuga_ContentType doctype = papuga_guess_ContentType( src.c_str(), src.size());
 		papuga_StringEncoding encoding = papuga_guess_StringEncoding( src.c_str(), src.size());
 
-		if (!papuga_schema_parse( &dest, schema, doctype, encoding, src.c_str(), src.size(),  &err))
+		if (!papuga_schema_parse( &dest, schema, true/*with root element*/, doctype, encoding, src.c_str(), src.size(),  &err))
 		{
 			papuga_destroy_Allocator( &allocator);
 			throw SchemaException( err);

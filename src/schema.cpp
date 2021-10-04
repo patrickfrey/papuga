@@ -428,6 +428,7 @@ static bool skipToEndBlock( char const*& src)
 	Lexeme lx = parseNextLexeme( src);
 	for (; lx.type != Lexeme::EndOfSource; lx = parseNextLexeme( src))
 	{
+		if (lx.type == Lexeme::Error) return false;
 		if (lx.type == Lexeme::Open) ++cnt;
 		if (lx.type == Lexeme::Close) --cnt;
 		if (cnt == 0) return true;
@@ -437,8 +438,9 @@ static bool skipToEndBlock( char const*& src)
 
 static bool parseSchemaSource( papuga_SchemaSource& res, papuga_Allocator& allocator, char const* src, char const*& si, papuga_SchemaError* err)
 {
-	Lexeme lx = parseNextLexeme( si);
+	for (; *si && (unsigned char)*si <= 32; ++si){}
 	char const* start = si;
+	Lexeme lx = parseNextLexeme( si);
 	if (lx.type == Lexeme::Error)
 	{
 		return SchemaError( err, papuga_SyntaxError, errorLine( src, si));
@@ -1147,6 +1149,8 @@ struct RequestElement
 
 	RequestElement( textwolf::XMLScannerBase::ElementType type_, const char* valuestr_, std::size_t valuelen_)
 		:type(type_),valuestr(valuestr_),valuelen(valuelen_){}
+	RequestElement( textwolf::XMLScannerBase::ElementType type_, const char* valuestr_)
+		:type(type_),valuestr(valuestr_),valuelen(std::strlen(valuestr_)){}
 	RequestElement( const RequestElement& o)
 		:type(o.type),valuestr(o.valuestr),valuelen(o.valuelen){}
 
@@ -1239,7 +1243,7 @@ static bool parseRequest( std::vector<RequestElement>& res, papuga_Allocator* al
 	return (parseError == papuga_Ok) ? true : RequestParserError( err, parseError, parser, contentstr);
 }
 
-static bool RequestProcessError( papuga_SchemaError* err, papuga_ErrorCode errcode, const std::vector<RequestElement>& request, std::size_t idx)
+static bool RequestProcessError( papuga_SchemaError* err, papuga_ErrorCode errcode, const std::vector<RequestElement>& request, std::size_t idx, const char* itemstr)
 {
 	char errlocation[ 1024];
 	auto ri = request.begin(), re = (idx >= request.size()) ? request.end() : (request.begin() + idx);
@@ -1295,7 +1299,14 @@ static bool RequestProcessError( papuga_SchemaError* err, papuga_ErrorCode errco
 				break;
 		}
 	}
-	std::snprintf( errlocation, sizeof(errlocation), "%s", res.c_str());
+	if (itemstr)
+	{
+		std::snprintf( errlocation, sizeof(errlocation), "%s/%s", res.c_str(), itemstr);
+	}
+	else
+	{
+		std::snprintf( errlocation, sizeof(errlocation), "%s", res.c_str());
+	}
 	errlocation[ sizeof(errlocation)-1] = 0;
 	return SchemaError( err, errcode, 0, errlocation);
 }
@@ -1354,7 +1365,7 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 				}
 				if ((setStack.back() & op.mask) == 0)
 				{
-					return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+					return RequestProcessError( err, papuga_SyntaxError, request, ridx, nullptr);
 				}
 			}
 			if (arraytag)
@@ -1399,7 +1410,7 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 				case SchemaOperation::ValueInteger:
 					if (!stringToInt( val_int, relem.valuestr))
 					{
-						return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+						return RequestProcessError( err, papuga_SyntaxError, request, ridx, nullptr);
 					}
 					if (!papuga_Serialization_pushValue_int( output, val_int))
 					{
@@ -1413,7 +1424,7 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 				case SchemaOperation::ValueFloat:
 					if (!stringToDouble( val_double, relem.valuestr))
 					{
-						return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+						return RequestProcessError( err, papuga_SyntaxError, request, ridx, nullptr);
 					}
 					if (!papuga_Serialization_pushValue_double( output, val_double))
 					{
@@ -1427,7 +1438,7 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 				case SchemaOperation::ValueBool:
 					if (!stringToBool( val_bool, relem.valuestr))
 					{
-						return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+						return RequestProcessError( err, papuga_SyntaxError, request, ridx, nullptr);
 					}
 					if (!papuga_Serialization_pushValue_double( output, val_bool))
 					{
@@ -1544,24 +1555,24 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 					}
 					if (ci != ce)
 					{
-						return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+						return RequestProcessError( err, papuga_SyntaxError, request, ridx, nullptr);
 					}
 				}
 				else
 				{
-					return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+					return RequestProcessError( err, papuga_SyntaxError, request, ridx, relem.valuestr);
 				}
 			}
 		}
 		else if (nofEvents > 1)
 		{
-			return RequestProcessError( err, papuga_SyntaxError, request, ridx);
+			return RequestProcessError( err, papuga_SyntaxError, request, ridx, nullptr);
 		}
 	}
 	return true;
 }
 
-extern "C" bool papuga_schema_parse( papuga_Serialization* dest, papuga_Schema const* schema, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* contentstr, size_t contentlen, papuga_SchemaError* err)
+extern "C" bool papuga_schema_parse( papuga_Serialization* dest, papuga_Schema const* schema, bool rootelem, papuga_ContentType doctype, papuga_StringEncoding encoding, const char* contentstr, size_t contentlen, papuga_SchemaError* err)
 {
 	papuga_Allocator allocator;
 	int allocatormem[ 4096];
@@ -1570,8 +1581,14 @@ extern "C" bool papuga_schema_parse( papuga_Serialization* dest, papuga_Schema c
 	try
 	{
 		std::vector<RequestElement> request;
-		if (!parseRequest( request, &allocator, doctype, encoding, contentstr, contentlen, err)
-		||  !serializeRequest( dest, schema, request, err))
+		if (!rootelem) request.push_back( RequestElement( textwolf::XMLScannerBase::OpenTag, schema->name));
+		if (!parseRequest( request, &allocator, doctype, encoding, contentstr, contentlen, err))
+		{
+			papuga_destroy_Allocator( &allocator);
+			return false;
+		}
+		if (!rootelem) request.push_back( RequestElement( textwolf::XMLScannerBase::CloseTag, schema->name));
+		if (!serializeRequest( dest, schema, request, err))
 		{
 			papuga_destroy_Allocator( &allocator);
 			return false;
