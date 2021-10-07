@@ -467,7 +467,7 @@ extern "C" bool papuga_RequestContext_define_variable( papuga_RequestContext* se
 		if (name && (((name[0]|32) >= 'a' && (name[0]|32) <= 'z') || (name[0] >= '0' && name[0] <= '9') || name[0] == '_'))
 		{
 			RequestVariable* var = self->varmap.createVariable( name);
-			return papuga_Allocator_deepcopy_value( &var->allocator, &var->value, value, true/*movehostobj*/, &self->errcode);
+			return papuga_Allocator_deepcopy_value( &var->allocator, &var->value, value, &self->errcode);
 		}
 		else
 		{

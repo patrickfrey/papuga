@@ -43,15 +43,16 @@ static const char** get_structmembers( const papuga_php_ClassEntryMap* cemap, un
 }
 
 typedef struct ClassObject {
-	papuga_HostObject hobj;
+	papuga_HostObject* hobj;
 	int checksum;
+	int classid;
 	zend_object zobj;
 } ClassObject;
 
 #define KNUTH_HASH 2654435761U
 static int calcObjectCheckSum( const ClassObject* cobj)
 {
-	return ((((cobj->hobj.classid+107) * KNUTH_HASH) ^ (uintptr_t)cobj->hobj.data) ^ (uintptr_t)cobj->hobj.destroy);
+	return (((cobj->classid+107) * KNUTH_HASH) ^ (uintptr_t)cobj->hobj);
 }
 
 static ClassObject* getClassObject( zend_object* object)
@@ -62,7 +63,8 @@ static ClassObject* getClassObject( zend_object* object)
 static ClassObject* getClassObjectVerified( zend_object* object, const papuga_php_ClassEntryMap* cemap)
 {
 	ClassObject* cobj = (ClassObject*)((char *)object - XtOffsetOf( ClassObject, zobj));
-	if (cobj->hobj.classid <= cemap->hoarsize && object->ce == (zend_class_entry*)cemap->hoar[ cobj->hobj.classid-1]) return cobj;
+	if (cobj->checksum != calcObjectCheckSum( cobj)) return NULL;
+	if (cobj->classid > 0 && cobj->classid <= cemap->hoarsize && object->ce == (zend_class_entry*)cemap->hoar[ cobj->classid-1]) return cobj;
 	return NULL;
 }
 
@@ -93,38 +95,33 @@ static zend_class_entry* g_zend_class_entry_iterator = 0;
 DLL_PUBLIC papuga_zend_object* papuga_php_create_object(
 	papuga_zend_class_entry* ce)
 {
-	ClassObject *cobj;
-
-	cobj = (ClassObject*)ecalloc(1, sizeof(ClassObject) + zend_object_properties_size(ce));
+	ClassObject *cobj = (ClassObject*)ecalloc( 1, sizeof(ClassObject) + zend_object_properties_size(ce));
 	if (!cobj) return NULL;
-	papuga_init_HostObject( &cobj->hobj, 0, NULL/*data*/, NULL/*destroy*/);
-	cobj->checksum = calcObjectCheckSum( cobj);
+	cobj->hobj = NULL;
+	cobj->checksum = 0;
+	cobj->classid = 0;
 	zend_object_std_init( &cobj->zobj, ce);
 	object_properties_init( &cobj->zobj, ce);
-
 	cobj->zobj.handlers = &g_papuga_object_ce_handlers;
 	return &cobj->zobj;
 }
 
-DLL_PUBLIC bool papuga_php_init_object( void* selfzval, void* self, int classid, papuga_Deleter destroy)
+DLL_PUBLIC bool papuga_php_init_object( void* selfzval, papuga_HostObject* hobj)
 {
 	zval* sptr = (zval*)selfzval;
+	if (!hobj->classid) return false;
 	if (Z_TYPE_P(sptr) == IS_OBJECT)
 	{
 		zend_object* zobj = Z_OBJ_P( sptr);
 		ClassObject *cobj = getClassObject( zobj);
-		if (cobj->checksum != calcObjectCheckSum( cobj))
-		{
-			destroy( self);
-			return false;
-		}
-		papuga_init_HostObject( &cobj->hobj, classid, self, destroy);
+		if (cobj->hobj) return false;
+		cobj->hobj = hobj;
+		cobj->classid = hobj->classid;
 		cobj->checksum = calcObjectCheckSum( cobj);
 		return true;
 	}
 	else
 	{
-		destroy( self);
 		return false;
 	}
 }
@@ -148,7 +145,7 @@ static void free_papuga_object_zend_object( zend_object *object)
 		fprintf( stderr, "bad free of papuga object in zend engine\n");
 		return;
 	}
-	papuga_destroy_HostObject( &cobj->hobj);
+	papuga_destroy_HostObject( cobj->hobj);
 	zend_object_std_dtor(object);
 }
 
@@ -275,12 +272,8 @@ static bool serializeObject( papuga_Serialization* ser, zval* langval, const pap
 	ClassObject *cobj = getClassObjectVerified( zobj, cemap);
 	if (cobj)
 	{
-		if (cobj->checksum != calcObjectCheckSum( cobj))
-		{
-			*errcode = papuga_InvalidAccess;
-			return false;
-		}
-		if (!papuga_Serialization_pushValue_hostobject( ser, &cobj->hobj))
+		papuga_reference_HostObject( cobj->hobj);
+		if (!papuga_Serialization_pushValue_hostobject( ser, cobj->hobj))
 		{
 			*errcode = papuga_NoMemError;
 			return false;
@@ -393,12 +386,7 @@ static bool initObject( papuga_ValueVariant* hostval, papuga_Allocator* allocato
 	ClassObject *cobj = getClassObjectVerified( zobj, cemap);
 	if (cobj)
 	{
-		if (cobj->checksum != calcObjectCheckSum( cobj))
-		{
-			*errcode = papuga_InvalidAccess;
-			return false;
-		}
-		papuga_init_ValueVariant_hostobj( hostval, &cobj->hobj);
+		papuga_init_ValueVariant_hostobj( hostval, cobj->hobj);
 	}
 	else
 	{
@@ -520,9 +508,8 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 			}
 			object_init(return_value);
 			Z_OBJ_P(return_value) = zobj;
-			if (papuga_php_init_object( return_value, hobj->data, hobj->classid, hobj->destroy))
+			if (papuga_php_init_object( return_value, hobj))
 			{
-				papuga_release_HostObject(hobj);
 				Z_SET_REFCOUNT_P(return_value,1);
 			}
 			else
@@ -530,6 +517,7 @@ static bool valueVariantToZval( zval* return_value, papuga_Allocator* allocator,
 				*errcode = papuga_InvalidAccess;
 				return false;
 			}
+			papuga_reference_HostObject( hobj);
 			break;
 		}
 		case papuga_TypeSerialization:
@@ -895,7 +883,7 @@ DLL_PUBLIC bool papuga_php_set_CallArgs( papuga_CallArgs* as, void* selfzval, in
 				as->errcode = papuga_InvalidAccess;
 				return false;
 			}
-			as->self = cobj->hobj.data;
+			as->self = cobj->hobj->data;
 		}
 		else
 		{
@@ -1058,7 +1046,7 @@ PHP_METHOD( PapugaIterator, current)
 		{
 			papuga_ErrorBuffer errbuf;
 			char errmsgbuf[ 2048];
-		
+
 			papuga_init_ErrorBuffer( &errbuf, errmsgbuf, sizeof(errmsgbuf));
 			if (!iteratorFetchNext( iobj, &errbuf) && papuga_ErrorBuffer_hasError( &errbuf))
 			{
@@ -1100,7 +1088,7 @@ PHP_METHOD( PapugaIterator, key)
 		{
 			papuga_ErrorBuffer errbuf;
 			char errmsgbuf[ 2048];
-		
+
 			papuga_init_ErrorBuffer( &errbuf, errmsgbuf, sizeof(errmsgbuf));
 			if (!iteratorFetchNext( iobj, &errbuf) && papuga_ErrorBuffer_hasError( &errbuf))
 			{
@@ -1220,7 +1208,7 @@ static int zend_papuga_iterator_valid(zend_object_iterator *iter)
 		{
 			papuga_ErrorBuffer errbuf;
 			char errmsgbuf[ 2048];
-		
+
 			papuga_init_ErrorBuffer( &errbuf, errmsgbuf, sizeof(errmsgbuf));
 			if (!iteratorFetchNext( iobj, &errbuf) && papuga_ErrorBuffer_hasError( &errbuf))
 			{
@@ -1258,7 +1246,7 @@ static zval* zend_papuga_iterator_get_current_data(zend_object_iterator *iter)
 		{
 			papuga_ErrorBuffer errbuf;
 			char errmsgbuf[ 2048];
-		
+
 			papuga_init_ErrorBuffer( &errbuf, errmsgbuf, sizeof(errmsgbuf));
 			if (!iteratorFetchNext( iobj, &errbuf) && papuga_ErrorBuffer_hasError( &errbuf))
 			{
@@ -1299,7 +1287,7 @@ static void zend_papuga_iterator_get_current_key( zend_object_iterator *iter, zv
 		{
 			papuga_ErrorBuffer errbuf;
 			char errmsgbuf[ 2048];
-		
+
 			papuga_init_ErrorBuffer( &errbuf, errmsgbuf, sizeof(errmsgbuf));
 			if (!iteratorFetchNext( iobj, &errbuf) && papuga_ErrorBuffer_hasError( &errbuf))
 			{
@@ -1334,7 +1322,7 @@ static void zend_papuga_iterator_move_forward( zend_object_iterator *iter)
 	papuga_ErrorBuffer errbuf;
 	char errmsgbuf[ 2048];
 	papuga_init_ErrorBuffer( &errbuf, errmsgbuf, sizeof(errmsgbuf));
-	
+
 	zobj = Z_OBJ_P( &iter->data);
 	iobj = getIteratorObject( zobj);
 	if (!iteratorFetchNext( iobj, &errbuf))
@@ -1367,7 +1355,11 @@ static zend_object_iterator* zend_papuga_get_iterator( zend_class_entry *ce, zva
 		return NULL;
 	}
 	rt = ecalloc(1, sizeof(zend_object_iterator));
-
+	if (!rt)
+	{
+		zend_error( E_ERROR, "out of memory");
+		return NULL;
+	}
 	zend_iterator_init( rt);
 	if (Z_TYPE_P(object) != IS_OBJECT)
 	{

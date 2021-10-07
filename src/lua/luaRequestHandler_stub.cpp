@@ -42,6 +42,7 @@ extern "C" const char* papuga_LuaRequestHandlerScript_options( papuga_LuaRequest
 
 extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerScript* script,
+	const papuga_LuaInitProc* initproc,
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,

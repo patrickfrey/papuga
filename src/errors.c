@@ -55,6 +55,7 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)
 		case papuga_MissingStructureDescription: return _TXT("cannot serialize structure with members referenced by position without having a structure description");
 		case papuga_DelegateRequestFailed: return _TXT("delegate request failed");
 		case papuga_ServiceImplementationError: return _TXT("service implementation error");
+		case papuga_BindingLanguageError: return _TXT("basic error in binding language during initialization");
 		default: return _TXT("unknown error");
 	}
 }

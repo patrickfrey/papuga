@@ -17,23 +17,24 @@
 extern "C" {
 #endif
 /*
-* @brief Constructor of a host object reference
-* @param[out] self pointer to structure initialized by constructor
+* @brief Allocator and constructor of a host object reference (uses malloc/free and not allocator as it is living beyond any allocator scope)
 * @param[in] classid_ class identifier of the host object
 * @param[in] object_ pointer to host object
 * @param[in] destroy_ destructor of the host object in case of ownership
 */
-#define papuga_init_HostObject( self, classid_, object_, destroy_)	{papuga_HostObject* s = self; s->classid=classid_; s->data=object_; s->destroy=destroy_;}
+papuga_HostObject* papuga_alloc_HostObject( int classid_, void* object_, papuga_Deleter destroy_);
+
 /*
-* @brief Release of ownership of a host object reference
+* @brief Add an owner to a host object reference
 * @param[in,out] self pointer to structure
 */
-#define papuga_release_HostObject( self)				{(self)->destroy=0;}
+#define papuga_reference_HostObject( self)				{(self)->refcnt += 1;}
+
 /*
 * @brief Destructor of a host object reference
-* @param[in,out] self pointer to structure
+* @param[in] self pointer to structure
 */
-#define papuga_destroy_HostObject( self)				{papuga_HostObject* s = self; if (s->destroy && s->data) {s->destroy( s->data);s->destroy=0;}}
+void papuga_destroy_HostObject( papuga_HostObject* self);
 
 #ifdef __cplusplus
 }

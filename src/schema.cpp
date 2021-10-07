@@ -1335,7 +1335,7 @@ static inline void pushClose( papuga_Serialization* output)
 	if (!papuga_Serialization_pushClose( output))  throw std::bad_alloc();
 }
 
-static bool serializeRequest( papuga_Serialization* output, papuga_Schema const* schema, const std::vector<RequestElement>& request, papuga_SchemaError* err)
+static bool serializeRequest( papuga_Serialization* output, papuga_Schema const* schema, bool rootelem, const std::vector<RequestElement>& request, papuga_SchemaError* err)
 {
 	AutomatonState atmstate( &schema->atm);
 	int64_t val_int;
@@ -1370,10 +1370,10 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 			}
 			if (arraytag)
 			{
-				if (op.id != SchemaOperation::ValueInteger
-				&&  op.id != SchemaOperation::ValueFloat
-				&&  op.id != SchemaOperation::ValueBool
-				&&  op.id != SchemaOperation::ValueString)
+				if (op.id == SchemaOperation::ValueInteger
+				||  op.id == SchemaOperation::ValueFloat
+				||  op.id == SchemaOperation::ValueBool
+				||  op.id == SchemaOperation::ValueString)
 				{}
 				else if (op.id == SchemaOperation::NameArray)
 				{
@@ -1455,16 +1455,20 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 
 				case SchemaOperation::OpenNamedStructure:
 					setStack.push_back( op.set);
-
-					pushName( output, relem.valuestr, relem.valuelen);
-					pushOpen( output);
+					if (rootelem || ridx != 0)
+					{
+						pushName( output, relem.valuestr, relem.valuelen);
+						pushOpen( output);
+					}
 					break;
 
 				case SchemaOperation::CloseNamedStructure:
 					if (setStack.empty()) return SchemaError( err, papuga_LogicError);
 					setStack.pop_back();
-
-					pushClose( output);
+					if (rootelem || ridx+1 < request.size())
+					{
+						pushClose( output);
+					}
 					break;
 
 				case SchemaOperation::OpenNamedStructureArray:
@@ -1588,7 +1592,7 @@ extern "C" bool papuga_schema_parse( papuga_Serialization* dest, papuga_Schema c
 			return false;
 		}
 		if (!rootelem) request.push_back( RequestElement( textwolf::XMLScannerBase::CloseTag, schema->name));
-		if (!serializeRequest( dest, schema, request, err))
+		if (!serializeRequest( dest, schema, rootelem, request, err))
 		{
 			papuga_destroy_Allocator( &allocator);
 			return false;

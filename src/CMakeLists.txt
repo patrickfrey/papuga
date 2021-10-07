@@ -9,6 +9,7 @@ set( source_files
 	serialization.c
 	serialization_json.cpp
 	serialization_xml.cpp
+	hostObject.c
 	callResult.c
 	callArgs.c
 	errors.c

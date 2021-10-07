@@ -121,20 +121,20 @@ char* papuga_Allocator_copy_string_enc( papuga_Allocator* self, const char* str,
 char* papuga_Allocator_copy_charp( papuga_Allocator* self, const char* str);
 
 /*
-* @brief Allocate a host object reference
-* @param[out] self pointer to allocator structure
-* @param[in] object_ pointer to host object
-* @param[in] destroy_ destructor of the host object in case of ownership
-* @return the pointer to the allocated host object reference
-*/
-papuga_HostObject* papuga_Allocator_alloc_HostObject( papuga_Allocator* self, int classid_, void* object_, papuga_Deleter destroy_);
-
-/*
 * @brief Allocate a serialization object
 * @param[out] self pointer to structure initialized by constructor
 * @return the pointer to the allocated serialization object
 */
 papuga_Serialization* papuga_Allocator_alloc_Serialization( papuga_Allocator* self);
+
+/*
+* @brief Allocate an object reference (keeping ownership without using the object)
+* @param[out] self pointer to allocator structure
+* @param[in] object_ pointer to host object
+* @param[in] destroy_ destructor of the host object in case of ownership
+* @return the pointer to the allocated object
+*/
+void* papuga_Allocator_alloc_Reference( papuga_Allocator* self, void* object_, papuga_Deleter destroy_);
 
 /*
 * @brief Allocate an iterator
@@ -156,9 +156,9 @@ papuga_Allocator* papuga_Allocator_alloc_Allocator( papuga_Allocator* self);
 /*
 * @brief Explicit destruction of an host object conrolled by the allocator (just calling the destructor, not freeing all the memory)
 * @param[in] self pointer to allocator structure
-* @param[in] hobj pointer host object to free
+* @param[in] obj pointer to free
 */
-void papuga_Allocator_destroy_HostObject( papuga_Allocator* self, papuga_HostObject* hobj);
+void papuga_Allocator_destroy_Reference( papuga_Allocator* self, void* obj);
 
 /*
 * @brief Explicit destruction of an iterator object conrolled by the allocator (just calling the destructor, not freeing all the memory)
@@ -180,12 +180,11 @@ void papuga_Allocator_destroy_Allocator( papuga_Allocator* self, papuga_Allocato
 * @param[in] self pointer to allocator structure where to allocate the deep copy
 * @param[in] dest where to write result of deep copy
 * @param[in] orig value to copy
-* @param[in] movehostobj parameter flag deciding who of dest or orig keeps the ownership of host object references, true => ownership moved to dest, false owner ship remains in orig
 * @param[out] errcode error code in case of error, untouched on success
 * @return the pointer to the deep value copy object
 * @note iterators cannot be copied as such, they are expanded as serialization
 */
-bool papuga_Allocator_deepcopy_value( papuga_Allocator* self, papuga_ValueVariant* dest, papuga_ValueVariant* orig, bool movehostobj, papuga_ErrorCode* errcode);
+bool papuga_Allocator_deepcopy_value( papuga_Allocator* self, papuga_ValueVariant* dest, papuga_ValueVariant* orig, papuga_ErrorCode* errcode);
 
 #ifdef __cplusplus
 }

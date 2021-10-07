@@ -23,6 +23,7 @@ typedef struct papuga_LuaRequestHandlerScript papuga_LuaRequestHandlerScript;
 typedef struct papuga_LuaRequestHandler papuga_LuaRequestHandler;
 
 typedef const char* (*papuga_CreateTransaction)( void* self, const char* type, papuga_RequestContext* context, papuga_Allocator* allocator);
+typedef int papuga_LuaInitProc( void* ls);
 
 typedef struct papuga_TransactionHandler
 {
@@ -64,6 +65,7 @@ const char* papuga_LuaRequestHandlerScript_name( papuga_LuaRequestHandlerScript 
 
 papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerScript* script,
+	papuga_LuaInitProc* initproc,
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,

@@ -38,8 +38,6 @@ typedef struct papuga_lua_ClassEntryMap
 	const char*** soar;			/*< names of structure members of all structures for return values */
 } papuga_lua_ClassEntryMap;
 
-typedef struct papuga_lua_UserData papuga_lua_UserData;
-
 /*
 * @brief Initialize papuga globals for lua
 * @param[in] ls lua state to initialize
@@ -57,21 +55,13 @@ void papuga_lua_init( lua_State* ls, const papuga_lua_ClassEntryMap* cemap);
 void papuga_lua_declare_class( lua_State* ls, int classid, const char* classname, const luaL_Reg* mt);
 
 /*
-* @brief Allocate the userdata for a new instance of a class
+* @brief Allocate the a new instance of a host object on the Lua stack
 * @param[in] ls lua state context
 * @param[in] classname unique name of the class
-* @return pointer to the user data allocated
+* @param[in] obj host object reference
+* @return 1 on success, 0 on failure
 */
-papuga_lua_UserData* papuga_lua_new_userdata( lua_State* ls, const char* classname);
-
-/*
-* @brief Initialize the userdata of a new class instance created
-* @param[in] ls lua state context
-* @param[in] classid identifier of the class
-* @param[in] objref pointer to user data object (class instance)
-* @param[in] destructor destructor of 'objref'
-*/
-void papuga_lua_init_UserData( papuga_lua_UserData* udata, int classid, void* objref, papuga_Deleter destructor);
+int papuga_lua_push_hostobj( lua_State* ls, const char* classname, papuga_HostObject* obj);
 
 /*
 * @brief Invokes a lua error exception on a papuga error

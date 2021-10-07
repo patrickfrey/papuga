@@ -36,9 +36,7 @@ typedef struct papuga_python_ClassEntryMap
 typedef struct papuga_python_ClassObject
 {
 	PyObject_HEAD					/*< Python object header */
-	void* self;					/*< pointer to host object representation */
-	int classid;					/*< class identifier of the object */
-	papuga_Deleter destroy;				/*< destructor function */
+	papuga_HostObject* obj;				/*< host object reference */
 	int checksum;					/*< checksum for verification */
 } papuga_python_ClassObject;
 
@@ -77,23 +75,18 @@ int papuga_python_init(void);
 /*
 * @brief Initialize an allocated host object in the Python context
 * @param[in] selfobj pointer to the allocated and zeroed python object
-* @param[in] self pointer to host object data
-* @param[in] classid class identifier of the object
-* @param[in] destroy destructor function of the host object data ('self')
-* @param[in] self pointer to host object representation
+* @param[in] hobj host object reference
 */
-void papuga_python_init_object( PyObject* selfobj, void* self, int classid, papuga_Deleter destroy);
+void papuga_python_init_object( PyObject* selfobj, papuga_HostObject* hobj);
 
 /*
 * @brief Create a host object representation in the Python context
-* @param[in] self pointer to host object data (pass with ownership, destroyed on error)
-* @param[in] classid class identifier of the object
-* @param[in] destroy destructor function of the host object data ('self')
+* @param[in] hobj host object reference
 * @param[in] cemap map of class ids to python class descriptions
 * @param[in,out] errcode error code in case of NULL returned
 * @return object without reference increment, NULL on error
 */
-PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
+PyObject* papuga_python_create_object( papuga_HostObject* hobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode);
 
 /*
 * @brief Destroy a host object representation in the Python context created with papuga_python_create_object

@@ -62,7 +62,8 @@ typedef enum papuga_ErrorCode
 	papuga_UnknownSchema=30,
 	papuga_MissingStructureDescription=31,
 	papuga_DelegateRequestFailed=32,
-	papuga_ServiceImplementationError=33
+	papuga_ServiceImplementationError=33,
+	papuga_BindingLanguageError=34
 } papuga_ErrorCode;
 
 /*
@@ -136,7 +137,7 @@ typedef enum {
 	papuga_ContentType_XML,					/*< Content type is XML*/
 	papuga_ContentType_JSON,				/*< Content type is JSON */
 	papuga_ContentType_HTML,				/*< Content type is HTML */
-	papuga_ContentType_TEXT					/*< Content type is TEXT */	
+	papuga_ContentType_TEXT					/*< Content type is TEXT */
 } papuga_ContentType;
 
 /*
@@ -183,6 +184,7 @@ typedef void (*papuga_Deleter)( void* obj);
 */
 struct papuga_HostObject
 {
+	int refcnt;						/*< number of references to the object */
 	int classid;						/*< class identifier the object */
 	void* data;						/*< pointer to the object */
 	papuga_Deleter destroy;					/*< destructor of the host object in case of this structure holding ownership of it */
@@ -207,7 +209,7 @@ struct papuga_Iterator
 * @brief Enumeration of value type identifiers with destructor to call by allocator on disposal of the object
 */
 typedef enum papuga_RefType {
-	papuga_RefTypeHostObject,				/*< object of type papuga_HostObject */
+	papuga_RefTypeReference,				/*< object of type void* */
 	papuga_RefTypeIterator,					/*< object of type papuga_Iterator */
 	papuga_RefTypeAllocator					/*< object of type papuga_Allocator */
 } papuga_RefType;

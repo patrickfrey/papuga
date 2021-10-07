@@ -24,6 +24,7 @@
 #include <new>
 #include <cstring>
 #include <iostream>
+#include <csetjmp>
 
 extern "C" {
 #include <lua.h>
@@ -422,6 +423,8 @@ static void copyLogger( papuga_Logger* dest, const papuga_Logger* src)
 	}
 }
 
+std::jmp_buf jump_buffer_LuaRequestHandler_init;
+
 struct papuga_LuaRequestHandler
 {
 	enum {MaxNofDelegates=256};
@@ -447,7 +450,14 @@ struct papuga_LuaRequestHandler
 	int m_contentDefined;
 	int m_allocatormem[ 1<<14];
 
+	static int atPanic( lua_State* ls)
+	{
+		longjmp( jump_buffer_LuaRequestHandler_init, 1); 
+		return 0;
+	}
+
 	papuga_LuaRequestHandler(
+			papuga_LuaInitProc* initproc,
 			papuga_RequestContextPool* handler_,
 			papuga_RequestContext* context_, 
 			const char* contextname_,
@@ -462,6 +472,13 @@ struct papuga_LuaRequestHandler
 	{
 		papuga_init_Allocator( &m_allocator, m_allocatormem, sizeof(m_allocatormem));
 		m_ls = lua_newstate( customAllocFunction, this);
+		if (setjmp( jump_buffer_LuaRequestHandler_init) != 0)
+		{
+			lua_close( m_ls);
+			papuga_destroy_Allocator( &m_allocator);
+			throw std::runtime_error( papuga_ErrorCode_tostring( papuga_BindingLanguageError));
+		}
+		lua_CFunction oldpanic = lua_atpanic( m_ls, &atPanic);
 		luaL_openlibs( m_ls);
 		createMetatable( m_ls, g_request_metatable_name, g_request_methods);
 		createMetatable( m_ls, g_context_metatable_name, g_context_methods);
@@ -488,21 +505,11 @@ struct papuga_LuaRequestHandler
 			lua_setglobal( m_ls, "objid");
 		}
 		lua_pop( m_ls, 1);
-	}
-
-	void dumpScriptFunctions( const char* prefix, std::ostream& out)
-	{
-		lua_rawgeti( m_ls, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
-		lua_pushnil( m_ls);
-		while (lua_next( m_ls, -2))
+		if (initproc)
 		{
-			if (lua_isfunction( m_ls, -1) && lua_type( m_ls, -2) == LUA_TSTRING)
-			{
-				out << prefix << lua_tostring( m_ls, -2) << std::endl;
-			}
-			lua_pop( m_ls, 1);
+			(*initproc)( m_ls);
 		}
-		lua_pop( m_ls, 1);
+		lua_atpanic( m_ls, oldpanic);
 	}
 
 	bool init(
@@ -527,6 +534,11 @@ struct papuga_LuaRequestHandler
 			return false;
 		}
 		m_thread = lua_newthread( m_ls);
+		if (!m_thread)
+		{
+			*errcode = errorFromLuaErrcode( res);
+			return false;
+		}
 		lua_pushvalue( m_ls, -1);
 		m_threadref = luaL_ref( m_ls, LUA_REGISTRYINDEX);
 		lua_getglobal( m_thread, requestmethod);
@@ -1470,6 +1482,7 @@ static int papuga_lua_schema( lua_State* ls)
 
 extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerScript* script,
+	papuga_LuaInitProc* initproc,
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* requestcontext,
@@ -1484,7 +1497,7 @@ extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	papuga_ErrorCode* errcode)
 {
 	papuga_LuaRequestHandler* rt = 0;
-	rt = new (std::nothrow) papuga_LuaRequestHandler( contextpool, requestcontext, contextname, transactionHandler, logger, attributes, schemamap);
+	rt = new (std::nothrow) papuga_LuaRequestHandler( initproc, contextpool, requestcontext, contextname, transactionHandler, logger, attributes, schemamap);
 	if (!rt)
 	{
 		*errcode = papuga_NoMemError;

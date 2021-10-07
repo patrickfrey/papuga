@@ -139,12 +139,14 @@ bool papuga_add_CallResult_serialization( papuga_CallResult* self)
 
 bool papuga_add_CallResult_hostobject( papuga_CallResult* self, int classid, void* data, papuga_Deleter destroy)
 {
-	papuga_HostObject* obj;
-	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) return false;
-	obj = papuga_Allocator_alloc_HostObject( self->allocator, classid, data, destroy);
-	if (!obj) return false;
+	if (self->nofvalues >= papuga_MAX_NOF_RETURNS) goto FAILURE;
+	papuga_HostObject* obj = papuga_alloc_HostObject( classid, data, destroy);
+	if (!obj) goto FAILURE;
 	papuga_init_ValueVariant_hostobj( &self->valuear[ self->nofvalues++], obj);
 	return true;
+FAILURE:
+	destroy( data);
+	return false;
 }
 
 bool papuga_add_CallResult_iterator( papuga_CallResult* self, void* data, papuga_Deleter destroy, papuga_GetNext getNext)

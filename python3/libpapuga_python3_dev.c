@@ -350,7 +350,7 @@ static bool checkReferenceCount( PyObject* pyobj)
 #define KNUTH_HASH 2654435761U
 static int calcClassObjectCheckSum( papuga_python_ClassObject* cobj)
 {
-	return (cobj->classid * KNUTH_HASH) + (((uintptr_t)cobj->self << 2) ^ ((uintptr_t)cobj->destroy << 3));
+	return (cobj->obj->classid * KNUTH_HASH) + (((uintptr_t)cobj->obj->data << 2) ^ ((uintptr_t)cobj->obj->destroy << 3));
 }
 static int calcStructObjectCheckSum( papuga_python_StructObject* cobj)
 {
@@ -367,7 +367,7 @@ static papuga_python_ClassObject* getClassObject( PyObject* pyobj, const papuga_
 	PyTypeObject* pytype = pyobj->ob_type;
 	if ((int)pytype->tp_basicsize != (int)sizeof(papuga_python_ClassObject)) return NULL;
 	cobj = (papuga_python_ClassObject*)pyobj;
-	if (pytype != getTypeObject( cemap, cobj->classid)) return NULL;
+	if (pytype != getTypeObject( cemap, cobj->obj->classid)) return NULL;
 	if (cobj->checksum != calcClassObjectCheckSum( cobj)) return NULL;
 	return cobj;
 }
@@ -429,13 +429,8 @@ static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_A
 	}
 	else if (NULL!=(cobj = getClassObject( pyobj, cemap, errcode)))
 	{
-		papuga_HostObject* hobj = papuga_Allocator_alloc_HostObject( allocator, cobj->classid, cobj->self, NULL/*deleter*/);
-		if (hobj == NULL)
-		{
-			*errcode = papuga_NoMemError;
-			return false;
-		}
-		papuga_init_ValueVariant_hostobj( value, hobj);
+		papuga_reference_HostObject( cobj->obj);
+		papuga_init_ValueVariant_hostobj( value, cobj->obj);
 	}
 	else
 	{
@@ -1238,8 +1233,8 @@ static PyObject* createPyObjectFromVariant( papuga_Allocator* allocator, const p
 		case papuga_TypeHostObject:
 		{
 			papuga_HostObject* hobj = value->value.hostObject;
-			rt = papuga_python_create_object( hobj->data, hobj->classid, hobj->destroy, cemap, errcode);
-			if (rt) papuga_release_HostObject( hobj);
+			rt = papuga_python_create_object( hobj, cemap, errcode);
+			if (rt) papuga_reference_HostObject( hobj);
 			break;
 		}
 		case papuga_TypeSerialization:
@@ -1309,19 +1304,17 @@ DLL_PUBLIC int papuga_python_init(void)
 	return 0;
 }
 
-DLL_PUBLIC void papuga_python_init_object( PyObject* selfobj, void* self, int classid, papuga_Deleter destroy)
+DLL_PUBLIC void papuga_python_init_object( PyObject* selfobj, papuga_HostObject* hobj)
 {
 	papuga_python_ClassObject* cobj = (papuga_python_ClassObject*)selfobj;
-	cobj->classid = classid;
-	cobj->self = self;
-	cobj->destroy = destroy;
+	cobj->obj = hobj;
 	cobj->checksum = calcClassObjectCheckSum( cobj);
 }
 
-DLL_PUBLIC PyObject* papuga_python_create_object( void* self, int classid, papuga_Deleter destroy, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
+DLL_PUBLIC PyObject* papuga_python_create_object( papuga_HostObject* hobj, const papuga_python_ClassEntryMap* cemap, papuga_ErrorCode* errcode)
 {
 	PyObject* selfobj;
-	PyTypeObject* typeobj = getTypeObject( cemap, classid);
+	PyTypeObject* typeobj = getTypeObject( cemap, hobj->classid);
 	if (!typeobj)
 	{
 		*errcode = papuga_InvalidAccess;
@@ -1333,7 +1326,9 @@ DLL_PUBLIC PyObject* papuga_python_create_object( void* self, int classid, papug
 		*errcode = papuga_NoMemError;
 		return NULL;
 	}
-	papuga_python_init_object( selfobj, self, classid, destroy);
+	papuga_python_ClassObject* cobj = (papuga_python_ClassObject*)selfobj;
+	cobj->obj = hobj;
+	cobj->checksum = calcClassObjectCheckSum( cobj);
 	return selfobj;
 }
 
@@ -1342,7 +1337,7 @@ DLL_PUBLIC void papuga_python_destroy_object( PyObject* selfobj)
 	papuga_python_ClassObject* cobj = (papuga_python_ClassObject*)selfobj;
 	if (cobj->checksum == calcClassObjectCheckSum( cobj))
 	{
-		cobj->destroy( cobj->self);
+		papuga_destroy_HostObject( cobj->obj);
 		Py_TYPE(selfobj)->tp_free( selfobj);
 	}
 	else
@@ -1513,7 +1508,7 @@ DLL_PUBLIC void papuga_python_error( const char* msg, ...)
 	char buf[ 2048];
 	va_list ap;
 	va_start(ap, msg);
-	
+
 	vsnprintf( buf, sizeof(buf), msg, ap);
 	va_end(ap);
 

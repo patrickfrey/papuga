@@ -464,6 +464,17 @@ struct RequestContext
 	papuga_RequestContext* impl;
 };
 
+static int luaInit( void* ls_)
+{
+	lua_State* ls = (lua_State*)ls_;
+	lua_getglobal( ls, "_G");
+	if (lua_isnil( ls, 1))
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_LogicError));
+	}
+	return 0;
+}
+
 static std::string runRequest(
 		GlobalContext& ctx, const char* requestMethod, 	const char* requestPath,
 		const char* scriptName, const char* instanceName,
@@ -481,7 +492,7 @@ static std::string runRequest(
 	}
 	papuga_LuaRequestHandler* rhnd
 		= papuga_create_LuaRequestHandler(
-			ctx.script( scriptName), ctx.schemaMap(), ctx.handler(), reqctx.impl,
+			ctx.script( scriptName), &luaInit, ctx.schemaMap(), ctx.handler(), reqctx.impl,
 			nullptr/*TransactionHandler*/, nullptr/*Logger*/, nullptr/*RequestAttributes*/,
 			requestMethod, instanceName, requestPath, contentstr, contentlen, &errcode);
 	if (!rhnd)

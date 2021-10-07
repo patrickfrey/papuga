@@ -43,20 +43,19 @@ typedef struct papuga_php_ClassEntryMap
 void papuga_php_init();
 
 /*
-* @brief Create a non initialized (NULL) host object in the PHP environment
+* @brief Create a host object reference in the PHP environment
 * @param[in] ce class description (method table for PHP)
+* @param[in] hobj object reference
 */
 papuga_zend_object* papuga_php_create_object( papuga_zend_class_entry* ce);
 
 /*
 * @brief Initializes a zend object created with papuga_php_create_object with its host object reference
 * @param[in] selfzval zval of the object to initialize
-* @param[in] self pointer to host object data (pass with ownership, destroyed on error)
-* @param[in] classid class identifier of the object
-* @param[in] destroy destructor function of the host object data ('self')
+* @param[in] hobj host object reference
 * @return true in success, error on a type mismatch error
 */
-bool papuga_php_init_object( void* selfzval, void* self, int classid, papuga_Deleter destroy);
+bool papuga_php_init_object( void* selfzval, papuga_HostObject* hobj);
 
 /*
 * @brief Fills a structure with the arguments passed in a PHP binding function/method call
