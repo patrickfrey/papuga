@@ -272,8 +272,8 @@ static bool serializeObject( papuga_Serialization* ser, zval* langval, const pap
 	ClassObject *cobj = getClassObjectVerified( zobj, cemap);
 	if (cobj)
 	{
-		papuga_reference_HostObject( cobj->hobj);
-		if (!papuga_Serialization_pushValue_hostobject( ser, cobj->hobj))
+		if (!papuga_Allocator_reference_HostObject( ser->allocator, cobj->hobj)
+		||  !papuga_Serialization_pushValue_hostobject( ser, cobj->hobj))
 		{
 			*errcode = papuga_NoMemError;
 			return false;

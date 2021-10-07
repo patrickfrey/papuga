@@ -416,7 +416,7 @@ static bool serialize_value( papuga_Serialization* result, lua_State* ls, int li
 				*errcode = papuga_TypeError;
 				return false;
 			}
-			papuga_reference_HostObject( udata->obj);
+			papuga_Allocator_reference_HostObject( result->allocator, udata->obj);
 			rt &= papuga_Serialization_pushValue_hostobject( result, udata->obj);
 			break;
 		}
@@ -475,7 +475,7 @@ static bool get_value( papuga_ValueVariant* result, papuga_Allocator* allocator,
 				*errcode = papuga_TypeError;
 				return false;
 			}
-			papuga_reference_HostObject( udata->obj);
+			papuga_Allocator_reference_HostObject( allocator, udata->obj);
 			papuga_init_ValueVariant_hostobj( result, udata->obj);
 			break;
 		}
@@ -563,19 +563,11 @@ static bool serialize_node( papuga_Serialization* result, lua_State* ls, int li,
 	return true;
 }
 
-static bool serialize_root( papuga_CallArgs* as, lua_State* ls, int li)
+static bool serialize_root( papuga_Serialization* result, lua_State* ls, int li, papuga_ErrorCode* errcode)
 {
-	papuga_Serialization* result = papuga_Allocator_alloc_Serialization( &as->allocator);
-	if (!result)
-	{
-		as->errcode = papuga_NoMemError;
-		return false;
-	}
-	papuga_init_ValueVariant_serialization( &as->argv[as->argc], result);
-	as->argc += 1;
 	bool rt = true;
-	rt &= serialize_node( result, ls, li, &as->errcode);
-	return rt && as->errcode == papuga_Ok;
+	rt &= serialize_node( result, ls, li, errcode);
+	return rt && *errcode == papuga_Ok;
 }
 
 static bool deserialize_root( papuga_Serialization* ser, lua_State* ls, papuga_ErrorCode* errcode);
@@ -955,6 +947,7 @@ DLL_PUBLIC int papuga_lua_push_hostobj( lua_State* ls, const char* classname, pa
 	udata->obj = obj;
 	udata->checksum = calcCheckSumUserData( udata);
 	luaL_getmetatable( ls, classname);
+	if (lua_isnil( ls, -1)) papuga_lua_error( ls, "push host object", papuga_InvalidAccess);
 	lua_setmetatable( ls, -2);
 	return 1;
 }
@@ -1026,11 +1019,20 @@ DLL_PUBLIC bool papuga_lua_set_CallArgs( papuga_CallArgs* as, lua_State* ls, int
 				break;
 			}
 			case LUA_TTABLE:
+			{
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 				fprintf( stderr, "PARAM %u TABLE\n", argi);
 #endif
-				if (!serialize_root( as, ls, argi)) goto ERROR;
+				papuga_Serialization* result = papuga_Allocator_alloc_Serialization( &as->allocator);
+				if (!result)
+				{
+					as->errcode = papuga_NoMemError;
+					return false;
+				}
+				papuga_init_ValueVariant_serialization( &as->argv[ as->argc++], result);
+				if (!serialize_root( result, ls, argi, &as->errcode)) goto ERROR;
 				break;
+			}
 			case LUA_TUSERDATA:
 			{
 				const papuga_lua_UserData* udata = get_UserData( ls, argi);
@@ -1038,6 +1040,11 @@ DLL_PUBLIC bool papuga_lua_set_CallArgs( papuga_CallArgs* as, lua_State* ls, int
 #ifdef PAPUGA_LOWLEVEL_DEBUG
 				fprintf( stderr, "PARAM %u USERDATA\n", argi);
 #endif
+				if (!papuga_Allocator_reference_HostObject( &as->allocator, udata->obj))
+				{
+					as->errcode = papuga_NoMemError;
+					return false;
+				}
 				papuga_init_ValueVariant_hostobj( &as->argv[as->argc], udata->obj);
 				as->argc += 1;
 				break;

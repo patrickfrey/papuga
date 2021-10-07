@@ -350,7 +350,7 @@ static bool checkReferenceCount( PyObject* pyobj)
 #define KNUTH_HASH 2654435761U
 static int calcClassObjectCheckSum( papuga_python_ClassObject* cobj)
 {
-	return (cobj->obj->classid * KNUTH_HASH) + (((uintptr_t)cobj->obj->data << 2) ^ ((uintptr_t)cobj->obj->destroy << 3));
+	return (uintptr_t)cobj->obj;
 }
 static int calcStructObjectCheckSum( papuga_python_StructObject* cobj)
 {
@@ -429,7 +429,11 @@ static bool init_ValueVariant_pyobj_single( papuga_ValueVariant* value, papuga_A
 	}
 	else if (NULL!=(cobj = getClassObject( pyobj, cemap, errcode)))
 	{
-		papuga_reference_HostObject( cobj->obj);
+		if (!papuga_Allocator_reference_HostObject( allocator, cobj->obj))
+		{
+			*errcode = papuga_NoMemError;
+			return false;
+		}
 		papuga_init_ValueVariant_hostobj( value, cobj->obj);
 	}
 	else

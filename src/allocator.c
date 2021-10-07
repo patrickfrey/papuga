@@ -301,6 +301,12 @@ char* papuga_Allocator_copy_charp( papuga_Allocator* self, const char* str)
 	return papuga_Allocator_copy_string( self, str, strlen(str));
 }
 
+bool papuga_Allocator_reference_HostObject( papuga_Allocator* self, papuga_HostObject* hobj_)
+{
+	papuga_reference_HostObject( hobj_);
+	return !!papuga_Allocator_alloc_Reference( self, hobj_, (papuga_Deleter) papuga_destroy_HostObject);
+}
+
 void* papuga_Allocator_alloc_Reference( papuga_Allocator* self, void* object_, papuga_Deleter destroy_)
 {
 	papuga_ReferenceAny* rt = (papuga_ReferenceAny*)papuga_Allocator_alloc( self, sizeof( papuga_ReferenceAny), 0);
@@ -343,8 +349,6 @@ papuga_Allocator* papuga_Allocator_alloc_Allocator( papuga_Allocator* self)
 	return &rt->allocator;
 }
 
-static bool copy_ValueVariant( papuga_ValueVariant* dest, papuga_ValueVariant* orig, papuga_Allocator* allocator, papuga_ErrorCode* errcode);
-
 static inline papuga_ValueVariant* papuga_SerializationIter_value_const_cast( const papuga_SerializationIter* seritr)
 {
 	/* PF:HACK: We do a hard const cast to make the implementation of 'papuga_Allocator_deepcopy_value_move' possible */
@@ -366,7 +370,7 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 		{
 			papuga_ValueVariant valuecopy;
 
-			if (!copy_ValueVariant( &valuecopy, orig, allocator, errcode)) goto ERROR;
+			if (!papuga_Allocator_deepcopy_value( allocator, &valuecopy, orig, errcode)) goto ERROR;
 			if (!papuga_Serialization_pushValue( dest, &valuecopy)) goto ERROR;
 			break;
 		}
@@ -384,7 +388,7 @@ static bool serializeValueVariant( papuga_Serialization* dest, papuga_ValueVaria
 				else
 				{
 					papuga_ValueVariant valuecopy;
-					if (!copy_ValueVariant( &valuecopy, papuga_SerializationIter_value_const_cast( &seritr), allocator, errcode)) goto ERROR;
+					if (!papuga_Allocator_deepcopy_value( allocator, &valuecopy, papuga_SerializationIter_value_const_cast( &seritr), errcode)) goto ERROR;
 					if (!papuga_Serialization_push( dest, papuga_SerializationIter_tag( &seritr), &valuecopy)) goto ERROR;
 				}
 				papuga_SerializationIter_skip( &seritr);
@@ -434,7 +438,7 @@ ERROR:
 	return false;
 }
 
-static bool copy_ValueVariant( papuga_ValueVariant* dest, papuga_ValueVariant* orig, papuga_Allocator* allocator, papuga_ErrorCode* errcode)
+bool papuga_Allocator_deepcopy_value( papuga_Allocator* allocator, papuga_ValueVariant* dest, papuga_ValueVariant* orig, papuga_ErrorCode* errcode)
 {
 	switch (orig->valuetype)
 	{
@@ -454,7 +458,7 @@ static bool copy_ValueVariant( papuga_ValueVariant* dest, papuga_ValueVariant* o
 		case papuga_TypeHostObject:
 		{
 			papuga_HostObject* hobj = orig->value.hostObject;
-			papuga_reference_HostObject( hobj);
+			papuga_Allocator_reference_HostObject( allocator, hobj);
 			papuga_init_ValueVariant_hostobj( dest, hobj);
 			break;
 		}
@@ -476,9 +480,5 @@ ERROR:
 	return false;
 }
 
-bool papuga_Allocator_deepcopy_value( papuga_Allocator* self, papuga_ValueVariant* dest, papuga_ValueVariant* orig, papuga_ErrorCode* errcode)
-{
-	return copy_ValueVariant( dest, orig, self, errcode);
-}
 
 

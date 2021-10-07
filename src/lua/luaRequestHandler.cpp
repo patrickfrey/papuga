@@ -99,6 +99,7 @@ static void createMetatable( lua_State* ls, const char* metatableName, const str
 static int papuga_lua_doctype( lua_State* ls);
 static int papuga_lua_encoding( lua_State* ls);
 
+static int papuga_lua_http_error( lua_State* ls);
 static int papuga_lua_yield( lua_State* ls);
 static int papuga_lua_send( lua_State* ls);
 static int papuga_lua_schema( lua_State* ls);
@@ -128,6 +129,7 @@ static const struct luaL_Reg g_functionlib [] = {
 };
 
 static const struct luaL_Reg g_requestlib [] = {
+	{ "http_error", 	papuga_lua_http_error},
 	{ "yield", 		papuga_lua_yield},
 	{ "send", 		papuga_lua_send},
 	{ "document", 		papuga_lua_document},
@@ -1035,6 +1037,59 @@ static int papuga_lua_context_inherit( lua_State* ls)
 		return 0;
 	}
 	catch (...) { lippincottFunction( ls); }	
+	return 0;
+}
+
+static int papuga_lua_http_error( lua_State* ls)
+{
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
+	if (!reqhnd)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_LogicError));
+	}
+	try
+	{
+		int nargs = lua_gettop( ls);
+		if (nargs != 1)
+		{
+			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
+		}
+		int http_error_id = -1;
+		if (lua_type( ls, 1) == LUA_TSTRING)
+		{
+			const char* http_error_str = lua_tostring( ls, 1);
+			if (!!std::strstr( http_error_str, "nternal")) http_error_id = 500;
+			else if (!!std::strstr( http_error_str, "mplement")) http_error_id = 501;
+			else if (!!std::strstr( http_error_str, "ateway")) http_error_id = 502;
+			else if (!!std::strstr( http_error_str, "navailable")) http_error_id = 503;
+			else if (!!std::strstr( http_error_str, "imeout")) http_error_id = 504;
+			else if (!!std::strstr( http_error_str, "ersion")) http_error_id = 505;
+			else if (!!std::strstr( http_error_str, "uthentication")) http_error_id = 511;
+			else if (!!std::strstr( http_error_str, "equest")) http_error_id = 400;
+			else if (!!std::strstr( http_error_str, "nauthorized")) http_error_id = 401;
+			else if (!!std::strstr( http_error_str, "ayment")) http_error_id = 402;
+			else if (!!std::strstr( http_error_str, "orbidden")) http_error_id = 403;
+			else if (!!std::strstr( http_error_str, "ound")) http_error_id = 404;
+			else if (!!std::strstr( http_error_str, "llowed")) http_error_id = 405;
+		}
+		else
+		{
+			http_error_id = lua_tointeger( ls, 1);
+		}
+		papuga_ErrorCode ec = papuga_InvalidAccess;
+		switch (http_error_id)
+		{
+			case 0: ec = papuga_ValueUndefined; break;
+			case 500: ec = papuga_ServiceImplementationError; break;
+			case 501: ec = papuga_NotImplemented; break;
+			case 400: ec = papuga_InvalidRequest; break;
+			case 403: ec = papuga_InvalidRequest; break;
+			case 404: ec = papuga_InvalidRequest; break;
+			case 405: ec = papuga_InvalidRequest; break;
+		}
+		luaL_error( ls, papuga_ErrorCode_tostring( ec));
+	}
+	catch (...) {lippincottFunction( ls);}
 	return 0;
 }
 

@@ -128,10 +128,17 @@ char* papuga_Allocator_copy_charp( papuga_Allocator* self, const char* str);
 papuga_Serialization* papuga_Allocator_alloc_Serialization( papuga_Allocator* self);
 
 /*
+* @brief Adds a reference to a host object to be released with the allocator destruction
+* @param[out] self pointer to allocator structure
+* @param[in] hobj_ pointer to host object
+*/
+bool papuga_Allocator_reference_HostObject( papuga_Allocator* self, papuga_HostObject* hobj_);
+
+/*
 * @brief Allocate an object reference (keeping ownership without using the object)
 * @param[out] self pointer to allocator structure
-* @param[in] object_ pointer to host object
-* @param[in] destroy_ destructor of the host object in case of ownership
+* @param[in] object_ pointer to object
+* @param[in] destroy_ destructor of the object in case of ownership
 * @return the pointer to the allocated object
 */
 void* papuga_Allocator_alloc_Reference( papuga_Allocator* self, void* object_, papuga_Deleter destroy_);
