@@ -118,7 +118,7 @@ static int papuga_lua_context_set( lua_State* ls);
 static int papuga_lua_context_inherit( lua_State* ls);
 
 static int papuga_lua_log( lua_State* ls);
-static int papuga_lua_create_transaction( lua_State* ls);
+static int papuga_lua_transaction( lua_State* ls);
 static int papuga_lua_html_base_href( lua_State* ls);
 static int papuga_lua_http_accept( lua_State* ls);
 
@@ -134,7 +134,7 @@ static const struct luaL_Reg g_requestlib [] = {
 	{ "send", 		papuga_lua_send},
 	{ "document", 		papuga_lua_document},
 	{ "log",		papuga_lua_log},
-	{ "transaction",	papuga_lua_create_transaction},
+	{ "transaction",	papuga_lua_transaction},
 	{ "html_base_href",	papuga_lua_html_base_href},
 	{ "http_accept",	papuga_lua_http_accept},
 	{nullptr, nullptr} /* end of array */
@@ -325,14 +325,18 @@ extern "C" bool papuga_copy_RequestAttributes( papuga_Allocator* allocator, papu
 	return true;
 }
 
+static papuga_ContentType firstContentTypeFromSet( int doctype_set)
+{
+	if ((doctype_set & (1<<papuga_ContentType_HTML)) != 0) return papuga_ContentType_HTML;
+	else if ((doctype_set & (1<<papuga_ContentType_TEXT)) != 0) return papuga_ContentType_TEXT;
+	else if ((doctype_set & (1<<papuga_ContentType_JSON)) != 0) return papuga_ContentType_JSON;
+	else if ((doctype_set & (1<<papuga_ContentType_XML)) != 0) return papuga_ContentType_XML;
+	else return papuga_ContentType_JSON;
+}
+
 extern "C" papuga_ContentType papuga_http_default_doctype( papuga_RequestAttributes* attr)
 {
-	papuga_ContentType rt = papuga_ContentType_JSON;
-	if ((attr->accepted_doctype_set & (1<<papuga_ContentType_HTML)) != 0) rt = papuga_ContentType_HTML;
-	else if ((attr->accepted_doctype_set & (1<<papuga_ContentType_TEXT)) != 0) rt = papuga_ContentType_TEXT;
-	else if ((attr->accepted_doctype_set & (1<<papuga_ContentType_JSON)) != 0) rt = papuga_ContentType_JSON;
-	else if ((attr->accepted_doctype_set & (1<<papuga_ContentType_XML)) != 0) rt = papuga_ContentType_XML;
-	return rt;
+	return firstContentTypeFromSet( attr->accepted_doctype_set);
 }
 
 static int parseContentType( const char* tp)
@@ -714,6 +718,23 @@ struct papuga_LuaRequestHandler
 		m_nof_delegates += 1;
 		return req;
 	}
+
+	const char* linkBase( char* buf, size_t bufsize) const noexcept
+	{
+		char const* hi = m_attributes.html_base_href;
+		for (; *hi && *hi != ':'; ++hi){}
+		for (++hi; *hi && *hi == '/'; ++hi){}
+		for (++hi; *hi && *hi != '/'; ++hi){}
+		size_t size = hi - m_attributes.html_base_href;
+		if (size >= bufsize)
+		{
+			return nullptr;
+		}
+		std::memcpy( buf, m_attributes.html_base_href, size);
+		buf[ size] = 0;
+		return buf;
+	}
+
 	~papuga_LuaRequestHandler()
 	{
 		if (m_ls) {lua_close( m_ls); m_ls = nullptr;}
@@ -750,10 +771,7 @@ struct papuga_LuaRequestHandler
 		papuga_ContentType rt = m_doctype;
 		if (rt == papuga_ContentType_Unknown)
 		{
-			if ((m_attributes.accepted_doctype_set & (1<<papuga_ContentType_HTML)) != 0) rt = papuga_ContentType_HTML;
-			else if ((m_attributes.accepted_doctype_set & (1<<papuga_ContentType_TEXT)) != 0) rt = papuga_ContentType_TEXT;
-			else if ((m_attributes.accepted_doctype_set & (1<<papuga_ContentType_JSON)) != 0) rt = papuga_ContentType_JSON;
-			else if ((m_attributes.accepted_doctype_set & (1<<papuga_ContentType_XML)) != 0) rt = papuga_ContentType_XML;
+			rt = firstContentTypeFromSet( m_attributes.accepted_doctype_set);
 		}
 		return rt;
 	}
@@ -1315,7 +1333,7 @@ static int papuga_lua_log( lua_State* ls)
 	return 0;
 }
 
-static int papuga_lua_create_transaction( lua_State* ls)
+static int papuga_lua_transaction( lua_State* ls)
 {
 	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
 	int nn = lua_gettop( ls);
@@ -1358,8 +1376,21 @@ static int papuga_lua_create_transaction( lua_State* ls)
 		papuga_destroy_Allocator( &allocator);
 		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NoMemError));
 	}
-	lua_pushstring( ls, tid);
+	char serverbuf[ 1024];
+	char linkbuf[ 1024];
+	const char* serverid = reqhnd->linkBase( serverbuf, sizeof(serverbuf));
+	if (!serverid)
+	{
+		papuga_destroy_Allocator( &allocator);
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_BufferOverflowError));
+	}
+	size_t linksize = std::snprintf( linkbuf, sizeof(linkbuf), "%s/transaction/%s", serverid, tid);
 	papuga_destroy_Allocator( &allocator);
+	if (linksize >= sizeof(linkbuf))
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_BufferOverflowError));
+	}
+	lua_pushstring( ls, linkbuf);
 	return 1;
 }
 
