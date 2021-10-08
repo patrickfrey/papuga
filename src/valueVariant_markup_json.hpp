@@ -11,6 +11,7 @@
 /// \file valueVariant_markup_json.hpp
 #include "valueVariant_markup_base.hpp"
 #include "valueVariant_markup_keydecl.hpp"
+#include <cmath>
 
 namespace papuga {
 namespace markup {
@@ -34,7 +35,8 @@ public:
 
 	static bool isUnquotedValue( const papuga_ValueVariant& value)
 	{
-		return (value.valuetype == papuga_TypeInt && value.value.Int >= 0);
+		return 	(value.valuetype == papuga_TypeInt && value.value.Int >= 0)
+		||	(value.valuetype == papuga_TypeDouble && (value.value.Double - std::floor(value.value.Double) <= std::numeric_limits<double>::epsilon()));
 	}
 
 	void defHead( papuga_StringEncoding enc, const char* name)

@@ -63,7 +63,8 @@ typedef enum papuga_ErrorCode
 	papuga_MissingStructureDescription=31,
 	papuga_DelegateRequestFailed=32,
 	papuga_ServiceImplementationError=33,
-	papuga_BindingLanguageError=34
+	papuga_BindingLanguageError=34,
+	papuga_InvalidOutput=35
 } papuga_ErrorCode;
 
 /*
