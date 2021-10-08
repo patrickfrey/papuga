@@ -443,8 +443,7 @@ struct papuga_LuaRequestHandler
 	papuga_DelegateRequest m_delegate[ MaxNofDelegates];
 	int m_nof_delegates;
 	int m_start_delegates;
-	const char* m_resultstr;
-	size_t m_resultlen;
+	papuga_LuaRequestResult m_result;
 	papuga_ContentType m_doctype;
 	papuga_StringEncoding m_encoding;
 	int m_contentDefined;
@@ -476,9 +475,12 @@ struct papuga_LuaRequestHandler
 			const papuga_SchemaMap* schemamap)
 		:m_ls(nullptr),m_thread(nullptr),m_threadref(0),m_running(false)
 		,m_handler(handler_),m_context(context_),m_nof_delegates(0),m_start_delegates(0)
-		,m_resultstr(nullptr),m_resultlen(0)
 		,m_doctype(papuga_ContentType_Unknown),m_encoding(papuga_Binary),m_contentDefined(0)
 	{
+		m_result.contentlen = 0;
+		m_result.contentstr = nullptr;
+		m_result.doctype = papuga_ContentType_Unknown;
+		m_result.encoding = papuga_Binary;
 		papuga_init_Allocator( &m_allocator, m_allocatormem, sizeof(m_allocatormem));
 		m_ls = lua_newstate( customAllocFunction, this);
 		if (setjmp( m_jump_buffer_LuaRequestHandler_init) != 0)
@@ -599,7 +601,7 @@ struct papuga_LuaRequestHandler
 				}
 				else if (nresults == 1)
 				{
-					const char* rootname = 0;
+					const char* rootname = nullptr;
 					papuga_init_ValueVariant( &resultval);
 
 					if (lua_type( m_thread, -1) == LUA_TTABLE)
@@ -617,11 +619,22 @@ struct papuga_LuaRequestHandler
 							}
 							if (lua_type( m_thread, -2) == LUA_TSTRING)
 							{
-								rootname = lua_tostring( m_thread, -2);
-								if (!papuga_lua_value( m_thread, &resultval, &m_allocator, -1, &errcode))
+								if (lua_type( m_thread, -1) == LUA_TTABLE)
 								{
-									papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
-									return false;
+									rootname = lua_tostring( m_thread, -2);
+									if (!papuga_lua_value( m_thread, &resultval, &m_allocator, -1, &errcode))
+									{
+										papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
+										return false;
+									}
+								}
+								else
+								{
+									if (!papuga_lua_value( m_thread, &resultval, &m_allocator, -3, &errcode))
+									{
+										papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
+										return false;
+									}
 								}
 							}
 							else
@@ -648,8 +661,7 @@ struct papuga_LuaRequestHandler
 						}
 						resultval.value.serialization = &detser;
 					}
-					m_resultstr = getOutputString( rootname, resultval, &m_resultlen, &errcode);
-					if (!m_resultstr && errcode != papuga_Ok)
+					if (!initResult( rootname, resultval, &errcode))
 					{
 						papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
 						return false;
@@ -762,58 +774,64 @@ struct papuga_LuaRequestHandler
 		return rt;
 	}
 
-	const char* getOutputString( const char* rootname, const papuga_ValueVariant& result, size_t* resultlen, papuga_ErrorCode* errcode)
+	bool initResult( const char* rootname, const papuga_ValueVariant& result, papuga_ErrorCode* errcode)
 	{
 		const char* elemname = nullptr;
+		m_result.encoding = papuga_Binary;
+		m_result.doctype = papuga_ContentType_Unknown;
 		if (!papuga_ValueVariant_defined( &result))
 		{
 			*errcode = papuga_Ok;
-			*resultlen = 0;
-			return nullptr;
+			m_result.contentstr = nullptr;
+			m_result.contentlen = 0;
+			return true;
 		}
 		else if (papuga_ValueVariant_isstring( &result))
 		{
 			*errcode = papuga_Ok;
-			*resultlen = result.length;
-			return result.value.string;
+			m_result.contentstr = result.value.string;
+			m_result.contentlen = result.length;
+			return true;
 		}
 		else
 		{
-			papuga_StringEncoding encoding = resultEncoding();
-			papuga_ContentType doctype = resultContentType();
-			switch (doctype)
+			m_result.encoding = resultEncoding();
+			m_result.doctype = resultContentType();
+			switch (m_result.doctype)
 			{
 				case papuga_ContentType_Unknown:
 				case papuga_ContentType_JSON:
-					return (char*)papuga_ValueVariant_tojson(
+					m_result.contentstr = (char*)papuga_ValueVariant_tojson(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, rootname, elemname,
-							resultlen, errcode);
+							m_result.encoding, m_attributes.beautifiedOutput, rootname, elemname,
+							&m_result.contentlen, errcode);
 					break;
 				case papuga_ContentType_XML:
-					return (char*)papuga_ValueVariant_toxml(
+					m_result.contentstr = (char*)papuga_ValueVariant_toxml(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, rootname, elemname,
-							resultlen, errcode);
+							m_result.encoding, m_attributes.beautifiedOutput, rootname, elemname,
+							&m_result.contentlen, errcode);
 					break;
 				case papuga_ContentType_HTML:
-					return (char*)papuga_ValueVariant_tohtml5(
+					m_result.contentstr = (char*)papuga_ValueVariant_tohtml5(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, rootname, elemname,
+							m_result.encoding, m_attributes.beautifiedOutput, rootname, elemname,
 							m_attributes.html_head, m_attributes.html_base_href,
-							resultlen, errcode);
+							&m_result.contentlen, errcode);
 					break;
 				case papuga_ContentType_TEXT:
-					return (char*)papuga_ValueVariant_totext(
+					m_result.contentstr = (char*)papuga_ValueVariant_totext(
 							&result, &m_allocator, nullptr/*structdefs*/,
-							encoding, m_attributes.beautifiedOutput, rootname, elemname,
-							resultlen, errcode);
+							m_result.encoding, m_attributes.beautifiedOutput, rootname, elemname,
+							&m_result.contentlen, errcode);
 					break;
 			}
+			return true;
 		}
 		*errcode = papuga_UnknownContentType;
-		*resultlen = 0;
-		return nullptr;
+		m_result.contentstr = nullptr;
+		m_result.contentlen = 0;
+		return false;
 	}
 
 	enum AllocClass {AllocClassNone=-1,AllocClassNothing=0,AllocClassTiny=8,AllocClassSmall=64,AllocClassMedium=256};
@@ -1659,9 +1677,8 @@ extern "C" void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* h
 	}
 }
 
-extern "C" const char* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler, size_t* resultlen)
+extern "C" const papuga_LuaRequestResult* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler)
 {
-	*resultlen = handler->m_resultlen;
-	return handler->m_resultstr;
+	return handler->m_result.doctype == papuga_ContentType_Unknown ? nullptr : &handler->m_result;
 }
 

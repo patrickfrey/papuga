@@ -535,9 +535,8 @@ static std::string runRequest(
 	{
 		reqctx.put( scriptName, instanceName);
 	}
-	size_t resultlen = 0;
-	const char* resultstr = papuga_LuaRequestHandler_get_result( rhnd, &resultlen);
-	rt.append( resultstr, resultlen);
+	const papuga_LuaRequestResult* result = papuga_LuaRequestHandler_get_result( rhnd);
+	if (result) rt.append( result->contentstr, result->contentlen);
 	rt.append( "\n");
 	return rt;
 }

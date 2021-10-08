@@ -11,7 +11,7 @@
 */
 #include "papuga/luaRequestHandler.h"
 
-extern "C" void papuga_init_RequestAttributes( papuga_RequestAttributes* dest, const char* http_accept, const char* html_base_href, bool beautifiedOutput, bool deterministicOutput)
+extern "C" void papuga_init_RequestAttributes( papuga_RequestAttributes* dest, const char* http_accept, const char* html_head, const char* html_base_href, bool beautifiedOutput, bool deterministicOutput)
 {
 	return;
 }
@@ -42,7 +42,7 @@ extern "C" const char* papuga_LuaRequestHandlerScript_options( papuga_LuaRequest
 
 extern "C" papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerScript* script,
-	const papuga_LuaInitProc* initproc,
+	papuga_LuaInitProc* initproc,
 	const papuga_SchemaMap* schemamap,
 	papuga_RequestContextPool* contextpool,
 	papuga_RequestContext* context,
@@ -81,6 +81,6 @@ extern "C" void papuga_LuaRequestHandler_init_result( papuga_LuaRequestHandler* 
 extern "C" void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* handler, int idx, papuga_ErrorCode errcode, const char* errmsg)
 {}
 
-extern "C" const char* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler, size_t* resultlen)
+extern "C" const papuga_LuaRequestResult* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler)
 {return nullptr;}
 

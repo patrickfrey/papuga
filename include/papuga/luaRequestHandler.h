@@ -102,7 +102,15 @@ papuga_DelegateRequest const* papuga_LuaRequestHandler_get_delegateRequest( cons
 void papuga_LuaRequestHandler_init_result( papuga_LuaRequestHandler* handler, int idx, const char* resultstr, size_t resultlen);
 void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* handler, int idx, papuga_ErrorCode errcode, const char* errmsg);
 
-const char* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler, size_t* resultlen);
+typedef struct papuga_LuaRequestResult
+{
+	papuga_ContentType doctype;
+	papuga_StringEncoding encoding;
+	const char* contentstr;
+	size_t contentlen;
+} papuga_LuaRequestResult;
+
+const papuga_LuaRequestResult* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler);
 
 #ifdef __cplusplus
 }
