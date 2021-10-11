@@ -102,9 +102,14 @@ static int papuga_lua_encoding( lua_State* ls);
 static int papuga_lua_http_error( lua_State* ls);
 static int papuga_lua_yield( lua_State* ls);
 static int papuga_lua_send( lua_State* ls);
+static int papuga_lua_document( lua_State* ls);
+static int papuga_lua_log( lua_State* ls);
+static int papuga_lua_transaction( lua_State* ls);
+static int papuga_lua_link( lua_State* ls);
+static int papuga_lua_http_accept( lua_State* ls);
+
 static int papuga_lua_schema( lua_State* ls);
 static int papuga_lua_content( lua_State* ls);
-static int papuga_lua_document( lua_State* ls);
 
 static int papuga_lua_new_request( lua_State* ls, papuga_DelegateRequest* req);
 static int papuga_lua_destroy_request( lua_State* ls);
@@ -117,10 +122,6 @@ static int papuga_lua_context_get( lua_State* ls);
 static int papuga_lua_context_set( lua_State* ls);
 static int papuga_lua_context_inherit( lua_State* ls);
 
-static int papuga_lua_log( lua_State* ls);
-static int papuga_lua_transaction( lua_State* ls);
-static int papuga_lua_html_base_href( lua_State* ls);
-static int papuga_lua_http_accept( lua_State* ls);
 
 static const struct luaL_Reg g_functionlib [] = {
 	{ "doctype", 		papuga_lua_doctype},
@@ -135,7 +136,7 @@ static const struct luaL_Reg g_requestlib [] = {
 	{ "document", 		papuga_lua_document},
 	{ "log",		papuga_lua_log},
 	{ "transaction",	papuga_lua_transaction},
-	{ "html_base_href",	papuga_lua_html_base_href},
+	{ "link",		papuga_lua_link},
 	{ "http_accept",	papuga_lua_http_accept},
 	{nullptr, nullptr} /* end of array */
 };
@@ -566,8 +567,22 @@ struct papuga_LuaRequestHandler
 			return false;
 		}
 		papuga_lua_new_context( m_thread, m_handler, m_context);
-		lua_pushlstring( m_thread, contentstr, contentlen);
-		lua_pushstring( m_thread, requestpath);
+		if (contentlen > 0)
+		{
+			lua_pushlstring( m_thread, contentstr, contentlen);
+		}
+		else
+		{
+			lua_pushnil( m_thread);
+		}
+		if (requestpath && requestpath[0] != '\0')
+		{
+			lua_pushstring( m_thread, requestpath);
+		}
+		else
+		{
+			lua_pushnil( m_thread);
+		}
 		return true;
 	}
 
@@ -1362,11 +1377,13 @@ static int papuga_lua_transaction( lua_State* ls)
 	papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
 	if (!papuga_lua_value( ls, &selfval, &allocator, 2, &errcode))
 	{
+		papuga_destroy_RequestContext( transactionContext);
 		papuga_destroy_Allocator( &allocator);
 		luaL_error( ls, papuga_ErrorCode_tostring( errcode));
 	}
 	if (!papuga_RequestContext_define_variable( transactionContext, "self", &selfval))
 	{
+		papuga_destroy_RequestContext( transactionContext);
 		papuga_destroy_Allocator( &allocator);
 		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NoMemError));
 	}
@@ -1394,15 +1411,33 @@ static int papuga_lua_transaction( lua_State* ls)
 	return 1;
 }
 
-static int papuga_lua_html_base_href( lua_State* ls)
+static int papuga_lua_link( lua_State* ls)
 {
-	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
 	int nn = lua_gettop( ls);
-	if (nn != 0)
+	if (nn != 1)
 	{
 		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
 	}
-	lua_pushstring( ls, reqhnd->m_attributes.html_base_href);
+	if (lua_type( ls, 1) != LUA_TSTRING)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
+	}
+	const char* path = lua_tostring( ls, 1);
+
+	char serverbuf[ 1024];
+	char linkbuf[ 1024];
+	const char* serverid = reqhnd->linkBase( serverbuf, sizeof(serverbuf));
+	if (!serverid)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_BufferOverflowError));
+	}
+	size_t linksize = std::snprintf( linkbuf, sizeof(linkbuf), "%s/%s", serverid, path);
+	if (linksize >= sizeof(linkbuf))
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_BufferOverflowError));
+	}
+	lua_pushstring( ls, linkbuf);
 	return 1;
 }
 

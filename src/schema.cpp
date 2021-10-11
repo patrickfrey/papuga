@@ -1452,7 +1452,6 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 				case SchemaOperation::ValueString:
 					pushValue( output, relem.valuestr, relem.valuelen);
 					break;
-
 				case SchemaOperation::OpenNamedStructure:
 					setStack.push_back( op.set);
 					if (rootelem || ridx != 0)
@@ -1461,7 +1460,6 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 						pushOpen( output);
 					}
 					break;
-
 				case SchemaOperation::CloseNamedStructure:
 					if (setStack.empty()) return SchemaError( err, papuga_LogicError);
 					setStack.pop_back();
@@ -1470,7 +1468,6 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 						pushClose( output);
 					}
 					break;
-
 				case SchemaOperation::OpenNamedStructureArray:
 					if (ridx != consumed_ridx)
 					{
@@ -1483,7 +1480,6 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 					}
 					//... else reopen
 					break;
-
 				case SchemaOperation::CloseNamedStructureArray:
 					if (setStack.empty() || arrayStack.empty())
 					{
@@ -1503,16 +1499,13 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 						setStack.pop_back();
 					}
 					break;
-
 				case SchemaOperation::OpenStructure:
 					pushName( output, relem.valuestr, relem.valuelen);
 					pushOpen( output);
 					break;
-
 				case SchemaOperation::CloseStructure:
 					pushClose( output);
 					break;
-
 				case SchemaOperation::OpenStructureArray:
 					if (ridx != consumed_ridx)
 					{
@@ -1524,7 +1517,6 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 					}
 					//... else reopen
 					break;
-
 				case SchemaOperation::CloseStructureArray:
 					if (arrayStack.empty())
 					{
