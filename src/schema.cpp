@@ -1355,17 +1355,20 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 		for (*itr; *itr; ++itr,++nofEvents)
 		{
 			const SchemaOperation& op = schema->ops[ *itr-1];
-			if (op.mask
-			&&  op.id != SchemaOperation::CloseNamedStructureArray
-			&&  op.id != SchemaOperation::CloseNamedStructure)
+			if (ridx != consumed_ridx)
 			{
-				if (setStack.empty())
+				if (op.mask
+				&&  op.id != SchemaOperation::CloseNamedStructureArray
+				&&  op.id != SchemaOperation::CloseNamedStructure)
 				{
-					return SchemaError( err, papuga_LogicError);
-				}
-				if ((setStack.back() & op.mask) == 0)
-				{
-					return RequestProcessError( err, papuga_SyntaxError, request, ridx, nullptr);
+					if (setStack.empty())
+					{
+						return SchemaError( err, papuga_LogicError);
+					}
+					if ((setStack.back() & op.mask) == 0)
+					{
+						return RequestProcessError( err, papuga_SyntaxError, request, ridx, nullptr);
+					}
 				}
 			}
 			if (arraytag)

@@ -62,6 +62,7 @@ void papuga_destroy_LuaRequestHandlerScript( papuga_LuaRequestHandlerScript* sel
 
 const char* papuga_LuaRequestHandlerScript_options( papuga_LuaRequestHandlerScript const* self);
 const char* papuga_LuaRequestHandlerScript_name( papuga_LuaRequestHandlerScript const* self);
+bool papuga_LuaRequestHandlerScript_implements( papuga_LuaRequestHandlerScript const* self, const char* methodname);
 
 papuga_LuaRequestHandler* papuga_create_LuaRequestHandler(
 	const papuga_LuaRequestHandlerScript* script,

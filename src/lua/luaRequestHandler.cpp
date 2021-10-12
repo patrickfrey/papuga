@@ -52,6 +52,14 @@ static papuga_ErrorCode errorFromLuaErrcode( int luares)
 	}
 }
 
+static bool isRestHttpRequestMethod( const char* name) noexcept
+{
+	if (name[0] == 'P' && (0==std::strcmp( name, "POST") || 0==std::strcmp( name, "PUT") || 0==std::strcmp( name, "PATCH"))) return true;
+	if (name[0] == 'G' && 0==std::strcmp( name, "GET")) return true;
+	if (name[0] == 'D' && 0==std::strcmp( name, "DELETE")) return true;
+	return false;
+}
+
 static int luaDumpWriter( lua_State* ls, const void* p, size_t sz, void* ud)
 {
 	std::string* dump = reinterpret_cast<std::string*>(ud);
@@ -161,19 +169,27 @@ static const struct luaL_Reg g_context_methods[] = {
 struct papuga_LuaRequestHandlerScript
 {
 public:
-	papuga_LuaRequestHandlerScript( std::string&& name_, std::string&& dump_, std::string&& source_, std::string&& options_)
-		:m_name(std::move(name_)),m_dump(std::move(dump_)),m_source(std::move(source_)),m_options(std::move(options_)){}
+	papuga_LuaRequestHandlerScript( std::string&& name_, std::string&& dump_, std::string&& source_, std::string&& options_, std::string&& methods_)
+		:m_name(std::move(name_)),m_dump(std::move(dump_)),m_source(std::move(source_)),m_options(std::move(options_)),m_methods(std::move(methods_)){}
 
-	const std::string& name() const 		{return m_name;}
-	const std::string& dump() const 		{return m_dump;}
-	const std::string& source() const 		{return m_source;}
-	const std::string& options() const 		{return m_options;}
+	const std::string& name() const noexcept		{return m_name;}
+	const std::string& dump() const noexcept 		{return m_dump;}
+	const std::string& source() const noexcept 		{return m_source;}
+	const std::string& options() const noexcept 		{return m_options;}
+
+	bool hasMethod( const char* name) const noexcept
+	{
+		size_t namelen = std::strlen( name);
+		const char* mt = std::strstr( m_methods.c_str(), name);
+		return mt && (mt[ namelen] == ',' || mt[ namelen] == '\n');
+	}
 
 private:
 	std::string m_name;
 	std::string m_dump;
 	std::string m_source;
 	std::string m_options;
+	std::string m_methods;
 };
 
 static bool isUppercaseString( char const* si) noexcept
@@ -202,6 +218,7 @@ extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript
 		return nullptr;
 	}
 	std::string options; //... comma separated list of uppercase name functions in script
+	std::string methods; //... comma separated list of uppercase name functions in script
 	lua_rawgeti( ls, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
 	lua_pushnil(ls);
 	while (lua_next( ls, -2))
@@ -210,6 +227,11 @@ extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript
 		{
 			const char* fn = lua_tostring( ls, -2);
 			if (isUppercaseString( fn))
+			{
+				if (!methods.empty()) methods.push_back(',');
+				methods.append( fn);
+			}
+			if (isRestHttpRequestMethod( fn))
 			{
 				if (!options.empty()) options.push_back(',');
 				options.append( fn);
@@ -234,7 +256,7 @@ extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript
 	papuga_LuaRequestHandlerScript* rt = nullptr;
 	try
 	{
-		rt = new papuga_LuaRequestHandlerScript( std::string(name), std::move(dump), std::move(source), std::move(options));
+		rt = new papuga_LuaRequestHandlerScript( std::string(name), std::move(dump), std::move(source), std::move(options), std::move(methods));
 	}
 	catch (...)
 	{
@@ -257,6 +279,11 @@ extern "C" const char* papuga_LuaRequestHandlerScript_options( papuga_LuaRequest
 extern "C" const char* papuga_LuaRequestHandlerScript_name( papuga_LuaRequestHandlerScript const* self)
 {
 	return self->name().c_str();
+}
+
+extern "C" bool papuga_LuaRequestHandlerScript_implements( papuga_LuaRequestHandlerScript const* self, const char* methodname)
+{
+	return self->hasMethod( methodname);
 }
 
 static void lippincottFunction( lua_State* ls)
