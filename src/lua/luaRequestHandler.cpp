@@ -113,6 +113,7 @@ static int papuga_lua_send( lua_State* ls);
 static int papuga_lua_document( lua_State* ls);
 static int papuga_lua_log( lua_State* ls);
 static int papuga_lua_transaction( lua_State* ls);
+static int papuga_lua_counter( lua_State* ls);
 static int papuga_lua_link( lua_State* ls);
 static int papuga_lua_http_accept( lua_State* ls);
 
@@ -144,6 +145,7 @@ static const struct luaL_Reg g_requestlib [] = {
 	{ "document", 		papuga_lua_document},
 	{ "log",		papuga_lua_log},
 	{ "transaction",	papuga_lua_transaction},
+	{ "counter", 		papuga_lua_counter},
 	{ "link",		papuga_lua_link},
 	{ "http_accept",	papuga_lua_http_accept},
 	{nullptr, nullptr} /* end of array */
@@ -1443,6 +1445,32 @@ static int papuga_lua_transaction( lua_State* ls)
 		luaL_error( ls, papuga_ErrorCode_tostring( papuga_BufferOverflowError));
 	}
 	lua_pushstring( ls, linkbuf);
+	return 1;
+}
+
+static int papuga_lua_counter( lua_State* ls)
+{
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
+	int nn = lua_gettop( ls);
+	if (!reqhnd->m_transactionHandler.counter)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NotImplemented));
+	}
+	if (nn != 1)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
+	}
+	if (lua_type( ls, 1) != LUA_TSTRING)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
+	}
+	const char* typenam = lua_tostring( ls, 1);
+	int tid = reqhnd->m_transactionHandler.counter( reqhnd->m_transactionHandler.self, typenam);
+	if (!tid)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NoMemError));
+	}
+	lua_pushinteger( ls, tid);
 	return 1;
 }
 
