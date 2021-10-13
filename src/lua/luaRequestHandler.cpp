@@ -468,6 +468,7 @@ struct papuga_LuaRequestHandler
 	bool m_running;
 	papuga_RequestContextPool* m_handler;
 	papuga_RequestContext* m_context;
+	const char* m_contextName;
 	papuga_TransactionHandler m_transactionHandler;
 	papuga_Logger m_logger;
 	papuga_RequestAttributes m_attributes;
@@ -500,13 +501,13 @@ struct papuga_LuaRequestHandler
 			papuga_LuaInitProc* initproc,
 			papuga_RequestContextPool* handler_,
 			papuga_RequestContext* context_, 
-			const char* contextname_,
+			const char* contextName_,
 			papuga_TransactionHandler* transactionHandler_,
 			papuga_Logger* logger_,
 			const papuga_RequestAttributes* attributes_,
 			const papuga_SchemaMap* schemamap)
 		:m_ls(nullptr),m_thread(nullptr),m_threadref(0),m_running(false)
-		,m_handler(handler_),m_context(context_),m_nof_delegates(0),m_start_delegates(0)
+		,m_handler(handler_),m_context(context_),m_contextName(nullptr),m_nof_delegates(0),m_start_delegates(0)
 		,m_doctype(papuga_ContentType_Unknown),m_encoding(papuga_Binary),m_contentDefined(0)
 	{
 		m_result.contentlen = 0;
@@ -544,10 +545,9 @@ struct papuga_LuaRequestHandler
 		lua_pushlightuserdata( m_ls, this);
 		lua_pushcclosure( m_ls, papuga_lua_content, 1/*number of closure elements*/);
 		lua_setglobal( m_ls, "content");
-		if (contextname_)
+		if (contextName_)
 		{
-			lua_pushstring( m_ls, contextname_);
-			lua_setglobal( m_ls, "objid");
+			m_contextName = papuga_Allocator_copy_charp( &m_allocator, contextName_);
 		}
 		lua_pop( m_ls, 1);
 		if (initproc)
@@ -610,6 +610,14 @@ struct papuga_LuaRequestHandler
 		{
 			lua_pushnil( m_thread);
 		}
+		if (m_contextName)
+		{
+			lua_pushstring( m_thread, m_contextName);
+		}
+		else
+		{
+			lua_pushnil( m_thread);
+		}
 		return true;
 	}
 
@@ -629,7 +637,7 @@ struct papuga_LuaRequestHandler
 	bool run( papuga_ErrorBuffer* errbuf)
 	{
 		char const* msg;
-		int nof_args = m_running ? 0 : 3;
+		int nof_args = m_running ? 0 : 4;
 		m_running = true;
 		papuga_ErrorCode errcode = papuga_Ok;
 		papuga_ValueVariant resultval;
