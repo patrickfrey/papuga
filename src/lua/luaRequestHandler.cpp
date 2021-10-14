@@ -32,6 +32,14 @@ extern "C" {
 #include <lualib.h>
 }
 
+struct UserDataDocument 
+{
+	const char* contentstr;
+	size_t contentlen;
+	papuga_ContentType doctype;
+	papuga_StringEncoding encoding;
+};
+
 static papuga_ErrorCode errorFromLuaErrcode( int luares)
 {
 	if (luares == LUA_ERRSYNTAX)
@@ -125,6 +133,8 @@ static int papuga_lua_destroy_request( lua_State* ls);
 static int papuga_lua_request_result( lua_State* ls);
 static int papuga_lua_request_error( lua_State* ls);
 
+static int papuga_lua_document_tostring( lua_State* ls);
+
 static int papuga_lua_new_context( lua_State* ls, papuga_RequestContextPool* hnd, papuga_RequestContext* ctx);
 static int papuga_lua_destroy_context( lua_State* ls);
 static int papuga_lua_context_get( lua_State* ls);
@@ -167,6 +177,13 @@ static const struct luaL_Reg g_context_methods[] = {
 	{ "inherit",		papuga_lua_context_inherit },
 	{ nullptr,		nullptr }
 };
+
+static const char* g_document_metatable_name = "papuga_document";
+static const struct luaL_Reg g_document_methods[] = {
+	{ "__tostring",		papuga_lua_document_tostring },
+	{ nullptr,		nullptr }
+};
+
 
 struct papuga_LuaRequestHandlerScript
 {
@@ -364,9 +381,25 @@ static papuga_ContentType firstContentTypeFromSet( int doctype_set)
 	else return papuga_ContentType_JSON;
 }
 
-extern "C" papuga_ContentType papuga_http_default_doctype( papuga_RequestAttributes* attr)
+extern "C" papuga_ContentType papuga_http_default_doctype( const papuga_RequestAttributes* attr)
 {
 	return firstContentTypeFromSet( attr->accepted_doctype_set);
+}
+
+extern "C" const char* papuga_http_linkbase( const papuga_RequestAttributes* attr, char* buf, size_t bufsize)
+{
+	char const* hi = attr->html_base_href;
+	for (; *hi && *hi != ':'; ++hi){}
+	for (++hi; *hi && *hi == '/'; ++hi){}
+	for (++hi; *hi && *hi != '/'; ++hi){}
+	size_t size = hi - attr->html_base_href;
+	if (size >= bufsize)
+	{
+		return nullptr;
+	}
+	std::memcpy( buf, attr->html_base_href, size);
+	buf[ size] = 0;
+	return buf;
 }
 
 static int parseContentType( const char* tp)
@@ -530,6 +563,7 @@ struct papuga_LuaRequestHandler
 		luaL_openlibs( m_ls);
 		createMetatable( m_ls, g_request_metatable_name, g_request_methods);
 		createMetatable( m_ls, g_context_metatable_name, g_context_methods);
+		createMetatable( m_ls, g_document_metatable_name, g_document_methods);
 		copyTransactionHandler( &m_transactionHandler, transactionHandler_);
 		copyLogger( &m_logger, logger_);
 		if (!papuga_copy_RequestAttributes( &m_allocator, &m_attributes, attributes_))
@@ -643,8 +677,9 @@ struct papuga_LuaRequestHandler
 		m_running = true;
 		papuga_ErrorCode errcode = papuga_Ok;
 		papuga_ValueVariant resultval;
-		papuga_Serialization detser;
 		int nresults = 0;
+		UserDataDocument* ud;
+
 		switch (resume( nof_args, nresults))
 		{
 			case LUA_YIELD:
@@ -701,26 +736,30 @@ struct papuga_LuaRequestHandler
 							lua_pop( m_thread, 1);
 						}
 						lua_pop( m_thread, 1);
-					}
-					else if (!papuga_lua_value( m_thread, &resultval, &m_allocator, -1, &errcode))
-					{
-						papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
-						return false;
-					}
-					if (m_attributes.deterministicOutput && resultval.valuetype == papuga_TypeSerialization)
-					{
-						papuga_init_Serialization( &detser, &m_allocator);
-						if (!papuga_Serialization_copy_deterministic( &detser, resultval.value.serialization, &errcode))
+
+						if (!initResult( rootname, resultval, &errcode))
 						{
 							papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
 							return false;
 						}
-						resultval.value.serialization = &detser;
 					}
-					if (!initResult( rootname, resultval, &errcode))
+					else if (lua_type( m_thread, -1) == LUA_TUSERDATA
+						&& 0 != (ud = (UserDataDocument*) luaL_checkudata( m_thread, -1, g_document_metatable_name)))
 					{
-						papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
-						return false;
+						initResult( *ud);
+					}
+					else
+					{
+						if (!papuga_lua_value( m_thread, &resultval, &m_allocator, -1, &errcode))
+						{
+							papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
+							return false;
+						}
+						if (!initResult( rootname, resultval, &errcode))
+						{
+							papuga_ErrorBuffer_reportError( errbuf, papuga_ErrorCode_tostring( errcode));
+							return false;
+						}
 					}
 				}
 				return true;
@@ -769,22 +808,6 @@ struct papuga_LuaRequestHandler
 		}
 		m_nof_delegates += 1;
 		return req;
-	}
-
-	const char* linkBase( char* buf, size_t bufsize) const noexcept
-	{
-		char const* hi = m_attributes.html_base_href;
-		for (; *hi && *hi != ':'; ++hi){}
-		for (++hi; *hi && *hi == '/'; ++hi){}
-		for (++hi; *hi && *hi != '/'; ++hi){}
-		size_t size = hi - m_attributes.html_base_href;
-		if (size >= bufsize)
-		{
-			return nullptr;
-		}
-		std::memcpy( buf, m_attributes.html_base_href, size);
-		buf[ size] = 0;
-		return buf;
 	}
 
 	~papuga_LuaRequestHandler()
@@ -844,8 +867,27 @@ struct papuga_LuaRequestHandler
 		return rt;
 	}
 
-	bool initResult( const char* rootname, const papuga_ValueVariant& result, papuga_ErrorCode* errcode)
+	void initResult( const UserDataDocument& doc)
 	{
+		m_result.contentstr = doc.contentstr;
+		m_result.contentlen = doc.contentlen;
+		m_result.encoding = doc.encoding;
+		m_result.doctype = doc.doctype;
+	}
+
+	bool initResult( const char* rootname, papuga_ValueVariant& result, papuga_ErrorCode* errcode)
+	{
+		papuga_Serialization detser;
+
+		if (m_attributes.deterministicOutput && result.valuetype == papuga_TypeSerialization)
+		{
+			papuga_init_Serialization( &detser, &m_allocator);
+			if (!papuga_Serialization_copy_deterministic( &detser, result.value.serialization, errcode))
+			{
+				return false;
+			}
+			result.value.serialization = &detser;
+		}
 		const char* elemname = nullptr;
 		m_result.encoding = papuga_Binary;
 		m_result.doctype = papuga_ContentType_Unknown;
@@ -861,6 +903,8 @@ struct papuga_LuaRequestHandler
 			*errcode = papuga_Ok;
 			m_result.contentstr = result.value.string;
 			m_result.contentlen = result.length;
+			m_result.encoding = (papuga_StringEncoding)result.encoding;
+			m_result.doctype = papuga_ContentType_TEXT;
 			return true;
 		}
 		else
@@ -1269,6 +1313,25 @@ static int papuga_lua_send( lua_State* ls)
 	return 0;
 }
 
+static int lua_new_document( lua_State* ls, papuga_ContentType doctype_, papuga_StringEncoding encoding_, const char* contentstr_, size_t contentlen_)
+{
+	UserDataDocument* ud = (UserDataDocument*)lua_newuserdata( ls, sizeof(UserDataDocument));
+	ud->contentstr = contentstr_;
+	ud->contentlen = contentlen_;
+	ud->doctype = doctype_;
+	ud->encoding = encoding_;
+	luaL_getmetatable( ls, g_document_metatable_name);
+	lua_setmetatable( ls, -2);
+	return 1;
+}
+
+static int papuga_lua_document_tostring( lua_State* ls)
+{
+	const UserDataDocument* ud = (UserDataDocument*)lua_touserdata(ls, 1);	
+	lua_pushlstring( ls, ud->contentstr, ud->contentlen);
+	return 1;
+}
+
 static int papuga_lua_document( lua_State* ls)
 {
 	const char* rootname = nullptr;
@@ -1334,7 +1397,7 @@ static int papuga_lua_document( lua_State* ls)
 	{
 		luaL_error( ls, papuga_ErrorCode_tostring( errcode));
 	}
-	lua_pushlstring( ls, docstr, doclen);
+	lua_new_document( ls, doctype, encoding, docstr, doclen);
 	return 1;
 }
 
@@ -1430,21 +1493,7 @@ static int papuga_lua_transaction( lua_State* ls)
 		papuga_destroy_Allocator( &allocator);
 		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NoMemError));
 	}
-	char serverbuf[ 1024];
-	char linkbuf[ 1024];
-	const char* serverid = reqhnd->linkBase( serverbuf, sizeof(serverbuf));
-	if (!serverid)
-	{
-		papuga_destroy_Allocator( &allocator);
-		luaL_error( ls, papuga_ErrorCode_tostring( papuga_BufferOverflowError));
-	}
-	size_t linksize = std::snprintf( linkbuf, sizeof(linkbuf), "%s/transaction/%s", serverid, tid);
-	papuga_destroy_Allocator( &allocator);
-	if (linksize >= sizeof(linkbuf))
-	{
-		luaL_error( ls, papuga_ErrorCode_tostring( papuga_BufferOverflowError));
-	}
-	lua_pushstring( ls, linkbuf);
+	lua_pushstring( ls, tid);
 	return 1;
 }
 
@@ -1490,7 +1539,7 @@ static int papuga_lua_link( lua_State* ls)
 
 	char serverbuf[ 1024];
 	char linkbuf[ 1024];
-	const char* serverid = reqhnd->linkBase( serverbuf, sizeof(serverbuf));
+	const char* serverid = papuga_http_linkbase( &reqhnd->m_attributes, serverbuf, sizeof(serverbuf));
 	if (!serverid)
 	{
 		luaL_error( ls, papuga_ErrorCode_tostring( papuga_BufferOverflowError));

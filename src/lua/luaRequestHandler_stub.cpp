@@ -19,9 +19,14 @@ extern "C" bool papuga_copy_RequestAttributes( papuga_Allocator* allocator, papu
 {
 	return false;
 }
-extern "C" papuga_ContentType papuga_http_default_doctype( papuga_RequestAttributes* attr)
+extern "C" papuga_ContentType papuga_http_default_doctype( const papuga_RequestAttributes* attr)
 {
 	return papuga_ContentType_Unknown;
+}
+
+extern "C" const char* papuga_http_linkbase( const papuga_RequestAttributes* attr, char* buf, size_t bufsize)
+{
+	return nullptr;
 }
 
 extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript(

@@ -152,6 +152,7 @@ struct SchemaOperation
 
 static bool SchemaError( papuga_SchemaError* err, papuga_ErrorCode errcode, int line=0, const char* itm=0, int itmlen=0)
 {
+	papuga_init_SchemaError( err);
 	err->code = errcode;
 	err->line = line;
 	if (itm)
