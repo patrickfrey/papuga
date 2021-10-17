@@ -795,22 +795,29 @@ static bool buildSelectExpressionMap(
 		}
 		else if (nd->chld)
 		{
-			SchemaOperation::Id vopen,vclose;
-			if (nd->array)
+			if (nd->name)
 			{
-				vopen = SchemaOperation::OpenStructureArray;
-				vclose = SchemaOperation::CloseStructureArray;
+				SchemaOperation::Id vopen,vclose;
+				if (nd->array)
+				{
+					vopen = SchemaOperation::OpenNamedStructureArray;
+					vclose = SchemaOperation::CloseNamedStructureArray;
+				}
+				else
+				{
+					vopen = SchemaOperation::OpenNamedStructure;
+					vclose = SchemaOperation::CloseNamedStructure;
+				}
+				if (!addOperation( opmap, key, vopen, 0, select, err)
+				||  !buildSelectExpressionMap( opmap, key, nd->chld, tree, select, visited, err)
+				||  !addOperation( opmap, key + "~", vclose, 0, select, err))
+				{
+					return false;
+				}
 			}
 			else
 			{
-				vopen = SchemaOperation::OpenStructure;
-				vclose = SchemaOperation::CloseStructure;
-			}
-			if (!addOperation( opmap, key, vopen, 0, select, err)
-			||  !buildSelectExpressionMap( opmap, key, nd->chld, tree, select, visited, err)
-			||  !addOperation( opmap, key + "~", vclose, 0, select, err))
-			{
-				return false;
+				return SchemaError( err, papuga_SyntaxError, 0, "/");
 			}
 		}
 	}
