@@ -246,6 +246,14 @@ struct SymKey
 	{
 		return 0>std::memcmp( str, o.str, (len < o.len ? len : o.len)+1);
 	}
+	bool operator == (const SymKey& o) const
+	{
+		return o.len == len && 0==std::memcmp( str, o.str, len);
+	}
+	bool operator == (const std::string& o) const
+	{
+		return o.size() == len && 0==std::memcmp( str, o.c_str(), len);
+	}
 	std::string first() const
 	{
 		char const* si = std::strchr( str, '/');
@@ -301,19 +309,30 @@ typedef papuga::shared_ptr<papuga_RequestContext> RequestContextRef;
 typedef papuga::unordered_map<SymKey,RequestContextRef,SymKeyHashFunc,MapSymKeyEqual> RequestContextTab;
 struct RequestContextMap
 {
+private:
 	std::list<std::string> keylist;
 	RequestContextTab tab;
-
+public:
 	~RequestContextMap(){}
 	RequestContextMap()
 		:keylist(),tab(){}
 	RequestContextMap( const RequestContextMap& o)
 		:keylist(),tab()
 	{
-		RequestContextTab::const_iterator ti = o.tab.begin(), te = o.tab.end();
-		for (; ti != te; ++ti)
+		std::list<std::string>::const_iterator ki = o.keylist.begin(), ke = o.keylist.end();
+		for (; ki != ke; ++ki)
 		{
-			tab[ allocKey( ti->first)] = ti->second;
+			RequestContextTab::const_iterator mi = o.tab.find( *ki);
+			if (mi == o.tab.end())
+			{
+				std::string kl1;
+				for (auto kv : o.tab) {kl1.append( " "); kl1.append( kv.first.str);}
+				std::string kl2;
+				for (auto kk : o.keylist) {kl2.append( " "); kl2.append( kk);}
+
+				std::cerr << (std::string("KEY: '") + kl1 + "', '" + kl2 + "'") << std::endl;
+			}
+			tab[ allocKey( mi->first)] = mi->second;
 		}
 	}
 	void addOwnership( const SymKey& key, papuga_RequestContext* context)
@@ -324,6 +343,22 @@ struct RequestContextMap
 	{
 		RequestContextTab::const_iterator mi = tab.find( key);
 		return mi == tab.end() ? NULL : mi->second.get();
+	}
+	bool erase( const SymKey& key)
+	{
+		bool rt = false;
+		auto ki = keylist.begin(), ke = keylist.end();
+		for (; ki != ke; ++ki)
+		{
+			if (key == *ki)
+			{
+				keylist.erase( ki);
+				rt = true;
+				break;
+			}
+		}
+		tab.erase( key);
+		return rt;
 	}
 
 	std::string tostring( papuga_StructInterfaceDescription* structdefs) const
@@ -404,7 +439,7 @@ static bool RequestContextMap_delete( RequestContextMapRef& cm, const char* type
 	SymKey key = SymKey::create( keybuf, sizeof(keybuf), type, name);
 	RequestContextMapRef cm_ref( cm);
 	RequestContextMapRef cm_copy( new RequestContextMap( *cm_ref));
-	if (cm_copy->tab.erase( key) > 0)
+	if (cm_copy->erase( key))
 	{
 		cm = cm_copy;
 		return true;

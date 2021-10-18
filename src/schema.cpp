@@ -798,15 +798,31 @@ static bool buildSelectExpressionMap(
 			if (nd->name)
 			{
 				SchemaOperation::Id vopen,vclose;
-				if (nd->array)
+				if (path.empty())
 				{
-					vopen = SchemaOperation::OpenNamedStructureArray;
-					vclose = SchemaOperation::CloseNamedStructureArray;
+					if (nd->array)
+					{
+						vopen = SchemaOperation::OpenNamedStructureArray;
+						vclose = SchemaOperation::CloseNamedStructureArray;
+					}
+					else
+					{
+						vopen = SchemaOperation::OpenNamedStructure;
+						vclose = SchemaOperation::CloseNamedStructure;
+					}
 				}
 				else
 				{
-					vopen = SchemaOperation::OpenNamedStructure;
-					vclose = SchemaOperation::CloseNamedStructure;
+					if (nd->array)
+					{
+						vopen = SchemaOperation::OpenStructureArray;
+						vclose = SchemaOperation::CloseStructureArray;
+					}
+					else
+					{
+						vopen = SchemaOperation::OpenStructure;
+						vclose = SchemaOperation::CloseStructure;
+					}
 				}
 				if (!addOperation( opmap, key, vopen, 0, select, err)
 				||  !buildSelectExpressionMap( opmap, key, nd->chld, tree, select, visited, err)
