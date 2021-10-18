@@ -155,7 +155,7 @@ public:
 		std::vector<RequestVariableRef>::const_iterator vi = m_impl.begin(), ve = m_impl.end();
 		for (; vi != ve; ++vi)
 		{
-			if (0==std::strcmp( vi->ptr->name, name)) break;
+			if (vi->ptr->name[0] == name[0] && 0==std::strcmp( vi->ptr->name, name)) break;
 		}
 		return (vi == ve) ? NULL : &vi->ptr->value;
 	}

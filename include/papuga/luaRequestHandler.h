@@ -108,6 +108,7 @@ void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* handler, int
 
 typedef struct papuga_LuaRequestResult
 {
+	int http_status;
 	papuga_ContentType doctype;
 	papuga_StringEncoding encoding;
 	const char* contentstr;

@@ -113,9 +113,10 @@ static void createMetatable( lua_State* ls, const char* metatableName, const str
 }
 
 static int papuga_lua_doctype( lua_State* ls);
+static int papuga_lua_mimetype( lua_State* ls);
 static int papuga_lua_encoding( lua_State* ls);
 
-static int papuga_lua_http_error( lua_State* ls);
+static int papuga_lua_http_status( lua_State* ls);
 static int papuga_lua_yield( lua_State* ls);
 static int papuga_lua_send( lua_State* ls);
 static int papuga_lua_document( lua_State* ls);
@@ -144,12 +145,13 @@ static int papuga_lua_context_inherit( lua_State* ls);
 
 static const struct luaL_Reg g_functionlib [] = {
 	{ "doctype", 		papuga_lua_doctype},
+	{ "mimetype", 		papuga_lua_mimetype},
 	{ "encoding", 		papuga_lua_encoding},
 	{nullptr, nullptr} /* end of array */
 };
 
 static const struct luaL_Reg g_requestlib [] = {
-	{ "http_error", 	papuga_lua_http_error},
+	{ "http_status", 	papuga_lua_http_status},
 	{ "yield", 		papuga_lua_yield},
 	{ "send", 		papuga_lua_send},
 	{ "document", 		papuga_lua_document},
@@ -545,6 +547,7 @@ struct papuga_LuaRequestHandler
 		,m_handler(handler_),m_context(context_),m_contextName(nullptr),m_nof_delegates(0),m_start_delegates(0)
 		,m_doctype(papuga_ContentType_Unknown),m_encoding(papuga_Binary),m_contentDefined(0)
 	{
+		m_result.http_status = 0;
 		m_result.contentlen = 0;
 		m_result.contentstr = nullptr;
 		m_result.doctype = papuga_ContentType_Unknown;
@@ -873,6 +876,11 @@ struct papuga_LuaRequestHandler
 		m_result.contentlen = doc.contentlen;
 		m_result.encoding = doc.encoding;
 		m_result.doctype = doc.doctype;
+	}
+
+	void initHttpStatus( int http_status)
+	{
+		m_result.http_status = http_status;
 	}
 
 	bool initResult( const char* rootname, papuga_ValueVariant& result, papuga_ErrorCode* errcode)
@@ -1211,7 +1219,7 @@ static int papuga_lua_context_inherit( lua_State* ls)
 	return 0;
 }
 
-static int papuga_lua_http_error( lua_State* ls)
+static int papuga_lua_http_status( lua_State* ls)
 {
 	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
 	if (!reqhnd)
@@ -1226,24 +1234,7 @@ static int papuga_lua_http_error( lua_State* ls)
 			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
 		}
 		int http_error_id = -1;
-		if (lua_type( ls, 1) == LUA_TSTRING)
-		{
-			const char* http_error_str = lua_tostring( ls, 1);
-			if (!!std::strstr( http_error_str, "nternal")) http_error_id = 500;
-			else if (!!std::strstr( http_error_str, "mplement")) http_error_id = 501;
-			else if (!!std::strstr( http_error_str, "ateway")) http_error_id = 502;
-			else if (!!std::strstr( http_error_str, "navailable")) http_error_id = 503;
-			else if (!!std::strstr( http_error_str, "imeout")) http_error_id = 504;
-			else if (!!std::strstr( http_error_str, "ersion")) http_error_id = 505;
-			else if (!!std::strstr( http_error_str, "uthentication")) http_error_id = 511;
-			else if (!!std::strstr( http_error_str, "equest")) http_error_id = 400;
-			else if (!!std::strstr( http_error_str, "nauthorized")) http_error_id = 401;
-			else if (!!std::strstr( http_error_str, "ayment")) http_error_id = 402;
-			else if (!!std::strstr( http_error_str, "orbidden")) http_error_id = 403;
-			else if (!!std::strstr( http_error_str, "ound")) http_error_id = 404;
-			else if (!!std::strstr( http_error_str, "llowed")) http_error_id = 405;
-		}
-		else
+		if (lua_type( ls, 1) == LUA_TSTRING || lua_type( ls, 1) == LUA_TNUMBER)
 		{
 			http_error_id = lua_tointeger( ls, 1);
 		}
@@ -1257,8 +1248,16 @@ static int papuga_lua_http_error( lua_State* ls)
 			case 403: ec = papuga_InvalidRequest; break;
 			case 404: ec = papuga_InvalidRequest; break;
 			case 405: ec = papuga_InvalidRequest; break;
+			case 200:
+			case 201:
+			case 202:
+			case 204:
+			case 205: ec = papuga_Ok; reqhnd->initHttpStatus( http_error_id); break;
 		}
-		luaL_error( ls, papuga_ErrorCode_tostring( ec));
+		if (ec != papuga_Ok)
+		{
+			luaL_error( ls, papuga_ErrorCode_tostring( ec));
+		}
 	}
 	catch (...) {lippincottFunction( ls);}
 	return 0;
@@ -1644,6 +1643,29 @@ static int papuga_lua_doctype( lua_State* ls)
 	return 0;
 }
 
+static int papuga_lua_mimetype( lua_State* ls)
+{
+	int nn = lua_gettop( ls);
+	if (nn != 1)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
+	}
+	if (lua_type( ls, 1) != LUA_TSTRING)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
+	}
+	std::size_t contentlen;
+	const char* contentstr = lua_tolstring( ls, 1, &contentlen);
+	papuga_ContentType doctype = papuga_guess_ContentType( contentstr, contentlen);
+	const char* mimetypestr = papuga_ContentType_mime( doctype);
+	if (mimetypestr)
+	{
+		lua_pushstring( ls, mimetypestr);
+		return 1;
+	}
+	return 0;
+}
+
 static int papuga_lua_encoding( lua_State* ls)
 {
 	int nn = lua_gettop( ls);
@@ -1857,6 +1879,6 @@ extern "C" void papuga_LuaRequestHandler_init_error( papuga_LuaRequestHandler* h
 
 extern "C" const papuga_LuaRequestResult* papuga_LuaRequestHandler_get_result( const papuga_LuaRequestHandler* handler)
 {
-	return handler->m_result.doctype == papuga_ContentType_Unknown ? nullptr : &handler->m_result;
+	return &handler->m_result;
 }
 
