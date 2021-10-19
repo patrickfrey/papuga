@@ -70,10 +70,19 @@
 						"name": "date",
 						"op": "<=",
 						"value": "20210901"}]}}],
-	"termstats":{
-		"df": 3,
-		"type": "word",
-		"value": "zurich"}}}
+	"termstats":[
+		{
+			"df": 98,
+			"type": "word",
+			"value": "i"},
+		{
+			"df": 12,
+			"type": "word",
+			"value": "love"},
+		{
+			"df": 3,
+			"type": "word",
+			"value": "zurich"}]}}
 
 -- CONTEXT
 analyzer/analyzer:

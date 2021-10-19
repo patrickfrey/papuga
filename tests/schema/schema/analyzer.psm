@@ -89,6 +89,7 @@ queryAnalyzerElement = {
 	field = string,
 	tokenizer = tokenizer,
 	normalizer = {normalizer},
+	priority = integer
 }
 
 vectorStorage = {
@@ -108,8 +109,7 @@ queryGroup = {
 	field = string,
 	op = string,
 	range = integer,
-	cardinality = integer,
-
+	cardinality = integer
 }
 
 qryanalyzer = {

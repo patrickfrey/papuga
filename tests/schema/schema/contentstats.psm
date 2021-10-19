@@ -8,15 +8,14 @@ contentstatsElement = {
 		name = string,
 		arg = string
 	},
-	normalizer = {
+	normalizer = {{
 		name = string,
 		arg = string
-	}
+	}}
 }
 
 contentstats = {
-	attribute = string,
-	select = string,
+	attribute = {string},
+	select = {string},
 	element = {contentstatsElement}
 }
-
