@@ -1124,7 +1124,7 @@ static int papuga_lua_context_get( lua_State* ls)
 	try
 	{
 		int nargs = lua_gettop( ls);
-		if (nargs != 2)
+		if (nargs < 2 or nargs > 3)
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
 		}
@@ -1144,6 +1144,15 @@ static int papuga_lua_context_get( lua_State* ls)
 					luaL_error( ls, papuga_ErrorCode_tostring( errcode));
 				}
 				return 1;
+			}
+			else if (nargs == 3)
+			{
+				lua_pushvalue( ls, 3);
+				return 1;
+			}
+			else
+			{
+				luaL_error( ls, papuga_ErrorCode_tostring( papuga_ValueUndefined));
 			}
 		}
 	}
@@ -1211,7 +1220,8 @@ static int papuga_lua_context_inherit( lua_State* ls)
 		}
 		if (!papuga_RequestContext_inherit( td->ctx, td->hnd, inheritContextType, inheritContextName))
 		{
-			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NoMemError));
+			papuga_ErrorCode errcode = papuga_RequestContext_last_error( td->ctx, true);
+			luaL_error( ls, papuga_ErrorCode_tostring( errcode));
 		}
 		return 0;
 	}
@@ -1482,9 +1492,10 @@ static int papuga_lua_transaction( lua_State* ls)
 	}
 	if (!papuga_RequestContext_define_variable( transactionContext, "self", &selfval))
 	{
+		errcode = papuga_RequestContext_last_error( transactionContext, true);
 		papuga_destroy_RequestContext( transactionContext);
 		papuga_destroy_Allocator( &allocator);
-		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NoMemError));
+		luaL_error( ls, papuga_ErrorCode_tostring( errcode));
 	}
 	const char* tid = reqhnd->m_transactionHandler.create( reqhnd->m_transactionHandler.self, typenam, transactionContext, &allocator);
 	if (!tid)
