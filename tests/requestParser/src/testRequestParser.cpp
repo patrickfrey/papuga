@@ -47,14 +47,15 @@ int main( int argc, const char* argv[])
 		std::string input = readFile( argv[ 3]);
 		char rootbuf[ 32];
 		const char* root = 0;
+		papuga_ErrorCode errcode;
 
 		if (doctype == "XML")
 		{
-			root = papuga_parseRootElement_xml( rootbuf, sizeof(rootbuf), input.c_str(), input.size());
+			root = papuga_parseRootElement_xml( rootbuf, sizeof(rootbuf), input.c_str(), input.size(), &errcode);
 		}
 		else if (doctype == "JSON")
 		{
-			root = papuga_parseRootElement_json( rootbuf, sizeof(rootbuf), input.c_str(), input.size());
+			root = papuga_parseRootElement_json( rootbuf, sizeof(rootbuf), input.c_str(), input.size(), &errcode);
 		}
 		else
 		{

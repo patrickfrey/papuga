@@ -43,44 +43,76 @@ static void skipXmlHeader( char const*& si, const char* se)
 	}
 }
 
-extern "C" const char* papuga_parseRootElement_xml( char* buf, size_t bufsize, const char* src, size_t srcsize)
+extern "C" const char* papuga_parseRootElement_xml( char* buf, size_t bufsize, const char* src, size_t srcsize, papuga_ErrorCode* errcode)
 {
 	char const* si = src;
 	const char* se = src + srcsize;
 	skipXmlHeader( si, se);
-	if (si == se) return 0;
-	if (nextNonSpaceChar( si, se) != '<') return 0;
+	if (si == se)
+	{
+		*errcode = papuga_InvalidContentType;
+		return 0;
+	}
+	if (nextNonSpaceChar( si, se) != '<')
+	{
+		*errcode = papuga_InvalidContentType;
+		return 0;
+	}
 	++si;
 	size_t bufpos = 0;
 	char eb = '>';
 	char hdrch = nextNonNullChar( si, se);
 	for (; hdrch && hdrch != eb; ++si,hdrch = nextNonNullChar( si, se))
 	{
-		if (bufpos >= bufsize) return 0;
+		if (bufpos >= bufsize)
+		{
+			*errcode = papuga_BufferOverflowError;
+			return 0;
+		}
 		buf[ bufpos++] = hdrch;
 	}
-	if (bufpos >= bufsize || hdrch != eb) return 0;
+	if (bufpos >= bufsize || hdrch != eb)
+	{
+		*errcode = papuga_BufferOverflowError;
+		return 0;
+	}
 	buf[ bufpos] = 0;
 	return buf;
 }
 
-extern "C" const char* papuga_parseRootElement_json( char* buf, size_t bufsize, const char* src, size_t srcsize)
+extern "C" const char* papuga_parseRootElement_json( char* buf, size_t bufsize, const char* src, size_t srcsize, papuga_ErrorCode* errcode)
 {
 	char const* si = src;
 	const char* se = src + srcsize;
-	if (nextNonSpaceChar( si, se) != '{') return 0;
+	if (nextNonSpaceChar( si, se) != '{')
+	{
+		*errcode = papuga_InvalidContentType;
+		return 0;
+	}
 	++si;
-	if (nextNonSpaceChar( si, se) != '"') return 0;
+	if (nextNonSpaceChar( si, se) != '"')
+	{
+		*errcode = papuga_InvalidContentType;
+		return 0;
+	}
 	++si;
 	size_t bufpos = 0;
 	char eb = '"';
 	char hdrch = nextNonNullChar( si, se);
 	for (; hdrch && hdrch != eb; ++si,hdrch = nextNonNullChar( si, se))
 	{
-		if (bufpos >= bufsize) return 0;
+		if (bufpos >= bufsize)
+		{
+			*errcode = papuga_BufferOverflowError;
+			return 0;
+		}
 		buf[ bufpos++] = hdrch;
 	}
-	if (bufpos >= bufsize || hdrch != eb) return 0;
+	if (bufpos >= bufsize || hdrch != eb)
+	{
+		*errcode = papuga_BufferOverflowError;
+		return 0;
+	}
 	buf[ bufpos] = 0;
 	return buf;
 }

@@ -115,6 +115,7 @@ static void createMetatable( lua_State* ls, const char* metatableName, const str
 static int papuga_lua_doctype( lua_State* ls);
 static int papuga_lua_mimetype( lua_State* ls);
 static int papuga_lua_encoding( lua_State* ls);
+static int papuga_lua_docroot( lua_State* ls);
 
 static int papuga_lua_http_status( lua_State* ls);
 static int papuga_lua_yield( lua_State* ls);
@@ -147,6 +148,7 @@ static const struct luaL_Reg g_functionlib [] = {
 	{ "doctype", 		papuga_lua_doctype},
 	{ "mimetype", 		papuga_lua_mimetype},
 	{ "encoding", 		papuga_lua_encoding},
+	{ "docroot", 		papuga_lua_docroot},
 	{nullptr, nullptr} /* end of array */
 };
 
@@ -1650,6 +1652,47 @@ static int papuga_lua_doctype( lua_State* ls)
 	{
 		lua_pushstring( ls, doctypestr);
 		return 1;
+	}
+	return 0;
+}
+
+static int papuga_lua_docroot( lua_State* ls)
+{
+	int nn = lua_gettop( ls);
+	if (nn != 1)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
+	}
+	if (lua_type( ls, 1) != LUA_TSTRING)
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_TypeError));
+	}
+	std::size_t contentlen;
+	const char* contentstr = lua_tolstring( ls, 1, &contentlen);
+	papuga_ContentType doctype = papuga_guess_ContentType( contentstr, contentlen);
+	const char* docrootstr = nullptr;
+	char buf[ 1024];
+	papuga_ErrorCode errcode = papuga_Ok;
+	if (doctype == papuga_ContentType_XML)
+	{
+		docrootstr = papuga_parseRootElement_xml( buf, sizeof(buf), contentstr, contentlen, &errcode);
+	}
+	else if (doctype == papuga_ContentType_JSON)
+	{
+		docrootstr = papuga_parseRootElement_json( buf, sizeof(buf), contentstr, contentlen, &errcode);
+	}
+	else
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( papuga_InvalidContentType));
+	}
+	if (docrootstr)
+	{
+		lua_pushstring( ls, docrootstr);
+		return 1;
+	}
+	else
+	{
+		luaL_error( ls, papuga_ErrorCode_tostring( errcode));
 	}
 	return 0;
 }

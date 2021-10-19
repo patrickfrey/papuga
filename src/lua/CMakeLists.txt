@@ -27,7 +27,7 @@ link_directories(
 # LIBRARIES
 # ------------------------------
 add_library( papuga_luarequest STATIC ${source_files} )
-target_link_libraries( papuga_luarequest papuga_devel papuga_lua_dev ${Intl_LIBRARIES} )
+target_link_libraries( papuga_luarequest papuga_devel papuga_request_devel papuga_lua_dev ${Intl_LIBRARIES} )
 
 # ------------------------------
 # INSTALLATION

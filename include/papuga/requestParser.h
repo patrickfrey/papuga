@@ -55,24 +55,26 @@ papuga_StringEncoding papuga_guess_StringEncoding( const char* src, size_t srcsi
 
 /*
  * @brief Extract the root element name as UTF-8 string from an XML content
- * @param[in] src pointer to source
- * @param[in] srcsize size of src in bytes
  * @param[in] buf pointer to buffer to use for the string returned
  * @param[in] bufsize allocation size of buf in bytes
- * @return pointer to root element name as UTF-8 stored in buffer passed
+ * @param[in] src pointer to source
+ * @param[in] srcsize size of src in bytes
+ * @param[out] error code set in case of failure
+ * @return pointer to root element name as UTF-8 stored in buffer passed or NULL in case of failure
  */
-const char* papuga_parseRootElement_xml( char* buf, size_t bufsize, const char* src, size_t srcsize);
+const char* papuga_parseRootElement_xml( char* buf, size_t bufsize, const char* src, size_t srcsize, papuga_ErrorCode* errcode);
 
 /*
  * @brief Extract the first root element name as UTF-8 string from a JSON content
  * @note Does not check wheter there is only a single root element defined
- * @param[in] src pointer to source
- * @param[in] srcsize size of src in bytes
  * @param[in] buf pointer to buffer to use for the string returned
  * @param[in] bufsize allocation size of buf in bytes
- * @return pointer to root element name as UTF-8 stored in buffer passed
+ * @param[in] src pointer to source
+ * @param[in] srcsize size of src in bytes
+ * @param[out] error code set in case of failure
+ * @return pointer to root element name as UTF-8 stored in buffer passed or NULL in case of failure
  */
-const char* papuga_parseRootElement_json( char* buf, size_t bufsize, const char* src, size_t srcsize);
+const char* papuga_parseRootElement_json( char* buf, size_t bufsize, const char* src, size_t srcsize, papuga_ErrorCode* errcode);
 
 /*
  * @brief Request parser element type enumeration

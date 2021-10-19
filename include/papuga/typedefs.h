@@ -59,12 +59,13 @@ typedef enum papuga_ErrorCode
 	papuga_InvalidRequest=27,
 	papuga_AttributeNotAtomic=28,
 	papuga_UnknownContentType=29,
-	papuga_UnknownSchema=30,
-	papuga_MissingStructureDescription=31,
-	papuga_DelegateRequestFailed=32,
-	papuga_ServiceImplementationError=33,
-	papuga_BindingLanguageError=34,
-	papuga_InvalidOutput=35
+	papuga_InvalidContentType=30,
+	papuga_UnknownSchema=31,
+	papuga_MissingStructureDescription=32,
+	papuga_DelegateRequestFailed=33,
+	papuga_ServiceImplementationError=34,
+	papuga_BindingLanguageError=35,
+	papuga_InvalidOutput=36,
 } papuga_ErrorCode;
 
 /*
