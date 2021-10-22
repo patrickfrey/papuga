@@ -6,9 +6,10 @@ add_subdirectory( src )
 set( TESTDIR    "${PROJECT_SOURCE_DIR}/tests/schema" )
 set( SCHEMADIR  "${TESTDIR}/schema" )
 set( TESTBIN    "${CMAKE_CURRENT_BINARY_DIR}/src/testSchema" )
+set( TESTOUT    "${CMAKE_CURRENT_BINARY_DIR}" )
 
 
 # Tests:
-add_test( PapugaSchema_query1 ${TESTBIN} ${SCHEMADIR}/query.psm query ${TESTDIR}/query/input.json ${TESTDIR}/query/expected.txt )
-add_test( PapugaSchema_query2 ${TESTBIN} ${SCHEMADIR}/query.psm query ${TESTDIR}/query/input.xml ${TESTDIR}/query/expected.txt )
+add_test( PapugaSchema_query1 ${TESTBIN} ${SCHEMADIR}/query.psm query ${TESTDIR}/query/input.json ${TESTDIR}/query/expected.txt ${TESTOUT}/schema_json.txt)
+add_test( PapugaSchema_query2 ${TESTBIN} ${SCHEMADIR}/query.psm query ${TESTDIR}/query/input.xml ${TESTDIR}/query/expected.txt ${TESTOUT}/schema_xml.txt)
 

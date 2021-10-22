@@ -46,6 +46,10 @@ struct BitSet
 	{
 		val |= ((uint64_t)1 << (bit-1));
 	}
+	void add( const BitSet& o)
+	{
+		val |= o.val;
+	}
 	BitSet operator + ( const BitSet& o) const
 	{
 		return BitSet( val | o.val);
@@ -196,9 +200,10 @@ struct papuga_Schema
 {
 	char const* name;
 	Automaton atm;
+	std::vector<const char*> expressions;
 	std::vector<SchemaOperation> ops;
 
-	papuga_Schema( char const* name_) :name(name_),atm(),ops(){}
+	papuga_Schema( char const* name_) :name(name_),atm(),expressions(),ops(){}
 	~papuga_Schema(){}
 };
 
@@ -266,6 +271,29 @@ struct SchemaTree
 	~SchemaTree()
 	{
 		papuga_destroy_Allocator( &allocator);
+	}
+	bool findNodeDependency( const SchemaNode* nd, const char* seektypnam, const char* seekname, const BitSet& visited) const noexcept
+	{
+		if (nd->typnam && nd->typnam[0] == seektypnam[0] && 0==std::strcmp( nd->typnam, seektypnam)
+		&&  nd->name && nd->name[0] == seekname[0] && 0==std::strcmp( nd->name, seekname)) return true;
+		if (nd->name && nd->typnam)
+		{
+			auto mi = nodemap.find( nd->typnam);
+			if (mi != nodemap.end())
+			{
+				BitSet to_visit = mi->second - visited;
+				BitSet new_visited = mi->second + visited;
+				for (auto bidx :to_visit)
+				{
+					if (findNodeDependency( nodear[ bidx-1], seektypnam, seekname, new_visited)) return true;
+				}
+			}
+		}
+		for (const SchemaNode* ci=nd->chld; ci; ci=ci->next)
+		{
+			if (findNodeDependency( ci, seektypnam, seekname, visited)) return true;
+		}
+		return false;
 	}
 };
 
@@ -773,18 +801,28 @@ static bool buildSelectExpressionMap(
 					}
 					if (!addOperation( opmap, key, vopen, itr->second.val, select, err)) return false;
 
-					BitSet new_visited = itr->second + visited;
+					BitSet new_visited = visited;
 					BitSet to_visit = itr->second - visited;
-
+					const char* exprsep = "/";
 					BitSet::const_iterator bi = to_visit.begin(), be = to_visit.end();
 					for (; bi != be; ++bi)
 					{
-						SchemaNode const* chld = tree.nodear[ *bi-1]->chld;
-						if (!chld)
+						SchemaNode const* subnode = tree.nodear[ *bi-1];
+						if (tree.findNodeDependency( subnode, nd->typnam, nd->name, BitSet()))
+						{
+							exprsep = "//";
+							new_visited.add( itr->second);
+						}
+					}
+					bi = to_visit.begin(), be = to_visit.end();
+					for (; bi != be; ++bi)
+					{
+						SchemaNode const* subnode = tree.nodear[ *bi-1];
+						if (!subnode->chld)
 						{
 							return SchemaError( err, papuga_StructureExpected, 0, key.c_str());
 						}
-						if (!buildSelectExpressionMap( opmap, path + "//" + nd->name, chld, tree, *bi, new_visited, err))
+						if (!buildSelectExpressionMap( opmap, path + exprsep + nd->name, subnode->chld, tree, *bi, new_visited, err))
 						{
 							return false;
 						}
@@ -863,10 +901,10 @@ static void UNUSED printNode( std::ostream& out, SchemaNode const* node, const s
 }
 
 static bool buildAutomaton(
-		PathElement& path,
 		papuga_Schema* schema,
 		SchemaNode const* node,
 		const SchemaTree& tree,
+		papuga_Allocator* allocator,
 		papuga_SchemaError* err)
 {
 	std::map<std::string,SchemaOperation> opmap;
@@ -878,6 +916,7 @@ static bool buildAutomaton(
 	for (; oi != oe; ++oi)
 	{
 		schema->ops.push_back( oi->second);
+		schema->expressions.push_back( papuga_Allocator_copy_string( allocator, oi->first.c_str(), oi->first.size()));
 		int errorpos = schema->atm.addExpression( schema->ops.size(), oi->first.c_str(), oi->first.size());
 		if (errorpos)
 		{
@@ -1042,8 +1081,7 @@ extern "C" papuga_SchemaMap* papuga_create_SchemaMap( const char* source, papuga
 			}
 			papuga_Schema* schema = new (rt->ar + rt->arsize) papuga_Schema( schemaName);
 			SchemaNode const* rootnode = tree.nodear[ rootidx-1];
-			PathElement rootpath = (*schema->atm)[ rootnode->name];
-			if (!buildAutomaton( rootpath, schema, rootnode, tree, err))
+			if (!buildAutomaton( schema, rootnode, tree, &rt->allocator, err))
 			{
 				papuga_destroy_SchemaMap( rt);
 				return 0;
@@ -1375,9 +1413,16 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 	{
 		const RequestElement& relem = request[ ridx];
 		AutomatonState::iterator itr = atmstate.push( relem.type, relem.valuestr, relem.valuelen);
-		int nofEvents = 0;
-		for (*itr; *itr; ++itr,++nofEvents)
+		int lastEventIdx = 0;
+		for (*itr; *itr; ++itr)
 		{
+			if (lastEventIdx)
+			{
+				char buf[ 2048];
+				std::snprintf( buf, sizeof(buf), "'%s' <> '%s'", schema->expressions[ lastEventIdx-1], schema->expressions[ *itr-1]);
+				return RequestProcessError( err, papuga_AmbiguousReference, request, ridx, buf);
+			}
+			lastEventIdx = *itr;
 			const SchemaOperation& op = schema->ops[ *itr-1];
 			if (ridx != consumed_ridx)
 			{
@@ -1564,7 +1609,7 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 					break;
 			}
 		}
-		if (nofEvents == 0)
+		if (lastEventIdx == 0)
 		{
 			if (relem.type != textwolf::XMLScannerBase::CloseTag && relem.type != textwolf::XMLScannerBase::TagAttribName)
 			{
@@ -1586,10 +1631,6 @@ static bool serializeRequest( papuga_Serialization* output, papuga_Schema const*
 					return RequestProcessError( err, papuga_SyntaxError, request, ridx, relem.valuestr);
 				}
 			}
-		}
-		else if (nofEvents > 1)
-		{
-			return RequestProcessError( err, papuga_SyntaxError, request, ridx, nullptr);
 		}
 	}
 	return true;

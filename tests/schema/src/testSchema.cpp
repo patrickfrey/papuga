@@ -36,6 +36,15 @@ static std::string readFile( const std::string& path)
 	return rt;
 }
 
+static void writeFile( const std::string& path, const std::string& content)
+{
+	std::ofstream outFile;
+	outFile.open( path);
+	if (!outFile) throw std::runtime_error( std::string("failed to open file '") + path + "'");
+	outFile << content;
+	outFile.close();
+}
+
 class SchemaException
 	:public std::runtime_error
 {
@@ -171,11 +180,12 @@ private:
 
 void printUsage()
 {
-	std::cerr << "testSchema [-h][-V] <schemafile> <schema> <input>\n"
+	std::cerr << "testSchema [-h][-V] <schemafile> <schema> <input> <expectfile> <outputfile>\n"
 		<< "\t<schemafile>  :File path of the schema description to load\n"
 		<< "\t<schema>      :Name of the schema to filter input with\n"
 		<< "\t<inputfile>   :File path of the input to process\n"
 		<< "\t<expectfile>  :File path of the expected ouput\n"
+		<< "\t<outputfile>  :File path of the ouput written in case of an error\n"
 		<< std::endl;
 
 }
@@ -241,12 +251,12 @@ int main( int argc, const char* argv[])
 			}
 		}
 		int argn = argc-argi;
-		if (argn < 4)
+		if (argn < 5)
 		{
 			printUsage();
 			throw std::runtime_error( "too few arguments");
 		}
-		if (argn > 4)
+		if (argn > 5)
 		{
 			printUsage();
 			throw std::runtime_error( "too many arguments");
@@ -255,6 +265,7 @@ int main( int argc, const char* argv[])
 		std::string schemaName( argv[ argi+1]);
 		std::string inputFile( argv[ argi+2]);
 		std::string expectFile( argv[ argi+3]);
+		std::string outputFile( argv[ argi+4]);
 		std::string schemaSrc = readFile( schemaFile);
 		std::string inputSrc = readFile( inputFile);
 		std::string expectSrc = readFile( expectFile);
@@ -274,7 +285,10 @@ int main( int argc, const char* argv[])
 					<< "EXPECT:\n" << expectSrc << "\n--\n"
 					<< std::endl;
 			}
-			throw std::runtime_error( "Different output than expected");
+			writeFile( outputFile, output);
+			char buf[2048];
+			std::snprintf( buf, sizeof(buf), "Different output than expected, see: %s %s", outputFile.c_str(), expectFile.c_str());
+			throw std::runtime_error( buf);
 		}
 		else if (g_verbose)
 		{

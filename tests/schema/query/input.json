@@ -15,11 +15,9 @@
 	],
 	"restriction" : [
 		{"content" : {
-			"condition" : {
-				"op": "<=",
-				"name": "date",
-				"value": "20210901"
-			}
+			"op": "<=",
+			"name": "date",
+			"value": "20210901"
 		}}
 	]
 }}

@@ -5,11 +5,9 @@
 		{"set": "term", "weight": 1.0, "content" : {"type":"word", "value":"Zurich"}}
 	],
 	"restriction" : {
-		"content" : {
-			"condition" : [
-				{"op": "<=", "name": "date", "value": "20210901"}
-			]
-		}
+		"content" : [
+			{"op": "<=", "name": "date", "value": "20210901"}
+		]
 	},
 	"termstats" : [
 		{"type": "word", "value": "i", "df": 98},

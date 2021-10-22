@@ -46,6 +46,15 @@ static std::string readFile( const std::string& path)
 	return rt;
 }
 
+static void writeFile( const std::string& path, const std::string& content)
+{
+	std::ofstream outFile;
+	outFile.open( path);
+	if (!outFile) throw std::runtime_error( std::string("failed to open file '") + path + "'");
+	outFile << content;
+	outFile.close();
+}
+
 static size_t countLines( const std::string& source)
 {
 	size_t rt = 0;
@@ -73,11 +82,12 @@ static std::string joinPath( const std::string& path, const std::string& name)
 
 static void printUsage()
 {
-	std::cerr << "testLuaRequest <scriptdir> <schemadir> <cmdfile> <expect>\n"
+	std::cerr << "testLuaRequest <scriptdir> <schemadir> <cmdfile> <expect> <output>\n"
 			<< "\t<scriptdir>    :Lua script directory (service definitions)\n"
 			<< "\t<schemadir>    :Schema description directory (schema definitions)\n"
 			<< "\t<cmdfile>      :File with commands (<method> <script> <input>) to process\n"
 			<< "\t<expect>       :Expected output\n"
+			<< "\t<output>       :File path of the ouput written in case of an error\n"
 	<< std::endl;
 }
 
@@ -604,7 +614,7 @@ struct TestCommand
 	}
 };
 
-static void runTest( const std::string& scriptDir, const std::string& schemaDir, const std::string& cmdFile, const std::string& expectFile)
+static void runTest( const std::string& scriptDir, const std::string& schemaDir, const std::string& cmdFile, const std::string& expectFile, const std::string& outputFile)
 {
 	std::string expectSrc = readFile( expectFile);
 	std::string output;
@@ -629,7 +639,10 @@ static void runTest( const std::string& scriptDir, const std::string& schemaDir,
 				<< "EXPECT:\n" << expectSrc << "\n--\n"
 				<< std::endl;
 		}
-		throw std::runtime_error( "Different output than expected");
+		writeFile( outputFile, output);
+		char buf[2048];
+		std::snprintf( buf, sizeof(buf), "Different output than expected, see: %s %s", outputFile.c_str(), expectFile.c_str());
+		throw std::runtime_error( buf);
 	}
 	else if (g_verbose)
 	{
@@ -665,12 +678,12 @@ int main( int argc, const char* argv[])
 			}
 		}
 		int argn = argc - argi;
-		if (argn < 4)
+		if (argn < 5)
 		{
 			printUsage();
 			throw std::runtime_error( "Too few arguments");
 		}
-		else if (argn > 4)
+		else if (argn > 5)
 		{
 			printUsage();
 			throw std::runtime_error( "Too many arguments");
@@ -679,8 +692,9 @@ int main( int argc, const char* argv[])
 		std::string schemaDir  = argv[ argi+1];
 		std::string cmdFile  = argv[ argi+2];
 		std::string expectFile  = argv[ argi+3];
+		std::string outputFile  = argv[ argi+4];
 
-		runTest( scriptDir, schemaDir, cmdFile, expectFile);
+		runTest( scriptDir, schemaDir, cmdFile, expectFile, outputFile);
 
 		std::cerr << "OK" << std::endl;
 		return 0;

@@ -7,8 +7,9 @@ set( TESTDIR    "${PROJECT_SOURCE_DIR}/tests/luarequest" )
 set( SCHEMADIR  "${PROJECT_SOURCE_DIR}/tests/schema/schema" )
 set( SCRIPTDIR  "${TESTDIR}/scripts" )
 set( TESTBIN    "${CMAKE_CURRENT_BINARY_DIR}/src/testLuaRequest" )
+set( TESTOUT    "${CMAKE_CURRENT_BINARY_DIR}" )
 
 # Tests:
-add_test( PapugaLuaRequest_Analyze ${TESTBIN} ${SCRIPTDIR} ${SCHEMADIR} ${TESTDIR}/analyze/run.txt ${TESTDIR}/analyze/expect.txt )
-add_test( PapugaLuaRequest_DistCount ${TESTBIN} ${SCRIPTDIR} ${SCHEMADIR} ${TESTDIR}/distcount/run.txt ${TESTDIR}/distcount/expect.txt )
+add_test( PapugaLuaRequest_Analyze ${TESTBIN} ${SCRIPTDIR} ${SCHEMADIR} ${TESTDIR}/analyze/run.txt ${TESTDIR}/analyze/expect.txt ${TESTOUT}/analyze.txt)
+add_test( PapugaLuaRequest_DistCount ${TESTBIN} ${SCRIPTDIR} ${SCHEMADIR} ${TESTDIR}/distcount/run.txt ${TESTDIR}/distcount/expect.txt ${TESTOUT}/distcount.txt)
 

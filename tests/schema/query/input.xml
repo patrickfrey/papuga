@@ -14,11 +14,9 @@
 </feature>
 <restriction>
 <content>
-<condition>
 <op>&lt;=</op>
 <name>date</name>
 <value>20210901</value>
-</condition>
 </content>
 </restriction>
 </query>

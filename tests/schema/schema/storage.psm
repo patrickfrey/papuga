@@ -2,11 +2,13 @@ storageAddress = {
 	database = string
 }
 
-metadataChange = {
-	op = string,
-	name = string,
-	type = string,
-	oldname = string
+metadata = {
+	update = {{
+		op = string,
+		name = string,
+		type = string,
+		oldname = string
+	}}
 }
 
 storage = {

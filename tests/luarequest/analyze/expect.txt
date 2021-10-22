@@ -8,11 +8,9 @@
 		{"set": "term", "weight": 1.0, "content" : {"type":"word", "value":"Zurich"}}
 	],
 	"restriction" : {
-		"content" : {
-			"condition" : [
-				{"op": "<=", "name": "date", "value": "20210901"}
-			]
-		}
+		"content" : [
+			{"op": "<=", "name": "date", "value": "20210901"}
+		]
 	},
 	"termstats" : [
 		{"type": "word", "value": "i", "df": 98},
@@ -29,60 +27,58 @@
 
 {
 "query":{
-	"feature":[
-		{
-			"analyzed":{
-				"type": "word",
-				"value": "i"},
-			"content":{
-				"type": "word",
-				"value": "I"},
-			"set": "term",
-			"weight": 1},
-		{
-			"analyzed":{
-				"type": "word",
-				"value": "love"},
-			"content":{
-				"type": "word",
-				"value": "love"},
-			"set": "term",
-			"weight": 1},
-		{
-			"analyzed":{
-				"type": "word",
-				"value": "zurich"},
-			"content":{
-				"type": "word",
-				"value": "Zurich"},
-			"set": "term",
-			"weight": 1}],
-	"globalstats":{
-		"nofdocs": 100},
-	"mergeres": 0,
-	"minrank": 1,
-	"nofranks": 20,
-	"restriction":[
-		{
-			"content":{
-				"condition":[
-					{
-						"name": "date",
-						"op": "<=",
-						"value": "20210901"}]}}],
-	"termstats":[
-		{
-			"df": 98,
+"feature":[
+	{
+		"analyzed":{
 			"type": "word",
 			"value": "i"},
-		{
-			"df": 12,
+		"content":{
+			"type": "word",
+			"value": "I"},
+		"set": "term",
+		"weight": 1},
+	{
+		"analyzed":{
 			"type": "word",
 			"value": "love"},
-		{
-			"df": 3,
+		"content":{
 			"type": "word",
-			"value": "zurich"}]}}
+			"value": "love"},
+		"set": "term",
+		"weight": 1},
+	{
+		"analyzed":{
+			"type": "word",
+			"value": "zurich"},
+		"content":{
+			"type": "word",
+			"value": "Zurich"},
+		"set": "term",
+		"weight": 1}],
+"globalstats":{
+	"nofdocs": 100},
+"mergeres": 0,
+"minrank": 1,
+"nofranks": 20,
+"restriction":{
+	"content":[
+		{
+			"name": "date",
+			"op": "<=",
+			"value": "20210901"}]},
+"termstats":[
+	{
+		"df": 98,
+		"type": "word",
+		"value": "i"},
+	{
+		"df": 12,
+		"type": "word",
+		"value": "love"},
+	{
+		"df": 3,
+		"type": "word",
+		"value": "zurich"}]}}
 
 -- CONTEXT
 analyzer/analyzer:

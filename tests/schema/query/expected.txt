@@ -27,20 +27,15 @@ open
     close
     name restriction
     open
+      name content
       open
-	name content
 	open
-	  name condition
-	  open
-	    open
-	      name name
-	      value "date"
-	      name op
-	      value "<="
-	      name value
-	      value "20210901"
-	    close
-	  close
+	  name name
+	  value "date"
+	  name op
+	  value "<="
+	  name value
+	  value "20210901"
 	close
       close
     close
