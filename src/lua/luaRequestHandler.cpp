@@ -32,7 +32,7 @@ extern "C" {
 #include <lualib.h>
 }
 
-struct UserDataDocument 
+struct UserDataDocument
 {
 	const char* contentstr;
 	size_t contentlen;
@@ -227,7 +227,7 @@ extern "C" papuga_LuaRequestHandlerScript* papuga_create_LuaRequestHandlerScript
 	papuga_ErrorBuffer* errbuf)
 {
 	lua_State* ls = luaL_newstate();
-	if (!ls) 
+	if (!ls)
 	{
 		papuga_ErrorBuffer_reportError( errbuf, "failed to create lua state");
 		return nullptr;
@@ -532,14 +532,14 @@ struct papuga_LuaRequestHandler
 		{
 			throw std::logic_error("No panic function context found");
 		}
-		longjmp( reqhnd->m_jump_buffer_LuaRequestHandler_init, 1); 
+		longjmp( reqhnd->m_jump_buffer_LuaRequestHandler_init, 1);
 		return 0;
 	}
 
 	papuga_LuaRequestHandler(
 			papuga_LuaInitProc* initproc,
 			papuga_RequestContextPool* handler_,
-			papuga_RequestContext* context_, 
+			papuga_RequestContext* context_,
 			const char* contextName_,
 			papuga_TransactionHandler* transactionHandler_,
 			papuga_Logger* logger_,
@@ -672,7 +672,7 @@ struct papuga_LuaRequestHandler
 		return lua_resume( m_thread, nullptr, nof_args);
 #else
 		return lua_resume( m_thread, nullptr, nof_args, &nresults);
-#endif				
+#endif
 	}
 
 	bool run( papuga_ErrorBuffer* errbuf)
@@ -1051,7 +1051,7 @@ static int papuga_lua_request_result( lua_State* ls)
 		int allocatormem[ 4096];
 		papuga_Allocator allocator;
 		papuga_Serialization resultser;
-		papuga_ValueVariant resultval; 
+		papuga_ValueVariant resultval;
 
 		papuga_init_Allocator( &allocator, allocatormem, sizeof(allocatormem));
 		papuga_init_Serialization( &resultser, &allocator);
@@ -1158,7 +1158,7 @@ static int papuga_lua_context_get( lua_State* ls)
 			}
 		}
 	}
-	catch (...) { lippincottFunction( ls); }	
+	catch (...) { lippincottFunction( ls); }
 	return 0;
 }
 
@@ -1196,7 +1196,7 @@ static int papuga_lua_context_set( lua_State* ls)
 			}
 		}
 	}
-	catch (...) { lippincottFunction( ls); }	
+	catch (...) { lippincottFunction( ls); }
 	return 0;
 }
 
@@ -1227,7 +1227,7 @@ static int papuga_lua_context_inherit( lua_State* ls)
 		}
 		return 0;
 	}
-	catch (...) { lippincottFunction( ls); }	
+	catch (...) { lippincottFunction( ls); }
 	return 0;
 }
 
@@ -1300,7 +1300,7 @@ static int papuga_lua_send( lua_State* ls)
 	try
 	{
 		int nn = lua_gettop( ls);
-		if (nn != 3)
+		if (nn < 2 || nn > 3)
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( papuga_NofArgsError));
 		}
@@ -1313,7 +1313,7 @@ static int papuga_lua_send( lua_State* ls)
 
 		const char* requestmethod = lua_tostring( ls, 1);
 		const char* requesturl = lua_tostring( ls, 2);
-		if (!papuga_lua_value( ls, &value, &reqhnd->m_allocator, 3, &errcode))
+		if (nn == 3 && !papuga_lua_value( ls, &value, &reqhnd->m_allocator, 3, &errcode))
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( errcode));
 		}
@@ -1338,7 +1338,7 @@ static int lua_new_document( lua_State* ls, papuga_ContentType doctype_, papuga_
 
 static int papuga_lua_document_tostring( lua_State* ls)
 {
-	const UserDataDocument* ud = (UserDataDocument*)lua_touserdata(ls, 1);	
+	const UserDataDocument* ud = (UserDataDocument*)lua_touserdata(ls, 1);
 	lua_pushlstring( ls, ud->contentstr, ud->contentlen);
 	return 1;
 }
@@ -1347,7 +1347,7 @@ static int papuga_lua_document( lua_State* ls)
 {
 	const char* rootname = nullptr;
 	const char* elemname = nullptr;
-	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
 	int nn = lua_gettop( ls);
 	if (nn != 3)
 	{
@@ -1414,7 +1414,7 @@ static int papuga_lua_document( lua_State* ls)
 
 static int papuga_lua_log( lua_State* ls)
 {
-	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
 	int nn = lua_gettop( ls);
 	if (!reqhnd->m_logger.log)
 	{
@@ -1461,7 +1461,7 @@ static int papuga_lua_log( lua_State* ls)
 
 static int papuga_lua_transaction( lua_State* ls)
 {
-	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
 	int nn = lua_gettop( ls);
 	if (!reqhnd->m_transactionHandler.create)
 	{
@@ -1511,7 +1511,7 @@ static int papuga_lua_transaction( lua_State* ls)
 
 static int papuga_lua_counter( lua_State* ls)
 {
-	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
 	int nn = lua_gettop( ls);
 	if (!reqhnd->m_transactionHandler.counter)
 	{
@@ -1537,7 +1537,7 @@ static int papuga_lua_counter( lua_State* ls)
 
 static int papuga_lua_link( lua_State* ls)
 {
-	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
 	int nn = lua_gettop( ls);
 	if (nn != 1)
 	{
@@ -1745,7 +1745,7 @@ static int papuga_lua_encoding( lua_State* ls)
 
 static int papuga_lua_content( lua_State* ls)
 {
-	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
 
 	int nn = lua_gettop( ls);
 	if (nn != 1)
@@ -1778,7 +1778,7 @@ static int papuga_lua_content( lua_State* ls)
 
 static int papuga_lua_schema( lua_State* ls)
 {
-	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));	
+	papuga_LuaRequestHandler* reqhnd = (papuga_LuaRequestHandler*)lua_touserdata(ls, lua_upvalueindex(1));
 	const papuga_SchemaMap* schemamap = (papuga_SchemaMap*)lua_touserdata(ls, lua_upvalueindex(2));
 	if (!schemamap || !reqhnd)
 	{
@@ -1835,7 +1835,7 @@ static int papuga_lua_schema( lua_State* ls)
 			lua_schema_error( ls, schemaerr);
 		}
 		bool serr = papuga_lua_push_serialization( ls, &contentser, &errcode);
-		papuga_destroy_Allocator( &allocator);		
+		papuga_destroy_Allocator( &allocator);
 		if (!serr)
 		{
 			luaL_error( ls, papuga_ErrorCode_tostring( errcode));
