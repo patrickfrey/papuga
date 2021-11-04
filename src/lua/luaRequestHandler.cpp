@@ -795,7 +795,12 @@ struct papuga_LuaRequestHandler
 		req->errmsg = nullptr;
 		req->resultstr = nullptr;
 		req->resultlen = 0;
-		if (content->valuetype == papuga_TypeString)
+		if (!papuga_ValueVariant_defined( content))
+		{
+			req->contentstr = "";
+			req->contentlen = 0;
+		}
+		else if (content->valuetype == papuga_TypeString)
 		{
 			req->contentstr = content->value.string;
 			req->contentlen = content->length;
@@ -1057,16 +1062,23 @@ static int papuga_lua_request_result( lua_State* ls)
 		papuga_init_Serialization( &resultser, &allocator);
 		papuga_ErrorCode errcode = papuga_Ok;
 
-		if (!papuga_Serialization_append_json( &resultser, req->resultstr, req->resultlen, papuga_UTF8, true/*with root*/, &errcode))
+		if (req->resultlen)
 		{
-			papuga_destroy_Allocator( &allocator);
-			luaL_error( ls, papuga_ErrorCode_tostring( errcode));
+			if (!papuga_Serialization_append_json( &resultser, req->resultstr, req->resultlen, papuga_UTF8, true/*with root*/, &errcode))
+			{
+				papuga_destroy_Allocator( &allocator);
+				luaL_error( ls, papuga_ErrorCode_tostring( errcode));
+			}
+			papuga_init_ValueVariant_serialization( &resultval, &resultser);
+			if (!papuga_lua_push_value( ls, &resultval, &errcode))
+			{
+				papuga_destroy_Allocator( &allocator);
+				luaL_error( ls, papuga_ErrorCode_tostring( errcode));
+			}
 		}
-		papuga_init_ValueVariant_serialization( &resultval, &resultser);
-		if (!papuga_lua_push_value( ls, &resultval, &errcode))
+		else
 		{
-			papuga_destroy_Allocator( &allocator);
-			luaL_error( ls, papuga_ErrorCode_tostring( errcode));
+			lua_pushnil( ls);
 		}
 		return 1;
 	}
@@ -1313,9 +1325,16 @@ static int papuga_lua_send( lua_State* ls)
 
 		const char* requestmethod = lua_tostring( ls, 1);
 		const char* requesturl = lua_tostring( ls, 2);
-		if (nn == 3 && !papuga_lua_value( ls, &value, &reqhnd->m_allocator, 3, &errcode))
+		if (nn == 3)
 		{
-			luaL_error( ls, papuga_ErrorCode_tostring( errcode));
+			if (!papuga_lua_value( ls, &value, &reqhnd->m_allocator, 3, &errcode))
+			{
+				luaL_error( ls, papuga_ErrorCode_tostring( errcode));
+			}
+		}
+		else
+		{
+			papuga_init_ValueVariant( &value);
 		}
 		papuga_DelegateRequest* req = reqhnd->send( requestmethod, requesturl, &value);
 		return papuga_lua_new_request( ls, req);
