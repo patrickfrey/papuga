@@ -596,6 +596,7 @@ extern "C" bool papuga_RequestContextPool_transfer_context( papuga_RequestContex
 	}
 	catch (...)
 	{
+		papuga_destroy_RequestContext( context);
 		*errcode = papuga_NoMemError;
 		return false;
 	}
