@@ -35,7 +35,7 @@ const char* papuga_ErrorCode_tostring( papuga_ErrorCode errorcode)
 		case papuga_NotImplemented: return _TXT("not implemented");
 		case papuga_ValueUndefined: return _TXT("value is undefined");
 		case papuga_MixedConstruction: return _TXT("incompatible elements starting with one type and shifting to another type of structure");
-		case papuga_DuplicateDefinition: return _TXT("duplicate definition of unique key");
+		case papuga_DuplicateDefinition: return _TXT("duplicate definition");
 		case papuga_SyntaxError: return _TXT("syntax error");
 		case papuga_UncaughtException: return _TXT("uncaught exception");
 		case papuga_ExecutionOrder: return _TXT("violated a required order of execution");
